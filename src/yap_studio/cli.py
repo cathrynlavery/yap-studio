@@ -533,7 +533,7 @@ def _review(args: argparse.Namespace) -> int:
         _review_error(exc, json_output=args.json)
         return 2
     if args.detach:
-        return detach.start(args)
+        return detach.start(args, newest_sha=videos[0].sha256 if args.versions else None)
     if args.port is None:
         args.port = 0
     first = videos[0]

@@ -81,8 +81,9 @@ out the um after your opening line. Kept the doubled you at 0:07, because cuttin
 sound."`. For the final, say what it adds and anything you left out and why.
 
 Each review below uses `--detach`, so the command prints its JSON and returns while the page
-keeps serving. Do not run it as a background task. A new review of DIR replaces the earlier
-page. Read `phone.url` and `phone.via` from its JSON output. Say "Same Wi-Fi only" for `wifi` or
+keeps serving. Do not run it as a background task. An unchanged version review with the same
+options reuses the live page. A changed review of DIR replaces the earlier page.
+Read `phone.url` and `phone.via` from its JSON output. Say "Same Wi-Fi only" for `wifi` or
 "Anywhere on your tailnet" for `tailscale`. End your reply with the `phone.url` link. When Yap
 Studio home is open, it shows a Watch button for the review on its own, so say the review is ready
 there. Keep `yap-studio home wait --workspace . --json` running as a background task while you
@@ -366,6 +367,8 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    until `run.state` is no longer `running`. Each call returns within 9 minutes.
    Then read `run.result`: `status`, `stopped` (its
    `step`, `message`, and `suggested_action`), `final`, `version`, and `warnings`.
+   A finished detached run opens a review page and returns its links or a recovery command
+   in `run.result.review`.
    Read `run.result.words`. Tell the creator every word in `words.dropped` with its time and why.
    Never say all their words are still there unless `words.status` is `pass` and
    `words.dropped` is empty. If the run stopped with `words_dropped`, follow its fix. It runs every
@@ -379,7 +382,7 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    caption, tell the creator the time and offer `yap-studio captions DIR --back box`.
    If `warnings` name a word heard with no caption, or a caption that is not heard, tell the
    creator the word and the time, and do not say every word is captioned.
-7. Review the final. `run` saved the final as version vM. Run
+7. Review the final on Yap Studio home, or get a phone link with
    `yap-studio review --versions DIR --phone --json --detach`. The final joins the cut's versions,
    so earlier comments carry over. Stop for the creator's review. Apply notes as in step 4,
    then run `yap-studio cut DIR`. Repeat step 5 and run

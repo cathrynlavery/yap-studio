@@ -28,6 +28,9 @@ const el = {
   textHook: $('text-hook-panel'),
   name: $('media-name'), facts: $('media-facts'), status: $('status'),
   video: $('video'), codecError: $('codec-error'), scrubber: $('scrubber'),
+  playerMessage: $('player-message'), playerRetry: $('player-retry'),
+  offlinePlayer: $('offline-player'), offlinePlayerMessage: $('offline-player-message'),
+  offlinePlayerRetry: $('offline-player-retry'),
   videoMap: $('video-map'), videoMapToggle: $('video-map-toggle'),
   videoMapLanes: $('video-map-lanes'), videoMapPlayhead: $('video-map-playhead'),
   pinLayer: $('pin-layer'), pinMarker: $('pin-marker'),
@@ -111,6 +114,17 @@ let refreshTimer = null;
 let roundBusy = false;
 let releaseBusy = false;
 let offline = false;
+const MEDIA_METADATA_DEADLINE_MS = 10000;
+const MEDIA_FIRST_FRAME_DEADLINE_MS = 15000;
+const MEDIA_REACHABILITY_DEADLINE_MS = 3000;
+let playerGeneration = 0;
+let metadataTimer = null;
+let firstFrameTimer = null;
+let playerResumeTime = null;
+let playerNetworkRetried = false;
+let playerMessage = '';
+let playerRecoveryPending = false;
+let playerMetadataLoaded = false;
 let answerBusy = false;
 let activeWrites = 0;
 const addedFindings = new Map();
@@ -204,6 +218,7 @@ function setOffline(value) {
   offline = value;
   renderPin();
   el.offline.hidden = !offline;
+  renderPlayerRecovery();
   if (!offline) showStatus('');
   el.newComment.disabled = offline || !review || Boolean(review.media_changed);
   updateComposeSubmit();
@@ -214,6 +229,81 @@ function setOffline(value) {
     updateTasteControls();
   }
   schedulePoll();
+}
+
+function renderPlayerRecovery() {
+  el.playerMessage.textContent = playerMessage;
+  el.offlinePlayerMessage.textContent = playerMessage;
+  el.codecError.hidden = !playerMessage || offline;
+  el.offlinePlayer.hidden = !playerMessage;
+}
+
+function clearPlayerDeadlines() {
+  clearTimeout(metadataTimer);
+  clearTimeout(firstFrameTimer);
+}
+
+function beginPlayerLoad(time = null, resetNetworkRetry = true) {
+  clearPlayerDeadlines();
+  playerGeneration += 1;
+  playerRecoveryPending = false;
+  playerMetadataLoaded = false;
+  playerResumeTime = time;
+  if (resetNetworkRetry) {
+    playerNetworkRetried = false;
+    playerMessage = '';
+  }
+  renderPlayerRecovery();
+  metadataTimer = setTimeout(() => recoverPlayer('metadata'), MEDIA_METADATA_DEADLINE_MS);
+  firstFrameTimer = setTimeout(() => recoverPlayer('frame'), MEDIA_FIRST_FRAME_DEADLINE_MS);
+}
+
+function retryPlayer(automatic = false) {
+  const time = el.video.readyState === 0 && playerResumeTime !== null
+    ? playerResumeTime : el.video.currentTime;
+  beginPlayerLoad(Number.isFinite(time) ? time : 0, !automatic);
+  el.video.load();
+}
+
+async function recoverPlayer(reason) {
+  if (playerRecoveryPending) return;
+  playerRecoveryPending = true;
+  if (reason === 'error') clearPlayerDeadlines();
+  const generation = playerGeneration;
+  const code = el.video.error?.code;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MEDIA_REACHABILITY_DEADLINE_MS);
+  let fresh;
+  let unreachable = false;
+  try {
+    fresh = await api(versionUrl('api/review', selectedVersion), {signal: controller.signal});
+  } catch {
+    unreachable = offline;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (generation !== playerGeneration) return;
+  playerRecoveryPending = false;
+  if (reason === 'metadata' && playerMetadataLoaded) return;
+  if (fresh?.media_changed) {
+    renderReview(fresh);
+    playerMessage = 'The file is still being written or has changed. Wait, then retry.';
+  } else if (unreachable) {
+    playerMessage = 'The video could not reach the Mac. Check the connection, then retry.';
+  } else if (code === 3 || code === 4) {
+    playerMessage = 'This browser cannot play this file. Retry, or try another browser.';
+  } else if (code === 2) {
+    playerMessage = 'The video could not load from the Mac. Check the connection, then retry.';
+  } else {
+    playerMessage = reason === 'frame'
+      ? 'The first frame has not loaded. The video load stalled. Retry to load it again.'
+      : 'The video load stalled before its details arrived. Retry to load it again.';
+  }
+  renderPlayerRecovery();
+  if (!fresh?.media_changed && (code === 2 || unreachable) && !playerNetworkRetried) {
+    playerNetworkRetried = true;
+    retryPlayer(true);
+  }
 }
 
 function duration() {
@@ -2126,7 +2216,7 @@ function renderReview(fresh, preserveStatus = false) {
     el.compose.hidden = true;
     el.composeText.value = '';
     displayedTime = 0;
-    el.codecError.hidden = true;
+    beginPlayerLoad();
     el.video.src = versionUrl('media', selectedVersion, token);
   }
   if (!preserveStatus || fresh.media_changed) showStatus('');
@@ -2532,23 +2622,27 @@ function wireEvents() {
     renderPin();
   });
   el.video.addEventListener('loadedmetadata', () => {
+    playerMetadataLoaded = true;
+    clearTimeout(metadataTimer);
+    if (playerResumeTime !== null) {
+      el.video.currentTime = Math.min(playerResumeTime, duration() ?? playerResumeTime);
+      playerResumeTime = null;
+    }
     fitVideo(el.video);
     renderHeader();
     renderMarkers();
     updateTimeline();
   });
-  el.video.addEventListener('error', async () => {
-    try {
-      await loadReview();
-    } catch { /* Show the codec message when the review cannot be refreshed. */ }
-    if (review?.media_changed) {
-      el.codecError.hidden = true;
-      showStatus(mediaChangedMessage);
-      return;
-    }
-    el.codecError.textContent = `This browser can't play this file (codec: ${review?.media.codec || 'unknown'}). Try another browser, or export an H.264 MP4.`;
-    el.codecError.hidden = false;
+  el.video.addEventListener('loadeddata', () => {
+    clearPlayerDeadlines();
+    playerGeneration += 1;
+    playerRecoveryPending = false;
+    playerMessage = '';
+    renderPlayerRecovery();
   });
+  el.video.addEventListener('error', () => recoverPlayer('error'));
+  el.playerRetry.addEventListener('click', () => retryPlayer());
+  el.offlinePlayerRetry.addEventListener('click', () => retryPlayer());
   if ('requestVideoFrameCallback' in el.video) {
     const framePresented = (_now, metadata) => {
       setDisplayedTime(metadata.mediaTime);

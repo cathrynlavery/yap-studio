@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shlex
+import subprocess
 import sys
 import webbrowser
 from pathlib import Path
+from urllib.error import URLError
+from urllib.parse import urlsplit
+from urllib.request import urlopen
 
 from yap_studio import background
 from yap_studio.review.phone import link_label
@@ -75,29 +81,58 @@ def _restore(stopped: list[dict], *, json_output: bool) -> None:
                 print(f"kept the earlier review at {_url(saved)}", file=sys.stderr)
 
 
-def start(args: argparse.Namespace) -> int:
-    """Spawn a review and return when its links are ready."""
-    media = [str(Path(value).resolve()) for value in args.media]
-    stopped: list[dict] = []
-    for path in background.records("review"):
-        previous = background.read_record(path)
-        if previous is None:
-            background.remove_record(path)
-        elif previous.get("media") == media and previous.get("versions") == args.versions:
-            signaled, done = background.stop_record(path, previous)
-            if done is None:
-                background.error(f"could not check review process {previous['pid']}; try again",
-                                 "review_check_failed", json_output=args.json)
-                _restore(stopped, json_output=args.json)
-                return 2
-            if signaled and not done:
-                background.error(f"review process {previous['pid']} did not stop; try again",
-                                 "review_stop_failed", json_output=args.json)
-                _restore(stopped, json_output=args.json)
-                return 2
-            if signaled:
-                stopped.append(previous)
+def ensure_versions(project_dir: Path) -> dict:
+    """Use the detached review command to deliver the newest saved version."""
+    command = f"yap-studio review --versions {shlex.quote(str(project_dir))} --phone --detach"
+    try:
+        result = subprocess.run(
+            # Same options as the agent's review command, so its later call reuses this page.
+            [sys.executable, "-m", "yap_studio", "review", "--versions", str(project_dir),
+             "--phone", "--detach", "--no-open", "--json"],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=90, check=False,
+        )
+        if result.returncode == 0:
+            return {"status": "ready", "links": json.loads(result.stdout)}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    return {"status": "failed", "message": "The review page did not start. The final is saved.",
+            "command": command}
 
+
+def start(args: argparse.Namespace, *, newest_sha: str | None = None) -> int:
+    """Serialize review launches so concurrent callers cannot start duplicates."""
+    import fcntl
+
+    folder = background.directory()
+    folder.mkdir(parents=True, mode=0o700, exist_ok=True)
+    fd = os.open(folder / "review-launch.lock", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as lock:
+        os.fchmod(lock.fileno(), 0o600)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _start(args, newest_sha=newest_sha)
+
+
+def _reusable(path: Path, saved: dict, command: list[str], newest_sha: str | None) -> bool:
+    if newest_sha is None or saved.get("command") != command:
+        return False
+    videos = saved.get("document", {}).get("videos", [])
+    if len(videos) != 1 or videos[0].get("sha256") != newest_sha:
+        return False
+    if background.command_matches(saved.get("pid"), path) is not True:
+        return False
+    url = urlsplit(videos[0].get("local_url") or videos[0]["url"])
+    api = url._replace(path=url.path.rstrip("/") + "/api/review").geturl()
+    try:
+        with urlopen(api, timeout=3) as response:
+            payload = json.load(response)
+        return payload["media"]["sha256"] == newest_sha and not payload["media_changed"]
+    except (OSError, URLError, ValueError, KeyError):
+        return False
+
+
+def _start(args: argparse.Namespace, *, newest_sha: str | None) -> int:
+    """Reuse a matching live version page or spawn one and wait for its links."""
+    media = [str(Path(value).resolve()) for value in args.media]
     command = [sys.executable, "-m", "yap_studio", "review", *media]
     if args.versions:
         command.append("--versions")
@@ -112,6 +147,28 @@ def start(args: argparse.Namespace) -> int:
     if args.phone:
         command.append("--phone")
     command.extend(("--json", "--no-open"))
+    stopped: list[dict] = []
+    for path in background.records("review"):
+        previous = background.read_record(path)
+        if previous is None:
+            background.remove_record(path)
+        elif previous.get("media") == media and previous.get("versions") == args.versions:
+            if args.versions and _reusable(path, previous, command, newest_sha):
+                return _show(previous, args)
+            signaled, done = background.stop_record(path, previous)
+            if done is None:
+                background.error(f"could not check review process {previous['pid']}; try again",
+                                 "review_check_failed", json_output=args.json)
+                _restore(stopped, json_output=args.json)
+                return 2
+            if signaled and not done:
+                background.error(f"review process {previous['pid']} did not stop; try again",
+                                 "review_stop_failed", json_output=args.json)
+                _restore(stopped, json_output=args.json)
+                return 2
+            if signaled:
+                stopped.append(previous)
+
     try:
         child, record, log = background.spawn_record(command, kind="review")
     except OSError as exc:
@@ -132,6 +189,11 @@ def start(args: argparse.Namespace) -> int:
             printed_document = None
         if line and printed_document != document:
             background.relay_child_line(line, json_output=args.json)
+    return _show(saved, args)
+
+
+def _show(saved: dict, args: argparse.Namespace) -> int:
+    document = saved["document"]
     if args.json:
         print(json.dumps({**document, "detached": {
             "pid": saved["pid"], "stop": "yap-studio review --stop",

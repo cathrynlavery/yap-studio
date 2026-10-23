@@ -46,6 +46,7 @@ def test_review_pin_phone_and_desktop(tmp_path: Path) -> None:
         assert result.returncode == 0, result.stdout + result.stderr
         results = json.loads(result_file.read_text())
         assert [item["mobile"] for item in results] == [True, False]
+        assert all(item["stall"] and item["retry"] for item in results)
         comments = {comment.id: comment for comment in store.comments(digest)}
         assert len(comments) == 2
         for item in results:

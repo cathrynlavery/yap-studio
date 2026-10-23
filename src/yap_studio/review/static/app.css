@@ -183,6 +183,7 @@ video { display: block; width: auto; max-width: 100%; height: min(72vh, 860px); 
 .pin-line { flex: 1 1 160px; }
 .pin-text { margin-top: 10px; }
 .codec-error { position: absolute; inset: auto 12px 12px; margin: 0; padding: 12px; border-radius: 8px; background: var(--error-bg); color: var(--error); }
+.codec-error button, .offline-banner button { min-height: 44px; margin-top: 8px; }
 .scrubber { position: relative; height: calc(30px + var(--lane-height, 0px) + var(--finding-height, 0px)); margin-top: 15px; touch-action: none; cursor: pointer; }
 .scrubber-track { position: absolute; top: calc(12px + var(--finding-height, 0px)); left: 0; right: 0; height: 6px; border-radius: 4px; background: #d6d6d0; }
 .ranges { position: absolute; top: calc(32px + var(--finding-height, 0px)); left: 0; right: 0; height: var(--lane-height, 0px); pointer-events: none; }

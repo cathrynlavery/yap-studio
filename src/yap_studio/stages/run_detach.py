@@ -154,6 +154,12 @@ def child(args: argparse.Namespace) -> int:
             save()
             result = run(root, note=args.note, allow_violations=args.allow_violations,
                          frames=args.frames, on_step=on_step)
+            if result["status"] == "finished" and result.get("version") and not result.get("pilot"):
+                from yap_studio.review.detach import ensure_versions
+
+                result["review"] = ensure_versions(root)
+                if result["review"]["status"] == "failed":
+                    result["next"] = result["review"]["command"]
             state.update(state=result["status"], result=result)
             return result["stopped"]["exit"] if result["stopped"] else 0
         except KeyboardInterrupt:
@@ -380,6 +386,12 @@ def status_lines(run: dict) -> list[str]:
             from yap_studio.checks.kept_words import words_summary
 
             lines.append(f"words: {words_summary(result['words'])}")
+        review = result.get("review") or {}
+        if review.get("status") == "failed":
+            lines.extend((review["message"], f"next: {review['command']}"))
+        elif review.get("status") == "ready":
+            for video in review["links"].get("videos", []):
+                lines.append(f"review: {video['url']}")
         return lines
     if state == "stopped":
         stopped = result.get("stopped") or {}

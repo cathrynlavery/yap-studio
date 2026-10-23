@@ -292,6 +292,7 @@ async function pageFixture() {
     location: new URL('http://review.test/v/2/?t=token&version=1'),
     history: {replaceState() {}}, document, window: {addEventListener() {}},
     setInterval() { return 1; }, clearInterval() {},
+    setTimeout() {}, clearTimeout() {},
     fetch: async (path, options) => {
       requests.push({path, options});
       if (!state.network) throw new Error('Network unavailable');

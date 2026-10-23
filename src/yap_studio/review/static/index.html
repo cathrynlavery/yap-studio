@@ -40,7 +40,10 @@
     </section>
 
     <p id="status" class="status" role="status" aria-live="polite"></p>
-    <p id="offline-banner" class="offline-banner" role="status" aria-live="polite" hidden>The review server is not reachable. Your notes are saved; this page reconnects when it is back.</p>
+    <div id="offline-banner" class="offline-banner" role="status" aria-live="polite" hidden>
+      The review server is not reachable. Your notes are saved; this page reconnects when it is back.
+      <div id="offline-player" hidden><span id="offline-player-message"></span> <button id="offline-player-retry" type="button">Retry</button></div>
+    </div>
 
     <nav id="version-bar" class="version-bar" hidden aria-label="Review versions">
       <strong>Versions</strong>
@@ -52,11 +55,11 @@
       <div id="players" class="players">
       <section class="player-panel" aria-label="Video player">
         <div class="video-wrap">
-          <video id="video" playsinline preload="metadata" aria-label="Review video"></video>
+          <video id="video" playsinline preload="auto" aria-label="Review video"></video>
           <div id="pin-layer" class="pin-layer" hidden>
             <button id="pin-marker" class="pin-marker" type="button" aria-label="Pinned spot. Drag or use the arrow keys to move it."></button>
           </div>
-          <p id="codec-error" class="codec-error" hidden></p>
+          <div id="codec-error" class="codec-error" role="status" aria-live="polite" hidden><span id="player-message"></span> <button id="player-retry" type="button">Retry</button></div>
         </div>
 
         <div class="review-axis">

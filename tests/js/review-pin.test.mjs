@@ -89,6 +89,7 @@ async function pinPage({cfr = true, project = true, available = true, captions =
     releasePointerCapture() { this.capture = null; }
     pause() { if (!this.paused) { this.paused = true; void this.emit('pause'); } }
     play() { this.paused = false; return this.emit('play'); }
+    load() { this.loads = (this.loads ?? 0) + 1; this.currentTime = 0; this.readyState = 0; }
   }
   const elements = new Map();
   const element = (id) => {
@@ -113,12 +114,19 @@ async function pinPage({cfr = true, project = true, available = true, captions =
   element('caption-fix').hidden = true;
   const state = {comments: [], available, words, fail: false, failWords: false, gate: null};
   const requests = [];
-  const context = vm.createContext({...helpers, URLSearchParams, Element: Node, document,
+  const timers = new Map();
+  let clock = 0;
+  let timerId = 0;
+  const context = vm.createContext({...helpers, URLSearchParams, AbortController, Element: Node, document,
     performance: {now: () => 0},
     location: new URL('http://review.example.net/?t=token&version=2'), history: {replaceState() {}},
-    window: {addEventListener() {}}, setInterval() {}, clearInterval() {}, setTimeout() {}, clearTimeout() {}, requestAnimationFrame(fn) { fn(); return 1; },
+    window: {addEventListener() {}}, setInterval() {}, clearInterval() {},
+    setTimeout(fn, delay) { timers.set(++timerId, {fn, at: clock + delay}); return timerId; },
+    clearTimeout(id) { timers.delete(id); }, requestAnimationFrame(fn) { fn(); return 1; },
     fetch: async (path, options) => {
       requests.push({path, options});
+      if (state.unreachable) throw new TypeError('Network unavailable');
+      if (state.readGate && path.startsWith('api/review')) await state.readGate;
       const url = new URL(path, 'http://review.example.net/');
       const version = Number(url.searchParams.get('version') || 2);
       const reply = (data, status = 200) => ({ok: status < 400, status, json: async () => structuredClone(data)});
@@ -148,7 +156,7 @@ async function pinPage({cfr = true, project = true, available = true, captions =
       if (path.startsWith('api/removed')) return reply({available: true, version, ranges: []});
       if (path.startsWith('api/map')) return reply({status: 'exact', frame: 60, time_s: 2, candidates: []});
       return reply({media: {name: 'render.mp4', sha256: `hash${version}`, duration_s: 10, cfr, fps: '30/1'},
-        comments: state.comments, previous: null, text: '', media_changed: false,
+        comments: state.comments, previous: null, text: '', media_changed: state.writing ?? false,
         series: project ? {project: true, current: version, newest: 2, threads: [], questions: [],
           rounds: [], versions: [{number: 1}, {number: 2}]} : null});
     }});
@@ -160,8 +168,113 @@ async function pinPage({cfr = true, project = true, available = true, captions =
   const click = (id) => element(id).emit('click');
   const mark = async () => { await at(1.01); await click('mark-start'); await at(2.01); await click('mark-end'); };
   const evaluate = (code) => vm.runInContext(code, context);
-  return {page: context.page, element, state, requests, at, click, mark, evaluate, document};
+  const tick = async (ms) => {
+    clock += ms;
+    for (const [id, timer] of [...timers]) {
+      if (timer.at <= clock && timers.delete(id)) await timer.fn();
+    }
+  };
+  return {page: context.page, element, state, requests, at, click, mark, evaluate, document, tick};
 }
+
+test('metadata and first frame have separate deadlines and clear after a frame loads', async () => {
+  const page = await pinPage();
+  await page.tick(9999);
+  assert.equal(page.element('codec-error').hidden, true);
+  await page.tick(1);
+  assert.match(page.element('player-message').textContent, /load stalled/u);
+  assert.equal(page.element('codec-error').hidden, false);
+  await page.click('player-retry');
+  await page.element('video').emit('loadedmetadata');
+  await page.tick(10000);
+  assert.equal(page.element('codec-error').hidden, true);
+  await page.tick(5000);
+  assert.match(page.element('player-message').textContent, /first frame/u);
+  await page.element('video').emit('loadeddata');
+  assert.equal(page.element('codec-error').hidden, true);
+  await page.tick(30000);
+  assert.equal(page.element('codec-error').hidden, true);
+});
+
+test('Retry reloads the source and seeks to the same time when metadata returns', async () => {
+  const page = await pinPage();
+  const video = page.element('video');
+  video.currentTime = 4.25;
+  video.error = {code: 3};
+  await video.emit('error');
+  assert.match(page.element('player-message').textContent, /browser cannot play/u);
+  const source = video.src;
+  await page.click('player-retry');
+  assert.equal(video.loads, 1);
+  assert.equal(video.src, source);
+  await video.emit('loadedmetadata');
+  assert.equal(video.currentTime, 4.25);
+});
+
+test('network errors retry once and use one offline banner with Retry', async () => {
+  const page = await pinPage();
+  const video = page.element('video');
+  page.state.unreachable = true;
+  video.currentTime = 2.5;
+  video.error = {code: 2};
+  await video.emit('error');
+  assert.equal(video.loads, 1);
+  assert.equal(page.element('offline-player').hidden, false);
+  assert.match(page.element('offline-player-message').textContent, /could not reach the Mac/u);
+  await video.emit('error');
+  assert.equal(video.loads, 1);
+  assert.equal(page.element('offline-banner').hidden, false);
+  assert.equal(page.element('codec-error').hidden, true);
+  assert.match(page.element('offline-player-message').textContent, /could not reach the Mac/u);
+  page.state.unreachable = false;
+  await page.click('offline-player-retry');
+  assert.equal(video.loads, 2);
+  await video.emit('loadedmetadata');
+  assert.equal(video.currentTime, 2.5);
+  await video.emit('loadeddata');
+  assert.equal(page.element('codec-error').hidden, true);
+});
+
+test('changed media reports a file still being written and does not retry automatically', async () => {
+  const page = await pinPage();
+  page.state.writing = true;
+  page.element('video').error = {code: 4};
+  await page.element('video').emit('error');
+  assert.match(page.element('player-message').textContent, /file is still being written/u);
+  assert.equal(page.element('video').loads, undefined);
+});
+
+test('version changes cancel old deadlines and ignore an old recovery response', async () => {
+  const page = await pinPage();
+  await page.tick(5000);
+  await page.page.selectVersion(1);
+  await page.tick(5000);
+  assert.equal(page.element('codec-error').hidden, true);
+  await page.element('video').emit('loadedmetadata');
+  await page.element('video').emit('loadeddata');
+  await page.tick(20000);
+  assert.equal(page.element('codec-error').hidden, true);
+});
+
+test('late metadata keeps the first frame deadline and stale errors cannot cover a new version', async () => {
+  const page = await pinPage();
+  let release;
+  page.state.readGate = new Promise((resolve) => { release = resolve; });
+  const pending = page.tick(10000);
+  await page.element('video').emit('loadedmetadata');
+  release();
+  await pending;
+  assert.equal(page.element('codec-error').hidden, true);
+  await page.tick(5000);
+  assert.match(page.element('player-message').textContent, /first frame/u);
+  page.state.readGate = new Promise((resolve) => { release = resolve; });
+  const oldError = page.element('video').emit('error');
+  page.state.readGate = null;
+  await page.page.selectVersion(1);
+  release();
+  await oldError;
+  assert.equal(page.element('codec-error').hidden, true);
+});
 
 const captionTargets = {available: true, width: 1080, height: 1920, phrases: [
   {start: 1, end: 2, text: 'blogging well', boxes: [{x: 100, y: 1200, w: 800, h: 200}],
