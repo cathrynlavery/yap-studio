@@ -102,7 +102,7 @@ def test_inbox_rules_cache_and_no_absolute_state(tmp_path, monkeypatch):
         )
     )
     calls = []
-    monkeypatch.setattr(state, "probe", lambda p: calls.append(p.name) or ("memo", 2.5))
+    monkeypatch.setattr(state, "probe", lambda p: calls.append(p.name) or ("memo", 2.5, None, None))
     view = state.HomeState(tmp_path)
     result = view.snapshot(on_this_mac=True)
     assert {row["name"] for row in result["inbox"]["takes"]} == {"new.MOV", "memo.m4a"}
@@ -134,6 +134,7 @@ def test_real_project_status_is_relative(tmp_path):
     assert result["projects"][0]["dir"] == "projects/demo"
     assert result["projects"][0]["name"] == "demo"
     assert result["projects"][0]["title"] == "demo"
+    assert result["projects"][0]["shape"] == "vertical"
     assert str(tmp_path) not in json.dumps(result)
 
 
@@ -353,6 +354,7 @@ def test_probe_and_thumbnail_are_cached_and_private(tmp_path):
     view = state.HomeState(tmp_path)
     row = view.snapshot()["inbox"]["takes"][0]
     assert row["kind"] == "take" and row["duration_s"] == pytest.approx(1.0)
+    assert row["width"] > 0 and row["height"] > 0
     thumbnail = view.thumbnail("clip.mp4")
     assert thumbnail is not None and thumbnail.stat().st_mode & 0o777 == 0o600
     assert ffmpeg.probe(thumbnail, count_frames=False).height == 360

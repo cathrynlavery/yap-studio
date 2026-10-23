@@ -7,7 +7,7 @@ import * as home from '../../src/yap_studio/homepage/static/home-model.mjs';
 import {
   answersPayload, answersSummary, brollText, defaultRoute, draftFromDefault, draftProblems,
   findProject, firstOpenStep, formatBytes, formatDuration, formatWhen, isVideoFile, linkFor, parseRoute, phaseInfo,
-  progressRows, requestInfo, sourcesToSend, takesText, typeLabel,
+  progressRows, requestInfo, shapeProblem, sourcesToSend, suggestedShape, takeShape, takesText, typeLabel,
 } from '../../src/yap_studio/homepage/static/home-model.mjs';
 
 const inbox = {takes: [
@@ -70,6 +70,36 @@ test('refresh bounds reads and clears the banner even when state is unchanged or
   assert.equal(banner.hidden, true);
   assert.equal(banner.textContent, '');
   assert.equal(renders, 1);
+});
+
+test('take dimensions suggest a shape without guessing a device from a filename', () => {
+  const computer = {name: 'computer.mp4', kind: 'take', width: 320, height: 180};
+  const phone = {name: 'phone.mp4', kind: 'take', width: 180, height: 320};
+  const state = {inbox: {takes: [computer, phone]}};
+  assert.equal(takeShape(computer), 'horizontal');
+  assert.equal(takeShape(phone), 'vertical');
+  assert.equal(takeShape({width: 180, height: 180}), null);
+  assert.equal(takeShape({}), null);
+  assert.equal(suggestedShape({takes: [computer.name]}, state), 'horizontal');
+  assert.equal(suggestedShape({takes: [phone.name]}, state), 'vertical');
+  assert.equal(suggestedShape({takes: [computer.name, phone.name]}, state), null);
+  assert.equal(suggestedShape({takes: []}, state), null);
+  assert.match(shapeProblem({shape: 'horizontal', takes: [phone.name]}, state), /phone.mp4 is vertical.*Choose vertical/);
+  assert.match(shapeProblem({shape: 'vertical', takes: [computer.name]}, state), /computer.mp4 is horizontal.*Choose horizontal/);
+  assert.equal(shapeProblem({shape: 'horizontal', takes: [computer.name]}, state), '');
+  assert.match(shapeProblem({shape: 'horizontal', takes: ['unknown']}, {inbox: {takes: [{name: 'unknown', kind: 'take'}]}}), /Replace it/);
+});
+
+test('horizontal drafts skip B-roll and refuse voiceover until it is supported', () => {
+  const state = {inbox: {takes: [{name: 'wide.mp4', kind: 'take', width: 320, height: 180}]}};
+  const draft = {video_type: 'talking_head', shape: 'horizontal', takes: ['wide.mp4']};
+  assert.deepEqual(draftProblems(draft, state), {});
+  assert.deepEqual(sourcesToSend({...draft, has_broll: true, broll_sources: ['stock']}), []);
+  assert.match(draftProblems({...draft, video_type: 'voiceover'}, state).what, /coming soon/);
+  assert.deepEqual(parseRoute('#new/shape'), {view: 'new', step: 'shape'});
+  assert.deepEqual(parseRoute('#new/sources'), {view: 'new', step: 'sources'});
+  assert.equal(progressRows({shape: 'horizontal', phase: 'building'})[4].label, 'Building the horizontal final');
+  assert.equal(progressRows({shape: 'horizontal', phase: 'approved'})[4].label, 'Built the horizontal final');
 });
 
 test('labels read as plain words', () => {

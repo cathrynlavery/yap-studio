@@ -37,6 +37,28 @@ def story_workspace(workspace, feedback_project):
     return workspace
 
 
+@pytest.mark.parametrize("captions", [None, False, True])
+def test_horizontal_request_reaches_listener_with_caption_choice(workspace, captions):
+    payload = {"shape": "horizontal", "video_type": "talking_head", "takes": ["wide.mp4"],
+               "broll_sources": []}
+    if captions is not None:
+        payload["captions"] = captions
+    bridge.create_request(workspace, "edit", payload)
+    event = bridge.wait(workspace, timeout=1)
+    assert event["request"]["payload"] == {**payload, "captions": captions is True}
+
+
+@pytest.mark.parametrize("extra", [
+    {"shape": "square"}, {"captions": "yes"}, {"video_type": "voiceover"},
+    {"video_type": "screen_recording"}, {"broll_sources": ["folder"]}, {"text_hook": "A title"},
+])
+def test_horizontal_request_refuses_unsupported_choices(workspace, extra):
+    with pytest.raises(ValidationError):
+        bridge.create_request(workspace, "edit", {
+            "shape": "horizontal", "video_type": "talking_head", "broll_sources": [], **extra,
+        })
+
+
 def test_final_wait_and_ack_cli(story_workspace, capsys):
     from yap_studio import cli
 

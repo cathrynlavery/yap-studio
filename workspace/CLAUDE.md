@@ -65,7 +65,8 @@ do the editing. Setup starts it. When the creator comes back, reopen it this way
    - `request` with `kind` `edit`: run `yap-studio home ack ID --state claimed --message "Copying
      your footage"`. The payload already has the video type, the B-roll sources and the takes
      (inbox file names), and for a voiceover maybe a Photos album: do not ask again. Run
-     `python3 new_project.py TAKE ... --type TYPE --broll SOURCE ...` and then
+     `python3 new_project.py TAKE ... --type TYPE --broll SOURCE ...` for vertical.
+     For `payload.shape == horizontal`, copy the takes into a fresh project's `takes/`, then use `yap-studio init DIR --take FILE --shape horizontal` (repeat `--take` for each copied file), with `talking_head`, platform `youtube`, no B-roll, titles, cards, grade, taste, zooms or smooth joins; use a project-local style with hard cuts and captions enabled only when `payload.captions` is true. Then run
      `yap-studio home ack ID --state claimed --project DIR`. Follow the recipe for the type. After
      `new_project.py --name DIR TOPIC` renames the folder, run
      `yap-studio home ack ID --state done --project NEWDIR`. A voiceover with no takes starts
@@ -169,8 +170,7 @@ the creator can change it. If `yap-studio status DIR` says B-roll is not chosen 
   `green_screen`, the B-roll plan writes the background for you, and the style's
   `green_screen_layout` sets where the creator sits: full, bottom, or a corner.
 - `screen_recording`: the screen recording is the picture. If it has the creator's voice, it is
-  the take: follow Edit this video. The final is vertical, so a wide computer recording used as
-  the take shows only the middle of its width; tell the creator before the cut. If the voice is
+  the take: follow Edit this video. Default a computer recording to horizontal and a phone recording to vertical using its display dimensions; the creator can change it. Horizontal screen effects are coming soon; phase 1 uses a plain talking-head cut of the recording. If the voice is
   a separate audio memo, follow Make a voiceover video and cover every frame with the screen
   recording as inserts, cropped to the part that matters. The creator small in a corner over the
   screen is not in this version yet. Say so plainly and offer voice only.

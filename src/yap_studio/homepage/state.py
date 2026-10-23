@@ -88,7 +88,7 @@ def phase(
     return result
 
 
-def probe(path: Path) -> tuple[str, float | None]:
+def probe(path: Path) -> tuple[str, float | None, int | None, int | None]:
     """Classify media by its streams, falling back to the inbox suffix rules."""
     fallback = "memo" if path.suffix.lower() in MEMO_SUFFIXES else "take"
     try:
@@ -97,9 +97,10 @@ def probe(path: Path) -> tuple[str, float | None]:
         return (
             "take" if info.has_video else "memo" if info.has_audio else fallback,
             duration if duration is not None and math.isfinite(duration) else None,
+            info.width, info.height,
         )
     except (YapError, OSError, ValueError):
-        return fallback, None
+        return fallback, None, None, None
 
 
 def inbox_files(workspace: Path) -> tuple[list[Path], int]:
@@ -211,10 +212,10 @@ class HomeState:
     def __init__(self, workspace: Path, *, phone: dict | None = None) -> None:
         self.workspace = bridge.workspace_dir(workspace)
         self.phone = phone
-        self._metadata: dict[tuple, tuple[str, float | None]] = {}
+        self._metadata: dict[tuple, tuple[str, float | None, int | None, int | None]] = {}
         self._lock = threading.RLock()
 
-    def metadata(self, path: Path) -> tuple[str, float | None]:
+    def metadata(self, path: Path) -> tuple[str, float | None, int | None, int | None]:
         """Probe a take only when its name, size or modification time changes."""
         info = path.stat()
         key = (path.name, info.st_size, info.st_mtime_ns)
@@ -226,11 +227,13 @@ class HomeState:
     def take_entry(self, path: Path) -> dict:
         """Describe one take using browser routes and a name only."""
         info = path.stat()
-        kind, duration = self.metadata(path)
+        kind, duration, width, height = self.metadata(path)
         return {
             "name": path.name,
             "kind": kind,
             "duration_s": duration,
+            "width": width,
+            "height": height,
             "bytes": info.st_size,
             "modified": datetime.fromtimestamp(info.st_mtime, UTC).isoformat(),
             "thumb": f"/thumb/{quote(path.name, safe='')}" if kind == "take" else None,
@@ -242,7 +245,7 @@ class HomeState:
         source = next((p for p in paths if p.name == name), None)
         if source is None:
             return None
-        kind, duration = self.metadata(source)
+        kind, duration, _, _ = self.metadata(source)
         if kind != "take":
             return None
         info = source.stat()
@@ -365,6 +368,7 @@ class HomeState:
             "name": project.name,
             "renamed_from": earlier_names,
             "title": project.name,
+            "shape": raw.get("shape", "vertical"),
             "dir": relative,
             "created_at": raw.get("created_at")
             or datetime.fromtimestamp((project / "project.json").stat().st_mtime, UTC).isoformat(),

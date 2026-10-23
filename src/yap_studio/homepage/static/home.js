@@ -1,7 +1,7 @@
 import {
   NEW_STEPS, OFFERED_TYPES, TYPE_COPY, answersPayload, answersSummary, brollText, connectionMessage, connectionUpdate, defaultRoute,
   draftFromDefault, draftProblems, findProject, firstOpenStep, formatBytes, formatDuration, formatWhen, hasFinal, isVideoFile, linkFor,
-  parseRoute, phaseInfo, phoneLinkLabel, plural, progressRows, requestInfo, sourcesToSend, takesText, textHookProblem, typeLabel,
+  parseRoute, phaseInfo, phoneLinkLabel, plural, progressRows, requestInfo, shapeProblem, sourcesToSend, suggestedShape, takesText, textHookProblem, typeLabel,
 } from './home-model.mjs';
 
 const token = new URLSearchParams(location.search).get('t') ?? '';
@@ -147,11 +147,14 @@ function schedule() {
 function draftKey() { return `yap-home-draft:${state?.workspace ?? ''}`; }
 
 function loadDraft() {
+  let draft = draftFromDefault(state?.video_type?.default);
   try {
     const saved = JSON.parse(localStorage.getItem(draftKey()) ?? 'null');
-    if (saved && typeof saved === 'object') return saved;
+    if (saved && typeof saved === 'object') draft = saved;
   } catch { /* ignore */ }
-  return draftFromDefault(state?.video_type?.default);
+  const suggestion = suggestedShape({...draft, takes: draftTakes(draft)}, state);
+  return {...draft, shape: !draft.shape_manual && draft.video_type === 'talking_head'
+    ? suggestion ?? 'vertical' : draft.shape ?? 'vertical'};
 }
 
 function saveDraft(draft) { localStorage.setItem(draftKey(), JSON.stringify(draft)); }
@@ -186,8 +189,8 @@ function render() {
       // Resume a video in progress at its first unfinished step.
       const draft = loadDraft();
       const problems = draftProblems({...draft, takes: draftTakes(draft)}, state);
-      if (!problems.what && !problems.footage) target = state.style?.saved ? '#new/make' : '#new/look';
-      else if (!problems.what && draft.takes) target = '#new/footage';
+      if (draft.shape_seen && !problems.what && !problems.footage) target = state.style?.saved ? '#new/make' : '#new/look';
+      else if (draft.shape_seen && !problems.what && draft.takes) target = '#new/footage';
     }
     history.replaceState(null, '', `${location.pathname}${location.search}${target}`);
     route = parseRoute(location.hash);
@@ -269,13 +272,13 @@ function renderRail(route) {
     const values = {
       what: draft.video_type ? typeLabel(draft.video_type) : 'Not chosen',
       footage: footageValue(draft),
-      look: state.style?.saved ? state.style.name : 'Not chosen',
+      look: draft.shape === 'horizontal' ? 'Simple horizontal' : state.style?.saved ? state.style.name : 'Not chosen',
       make: 'Not started', review: '',
     };
     const reachable = {what: true, footage: !problems.what, look: !problems.what && !problems.footage,
       make: !problems.what && !problems.footage, review: false};
     const order = NEW_STEPS.map((step) => step.id);
-    const index = order.indexOf(route.step);
+    const index = order.indexOf(['shape', 'sources'].includes(route.step) ? 'what' : route.step);
     blocks.push(h('div', {}, h('h2', {text: 'New video'}), h('ol', {class: 'rail-steps'},
       NEW_STEPS.map((step, position) => {
         const done = position < index && !problems[step.id];
@@ -293,7 +296,7 @@ function renderRail(route) {
       blocks.push(h('div', {}, h('h2', {text: 'This video'}), h('ol', {class: 'rail-steps'}, [
         railStep(1, NEW_STEPS[0].label, typeLabel(project.video?.type), 'done'),
         railStep(2, NEW_STEPS[1].label, takesText(project.takes), 'done'),
-        railStep(3, NEW_STEPS[2].label, state.style?.saved ? state.style.name : 'Default look', 'done'),
+        railStep(3, NEW_STEPS[2].label, project.shape === 'horizontal' ? 'Simple horizontal' : state.style?.saved ? state.style.name : 'Default look', 'done'),
         railStep(4, NEW_STEPS[3].label, making ? phaseInfo(project.phase).label : 'Done',
           making ? 'now' : 'done', null, making),
         railStep(5, NEW_STEPS[4].label, approved ? 'Approved' : turn ? 'Your turn' : 'Next',
@@ -365,17 +368,18 @@ function stepHeader(stepId, title, lede) {
 function renderNew(route) {
   const draft = loadDraft();
   const problems = draftProblems({...draft, takes: draftTakes(draft)}, state);
-  const order = ['what', 'footage', 'look', 'make'];
+  const order = ['what', 'shape', 'sources', 'footage', 'look', 'make'];
   const earliest = firstOpenStep(problems);
-  if (order.indexOf(route.step) > order.indexOf(earliest) && earliest !== 'look') {
-    queueMicrotask(() => navigate(`#new/${earliest}`));
+  if (!draft.shape_seen && !['what', 'shape', 'sources'].includes(route.step)) {
+    queueMicrotask(() => navigate('#new/shape'));
+  } else if (!['what', 'shape', 'sources'].includes(route.step) && order.indexOf(route.step) > order.indexOf(earliest) && earliest !== 'look') {
+    queueMicrotask(() => navigate(`#new/${earliest === 'what' && draft.video_type ? 'sources' : earliest}`));
   }
-  return {what: stepWhat, footage: stepFootage, look: stepLook, make: stepMake}[route.step](draft, problems);
+  return {what: stepWhat, shape: stepShape, sources: stepSources, footage: stepFootage, look: stepLook, make: stepMake}[route.step](draft, problems);
 }
 
-function stepWhat(draft, problems) {
+function stepWhat(draft) {
   const question = state.video_type.questions.find((item) => item.id === 'video_type');
-  const broll = state.video_type.questions.find((item) => item.id === 'broll_sources');
   const tiles = h('div', {class: 'tiles', role: 'radiogroup', 'aria-label': "What you're making"},
     question.choices.filter((choice) => OFFERED_TYPES.includes(choice.value)).map((choice) => {
       const copy = TYPE_COPY[choice.value];
@@ -392,6 +396,42 @@ function stepWhat(draft, problems) {
     }));
   const content = [...stepHeader('what', 'What are you making?', 'Each video can be a different kind. Your answer is remembered for next time.'),
     h('div', {class: 'section'}, tiles)];
+  content.push(h('div', {class: 'actions'}, h('span', {class: 'spacer'}),
+    h('button', {type: 'button', class: 'btn primary big', disabled: !draft.video_type,
+      onclick: () => { saveDraft(draft); navigate('#new/shape'); }, text: 'Next'})));
+  return h('section', {}, content);
+}
+
+function shapeChoices(draft) {
+  return h('div', {class: 'checks', role: 'radiogroup', 'aria-label': 'Video shape'},
+    ['vertical', 'horizontal'].map((shape) => h('label', {class: 'check-row'},
+      h('input', {type: 'radio', name: 'shape', value: shape, checked: draft.shape === shape,
+        onchange: () => { saveDraft({...loadDraft(), shape, shape_manual: true}); render(); }}),
+      h('span', {}, h('strong', {text: shape === 'vertical' ? 'Vertical (Shorts, Reels, TikTok)' : 'Horizontal (YouTube)'})))));
+}
+
+function stepShape(draft) {
+  const unsupported = draft.shape === 'horizontal' && draft.video_type !== 'talking_head';
+  return h('section', {}, ...stepHeader('what', 'Vertical or horizontal?', 'Choose for this video. You can change it when you add your footage.'),
+    h('div', {class: 'section'}, shapeChoices(draft)),
+    draft.shape === 'horizontal' ? h('p', {class: 'note', text: 'Horizontal talking head is ready. Voiceover, green screen, screen recording effects, titles, cards and B-roll are coming soon.'}) : null,
+    unsupported ? h('p', {class: 'note', role: 'alert', text: 'Choose vertical for a voiceover, or go back and choose talking head.'}) : null,
+    h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/what', text: 'Back'}), h('span', {class: 'spacer'}),
+      h('button', {type: 'button', class: 'btn primary big', disabled: unsupported, text: 'Next', onclick: async () => {
+        saveDraft({...draft, shape_seen: true});
+        if (draft.shape === 'horizontal') {
+          try {
+            await api('/api/video-type', {video_type: draft.video_type, broll_sources: []});
+            navigate('#new/footage');
+          } catch (error) { toast(error.message, true); }
+        } else navigate('#new/sources');
+      }})));
+}
+
+function stepSources(draft, problems) {
+  if (draft.shape === 'horizontal') return stepShape(draft);
+  const broll = state.video_type.questions.find((item) => item.id === 'broll_sources');
+  const content = [...stepHeader('what', draft.video_type === 'voiceover' ? 'Where are your photos and clips?' : 'Anything to show on top?', null)];
   if (draft.video_type) {
     const sourceChoices = broll.choices.filter((choice) => choice.value !== 'none'
       && (!choice.only_for || choice.only_for.includes(draft.video_type)));
@@ -430,6 +470,7 @@ function stepWhat(draft, problems) {
     }
   }
   content.push(h('div', {class: 'actions'},
+    h('a', {class: 'link', href: '#new/shape', text: 'Back'}),
     h('span', {class: 'spacer'}),
     h('button', {type: 'button', class: 'btn primary big', disabled: Boolean(problems.what), onclick: async (event) => {
       event.target.disabled = true;
@@ -465,7 +506,7 @@ function stepFootage(draft, problems) {
     h('h2', {text: voice ? 'Your voice' : 'Add footage'}),
     h('p', {class: 'hint', text: voice
       ? 'Already recorded it? Add the memo here. If not, Claude writes the script from your photos first, then you record it with Voice Memos.'
-      : 'Film upright (9:16). One take or several.'}),
+      : draft.shape === 'horizontal' ? 'Film sideways (16:9). One take or several.' : 'Film upright (9:16). One take or several.'}),
     dropZone(voice), uploadList()));
   content.push(h('div', {class: 'section'},
     h('h2', {text: voice ? 'Memos in your inbox' : 'Takes in your inbox'}),
@@ -476,8 +517,17 @@ function stepFootage(draft, problems) {
     })))
       : h('div', {class: 'empty'}, h('strong', {text: voice ? 'No memos yet' : 'No takes yet'}),
         voice ? 'That is fine: Claude writes the script first.' : 'Add a take above. It shows up here as soon as it is copied.')));
+  if (!voice) {
+    const suggestion = suggestedShape({...draft, takes: [...chosen]}, state);
+    content.push(h('div', {class: 'section'}, h('h2', {text: 'Video shape'}),
+      suggestion && !draft.shape_manual ? h('p', {class: 'hint', text: suggestion === 'horizontal'
+        ? 'Your take is wider than it is tall, so horizontal is selected.'
+        : 'Your take is taller than it is wide, so vertical is selected.'}) : null,
+      shapeChoices(draft)));
+    if (problems.footage) content.push(h('p', {class: 'note', role: 'alert', text: problems.footage}));
+  }
   content.push(h('div', {class: 'actions'},
-    h('a', {class: 'link', href: '#new/what', text: 'Back'}), h('span', {class: 'spacer'}),
+    h('a', {class: 'link', href: draft.shape === 'horizontal' ? '#new/shape' : '#new/sources', text: 'Back'}), h('span', {class: 'spacer'}),
     h('button', {type: 'button', class: 'btn primary big', disabled: Boolean(problems.footage), onclick: () => {
       saveDraft({...loadDraft(), takes: draftTakes(loadDraft())});
       navigate('#new/look');
@@ -591,6 +641,17 @@ function startUpload(item) {
 }
 
 function stepLook(draft) {
+  if (draft.shape === 'horizontal') {
+    return h('section', {}, ...stepHeader('look', 'Your look', 'A simple horizontal video with hard cuts.'),
+      h('div', {class: 'section'}, h('h2', {text: 'Captions'}),
+        h('p', {class: 'hint', text: 'Captions start off because YouTube has its own captions.'}),
+        h('label', {class: 'check-row'}, h('input', {type: 'checkbox', role: 'switch', checked: draft.captions === true,
+          onchange: (event) => { saveDraft({...loadDraft(), captions: event.target.checked}); }}),
+        h('span', {}, h('strong', {text: 'Add captions to this video'})))),
+      h('p', {class: 'note', text: 'More horizontal looks, titles, cards, B-roll, zooms and color grades are coming soon.'}),
+      h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/footage', text: 'Back'}), h('span', {class: 'spacer'}),
+        h('button', {type: 'button', class: 'btn primary big', text: 'Next', onclick: () => navigate('#new/make')})));
+  }
   const content = [...stepHeader('look', 'Your look', 'Captions, titles, cards, colors and music, picked once and used on every video.')];
   if (!state.answers.saved) content.push(answersCard());
   else {
@@ -727,7 +788,8 @@ async function openStylePage(event) {
 function stepMake(draft, problems) {
   const takes = draftTakes(draft);
   const voice = draft.video_type === 'voiceover';
-  const hasHook = state.style?.hook_style === 'text_hook';
+  const horizontal = draft.shape === 'horizontal';
+  const hasHook = !horizontal && state.style?.hook_style === 'text_hook';
   let hookField = null;
   if (hasHook) {
     hookField = $('text-hook-field').content.firstElementChild.cloneNode(true);
@@ -744,9 +806,10 @@ function stepMake(draft, problems) {
   }
   const rows = [
     ["What", typeLabel(draft.video_type), '#new/what'],
+    ['Shape', horizontal ? 'Horizontal (YouTube)' : 'Vertical (Shorts, Reels, TikTok)', '#new/shape'],
     [voice ? 'Voice' : 'Footage', takes.length ? takes.join(', ') : voice ? 'Claude writes the script first' : 'Not chosen', '#new/footage'],
-    voice ? ['Pictures', draft.album ? `Photos album: ${draft.album}` : brollText(sourcesToSend(draft)), '#new/what'] : ['On top', draft.has_broll ? brollText(sourcesToSend(draft)) : 'Nothing, just you talking', '#new/what'],
-    ['Look', state.style?.saved ? state.style.name : 'Default look', '#new/look'],
+    voice ? ['Pictures', draft.album ? `Photos album: ${draft.album}` : brollText(sourcesToSend(draft)), '#new/sources'] : ['On top', !horizontal && draft.has_broll ? brollText(sourcesToSend(draft)) : horizontal ? 'No B-roll' : 'Nothing, just you talking', horizontal ? '#new/shape' : '#new/sources'],
+    ['Look', horizontal ? `Simple, captions ${draft.captions === true ? 'on' : 'off'}` : state.style?.saved ? state.style.name : 'Default look', '#new/look'],
   ];
   const next = voice
     ? ['Claude looks through your photos and clips and writes a short script for you to approve.',
@@ -754,12 +817,14 @@ function stepMake(draft, problems) {
       'Claude cuts your voice and lays your shots over it. You watch the story first, then the final.']
     : ['Claude listens to your take, picks the story from your own words and cuts it.',
       'You watch the story cut first and leave notes.',
-      'Claude applies your chosen look, renders the final and checks it. You watch it again and approve.'];
+      horizontal ? `Claude makes the horizontal final with captions ${draft.captions === true ? 'on' : 'off'} and checks it. You watch it again and approve.`
+        : 'Claude applies your chosen look, renders the final and checks it. You watch it again and approve.'];
   return h('section', {},
     ...stepHeader('make', 'Make it', null),
     h('dl', {class: 'summary'}, rows.map(([label, value, href]) => h('div', {}, h('dt', {text: label}), h('dd', {text: value}),
       h('a', {href, text: 'Change'})))),
     hookField,
+    shapeProblem({...draft, takes}, state) ? h('p', {class: 'note', role: 'alert', text: shapeProblem({...draft, takes}, state)}) : null,
     h('div', {class: 'section'}, h('h2', {text: 'What happens next'}), h('ol', {class: 'next-list'}, next.map((line) => h('li', {text: line})))),
     h('p', {class: 'note', text: 'Rendering the final can take a while for a long video. You can close this page; it picks up where things are when you come back. Generated music uses your own ElevenLabs credits, and Claude asks before it spends any.'}),
     state.listening || claudeWorking() ? null : notListening(),
@@ -774,6 +839,7 @@ function stepMake(draft, problems) {
           busy = true; event.target.disabled = true;
           try {
             const request = await api('/api/requests', {kind: 'edit', video_type: draft.video_type,
+              shape: draft.shape, ...(horizontal ? {captions: draft.captions === true} : {}),
               broll_sources: sourcesToSend(draft), takes, album: voice && draft.album?.trim() ? draft.album.trim() : null,
               ...(hasHook ? {text_hook: draft.text_hook ?? ''} : {})});
             clearDraft();
@@ -902,7 +968,9 @@ function renderVideo(route) {
       project.phase === 'cut_ready' ? h('button', {type: 'button', class: 'btn big', id: 'make-final',
         onclick: (event) => makeFinal(project, event.target), text: 'Make the final video'}) : null));
     if (project.phase === 'cut_ready') {
-      content.push(h('p', {class: 'note', text: 'Happy with the order of the story? Make the final video: Claude applies your chosen look, renders it and checks it. Want changes first? Leave notes on the review page.'}));
+      content.push(h('p', {class: 'note', text: project.shape === 'horizontal'
+        ? 'Happy with the order of the story? Make the horizontal final with your caption choice. Want changes first? Leave notes on the review page.'
+        : 'Happy with the order of the story? Make the final video: Claude applies your chosen look, renders it and checks it. Want changes first? Leave notes on the review page.'}));
     }
   }
   content.push(h('ol', {class: 'progress'}, progressRows(project).map((row) => h('li', {class: row.status},

@@ -5,8 +5,8 @@ link when one is available.
 
 Yap Studio home opens in the browser on the Mac and walks through one video at a time:
 
-1. What you're making: talking head or voiceover. A talking head asks whether you have anything to
-   show on top before asking where it comes from; a voiceover asks where your photos and clips are.
+1. What you're making: talking head or voiceover, then Vertical (Shorts, Reels, TikTok) or Horizontal (YouTube) for this video. Vertical starts selected; readable take dimensions suggest a matching shape on the footage step, and you can change it. For vertical, a talking head asks whether you have anything to show on top before asking where it comes from; a voiceover asks where your photos and clips are.
+   Horizontal captions start off with one switch to add them; more looks, voiceover, screen effects, titles, cards and B-roll are coming soon.
 2. Your footage: drag takes in from Finder or choose them from the file picker. Yap Studio
    copies them into the workspace `inbox/`; the originals stay where they were.
 3. Your look: a few questions about your videos the first time, then the style page on a
@@ -64,6 +64,8 @@ It returns as soon as there is something to do and prints one JSON object:
 | `notes` | Notes were sent from the review page for `project`, as feedback batch `batch`. |
 | `approved` | `version` of `project` was approved. |
 | `timeout` | Nothing happened before `--timeout`; start it again. |
+
+For an edit, `payload.shape` reaches the agent unchanged: horizontal starts with `yap-studio init DIR --take FILE --shape horizontal`, using the plain horizontal style and `payload.captions` (off by default); vertical follows the existing recipe.
 
 The agent reports back with `yap-studio home ack ID --state claimed|done|failed`, adding
 `--project DIR` once the project folder exists and `--message` with one plain sentence. The page

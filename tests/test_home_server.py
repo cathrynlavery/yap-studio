@@ -324,8 +324,33 @@ def upload(home, name="clip.mp4", body=b"synthetic", headers=None):
     )
 
 
+@pytest.mark.parametrize("shape,width,height,code", [
+    ("horizontal", 320, 180, 201), ("horizontal", 180, 320, 400),
+    ("vertical", 320, 180, 400), ("vertical", 180, 320, 201),
+    ("horizontal", 180, 180, 400), ("horizontal", None, None, 400),
+    ("vertical", None, None, 201), ("square", 320, 180, 400),
+])
+def test_edit_shape_validation_and_payload(home, monkeypatch, shape, width, height, code):
+    (home.workspace / "inbox/clip.mp4").write_bytes(b"synthetic")
+    monkeypatch.setattr(home.state, "metadata", lambda p: ("take", 1.0, width, height))
+    actual, _, body = request(home, "POST", "/api/requests", {
+        "kind": "edit", "video_type": "talking_head", "broll_sources": [],
+        "takes": ["clip.mp4"], "shape": shape,
+    })
+    assert actual == code
+    row = json.loads(body)
+    if code == 201:
+        assert row["payload"]["shape"] == shape
+        if shape == "horizontal":
+            assert row["payload"]["captions"] is False
+        else:
+            assert "captions" not in row["payload"]
+    else:
+        assert any(word in row["error"]["message"] for word in ("shape", "take", "Choose"))
+
+
 def test_upload_and_collision(home, monkeypatch):
-    monkeypatch.setattr(home.state, "metadata", lambda p: ("take", 1.0))
+    monkeypatch.setattr(home.state, "metadata", lambda p: ("take", 1.0, 1080, 1920))
     for expected in ("clip.mp4", "clip (2).mp4"):
         code, _, body = upload(home)
         assert code == 201 and json.loads(body)["name"] == expected
@@ -343,7 +368,7 @@ def test_upload_and_collision(home, monkeypatch):
     ],
 )
 def test_upload_decodes_file_name_once(home, monkeypatch, sent, expected):
-    monkeypatch.setattr(home.state, "metadata", lambda p: ("take", 1.0))
+    monkeypatch.setattr(home.state, "metadata", lambda p: ("take", 1.0, 1080, 1920))
     code, _, body = upload(home, sent)
     assert code == 201
     assert json.loads(body)["name"] == expected

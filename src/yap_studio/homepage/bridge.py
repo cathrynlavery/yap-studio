@@ -195,6 +195,23 @@ def create_request(
     """Allocate a request id, validating messages and preventing duplicate video work."""
     if kind not in {"edit", "learn", "final", "message"} or not isinstance(payload, dict):
         raise ValidationError("request", "Choose an edit, learn, final or message request.")
+    if kind == "edit" and "shape" in payload:
+        if payload["shape"] not in ("vertical", "horizontal"):
+            raise ValidationError("shape", "Choose vertical or horizontal.")
+        if "captions" in payload and type(payload["captions"]) is not bool:
+            raise ValidationError("captions", "Turn captions on or off.")
+        if payload["shape"] == "horizontal":
+            if payload.get("video_type") != "talking_head":
+                raise ValidationError(
+                    "video_type", "Horizontal voiceover and screen effects are coming soon. "
+                    "Choose talking head or vertical.",
+                )
+            if payload.get("broll_sources") or payload.get("text_hook"):
+                raise ValidationError(
+                    "shape", "Horizontal titles, cards and B-roll are coming soon. "
+                    "Remove them or choose vertical.",
+                )
+            payload = {**payload, "captions": payload.get("captions", False)}
     project = None
     if kind == "final":
         if set(payload) != {"project"}:

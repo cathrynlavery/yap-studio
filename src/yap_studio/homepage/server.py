@@ -406,6 +406,31 @@ class HomeServer:
                         "broll", "Choose a Photos album or folder for your voiceover."
                     )
                 video_type.check_fit(video, sources, voiceover=(not takes or kinds == {"memo"}))
+                shape = data.get("shape", "vertical")
+                if shape not in ("vertical", "horizontal"):
+                    raise ValidationError("shape", "Choose vertical or horizontal.")
+                for name in takes:
+                    media_kind, _, width, height = home.state.metadata(by_name[name])
+                    if media_kind != "take":
+                        continue
+                    if not width or not height:
+                        if shape == "horizontal":
+                            raise ValidationError(
+                                "takes", f"Cannot read the shape of {name}. "
+                                "Add a readable horizontal take.",
+                            )
+                        continue
+                    take_shape = (
+                        "horizontal" if width > height
+                        else "vertical" if height > width else "square"
+                    )
+                    if take_shape != shape and "horizontal" in (shape, take_shape):
+                        fix = f"Replace this take with a {shape} take."
+                        if take_shape != "square":
+                            fix = f"Choose {take_shape} or replace it with a {shape} take."
+                        raise ValidationError(
+                            "takes", f"{name} is {take_shape}, but this video is {shape}. {fix}",
+                        )
                 album = data.get("album")
                 if album is not None and (not isinstance(album, str) or len(album) > 1000):
                     raise ValidationError("album", "Use the name of your Photos album.")
@@ -421,6 +446,8 @@ class HomeServer:
                     home.workspace,
                     "edit",
                     {"video_type": video, "broll_sources": sources, "takes": takes, "album": album,
+                     "shape": shape,
+                     **({"captions": data.get("captions", False)} if shape == "horizontal" else {}),
                      **({"text_hook": hook} if hook else {})},
                 )
 

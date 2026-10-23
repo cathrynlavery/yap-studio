@@ -154,6 +154,9 @@ export function progressRows(project) {
     default: current = 0;
   }
   return ROWS.map((row, index) => {
+    if (row.key === 'build' && project?.shape === 'horizontal') {
+      row = {...row, label: 'Building the horizontal final', done: 'Built the horizontal final'};
+    }
     if (index < current) return {...row, label: row.done ?? row.label, status: 'done', sub: null};
     if (index === current) return {...row, status, sub};
     return {...row, status: 'next', sub: null};
@@ -193,7 +196,10 @@ export function draftProblems(draft, state) {
   const type = draft?.video_type;
   if (!OFFERED_TYPES.includes(type)) problems.what = 'Choose what you are making.';
   const sources = Array.isArray(draft?.broll_sources) ? draft.broll_sources : [];
-  if (type === 'talking_head') {
+  if (draft?.shape === 'horizontal' && type !== 'talking_head') {
+    problems.what = 'Horizontal voiceover is coming soon. Choose talking head or vertical.';
+  }
+  if (type === 'talking_head' && draft?.shape !== 'horizontal') {
     if (typeof draft?.has_broll !== 'boolean') problems.what ??= 'Say whether you have anything to show on top.';
     else if (draft.has_broll && !sources.length) problems.what ??= 'Pick where those clips and photos are.';
   }
@@ -206,7 +212,31 @@ export function draftProblems(draft, state) {
   if (type === 'talking_head' && !takes.some((name) => kinds.get(name) === 'take')) {
     problems.footage = 'Pick at least one take.';
   }
+  const mismatch = shapeProblem(draft, state);
+  if (mismatch) problems.footage ??= mismatch;
   return problems;
+}
+
+export function takeShape(take) {
+  if (!(take?.width > 0 && take?.height > 0) || take.width === take.height) return null;
+  return take.width > take.height ? 'horizontal' : 'vertical';
+}
+
+export function suggestedShape(draft, state) {
+  const selected = (state?.inbox?.takes ?? []).filter((take) => draft.takes?.includes(take.name) && take.kind === 'take');
+  const shapes = selected.map(takeShape);
+  return shapes.length && shapes[0] && shapes.every((shape) => shape === shapes[0]) ? shapes[0] : null;
+}
+
+export function shapeProblem(draft, state) {
+  const shape = draft?.shape ?? 'vertical';
+  for (const take of state?.inbox?.takes ?? []) {
+    if (!draft?.takes?.includes(take.name) || take.kind !== 'take') continue;
+    const actual = takeShape(take);
+    if (!actual && shape === 'horizontal') return `Cannot read a horizontal shape for ${take.name}. Replace it with a horizontal take.`;
+    if (actual && actual !== shape) return `${take.name} is ${actual}, but this video is ${shape}. Choose ${actual} or replace it with a ${shape} take.`;
+  }
+  return '';
 }
 
 export function firstOpenStep(problems) {
@@ -238,7 +268,7 @@ export function parseRoute(hash) {
   const value = (hash || '').replace(/^#/, '');
   const [head, ...rest] = value.split('/');
   const tail = rest.join('/');
-  if (head === 'new' && NEW_STEPS.some((step) => step.id === tail) && tail !== 'review') {
+  if (head === 'new' && (['shape', 'sources'].includes(tail) || NEW_STEPS.some((step) => step.id === tail)) && tail !== 'review') {
     return {view: 'new', step: tail};
   }
   if (head === 'video' && tail) return {view: 'video', name: decodeURIComponent(tail)};
@@ -305,6 +335,7 @@ export function answersSummary(questions) {
 
 /** The B-roll sources to send: none at all when a talking head has nothing on top. */
 export function sourcesToSend(draft) {
+  if (draft?.shape === 'horizontal') return [];
   if (draft?.video_type === 'talking_head' && draft.has_broll === false) return [];
   return (Array.isArray(draft?.broll_sources) ? draft.broll_sources : []).filter((source) => source !== 'none');
 }
