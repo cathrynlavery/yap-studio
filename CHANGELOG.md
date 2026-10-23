@@ -9,6 +9,7 @@
 - Review videos show a Retry button when loading stalls or fails, keep your place on retry, and retry a network error once. Finished background runs open the newest saved version for review and report how to recover if the page cannot start.
 - Home shows newer work after a stopped run and warns when it loses contact with your Mac. Review confirms approval, says the download is ready, and leaves internal layer lint out of its flagged items.
 - Review lists uncertain joins with a Listen button to hear the speech on each side, keeping only joins whose source edges still meet in the reviewed version.
+- Verify warns when caption word starts consistently run more than half a second ahead of or behind matching speech, with the time and measured offset.
 
 ## 1.0.0 (2026-10-23)
 

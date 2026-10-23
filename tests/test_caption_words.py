@@ -15,6 +15,7 @@ import synth
 from yap_studio import cache
 from yap_studio.checks import caption_words as stage
 from yap_studio.checks.caption_layout import CaptionWord, write_layout_record
+from yap_studio.cli import main
 from yap_studio.faces import detect
 from yap_studio.transcript import ScriptedBackend, Transcript, Word
 from yap_studio.verify import _NO_AUDIO_REASON, _NO_ENGINE_REASON, _verify, verify
@@ -124,6 +125,94 @@ def test_substitution_severity_follows_token_count(heard: str, severity: str) ->
     assert finding.message == f'Heard "{heard}" at 1:33.2 where the caption shows "response".'
     assert finding.evidence == {"heard": heard.split(), "captioned": ["response"],
                                 "start_s": 93.2, "end_s": 93.5}
+
+
+@pytest.fixture
+def matched_speech() -> Transcript:
+    return Transcript([Word("Amber", 0, .2), Word("lantern", .4, .6), Word("glows", .8, 1)])
+
+
+@pytest.mark.parametrize("offset", [5, -5])
+def test_matching_words_shifted_warn_once_at_the_caption_start(matched_speech, offset) -> None:
+    words = {"one": tuple(CaptionWord(word.text, word.start + max(offset, 0),
+                                      word.end + max(offset, 0)) for word in matched_speech.words)}
+    heard = Transcript([Word(word.text, word.start + max(-offset, 0), word.end + max(-offset, 0))
+                        for word in matched_speech.words])
+    finding, = stage.check_caption_words(words, heard)
+    assert finding.check == "captions.words" and finding.severity == "warn"
+    assert finding.time_s == max(offset, 0)
+    assert finding.message == (
+        f'Captions "amber lantern glows" at 0:0{max(offset, 0)}.0 start 5.0 s '
+        f'{"after" if offset > 0 else "before"} the matching speech '
+        f'at 0:0{max(-offset, 0)}.0 (median word offset).'
+    )
+    assert finding.evidence == {
+        "heard": ["amber", "lantern", "glows"], "captioned": ["amber", "lantern", "glows"],
+        "start_s": max(offset, 0), "end_s": max(offset, 0) + 1,
+        "heard_start_s": max(-offset, 0), "heard_end_s": max(-offset, 0) + 1,
+        "offset_s": offset, "matched_words": 3,
+    }
+    assert "Align the caption word starts" in finding.suggested_action
+
+
+@pytest.mark.parametrize("offsets", [(0, 0, 0), (.08, -.05, .03), (.5, .5, .5), (0, .7, .7)])
+def test_aligned_words_jitter_and_short_offsets_do_not_warn(matched_speech, offsets) -> None:
+    words = {"one": tuple(CaptionWord(word.text, word.start + offset, word.end + offset + .3)
+                          for word, offset in zip(matched_speech.words, offsets, strict=True))}
+    assert stage.check_caption_words(words, matched_speech) == []
+
+
+def test_matching_words_with_growing_drift_warn_at_the_affected_run() -> None:
+    text = "Amber lantern glows beside quiet rivers carrying silver leaves".split()
+    offsets = [0, .1, .2, .3, .4, .5, .6, .7, .8]
+    heard = Transcript([Word(word, i * 10, i * 10 + .3) for i, word in enumerate(text)])
+    words = {"one": tuple(CaptionWord(word.text, word.start + offset, word.end + offset)
+                          for word, offset in zip(heard.words, offsets, strict=True))}
+    finding, = stage.check_caption_words(words, heard)
+    assert finding.time_s == 60.6
+    assert 'at 1:00.6' in finding.message
+    assert finding.evidence["offset_s"] == pytest.approx(.7)
+    assert finding.evidence["matched_words"] == 3
+
+
+@pytest.mark.parametrize("text", ["the", "the answer", "go go go", "amber lantern glows " * 2])
+def test_short_or_repeated_sequences_are_not_timing_anchors(text) -> None:
+    heard = Transcript([Word(word, i, i + .3) for i, word in enumerate(text.split())])
+    words = {"one": tuple(CaptionWord(word.text, word.start + 5, word.end + 5)
+                          for word in heard.words)}
+    assert stage.check_caption_words(words, heard) == []
+
+
+def test_repeated_phrase_does_not_anchor_to_the_wrong_occurrence(matched_speech) -> None:
+    words = {"one": tuple(CaptionWord(word.text, word.start + 5, word.end + 5)
+                          for word in matched_speech.words)}
+    heard = Transcript([*matched_speech.words,
+                        *(Word(word.text, word.start + 5, word.end + 5)
+                          for word in matched_speech.words)])
+    findings = stage.check_caption_words(words, heard)
+    assert all("offset_s" not in finding.evidence for finding in findings)
+
+
+@pytest.mark.parametrize("occurrence", [False, True])
+def test_display_fixes_do_not_make_a_timing_run(occurrence) -> None:
+    from yap_studio.captions import CaptionWord as SourceWord
+    from yap_studio.captions import build_phrases
+
+    text = "Amber lantern glows above clouds"
+    heard = Transcript([Word(word, i * .8, i * .8 + .3)
+                        for i, word in enumerate(text.split())])
+    source = ([SourceWord("w0", "placeholder", 0, 3.5)] if occurrence else
+              [SourceWord(f"w{i}", word.text, word.start, word.end)
+               for i, word in enumerate(heard.words)])
+    phrases = build_phrases(
+        source, {"max_words_per_phrase": 5, "max_characters_per_phrase": 80},
+        word_text_fixes={"w0": text} if occurrence else {},
+        word_fixes={} if occurrence else {text: text},
+    )
+    words = {str(phrase.index): tuple(CaptionWord(word.text, word.start, word.end)
+                                     for word in phrase.words) for phrase in phrases}
+    assert [word.text for phrase in phrases for word in phrase.words] == [text]
+    assert stage.check_caption_words(words, heard) == []
 
 
 @pytest.fixture
@@ -245,6 +334,37 @@ def test_verify_heard_word_missing_from_layout(
     assert result["checks"]["captions.words"]["ran"] is False
     assert result["checks"]["captions.words"]["reason"] == _NO_ENGINE_REASON
     assert not any(item["check"] == "captions.words" for item in result["findings"])
+
+
+def test_verify_shifted_matching_words_reach_json_and_agent_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, matched_speech, capsys,
+) -> None:
+    module = importlib.import_module("yap_studio.verify")
+    media = synth.calib_source(tmp_path / "final.mov", seconds=7, size="320x180")
+    document = synth.calibration_layout()
+    document["captions"] = [document["captions"][0]]
+    document["captions"][0].update(
+        text="Amber lantern glows", start_frame=150, end_frame=190,
+        words=[{"text": word.text, "start_s": word.start + 5, "end_s": word.end + 5}
+               for word in matched_speech.words],
+    )
+    document["elements"] = []
+    write_layout_record(media, document)
+    monkeypatch.setattr(detect, "unavailable_reason", lambda: "not measured in this test")
+    monkeypatch.setattr(module, "resolve_backend", lambda *_: ScriptedBackend(
+        lambda _: matched_speech))
+    assert main(["verify", str(media), "--json", "--loudness", "note"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    finding, = [item for item in result["findings"] if item["check"] == "captions.words"]
+    assert result["checks"]["captions.words"]["ran"] is True
+    assert result["checks"]["captions.words"]["status"] == "warn"
+    assert finding["severity"] == "warn" and finding["time_s"] == 5
+    assert finding["evidence"]["offset_s"] == 5
+    assert main(["verify", str(media), "--loudness", "note"]) == 0
+    summary = capsys.readouterr().out
+    assert 'Captions "amber lantern glows" at 0:05.0' in summary
+    assert "5.0 s after" in summary
+    assert "Align the caption word starts" in summary
 
 
 @pytest.mark.parametrize("state,reason", [

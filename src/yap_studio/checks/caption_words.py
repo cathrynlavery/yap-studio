@@ -9,8 +9,11 @@ import math
 import tempfile
 import unicodedata
 import wave
+from collections import Counter
 from collections.abc import Mapping, Sequence
+from itertools import groupby
 from pathlib import Path
+from statistics import median
 
 import numpy as np
 
@@ -106,10 +109,51 @@ def _masked_speech(words: Sequence[CaptionWord], speech: list[tuple[str, Caption
     return skipped
 
 
+def _timing_findings(
+    captions: Sequence[tuple[str, CaptionWord]], speech: Sequence[tuple[str, CaptionWord]],
+    unique_triples: set[tuple[str, ...]],
+) -> list[Finding]:
+    # Synthetic fixtures have 0.08 s ticks / 0.05 s jitter; >0.5 s for 3 starts leaves margin.
+    offsets = [caption.start_s - heard.start_s
+               if len(_caption_tokens(caption)) == len(_tokens([heard])) == 1 else 0.0
+               for (_, caption), (_, heard) in zip(captions, speech, strict=True)]
+    findings = []
+    for direction, group in groupby(
+        range(len(offsets)), key=lambda i: 1 if offsets[i] > .5 else -1 if offsets[i] < -.5 else 0,
+    ):
+        indices = list(group)
+        if not direction or len(indices) < 3:
+            continue
+        anchors = [i for i in indices[:-2]
+                   if tuple(token for token, _ in captions[i:i + 3]) in unique_triples]
+        if not anchors:
+            continue
+        first, last = anchors[0], anchors[-1] + 3
+        start = captions[first][1].start_s
+        end = max(word.end_s for _, word in captions[first:last])
+        heard_start = speech[first][1].start_s
+        offset = median(offsets[first:last])
+        expected = [token for token, _ in captions[first:last]]
+        findings.append(Finding(
+            CHECK, "warn",
+            f'Captions "{" ".join(expected)}" at {format_time(start)} start '
+            f'{abs(offset):.1f} s {"after" if direction > 0 else "before"} the matching '
+            f'speech at {format_time(heard_start)} (median word offset).',
+            time_s=start,
+            suggested_action="Listen there. Align the caption word starts with the speech, "
+                             "then render and run again.",
+            evidence={"heard": expected, "captioned": expected, "start_s": start,
+                      "end_s": end, "heard_start_s": heard_start,
+                      "heard_end_s": max(word.end_s for _, word in speech[first:last]),
+                      "offset_s": offset, "matched_words": last - first},
+        ))
+    return findings
+
+
 def check_caption_words(
     words: Mapping[str, Sequence[CaptionWord]], heard: Transcript,
 ) -> list[Finding]:
-    """Name words heard without captions and captions without spoken words."""
+    """Name missing words and sustained timing offsets against independent speech."""
     all_words = sorted((word for phrase in words.values() for word in phrase),
                        key=lambda word: word.start_s)
     captions = [(token, word) for word in all_words for token in _caption_tokens(word)
@@ -121,10 +165,21 @@ def check_caption_words(
     captioned = [token for token, _ in captions]
     heard_tokens = [token for token, _ in speech]
     matcher = difflib.SequenceMatcher(None, captioned, heard_tokens, autojunk=False)
+    caption_triples = Counter(zip(captioned, captioned[1:], captioned[2:], strict=False))
+    heard_triples = Counter(zip(heard_tokens, heard_tokens[1:], heard_tokens[2:], strict=False))
+    caption_counts, heard_counts = Counter(captioned), Counter(heard_tokens)
+    unique_tokens = {token for token, count in caption_counts.items()
+                     if count == heard_counts[token] == 1}
+    unique_triples = {triple for triple, count in caption_triples.items()
+                      if count == heard_triples[triple] == 1 and len(set(triple)) == 3
+                      and unique_tokens.intersection(triple)}
     findings = []
     for operation, i1, i2, j1, j2 in matcher.get_opcodes():
         expected, actual = captioned[i1:i2], heard_tokens[j1:j2]
-        if operation == "equal" or "".join(expected) == "".join(actual):
+        if operation == "equal":
+            findings.extend(_timing_findings(captions[i1:i2], speech[j1:j2], unique_triples))
+            continue
+        if "".join(expected) == "".join(actual):
             continue
         timed = speech[j1:j2] if operation == "insert" else captions[i1:i2]
         start = timed[0][1].start_s
