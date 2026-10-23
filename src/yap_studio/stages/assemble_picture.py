@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 
 from yap_studio import ffmpeg, letters, paths, receipt
-from yap_studio.canvas import Canvas, canvas
+from yap_studio.canvas import Canvas
 from yap_studio.cards_video import window_rect
 from yap_studio.edl import load_edit_list
 from yap_studio.errors import ProcessingError, YapError
@@ -1053,7 +1053,7 @@ def _card_windows(graph: _Graph, base: str, placement: dict,
 
 def _assert_picture(info: ffmpeg.MediaInfo, expected: int, frame: Canvas | None = None) -> None:
     """Refuse to hand audio assembly an incorrectly encoded delivery stream."""
-    frame = frame or canvas()
+    frame = frame or Canvas(WIDTH, HEIGHT, 70)
     checks = {"frames": (info.video_frames, expected), "width": (info.width, frame.width),
               "height": (info.height, frame.height), "fps": (info.fps, FPS),
               "pixel format": (info.pix_fmt, PIX_FMT),
@@ -1081,6 +1081,7 @@ def render_picture(
     moment_style: dict[str, Any] | None = None,
     cutout: str | None = None,
     base_picture: Path | None = None,
+    frame: Canvas | None = None,
 ) -> PictureResult:
     """Encode silent H.264 once; U15 owns publication and the final stage receipt.
 
@@ -1094,10 +1095,11 @@ def render_picture(
     ``matte_project_dir`` keeps the cut matte and still cache in the real project.
     With ``frames``, the same graph is trimmed to that inclusive output window before
     encoding, so a pilot's frames are the full render's pixels.
+    ``frame`` supplies horizontal delivery geometry without reading project settings.
     """
     with paths.operation():
         root = Path(project_dir).resolve()
-        frame = canvas(load_project(root / "project.json").shape)
+        frame = frame or Canvas(WIDTH, HEIGHT, 70)
         cache_root = Path(matte_project_dir or root).resolve()
         timeline = timeline if timeline is not None else resolve_timeline(root).require_valid()
         check_split_voiceover(root, timeline.elements)

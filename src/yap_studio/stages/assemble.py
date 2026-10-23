@@ -773,7 +773,7 @@ def _retained(snapshot: AssemblySnapshot, root: Path) -> ResolvedTimeline:
 def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
                      references: dict[str, str] | None = None) -> dict[str, Any]:
     """Describe source spans, changed picture regions and the silent composited hold."""
-    frame = canvas(json.loads(snapshot.small_files.get("project.json", b"{}")).get(
+    frame = canvas(json.loads(getattr(snapshot, "small_files", {}).get("project.json", b"{}")).get(
         "shape", "vertical"))
     sources = {name: str(source) for name, source in
                ((name, snapshot.media[relative]) for name, relative in snapshot.sources.items())}
@@ -1285,6 +1285,8 @@ def _pilot_assemble(context: ProjectContext, snapshot: AssemblySnapshot,
         plates = letters.render_plates(root, timeline, context.render_style(), work) \
             if any("letters" in item.payload for item in timeline.elements) else []
         picture = render_picture(retained, picture_path, work_dir=work, timeline=timeline,
+                                 **({"frame": canvas(context.project.shape)}
+                                    if context.project.shape == "horizontal" else {}),
                                  title_layers=snapshot.title_layers,
                                  caption_layer=snapshot.caption_layer, frames=frames,
                                  grade=snapshot.grade, grade_style=snapshot.grade_style,
@@ -1482,6 +1484,8 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                 plates = letters.render_plates(root, timeline, context.render_style(), work) \
                     if any("letters" in item.payload for item in timeline.elements) else []
                 picture = render_picture(retained, picture_path, work_dir=work,
+                                         **({"frame": canvas(context.project.shape)}
+                                            if context.project.shape == "horizontal" else {}),
                                          timeline=timeline, title_layers=snapshot.title_layers,
                                          caption_layer=snapshot.caption_layer,
                                          grade=snapshot.grade, grade_style=snapshot.grade_style,

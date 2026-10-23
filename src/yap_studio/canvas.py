@@ -54,7 +54,7 @@ def unsupported(feature: str, fix: str) -> None:
 def require_supported(context: ProjectContext,
                       lanes: dict[str, TimelineLane] | None = None) -> None:
     """Check authored visual features even before a cut or timeline receipt exists."""
-    if context.project.shape != "horizontal":
+    if getattr(getattr(context, "project", None), "shape", "vertical") != "horizontal":
         return
     if context.project.video_type not in (None, "talking_head") or any(
         take.voiceover for take in context.project.takes

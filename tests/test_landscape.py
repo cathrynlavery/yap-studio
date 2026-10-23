@@ -6,6 +6,7 @@ import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
+from types import SimpleNamespace
 
 import jsonschema
 import pytest
@@ -59,6 +60,18 @@ def test_shape_default_validation_and_canvas() -> None:
                                                                              1600, 160)
     with pytest.raises(ValidationError, match="shape"):
         canvas("square")
+
+
+@pytest.mark.parametrize("context", [SimpleNamespace(),
+                                   SimpleNamespace(project=SimpleNamespace()),
+                                   SimpleNamespace(project=SimpleNamespace(shape="vertical"))])
+def test_shape_guard_defaults_to_vertical_without_project_reads(context,
+                                                               monkeypatch) -> None:
+    def unexpected(*args, **kwargs):
+        pytest.fail("Vertical shape guard must not read project files")
+
+    monkeypatch.setattr(Path, "read_bytes", unexpected)
+    require_supported(context)
 
 
 def test_init_shape_flag(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
