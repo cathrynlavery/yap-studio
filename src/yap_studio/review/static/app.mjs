@@ -2291,7 +2291,7 @@ function renderReview(fresh, preserveStatus = false) {
   if (el.textHook) {
     if (fresh.text_hook) renderTextHook(el.textHook, fresh.text_hook, async (body) => {
       if (offline || switchingVersion || composeBusy || roundBusy || releaseBusy || answerBusy) {
-        throw new Error('Finish the current action, then choose your Text hook.');
+        throw new Error('Finish the current action, then choose the text at the top.');
       }
       composeBusy = true;
       renderVersions();
@@ -2302,7 +2302,7 @@ function renderReview(fresh, preserveStatus = false) {
         review.text_hook = {...review.text_hook, chosen: body.text_hook.text, source: body.text_hook.source};
         renderComments();
         await loadReview(selectedVersion);
-        showToast('Text hook saved. Send your notes when ready.');
+        showToast('Text at the top saved. Send your notes when ready.');
       } finally {
         composeBusy = false;
         renderVersions();

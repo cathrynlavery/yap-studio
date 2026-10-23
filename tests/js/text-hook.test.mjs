@@ -2,12 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {textHookProblem} from '../../src/yap_studio/homepage/static/home-model.mjs';
 import {renderTextHook} from '../../src/yap_studio/review/static/text-hook.mjs';
-import {openingSlots, openingMoreSlots, changeSummary} from '../../src/yap_studio/gallery/static/choices.mjs';
+import {withTopText, openingMoreSlots, changeSummary} from '../../src/yap_studio/gallery/static/choices.mjs';
 
-test('Opening offers Text hook with three independent box colors', () => {
+test('The whole video offers three independent box colors', () => {
   const base = {name: 'Synthetic', hook: {style: 'quiet_serif'}};
-  const hook = openingSlots.find((entry) => entry.id === 'text-hook');
-  const selected = hook.apply(base);
+  const selected = withTopText(base, 'whole');
   assert.equal(selected.hook.style, 'text_hook');
   assert.equal(base.hook.style, 'quiet_serif');
   const group = openingMoreSlots.find((entry) => entry.id === 'text-hook-color');

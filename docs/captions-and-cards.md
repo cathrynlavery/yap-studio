@@ -104,16 +104,32 @@ Run `yap-studio run DIR` to render the final again.
 Titles and cards write `graphics/<element id>.mov` and a receipt with
 each layer's box position, start frame and frame count. Layers render at their
 own box sizes for assembly to place over the cut.
+Text at the top has three choices: None, Just the opening, and The whole video.
+There is no default for a new creator. For both kinds of text, the agent writes
+three ideas, shows them in the Story cut note and review page, and waits for a
+pick or the creator's own text. It never picks for them.
+
 Opening title looks are Paper card, Quiet title, Bold band, Calm card, Lockup,
 Handwritten write-on, Headline slam, Shard reveal, Textured, Shimmer, Stagger,
-Morph, Typewriter, Video in letters, Kinetic hook, Text hook, and No title.
+Morph, Typewriter, Video in letters and Kinetic hook.
+An opening title uses the chosen look for the first few seconds. Its choice lives
+in `plans/text-hook.json` with `kind: "opening"`, three `ideas`, `chosen` and
+`source`. Put exactly the chosen text in the title's timeline `lines`.
+Rendering refuses missing choices and titles with different text. Existing projects
+keep their title layers until the creator answers Text at the top once.
+
+Kinetic hook fills short lines with giant type and punches each word over the
+picture as it is spoken. It centres above the head when face data is available
+and needs the words to be spoken inside the title window.
+
+### Whole-video label (Text hook)
+
 Text hook uses plain Inter in joined rounded boxes near the top for the whole video.
 Choose White, Black or Accent. Text fits one or two balanced lines from 72 to 60 px.
 It waits for chosen text in `plans/text-hook.json`. Text that cannot fit or clear
 the face is refused. Captions keep their place.
-Kinetic hook fills short lines with giant type and punches each word over the
-picture as it is spoken. It centres above the head when face data is available
-and needs the words to be spoken inside the title window.
+
+### Cards
 
 Timeline `graphic` elements use the card library's template and typed slots, with
 the saved style's graphics tokens. Local image-slot paths resolve from the project

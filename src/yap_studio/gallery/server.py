@@ -531,8 +531,8 @@ class GalleryServer:
                 or (card not in cards.CARD_TEMPLATES and card not in self._registry_kinds())):
             raise ValidationError("tile.card", "unknown card kind")
         step = tile.get("step", "looks")
-        if step not in {"looks", "start", "templates", "font", "captions", "colors", "more",
-                        "words", "highlight", "title", "cards", "grade", "opening", "broll",
+        if step not in {"looks", "start", "templates", "font", "captions", "colors", "top-text",
+                        "more", "words", "highlight", "title", "cards", "grade", "opening", "broll",
                         "moves", "moments", "sound"}:
             raise ValidationError("tile.step", "unknown style step")
         section = tile.get("section", "cards")

@@ -433,6 +433,7 @@ class HomeState:
                 "saved": style is not None,
                 "name": style.get("name") if style else None,
                 "hook_style": style.get("hook", {}).get("style") if style else None,
+                "hook_answered": bool(style and style.get("hook", {}).get("answered", False)),
                 "updated_at": datetime.fromtimestamp(style_path.stat().st_mtime, UTC).isoformat()
                 if style is not None
                 else None,

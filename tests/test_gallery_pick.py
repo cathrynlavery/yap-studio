@@ -1724,10 +1724,12 @@ def test_memory_page_has_all_screens_closed_folds_and_strict_csp(memory_gallery)
     status, body, csp = _memory_request(memory_gallery, "/")
     assert status == 200 and csp == gallery_server._PAGE_CSP
     page = body.decode()
-    panels = re.findall(r'class="step-panel" id="panel-([a-z]+)"', page)
-    assert panels == ["looks", "font", "captions", "colors", "more", "grade", "opening",
+    panels = re.findall(r'class="step-panel" id="panel-([a-z-]+)"', page)
+    assert panels == ["looks", "font", "captions", "colors", "top-text", "more", "grade", "opening",
                       "cards", "broll", "moves", "moments", "sound"]
-    assert re.findall(r'data-step="([^"]+)"', page) == ["font", "captions", "colors", "more"]
+    assert re.findall(r'data-step="([^"]+)"', page) == [
+        "font", "captions", "colors", "top-text", "more",
+    ]
     assert 'id="customize"' in page and 'id="back-to-looks"' in page
     assert page.count('>Save style</button>') == 2
     assert 'id="save-early"' not in page

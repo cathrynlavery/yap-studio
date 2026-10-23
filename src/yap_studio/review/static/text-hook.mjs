@@ -7,7 +7,7 @@ export function renderTextHook(panel, plan, save, disabled = false) {
     if (text) element.textContent = text;
     return element;
   };
-  const heading = node('h2', 'Text hook');
+  const heading = node('h2', plan.kind === 'opening' ? 'Opening title' : 'Whole-video label');
   heading.id = 'text-hook-heading';
   panel.append(heading);
   if (plan.chosen) {
@@ -22,7 +22,7 @@ export function renderTextHook(panel, plan, save, disabled = false) {
   const input = node('textarea');
   input.id = 'text-hook-text';
   input.rows = 2;
-  input.maxLength = 80;
+  input.maxLength = plan.kind === 'opening' ? 1000 : 80;
   const use = node('button', 'Use this');
   use.type = 'button';
   use.disabled = true;
@@ -47,7 +47,7 @@ export function renderTextHook(panel, plan, save, disabled = false) {
   input.addEventListener('input', () => {
     source = 'typed';
     for (const item of buttons) item.setAttribute('aria-pressed', 'false');
-    use.disabled = disabled || !input.value.trim() || input.value.trim().length > 80;
+    use.disabled = disabled || !input.value.trim() || input.value.trim().length > input.maxLength;
   });
   use.addEventListener('click', async () => {
     const text = input.value.trim();

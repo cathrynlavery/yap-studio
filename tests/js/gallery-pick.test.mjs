@@ -54,9 +54,9 @@ import { steps, stepFromHash, adjacentStep, availableSteps, screenAvailable, opt
 
 test('screen navigation is bounded and restores visible screens and legacy hashes', () => {
   assert.deepEqual(steps.map(([id]) => id),
-    ['looks', 'font', 'captions', 'colors', 'more', 'grade', 'opening', 'cards', 'broll', 'moves', 'moments', 'sound']);
+    ['looks', 'font', 'captions', 'colors', 'top-text', 'more', 'grade', 'opening', 'cards', 'broll', 'moves', 'moments', 'sound']);
   assert.deepEqual(screens.map(({ id }) => id),
-    ['font', 'captions', 'colors', 'grade', 'opening', 'cards', 'broll', 'moves', 'moments', 'sound']);
+    ['font', 'captions', 'colors', 'top-text', 'grade', 'opening', 'cards', 'broll', 'moves', 'moments', 'sound']);
   for (const [index, [step]] of steps.entries()) {
     assert.equal(stepFromHash(`#${step}`), step);
     assert.equal(adjacentStep(step, 1), steps[Math.min(index + 1, steps.length - 1)][0]);
@@ -107,7 +107,7 @@ test('schema requirements and injected slots reveal optional screens in order', 
   assert.equal(screenAvailable('moves', schema, [{ ...entry, requires: ['missing.path', true] }]), false);
   const slots = { moves: [entry] };
   assert.deepEqual(availableSteps(schema, slots).map(([id]) => id),
-    ['looks', 'font', 'captions', 'colors', 'more', 'grade', 'opening', 'cards', 'broll', 'moves', 'sound']);
+    ['looks', 'font', 'captions', 'colors', 'top-text', 'more', 'grade', 'opening', 'cards', 'broll', 'moves', 'sound']);
   assert.equal(adjacentStep('broll', 1, schema), 'sound');
   assert.equal(adjacentStep('sound', -1, schema), 'broll');
   assert.equal(adjacentStep('broll', 1, schema, slots), 'moves');
@@ -132,7 +132,7 @@ test('the shipped page opens on looks and explains Customize, optional extras an
 });
 
 test('jumping between steps exposes exactly one panel and one selected tab', () => {
-  const tabs = ['font', 'captions', 'colors', 'more'].map((step) => ({ dataset: { step }, attrs: {},
+  const tabs = ['font', 'captions', 'colors', 'top-text', 'more'].map((step) => ({ dataset: { step }, attrs: {},
     setAttribute(name, value) { this.attrs[name] = value; } }));
   const panels = steps.map(([step]) => ({ id: `panel-${step}`, hidden: false }));
   for (const [step] of steps.filter(([id]) => id !== 'looks')) {

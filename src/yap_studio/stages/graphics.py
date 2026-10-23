@@ -67,7 +67,7 @@ from yap_studio.stages.number_graphics import (
     publish_number_layer,
 )
 from yap_studio.style import ResolvedStyle
-from yap_studio.text_hook import TEXT_HOOK_ID
+from yap_studio.text_hook import TEXT_HOOK_ID, require_top_text
 from yap_studio.text_rules import apply_title_rules
 
 
@@ -884,6 +884,7 @@ def graphics(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
     """Publish title and card layers with box/frame placements through the stage journal."""
     with paths.operation():
         context = ProjectContext(project_dir)
+        require_top_text(context)
         root = context.project_dir
         run = StageRun(root, "graphics")
         previous = read_receipt(root / "graphics") or {}

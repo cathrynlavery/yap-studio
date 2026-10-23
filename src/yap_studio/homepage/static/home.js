@@ -2,6 +2,7 @@ import {
   NEW_STEPS, OFFERED_TYPES, TYPE_COPY, answersPayload, answersSummary, brollText, connectionMessage, connectionUpdate, defaultRoute,
   draftFromDefault, draftProblems, findProject, firstOpenStep, formatBytes, formatDuration, formatWhen, hasFinal, isVideoFile, linkFor,
   parseRoute, phaseInfo, phoneLinkLabel, plural, progressRows, requestInfo, shapeProblem, sourcesToSend, suggestedShape, takesText, textHookProblem, typeLabel,
+  topTextAnswers, topTextChoice, topTextSummary,
 } from './home-model.mjs';
 
 const token = new URLSearchParams(location.search).get('t') ?? '';
@@ -665,6 +666,7 @@ function stepLook(draft) {
     h('p', {class: 'hint', text: 'Pick a look on a still from your own take. You can fine-tune every part, or save a look as it is.'}),
     h('div', {class: 'look'}, h('span', {class: 'frame', 'aria-hidden': 'true'}),
       h('span', {class: 'info'}, h('strong', {text: saved ? state.style.name : 'No look yet'}),
+        h('span', {text: `Text at the top: ${topTextSummary(state.style)}`}),
         h('span', {text: saved ? `Saved ${formatWhen(state.style.updated_at)}` : 'Claude uses the default look until you pick one.'})),
       h('button', {type: 'button', class: `btn${saved ? '' : ' primary'}`, id: 'open-style', onclick: openStylePage,
         text: saved ? 'Change look' : 'Choose a look'}))));
@@ -789,17 +791,29 @@ function stepMake(draft, problems) {
   const takes = draftTakes(draft);
   const voice = draft.video_type === 'voiceover';
   const horizontal = draft.shape === 'horizontal';
-  const hasHook = !horizontal && state.style?.hook_style === 'text_hook';
+  const answer = topTextChoice(state.style, draft);
+  const hasHook = ['opening', 'whole'].includes(answer);
+  const topText = horizontal ? null : h('div', {class: 'section field'},
+    h('label', {for: 'top-text-choice', text: 'Text at the top'}),
+    h('p', {class: 'note', text: 'For this video. Your saved look stays the same.'}),
+    h('select', {id: 'top-text-choice', onchange: (event) => {
+      draft.top_text = event.target.value;
+      saveDraft(draft);
+      render();
+    }}, [...(!topTextChoice(state.style) ? [['', 'Ask me before the cut']] : []), ...topTextAnswers].map(([id, name]) =>
+      h('option', {value: id, selected: answer === id, text: name}))));
   let hookField = null;
   if (hasHook) {
     hookField = $('text-hook-field').content.firstElementChild.cloneNode(true);
+    hookField.querySelector('label').textContent = answer === 'opening' ? 'Opening title' : 'Whole-video label';
     const input = hookField.querySelector('textarea');
+    input.maxLength = answer === 'opening' ? 1000 : 80;
     input.value = draft.text_hook ?? '';
     input.addEventListener('input', () => {
       draft.text_hook = input.value;
       saveDraft(draft);
       const error = hookField.querySelector('[role="alert"]');
-      error.textContent = textHookProblem(input.value);
+      error.textContent = textHookProblem(input.value, answer);
       error.hidden = !error.textContent;
       input.setCustomValidity(error.textContent);
     });
@@ -823,7 +837,7 @@ function stepMake(draft, problems) {
     ...stepHeader('make', 'Make it', null),
     h('dl', {class: 'summary'}, rows.map(([label, value, href]) => h('div', {}, h('dt', {text: label}), h('dd', {text: value}),
       h('a', {href, text: 'Change'})))),
-    hookField,
+    topText, hookField,
     shapeProblem({...draft, takes}, state) ? h('p', {class: 'note', role: 'alert', text: shapeProblem({...draft, takes}, state)}) : null,
     h('div', {class: 'section'}, h('h2', {text: 'What happens next'}), h('ol', {class: 'next-list'}, next.map((line) => h('li', {text: line})))),
     h('p', {class: 'note', text: 'Rendering the final can take a while for a long video. You can close this page; it picks up where things are when you come back. Generated music uses your own ElevenLabs credits, and Claude asks before it spends any.'}),
@@ -832,8 +846,8 @@ function stepMake(draft, problems) {
       h('a', {class: 'link', href: '#new/look', text: 'Back'}), h('span', {class: 'spacer'}),
       h('button', {type: 'button', class: 'btn primary big', id: 'make', disabled: Boolean(problems.what || problems.footage) || busy,
         onclick: async (event) => {
-          if (hasHook && textHookProblem(draft.text_hook ?? '')) {
-            toast(textHookProblem(draft.text_hook), true);
+          if (hasHook && textHookProblem(draft.text_hook ?? '', answer)) {
+            toast(textHookProblem(draft.text_hook, answer), true);
             return;
           }
           busy = true; event.target.disabled = true;
@@ -841,6 +855,7 @@ function stepMake(draft, problems) {
             const request = await api('/api/requests', {kind: 'edit', video_type: draft.video_type,
               shape: draft.shape, ...(horizontal ? {captions: draft.captions === true} : {}),
               broll_sources: sourcesToSend(draft), takes, album: voice && draft.album?.trim() ? draft.album.trim() : null,
+              ...(answer ? {top_text: answer} : {}),
               ...(hasHook ? {text_hook: draft.text_hook ?? ''} : {})});
             clearDraft();
             await refresh();

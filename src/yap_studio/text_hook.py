@@ -19,6 +19,33 @@ LINE_HEIGHT = 1.3
 _NUMBER = re.compile(r"(?<!\w)(\$?)(-?[0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)(%?)")
 
 
+def require_top_text(context):
+    """Refuse a final until the creator chooses its title or whole-video label."""
+    from yap_studio.project.model import parse_document
+
+    hook = context.render_style().data["hook"]
+    if hook["style"] == "none":
+        return
+    # Existing projects keep their title layers until the creator answers once.
+    if hook["style"] != "text_hook" and not hook.get("answered", False):
+        return
+    kind = "text_hook" if hook["style"] == "text_hook" else "opening"
+    try:
+        choice = parse_document("text-hook", context.json("plans/text-hook.json"))
+    except FileNotFoundError:
+        choice = None
+    if choice is None or choice.chosen is None or choice.kind != kind:
+        raise ValidationError("hook", "Choose the text at the top before rendering. "
+                              "Show three ideas and wait for a pick or the creator's own text. "
+                              "Save it as chosen in plans/text-hook.json.")
+    if kind == "opening":
+        titles = [item for item in context.resolved_timeline().elements if item.kind == "title"]
+        if not titles or any(" ".join(" ".join(item.payload["lines"]).split())
+                             != " ".join(choice.chosen.split()) for item in titles):
+            raise ValidationError("hook", "Use the chosen opening text in the title's lines, "
+                                  "then render again. Do not invent or replace the chosen text.")
+
+
 @dataclass(frozen=True)
 class TextHookFit:
     """The exact lines, font size and measured widths used by the title layer."""

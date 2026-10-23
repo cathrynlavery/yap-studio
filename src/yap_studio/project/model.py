@@ -307,6 +307,7 @@ SPECS: dict[str, dict[str, Any]] = {
                       anyOf=[{"maxItems": 0}, {"minItems": 3}]),
         "chosen": _nullable(_str(minLength=1, maxLength=1000)),
         "source": _enum("typed", "idea", "note"),
+        "kind": _enum("text_hook", "opening"),
     }, ("schema", "ideas", "chosen", "source"), allOf=[{
         "if": {"properties": {"chosen": {"type": "null"}}},
         "then": {"properties": {"ideas": {"minItems": 3}}},
@@ -768,11 +769,13 @@ class TextHook:
     ideas: tuple[str, ...]
     chosen: str | None
     source: str
+    kind: str = "text_hook"
 
     def to_dict(self) -> dict[str, Any]:
         """Return the versioned plan without mutable model fields."""
         return {"schema": "yap-studio/text-hook@1", "ideas": list(self.ideas),
-                "chosen": self.chosen, "source": self.source}
+                "chosen": self.chosen, "source": self.source,
+                **({"kind": self.kind} if self.kind != "text_hook" else {})}
 
 
 Document = Project | Words | Edit | Removals | CutWords | TimelineLane | TextHook
@@ -807,11 +810,15 @@ def parse_document(
         from yap_studio.text_hook import fit_text_hook
 
         for text in [*data["ideas"], *([data["chosen"]] if data["chosen"] else [])]:
-            fit_text_hook(text)
+            if not text.strip():
+                raise ProjectFileError(filename, "chosen", "write some text")
+            if data.get("kind", "text_hook") == "text_hook":
+                fit_text_hook(text)
         if data["chosen"] is not None and data["source"] == "idea":
             if data["chosen"] not in data["ideas"]:
                 raise ProjectFileError(filename, "chosen", "choose one of the offered ideas")
-        return TextHook(tuple(data["ideas"]), data["chosen"], data["source"])
+        return TextHook(tuple(data["ideas"]), data["chosen"], data["source"],
+                        data.get("kind", "text_hook"))
     if name == "project":
         _unique(data["takes"], filename, "takes")
         values = {key: value for key, value in data.items() if key not in {"schema", "takes"}}

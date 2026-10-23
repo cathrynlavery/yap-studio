@@ -22,6 +22,7 @@ function initialState() {
   const optIn = new Set(['edit_timeline', 'storyboard', 'jiggle_delete', 'file_drop', 'video_card',
     'prompt_bar', 'comment_cta', 'comment_drop', 'icon_strike', 'big_number', 'gravity_drop', 'choices']);
   const style = { ...defaults(schema), schema_version: 1, name: 'Editorial' };
+  style.hook.answered = true;
   style.hook.font = style.captions.font;
   return { schema, style, bleep_builtin: JSON.parse(readFileSync(new URL('src/yap_studio/sfx/swear-words.json', root))).words,
     from_library: false, library: [
@@ -260,7 +261,7 @@ async function harness(state = initialState(), hash = '', options = {}) {
     $: (id) => document.getElementById(id),
     async click(id) { await document.getElementById(id).fire('click'); await flush(); },
     async go(screen) {
-      if (['font', 'captions', 'colors', 'more'].includes(screen)) await this.click(`step-${screen}`);
+      if (['font', 'captions', 'colors', 'top-text', 'more'].includes(screen)) await this.click(`step-${screen}`);
       else if (screen === 'looks') await this.click('back-to-looks');
       else { await this.click('step-more'); await this.click(`choice-${screen}`); }
     },
@@ -288,6 +289,32 @@ async function harness(state = initialState(), hash = '', options = {}) {
     },
   };
 }
+
+test('unanswered top text has no selected answer or main title and Save asks first', async () => {
+  for (const phone of [false, true]) {
+    const state = initialState(); delete state.style.hook.answered;
+    const page = await harness(state, '#looks', {phone, layers: true});
+    assert.equal(page.requests.filter(request => request.data?.tile.tab === 'preview')
+      .every(request => request.data.style.hook.style === 'none'), true);
+    await page.click('save');
+    assert.equal(page.location.hash, '#top-text');
+    assert.equal(page.$('top-text-tiles').children.length, 3);
+    assert.equal(page.$('top-text-tiles').children.some(tile => tile.getAttribute('aria-pressed') === 'true'), false);
+    assert.equal(page.$('save-sheet').open, false);
+    await page.go('opening');
+    await page.pick('title-tiles', 'Shimmer');
+    assert.equal(page.requests.filter(request => request.data?.tile.tab === 'preview')
+      .at(-1).data.style.hook.style, 'none');
+    await page.click('save');
+    assert.equal(page.location.hash, '#top-text');
+    await page.click('top-text-whole');
+    await page.click('top-text-none');
+    await page.click('top-text-opening');
+    await page.save();
+    assert.equal(savePayload(page).hook.answered, true);
+    assert.equal(savePayload(page).hook.style, 'shimmer');
+  }
+});
 
 test('grade tiles, strength, candidate stills and Reset follow the chosen grade', async () => {
   const state = initialState();
@@ -581,7 +608,8 @@ test('the shipped save path round-trips selections, colors, custom width and car
   await page.$('color-accent').fire('change');
   await flush();
   await page.click('step-more');
-  await page.pick('title-tiles', 'No title');
+  await page.go('top-text');
+  await page.pick('top-text-tiles', 'None');
   page.$('music').value = .13;
   await page.$('music').fire('input');
   page.$('fine-width_scale').value = .79;
@@ -1325,7 +1353,7 @@ test('review guidance describes Looks, the core three and More choices', async (
   const guidance = readFileSync(new URL('docs/style-page.md', root), 'utf8');
   const flow = guidance.split('## How the page works\n')[1].split('\n## ')[0].replace(/\s+/g, ' ');
   assert.match(flow, /opens on looks under your video/);
-  assert.match(flow, /Customize opens the core three screens/);
+  assert.match(flow, /Customize opens four screens/);
   assert.match(flow, /Back to looks returns to the grid/);
   assert.match(flow, /Grade, Opening, Cards, B-roll, Moves, Moments and Sound/);
   assert.match(flow, /A screen stays hidden/);
@@ -1333,7 +1361,7 @@ test('review guidance describes Looks, the core three and More choices', async (
   assert.match(flow, /More starts closed/);
   const page = await harness();
   assert.deepEqual(page.document.querySelectorAll('[data-step]').map((tab) => tab.textContent.replace(' Optional', '')),
-    ['Font', 'Captions', 'Colors', 'More choices']);
+    ['Font', 'Captions', 'Colors', 'Text at the top', 'More choices']);
 });
 
 test('Customize preserves the complete look currently on screen', async () => {
@@ -1342,7 +1370,7 @@ test('Customize preserves the complete look currently on screen', async () => {
   await page.click('customize');
   assert.equal(page.location.hash, '#font');
   assert.equal(page.$('steps').hidden, false);
-  assert.equal(page.$('step-count').textContent, 'Step 1 of 3');
+  assert.equal(page.$('step-count').textContent, 'Step 1 of 4');
   let preview = page.requests.filter((r) => r.data?.tile.tab === 'preview').at(-1).data.style;
   assert.deepEqual(preview, state.style);
   await page.click('back');
@@ -2158,7 +2186,7 @@ test('Kinetic hook is a main opening tile and keeps the base title first without
     assert.equal(names.filter((name) => name === 'Kinetic hook').length, 1);
     assert.equal(page.$('more-title-tiles').textContent.includes('Kinetic hook'), false);
     const all = [...names, ...page.$('more-title-tiles').children.map((tile) => tile.children[1].text)];
-    assert.equal(all.length, schema.properties.hook.properties.style.enum.length);
+    assert.equal(all.length, schema.properties.hook.properties.style.enum.length - 2);
     assert.equal(new Set(all).size, all.length);
     page.observers[1].intersect(); await flush();
     assert.ok(page.requests.some((request) => request.data?.tile.tab === 'title' && request.data.style.hook.style === 'kinetic'));
@@ -2254,7 +2282,7 @@ test('every optional row opens exactly one screen with More selected and sequent
     await page.click(`${id}-all-choices`);
     assert.equal(page.$('panel-more').hidden, false);
   }
-  assert.deepEqual(page.$('more-choices').children.map((row) => row.querySelectorAll('.choice-number')[0].textContent), ['4', '5', '6', '7', '8', '9', '10']);
+  assert.deepEqual(page.$('more-choices').children.map((row) => row.querySelectorAll('.choice-number')[0].textContent), ['5', '6', '7', '8', '9', '10', '11']);
 });
 
 test('screen visits and opened folds save the whole original style for the base and Marker', async () => {
@@ -2272,15 +2300,15 @@ test('screen visits and opened folds save the whole original style for the base 
 
 test('Back and Next skip hidden screens, and the four tabs use their own keyboard order', async () => {
   const page = await harness(initialState(), '#font');
-  for (const id of ['font', 'captions', 'colors', 'more', 'grade', 'opening', 'cards', 'broll', 'moves', 'moments', 'sound']) {
+  for (const id of ['font', 'captions', 'colors', 'top-text', 'more', 'grade', 'opening', 'cards', 'broll', 'moves', 'moments', 'sound']) {
     assert.equal(page.document.body.dataset.screen, id);
     assert.equal(page.$('next').hidden, id === 'sound');
     if (id !== 'sound') await page.click('next');
   }
   await page.click('back'); assert.equal(page.location.hash, '#moments');
   await page.$('step-more').fire('keydown', { key: 'ArrowLeft', preventDefault() {} }); await flush();
-  assert.equal(page.location.hash, '#colors');
-  assert.equal(page.document.activeElement.id, 'step-colors');
+  assert.equal(page.location.hash, '#top-text');
+  assert.equal(page.document.activeElement.id, 'step-top-text');
   await page.$('step-colors').fire('keydown', { key: 'End', preventDefault() {} }); await flush();
   assert.equal(page.location.hash, '#more');
   await page.$('step-more').fire('keydown', { key: 'Home', preventDefault() {} }); await flush();
@@ -3692,8 +3720,8 @@ test('each main tile and fold control saves exactly its documented fields', asyn
   }
   for (const [index, value] of ['none', 'clean', 'broadcast', 'warm'].entries()) add('voice ' + value, 'sound', { 'voice.preset': value }, press('voice-preset', index));
   for (const [index, value] of ['off', 'gentle', 'strong'].entries()) add('bass ' + value, 'sound', { 'voice.repair_proximity': value }, press('repair-proximity', index));
-  for (const look of schema.properties.hook.properties.style.enum) add('opening ' + look, 'opening', { 'hook.style': look },
-    async (page) => { const main = [page.state.style.hook.style, 'calm_card', 'headline_slam', 'shimmer', 'typewriter', 'video_letters', 'none', 'kinetic', 'text_hook'];
+  for (const look of schema.properties.hook.properties.style.enum.filter((look) => !['none', 'text_hook'].includes(look))) add('opening ' + look, 'opening', { 'hook.style': look },
+    async (page) => { const main = [page.state.style.hook.style, 'calm_card', 'headline_slam', 'shimmer', 'typewriter', 'video_letters', 'kinetic'];
       const id = main.includes(look) ? 'title-tiles' : 'more-title-tiles';
       await openFold(page, id); const index = schema.properties.hook.properties.style.enum.filter((value) => main.includes(look) ? main.includes(value) : !main.includes(value)).indexOf(look);
       if (main.includes(look)) {
@@ -3729,7 +3757,8 @@ test('Video in letters is a main opening choice and saves only the title style',
   const page = await harness(state, '#opening', { layers: true });
   const labels = page.$('title-tiles').children.map((tile) => tile.children[1].textContent);
   assert.ok(labels.findIndex((name) => name.startsWith('Typewriter')) < labels.findIndex((name) => name.startsWith('Video in letters')));
-  assert.ok(labels.findIndex((name) => name.startsWith('Video in letters')) < labels.findIndex((name) => name.startsWith('No title')));
+  assert.ok(labels.some((name) => name.startsWith('Video in letters')));
+  assert.ok(!labels.some((name) => name.startsWith('No title')));
   assert.ok(labels.some((name) => name.includes('A big word filled with your footage')));
   assert.equal(page.$('more-title-tiles').children.some((tile) => tile.textContent.includes('Video in letters')), false);
   await page.pick('title-tiles', 'Video in letters');
@@ -3990,7 +4019,8 @@ test('Chromium walks every screen at phone and desktop sizes, keeps tiles clear 
         await page.waitForFunction(() => document.getElementById('style-name').value === 'My style');
         saved.length = 0; replacements.length = 0;
         const visit = async (screen, grid, fold) => {
-          await page.waitForFunction((screen) => document.body.dataset.screen === screen, {}, screen);
+          await page.waitForFunction((screen) => document.body.dataset.screen === screen, {}, screen)
+            .catch(async (error) => { throw new Error(`Expected ${screen}, saw ${await page.$eval('body', body => body.dataset.screen)}: ${error.message}`); });
           await page.evaluate(() => window.scrollTo(0, 0)); await settle();
           await page.evaluate(() => document.fonts.ready);
           await page.$eval(`#${grid} > :first-child`, (tile) => tile.scrollIntoView({ block: 'start' })); await settle();
@@ -4180,7 +4210,10 @@ test('Chromium walks every screen at phone and desktop sizes, keeps tiles clear 
           ['cards', 'card-style-tiles', 'card-group-words'], ['broll', 'broll-layout-tiles', 'broll-stock-fold'],
           ['moves', 'moves-tiles', null], ['moments', 'moments-tiles', null], ['sound', 'music-level-tiles', 'voice-fold']]) {
           await page.evaluate(() => window.scrollTo(0, 0)); await settle();
-          await page.click('#step-more'); await page.click(`#choice-${screen}`);
+          await page.click('#step-more');
+          await page.$eval(`#choice-${screen}`, row => row.scrollIntoView({block: 'center'}));
+          await settle();
+          await page.click(`#choice-${screen}`);
           await visit(screen, grid, fold);
           if (screen === 'opening') {
             await page.$$eval('#title-tiles button', (tiles) => tiles.find((tile) => tile.querySelector('.tile-label').textContent.startsWith('Video in letters')).click());

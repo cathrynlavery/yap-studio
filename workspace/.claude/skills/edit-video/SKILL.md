@@ -34,7 +34,27 @@ Still frames from pinned notes and contact sheets of the creator's clips go to C
 - Never run `assemble --allow-violations` or pass `--allow-violations` to `run`. Move or drop
   what covers the face instead.
 
-## Text hook
+## Text at the top
+
+Before making the cut, follow Text at the top in `CLAUDE.md`. If `hook.answered`
+is missing or false, ask once in plain words and wait. There is no default. A home's
+`top_text` answer overrides the saved choice for this video only. None needs no text.
+
+Both Just the opening and The whole video use `DIR/plans/text-hook.json`.
+For an opening title add `"kind":"opening"` to the plan below; for a whole-video
+label omit it. Use the creator's `text_hook` from the home request or their own text
+from a note as `chosen`, with `source: typed` or `source: note`. Ideas may be empty
+when they supplied the text. Otherwise write three ideas, show all three in the
+Story cut note and on the review page, and wait for a pick or their own text.
+Never choose for them. If final approval arrives without a text choice, ask once and wait.
+
+For opening titles, use short runs of their spoken words in their title look.
+After the pick, put exactly that chosen text in the title's `lines` in the agent
+lane, keeping the existing timing and line layout rules below. Never render an
+opening title without chosen text. The engine refuses a missing choice or different
+title text. The review page saves either kind of choice with a note.
+
+### Whole-video label
 
 When the saved style uses `hook.style: text_hook`, its plain label stays on screen
 for the whole video. Text is per video. Use the creator's `text_hook` from the home
@@ -61,7 +81,7 @@ The engine fits the text from 72 down to 60 px in bundled Inter. It refuses text
 that needs more than two balanced lines or covers the face at the 120 px top floor.
 Ask for shorter text after a refusal. Move nothing else to make it fit.
 The engine plans this title from the choice file. Do not add a title to the lane.
-Other opening title rules below apply to the other looks.
+Opening title rules below apply after the creator has chosen their text.
 
 ## Procedure
 

@@ -58,12 +58,13 @@ body[data-screen=looks] .viewer { position: relative; top: auto; }
 .track i { position: absolute; top: -3px; width: 3px; height: 10px; background: var(--ink); }
 .preview-note { text-align: center; color: var(--muted); font-size: 12px; min-height: 18px; }
 .controls { min-width: 0; }
-.steps { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; padding-bottom: 12px; margin-bottom: 8px; }
+.steps { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; padding-bottom: 12px; margin-bottom: 8px; }
 .steps button { min-width: 0; padding: 7px 9px; border-color: transparent; background: transparent; font-size: 12px; overflow-wrap: anywhere; }
 .steps button[aria-selected=true],.seg button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .step-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; box-shadow: 0 1px 2px #1414120f; }
 .step-panel > p { color: var(--muted); font-size: 14px; margin: 6px 0 18px; }
 .tile-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+#top-text-tiles { grid-template-columns: repeat(3,minmax(0,180px)); justify-content: center; }
 .words-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .start-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 .widths-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }

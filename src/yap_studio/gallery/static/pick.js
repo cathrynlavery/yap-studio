@@ -13,7 +13,7 @@ import {
   captionLook, withCaptionLook, withMotion, brollLayout, withBrollLayout, withBrollPlacement,
   withBrollField, musicLevels, withMusicLevel, soundKitChoice, withSoundKit, withSoundFallback, withSoundExtra,
   withVoicePreset, withVoiceRepair, withBeatSnap, withBleepSwears, maskPreviewText,
-  labels, withPreset, heroAccent, camera3dHalo, gradeColor,
+  labels, withPreset, heroAccent, camera3dHalo, gradeColor, topTextAnswers, topTextChoice, withTopText,
 } from "./choices.mjs";
 
 const $ = (id) => document.getElementById(id);
@@ -22,6 +22,7 @@ const getUrl = (path) => `${path}${path.includes("?") ? "&" : "?"}t=${encodeURIC
 const kindCount = (count) => `${count} ${count === 1 ? "kind" : "kinds"}`;
 
 let musicChoice;
+let openingLook = "quiet_serif";
 let schema, style, preview, state, baseStyle, baseKey, customColors, generation = -1;
 let choosingGradeColor = false, gradeColorRequest = 0, gradeColorPending = false;
 let activeStep = stepFromHash(location.hash), activeRole = "accent", mainPaused = false;
@@ -33,7 +34,7 @@ let focusedMoment = null;
 let previewPollPending = false;
 const drawings = new Set();
 const foldState = new Map();
-const coreTabs = ["font", "captions", "colors", "more"];
+const coreTabs = ["font", "captions", "colors", "top-text", "more"];
 const optionalScreens = () => screens.filter(({ id, optional }) => optional && screenAvailable(id, schema));
 const drawnScreen = (id) => ["broll", "sound", "moves", "moments"].includes(id);
 const mainDrawing = (id, candidate = style) => drawnScreen(id) ? id
@@ -223,7 +224,7 @@ function mount(host, spec, isMain = false, refreshOn404 = null, candidate = styl
     const layerName = activeStep === "opening" ? "title" : activeStep === "cards" ? "card" : "captions";
     const focus = activeStep === "grade" ? { x: 540, y: 960, width: 0, height: 0 }
       : spec.layers.find((layer) => layer.name === layerName) || spec.layers[0];
-    const crop = !isMain && focus && (!phone || captionTile || compact);
+    const crop = !isMain && activeStep !== "top-text" && focus && (!phone || captionTile || compact);
     const windowBox = crop
       ? tileWindow(focus, spec.frame, hostSize(host), phone && captionTile ? .72 : .5)
       : { x: 0, y: 0, width: 1080, height: 1920 };
@@ -337,6 +338,7 @@ async function renderMain(retried = false) {
     $("main-frame").replaceChildren();
   }
   const candidate = copy(style);
+  if (!candidate.hook.answered) candidate.hook.style = "none";
   const drawing = mainDrawing(activeStep, candidate);
   previewControls(drawing);
   if (drawing) {
@@ -476,6 +478,10 @@ function staticPoster(host, candidate) {
   host.replaceChildren(poster);
 }
 function tile(parent, name, selected, request, candidate, onClick, compact = false, note = "", momentId = null) {
+  if (request?.tab === "preview" && !candidate.hook.answered) {
+    candidate = copy(candidate);
+    candidate.hook.style = "none";
+  }
   const button = document.createElement("button");
   button.type = "button";
   button.className = "tile";
@@ -990,6 +996,7 @@ function clearGradeColor() {
 }
 function selectStyle(candidate) {
   clearGradeColor();
+  if (!["none", "text_hook"].includes(candidate.hook.style)) openingLook = candidate.hook.style;
   style = candidate;
   changed();
 }
@@ -997,6 +1004,7 @@ function startFrom(item) {
   clearGradeColor();
   focusedMoment = null;
   style = withPreset(style, item.style, musicChoice);
+  openingLook = !["none", "text_hook"].includes(style.hook.style) ? style.hook.style : "quiet_serif";
   fontRole = "captions";
   soundKit = soundKitChoice(style) === "elevenlabs" ? style.music?.sound_effects || "soft" : "soft";
   siteController?.abort("style changed");
@@ -1028,7 +1036,7 @@ function renderSteps() {
   const scrollY = window.scrollY;
   clearStages();
   for (const id of ["start-options", "caption-look-tiles", "word-tiles", "highlight-tiles", "font-options",
-    "graphics-font-options", "width-tiles", "palette-tiles", "title-tiles", "more-title-tiles",
+    "graphics-font-options", "width-tiles", "palette-tiles", "title-tiles", "more-title-tiles", "top-text-tiles", "top-text-options",
     "card-style-tiles", "card-categories", "grade-tiles", "more-choices", "broll-layout-tiles",
     "broll-placements", "broll-overlay-motion", "broll-still-push", "music-level-tiles",
     "moves-tiles", "moves-options", "moments-tiles", "moment-settings", "opening-more-slots", "card-group-slots", "broll-more-slots"]) {
@@ -1107,7 +1115,7 @@ function renderSteps() {
       drawPreview(thumbnail, style, screen.id, false, true);
       const text = node("span", "choice-text");
       text.append(node("strong", "", screen.name), node("small", "", summaryFor(screen.id)));
-      row.append(thumbnail, node("span", "choice-number", String(index + 4)), text, node("span", "choice-change", "Change"));
+      row.append(thumbnail, node("span", "choice-number", String(index + 5)), text, node("span", "choice-change", "Change"));
       row.addEventListener("click", () => goToStep(screen.id));
       $("more-choices").append(row);
     });
@@ -1127,10 +1135,20 @@ function renderSteps() {
           } else selectStyle(candidate);
         }, false, { none: "Your picture as shot", film: "Warmer, softer contrast", eyedropper: "Matched to a color you pick" }[look]);
     }
+  } else if (activeStep === "top-text") {
+    for (const [id, name, note] of topTextAnswers) {
+      const candidate = withTopText(style, id, openingLook);
+      const button = tile($("top-text-tiles"), name, topTextChoice(style) === id,
+        { tab: "preview", step: "top-text" }, candidate, () => selectStyle(candidate), false, note);
+      button.id = `top-text-${id}`;
+    }
+    if (style.hook.style === "text_hook") renderSlotGroups($("top-text-options"),
+      openingMoreSlots.filter((entry) => entry.id === "text-hook-color"), "top-text");
   } else if (activeStep === "opening") {
-    const main = [...new Set([baseStyle.hook.style, "calm_card", "headline_slam", "shimmer", "typewriter", "video_letters", "none"])];
+    const main = [...new Set([baseStyle.hook.style, "calm_card", "headline_slam", "shimmer", "typewriter", "video_letters"])]
+      .filter((look) => !["none", "text_hook"].includes(look));
     for (const look of options("hook.style", openingSlots)) {
-      if (main.includes(look)) continue;
+      if (main.includes(look) || ["none", "text_hook"].includes(look)) continue;
       const candidate = copy(style); candidate.hook.style = look;
       tile($("more-title-tiles"), labels[look],
         style.hook.style === look, { tab: "title" }, candidate, () => selectStyle(candidate));
@@ -1146,7 +1164,7 @@ function renderSteps() {
     }
     renderSlots($("title-tiles"), openingSlots.filter((entry) => !main.includes(entry.requires?.[1])), "opening");
     renderSlotGroups($("opening-more-slots"), openingMoreSlots.filter((entry) =>
-      entry.id !== "text-hook-color" || style.hook.style === "text_hook"), "opening");
+      entry.id !== "text-hook-color"), "opening");
   } else if (activeStep === "cards") {
     for (const look of options("graphics.style")) {
       const candidate = withCardStyle(style, look);
@@ -1766,7 +1784,7 @@ function goToStep(step, updateHash = true) {
   previewControls(mainDrawing(activeStep));
   $("step-count").textContent = index >= 0 ? `Optional · ${index + 1} of ${optional.length}`
     : activeStep === "more" ? `Optional · ${optional.length} choices`
-    : `Step ${coreTabs.indexOf(activeStep) + 1} of 3`;
+    : `Step ${coreTabs.indexOf(activeStep) + 1} of 4`;
   if (style && !$("picker").hidden) {
     renderControls();
     renderSteps();
@@ -1967,7 +1985,7 @@ function wire() {
     button.addEventListener("keydown", (event) => {
       const current = coreTabs.indexOf(screens.some(({ id, optional }) => id === activeStep && optional) ? "more" : activeStep);
       let step;
-      if (["ArrowRight", "ArrowLeft"].includes(event.key)) step = coreTabs[Math.max(0, Math.min(3, current + (event.key === "ArrowRight" ? 1 : -1)))];
+      if (["ArrowRight", "ArrowLeft"].includes(event.key)) step = coreTabs[Math.max(0, Math.min(coreTabs.length - 1, current + (event.key === "ArrowRight" ? 1 : -1)))];
       if (event.key === "Home") step = "font";
       if (event.key === "End") step = "more";
       if (!step) return;
@@ -2079,6 +2097,7 @@ function wire() {
     $("confirm-save").textContent = `Update ${label}`;
   }
   function openSaveSheet() {
+    if (!style.hook.answered) { goToStep("top-text"); return; }
     if (!validateSave()) return;
     clearSaveQuestion();
     $("save-sheet").showModal();
@@ -2187,6 +2206,7 @@ async function boot() {
     musicChoice = state.music_answer === "none"
       ? (state.from_library ? (state.style.music?.level ?? 0) : 0) : undefined;
     style = withPreset(state.style, state.style, musicChoice);
+    openingLook = !["none", "text_hook"].includes(style.hook.style) ? style.hook.style : "quiet_serif";
     fontRole = "captions";
     soundKit = soundKitChoice(style) === "elevenlabs" ? style.music?.sound_effects || "soft" : "soft";
     baseStyle = copy(style);

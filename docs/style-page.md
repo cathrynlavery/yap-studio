@@ -19,13 +19,13 @@ The page opens on looks under your video. Your saved styles come first, newest f
 with the names you gave them. The presets follow: Editorial Serif, Clean Minimal, Warm
 Editorial, Cobalt, Mono, Headline, Electric, Candy, Marker, One Word, Bold, Editorial
 and Neutral. A look sets every choice, from fonts to sound. Tap a look to see it on
-your take. If it is right, press Save style. Most people finish here.
+your take. If it is right, press Save style, answer Text at the top, and save it.
 
-Customize opens the core three screens with the complete look on screen: Font,
-Captions and Colors. Back and Next move through them, then on to More choices and the
+Customize opens four screens: Font, Captions, Colors and Text at the top.
+Back and Next move through them, then on to More choices and the
 optional screens. Back from Font returns to looks. Back to looks returns to the grid and
 keeps your changes. Reset changes puts the look back as it was. The step bar shows
-Font, Captions, Colors and More choices.
+Font, Captions, Colors, Text at the top and More choices.
 
 More choices lists Grade, Opening, Cards, B-roll, Moves, Moments and Sound. Each row
 shows a still preview, the current choice and Change. Nothing opens until you tap a
@@ -90,13 +90,30 @@ strength and the before and after switch. The tiles use the graded still, and ca
 and cards keep their own colors. The style file fields are in
 [Styles](styles.md#picture-colour).
 
-### Opening
+### Text at the top
+
+Answer one question: when would you like text at the top of your video?
+Choose None, Just the opening, or The whole video. Each previews on your own still.
+Just the opening uses your title look for the first few seconds. The whole video
+uses a short label like "Security rant". Nothing is selected for you, and nothing
+appears at the top until you answer. Save style opens this question if needed.
+For The whole video, Label color offers White, Black or Accent for the box.
+Its preview uses a short line from your take when words are available.
+
+For either kind, the agent writes three ideas for each video, shows them in the
+Story cut note and on the review page, and waits for your pick or your own text.
+It never chooses for you. Older saved styles keep rendering as before, and the
+agent asks this question once before your next cut.
+
+Your answer saves `hook.answered: true`. `hook.style` is `none` for None,
+your title look for Just the opening, or `text_hook` for The whole video.
+Older styles resolve with `hook.answered: false` and keep their existing look.
+
+### Opening look
 
 The look's own title comes first, then Calm card, Headline slam, Shimmer, Typewriter,
-Video in letters and No title. Video in letters fills a big word with your footage.
+Video in letters. Video in letters fills a big word with your footage.
 More holds the other title choices, and a note says how long the title shows.
-Text hook is plain text that stays on screen. Choose White, Black or Accent for
-its box. Its preview uses a short line from your take when words are available.
 You choose the text for each video later.
 
 ### Cards
@@ -177,7 +194,8 @@ word, and captions, titles and cards show it as f***.
 ## Saving
 
 Save style opens a name sheet with "My style" filled in, or the saved name if you
-started from your library. Confirm Save style to finish. Saving puts the style in your
+started from your library. Answer Text at the top first if you have not yet.
+Confirm Save style to finish. Saving puts the style in your
 library and makes it the default for new videos in one step. Each save is a new
 version, so videos you already made keep their look. In a workspace, a readable copy
 goes in `style/my-style.json`. The saved screen confirms that your next videos use it,

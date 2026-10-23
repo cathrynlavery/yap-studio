@@ -102,6 +102,23 @@ review, and the approved file. It never edits, renders or spends money; everythi
 goes through you, and you ask first. If the creator types in chat instead, answer in chat and keep
 the wait running.
 
+## Text at the top
+
+Before the cut, read `hook.answered` in the style. Missing or false means ask once:
+"When would you like text at the top: None, Just the opening, or The whole video?"
+There is no default. Wait for their answer and save `hook.answered: true` in the
+saved style and the project's style. Map None to `hook.style: none`, Just the opening
+to their title look, and The whole video to `hook.style: text_hook`. Keep an existing
+title look; if none is saved, use `quiet_serif`. Older styles keep their look until
+they answer. Do not render top text while waiting.
+
+A home request's `top_text` (`none`, `opening`, `whole`) overrides that choice for
+this project only. Set the project's `hook.answered: true` and map it the same way.
+The saved style stays as it was. Its optional `text_hook` is the creator's chosen
+text for either kind. Follow Text at the top in edit-video: show three ideas in the
+Story cut note and review page, then wait for a pick or their own text. Never choose
+for them or render an opening title without their chosen text.
+
 ## About your videos
 
 Yap Studio home asks these questions on its Look step and saves `style/answers.json`. Ask them in

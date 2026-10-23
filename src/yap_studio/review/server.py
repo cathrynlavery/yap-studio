@@ -612,7 +612,8 @@ class ReviewServer:
                 series = self._video.series
                 if (series is None or series.project_dir is None
                         or self._version_number != len(series.versions)):
-                    raise ValidationError("text_hook", "Choose the Text hook on the newest review.")
+                    raise ValidationError("text_hook",
+                                          "Choose the text at the top on the newest review.")
                 value = body.get("text_hook")
                 if (set(body) != {"text_hook"} or not isinstance(value, dict)
                         or set(value) != {"text", "source"}
@@ -623,15 +624,17 @@ class ReviewServer:
                 with project_lock(series.project_dir):
                     plan = self._text_hook()
                     if plan is None:
-                        raise ValidationError("text_hook", "No Text hook ideas are ready yet.")
+                        raise ValidationError("text_hook",
+                                              "No ideas for text at the top are ready yet.")
                     plan.update(chosen=" ".join(value["text"].split()), source=value["source"])
                     chosen = parse_document("text-hook", plan)
                     assert isinstance(chosen, TextHook)
+                    label = "Opening title" if chosen.kind == "opening" else "Text hook"
                     comment = review.store.add_comment(
                         self._selected.sha256, self._selected.media.facts(self._selected.sha256),
                         {"kind": "fix", "target": "element",
                          **({"start_frame": 0} if self._selected.media.cfr else {"start_s": 0}),
-                         "text": f'Text hook: "{chosen.chosen}"'},
+                         "text": f'{label}: "{chosen.chosen}"'},
                     )
                     paths.atomic_write_text(series.project_dir / "plans/text-hook.json",
                                             json.dumps(chosen.to_dict(), indent=2) + "\n")

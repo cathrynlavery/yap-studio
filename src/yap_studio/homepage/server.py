@@ -434,11 +434,18 @@ class HomeServer:
                 album = data.get("album")
                 if album is not None and (not isinstance(album, str) or len(album) > 1000):
                     raise ValidationError("album", "Use the name of your Photos album.")
-                hook = data.get("text_hook", "")
+                top_text = data.get("top_text") if shape != "horizontal" else None
+                if top_text is not None and (not isinstance(top_text, str)
+                                             or top_text not in {"none", "opening", "whole"}):
+                    raise ValidationError("top_text",
+                                          "Choose None, Just the opening or The whole video.")
+                hook = data.get("text_hook", "") if shape != "horizontal" else ""
                 if not isinstance(hook, str):
-                    raise ValidationError("text_hook", "Write the Text hook as plain text.")
+                    raise ValidationError("text_hook", "Write the text at the top as plain text.")
                 hook = " ".join(hook.split())
-                if hook:
+                if len(hook) > 1000:
+                    raise ValidationError("text_hook", "Please use shorter text at the top.")
+                if hook and top_text != "opening":
                     from yap_studio.text_hook import fit_text_hook
 
                     fit_text_hook(hook)
@@ -448,7 +455,8 @@ class HomeServer:
                     {"video_type": video, "broll_sources": sources, "takes": takes, "album": album,
                      "shape": shape,
                      **({"captions": data.get("captions", False)} if shape == "horizontal" else {}),
-                     **({"text_hook": hook} if hook else {})},
+                     **({"top_text": top_text} if top_text is not None else {}),
+                     **({"text_hook": hook} if hook and top_text != "none" else {})},
                 )
 
             def _post(self, route: str, on_this_mac: bool) -> None:

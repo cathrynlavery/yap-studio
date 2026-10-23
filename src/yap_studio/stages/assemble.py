@@ -95,7 +95,7 @@ from yap_studio.stages.number_visibility import add_number_visibility
 from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline, TimelineRefusal
 from yap_studio.stages.transitions import render_transitions, template_file
 from yap_studio.taste.render import write_taste_record
-from yap_studio.text_hook import TEXT_HOOK_ID
+from yap_studio.text_hook import TEXT_HOOK_ID, require_top_text
 from yap_studio.verify import _verify as verify
 
 _COMMANDS: ContextVar[list[list[str]] | None] = ContextVar("assembly_commands", default=None)
@@ -1681,6 +1681,7 @@ def assemble(project_dir: Path, *, force: bool = False, allow_violations: bool =
     """Render a final and mark any owned predecessor stale on failure."""
     with paths.operation():
         try:
+            require_top_text(ProjectContext(project_dir))
             try:
                 return _assemble_impl(project_dir, force=force,
                                       allow_violations=allow_violations, frames=frames)

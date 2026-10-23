@@ -51,6 +51,12 @@
       "type": "array",
       "uniqueItems": true
     },
+    "kind": {
+      "enum": [
+        "text_hook",
+        "opening"
+      ]
+    },
     "schema": {
       "const": "yap-studio/text-hook@1"
     },

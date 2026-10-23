@@ -359,14 +359,27 @@ export const openingSlots = [{
     return result;
   },
   selected: (style) => style.hook.style === "kinetic",
-}, {
-  id: "text-hook", name: "Text hook", note: "Plain text that stays on screen",
-  requires: ["hook.style", "text_hook"],
-  apply: (style) => ({...style, hook: {...style.hook, style: "text_hook"}}),
-  selected: (style) => style.hook.style === "text_hook",
 }];
+export const topTextAnswers = [
+  ["none", "None", "Nothing at the top"],
+  ["opening", "Just the opening", "A title for the first few seconds, in your title look"],
+  ["whole", "The whole video", 'A short label like "Security rant"'],
+];
+export function topTextChoice(style) {
+  if (!style.hook?.answered) return null;
+  return style.hook.style === "none" ? "none" : style.hook.style === "text_hook" ? "whole" : "opening";
+}
+export function withTopText(style, answer, titleLook = "quiet_serif") {
+  if (!topTextAnswers.some(([id]) => id === answer)) throw new Error("Choose when text appears at the top");
+  const result = copy(style);
+  result.hook.answered = true;
+  result.hook.style = answer === "none" ? "none" : answer === "whole" ? "text_hook"
+    : !["none", "text_hook"].includes(style.hook.style) ? style.hook.style
+    : !["none", "text_hook"].includes(titleLook) ? titleLook : "quiet_serif";
+  return result;
+}
 export const openingMoreSlots = [{
-  id: "text-hook-color", name: "Text hook color",
+  id: "text-hook-color", name: "Label color",
   options: ["white", "black", "accent"].map((color) => ({
     id: color, name: color[0].toUpperCase() + color.slice(1),
     requires: ["hook.text_hook_color", color],
@@ -512,6 +525,7 @@ export const screens = [
   { id: "font", name: "Font", optional: false },
   { id: "captions", name: "Captions", optional: false },
   { id: "colors", name: "Colors", optional: false },
+  { id: "top-text", name: "Text at the top", optional: false },
   { id: "grade", name: "Grade", optional: true },
   { id: "opening", name: "Opening", optional: true },
   { id: "cards", name: "Cards", optional: true },
@@ -822,6 +836,7 @@ export function screenSummary(screen, style, labelMap = {}, schema) {
       if (!grade || grade.look === "none") return "None";
       return `${grade.look === "film" ? "Film look" : `Eyedropper ${grade.color}`}, ${(grade.strength ?? 1) <= 0.5 ? "light" : "full"}`;
     }
+    case "top-text": return topTextAnswers.find(([id]) => id === topTextChoice(style))?.[1] ?? "Not answered";
     case "opening": return (style.hook.style === "none" ? "No title" : label(style.hook.style))
       + (style.chapters?.style === "title_card" ? " · chapter cards on" : "");
     case "cards": {
@@ -1179,6 +1194,7 @@ const groupFields = {
     "captions.background_mode", "captions.background_color", "captions.background_opacity", "captions.background_padding_px", "captions.background_radius_px", "captions.placement", "captions.entrance", "captions.camera_3d"],
   colors: ["captions.text_color", "captions.highlight_color", "captions.highlight_text_color", "hook.text_color", "hook.background_color", "hook.accent_color", "graphics.paper_color", "graphics.titlebar_color", "graphics.ink_color", "graphics.accent_color", "brand.accent_color"],
   grade: ["grade.look", "grade.strength", "grade.color", "grade.slider"],
+  "top-text": ["hook.answered"],
   opening: ["hook.style", "hook.text_hook_color", "chapters.style"],
   cards: ["graphics.style", "graphics.card_kinds_off", "graphics.card_kinds_on", "graphics.flow_look", "graphics.specs_rows", "graphics.card_motion"],
   broll: brollKinds.map((kind) => `broll.${kind}_placement`).concat(Object.keys(brollFields).map((field) => `broll.${field}`), "broll.emphasis_on"),

@@ -15,9 +15,18 @@ export function connectionMessage(connection) {
   return `Lost contact with your Mac. Last updated ${when}. Trying again.`;
 }
 
-export function textHookProblem(text) {
-  return text.trim().length > 80 ? 'Please use shorter text for the Text hook.' : '';
+export function textHookProblem(text, answer = 'whole') {
+  return text.trim().length > (answer === 'opening' ? 1000 : 80) ? 'Please use shorter text at the top.' : '';
 }
+
+export const topTextAnswers = [['none', 'None'], ['opening', 'Just the opening'], ['whole', 'The whole video']];
+export function topTextChoice(style, draft = {}) {
+  if (draft.shape === 'horizontal') return '';
+  if (draft.top_text != null) return draft.top_text;
+  return !style?.hook_answered ? '' : style.hook_style === 'none' ? 'none'
+    : style.hook_style === 'text_hook' ? 'whole' : 'opening';
+}
+export const topTextSummary = (style) => topTextAnswers.find(([id]) => id === topTextChoice(style))?.[1] ?? 'Not answered';
 
 export const TYPE_COPY = {
   talking_head: {label: 'Talking head', description: 'You on camera, from one or more takes.',

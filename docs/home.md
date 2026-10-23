@@ -11,9 +11,13 @@ Yap Studio home opens in the browser on the Mac and walks through one video at a
    copies them into the workspace `inbox/`; the originals stay where they were.
 3. Your look: a few questions about your videos the first time, then the style page on a
    still from your own take.
-4. Make it: when your look uses Text hook, type an optional line here. Leave it empty
-   and Claude will suggest three. Text must fit at most two balanced lines. The page
-   sends your text with the video request. The page shows each step as the work happens, read from the
+4. Make it: Text at the top shows your saved answer. Override it for this video with
+   None, Just the opening, or The whole video. Your saved look stays the same.
+   For either kind, type your own text or leave it empty for three ideas in the
+   Story cut note and review page. Claude waits for your pick. The whole-video label
+   must fit at most two balanced lines. The page sends `top_text` and any `text_hook`
+   text with the request. Your look summary shows the saved answer too.
+   The page shows each step as the work happens, read from the
    project's receipts, and says when it is your turn.
 5. Watch and comment: the review page opens from here. Mark a stretch and say Cut this, Change this
    or Keep this, with a note. Notes you send go to Claude, and the next version shows up on the same
