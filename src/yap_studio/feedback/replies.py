@@ -72,12 +72,20 @@ def _measure_moment(project_dir: Path, item: dict, version: VersionManifest) -> 
         return {"moment": None, "change": None, "unmapped": "whole video"}
 
     own_words, next_words = version_cut_words(own), version_cut_words(version)
+    request = comment.get("request")
+    requested = request["words"] if request and request["type"] == "cut" else None
+    requested_ids = set(_identities(requested)) if requested else set()
+    cut_words = [word for word in occurrences(own_words)
+                 if (word.id, word.segment) in requested_ids]
     start = location["start_s"]
     last = start
     if comment["end_frame"] is not None and _fps(own) is not None:
         last = float(frame_start(comment["end_frame"] - 1, _fps(own)))
     elif comment["end_s"] is not None:
         last = max(start, math.nextafter(comment["end_s"], -math.inf))
+    if cut_words:
+        start = cut_words[0].start
+        last = math.nextafter(cut_words[-1].end, -math.inf)
     maps = [map_moment(own_words, next_words, time,
                        target_duration=version.media["duration_s"]) for time in (start, last)]
     mapped_start = maps[0].time_s
@@ -96,18 +104,32 @@ def _measure_moment(project_dir: Path, item: dict, version: VersionManifest) -> 
     silence = location["status"] == "silence"
     before = ([word for word in (location["before"], location["after"]) if word is not None]
               if silence else location["words"])
+    if cut_words:
+        before = [asdict(word) for word in cut_words]
+        requested_maps = [map_moment(own_words, next_words, word.start,
+                                    target_duration=version.media["duration_s"])
+                          for word in cut_words]
+        removed = sum(mapping.status == "removed" or not next_words.words
+                      for mapping in requested_maps)
+        if removed:
+            moment["status"] = "removed" if removed == len(cut_words) else "partial"
+        maps = requested_maps
     targets = [asdict(word) for word in occurrences(next_words)]
     if silence:
         left = next((word for word in reversed(targets) if word["end"] <= mapped_start), None)
         right = next((word for word in targets if word["start"] >= mapped_start), None)
         after = [word for word in (left, right) if word is not None]
+    elif cut_words:
+        after = [asdict(mapping.target) for mapping in maps
+                 if mapping.status in {"mapped", "moved"} and mapping.target is not None]
     else:
         after = [word for word in targets if _overlaps(
             moment["start_s"], moment["end_s"], word["start"], word["end"]
         )]
     old_ids, new_ids = _identities(before), _identities(after)
     differences = set()
-    if any(mapping.status == "removed" for mapping in maps):
+    if (any(mapping.status == "removed" for mapping in maps)
+            or cut_words and moment["status"] in {"removed", "partial"}):
         differences.add("removed")
     if Counter(old_ids) != Counter(new_ids):
         differences.add("words")
@@ -130,6 +152,8 @@ def _measure_moment(project_dir: Path, item: dict, version: VersionManifest) -> 
                             for a, b in pairs):
             differences.add("pause")
     own_layers, next_layers = version_layers(own), version_layers(version)
+    if own_layers is None and own.media["source"] == "cut/cut.mp4":
+        own_layers = ()
     if own_layers is not None and next_layers is not None:
         old_offsets = {(layer.id, layer.kind, layer.text):
                        (layer.start - location["start_s"], layer.end - location["start_s"])
@@ -246,13 +270,10 @@ def write_reply(
         raise ValidationError("status", f"must be one of {', '.join(REPLY_STATUSES)}")
     text = validate_reply_text(text)
     result_id = batch["resulting_version"]
-    if result_id is not None and version_id not in (None, result_id):
-        raise FeedbackError(f"This batch already has resulting version {result_id}.",
-                            suggested_action=f"Use --version {result_id} or omit --version.")
     if result_id is None and version_id is None:
         raise FeedbackError("This batch has no resulting version.",
                             suggested_action="Save the next version, then pass --version vN.")
-    version = load_version(project_dir, result_id or version_id)
+    version = load_version(project_dir, version_id or result_id)
     try:
         matches = sha256_file(version.media_path) == version.media["sha256"]
     except OSError as exc:
@@ -265,6 +286,9 @@ def write_reply(
                             suggested_action="Restore the saved media file before replying.")
     versions = load_versions(project_dir)
     numbers = {saved.id: number for number, saved in enumerate(versions, 1)}
+    if result_id is not None and numbers[version.id] < numbers[result_id]:
+        raise FeedbackError(f"The reply version must be {result_id} or a later saved version.",
+                            suggested_action=f"Use --version {result_id} or a later version.")
     if comment_version not in numbers:
         raise FeedbackError("This comment's version is not saved in the project.")
     if numbers[comment_version] >= numbers[version.id]:
@@ -314,22 +338,22 @@ def reply_status(project_dir: Path, store: ReviewStore, batch_id: str | None = N
     version = load_version(project_dir, result_id) if result_id is not None else None
     saved_by_id = {saved.id: saved for saved in versions}
     numbers = {saved.sha256: saved.number for saved in series.versions} if series else {}
-    replies = {(reply.comment_version, reply.comment_id, reply.version): reply
-               for reply in series.replies} if series else {}
+    replies = series.replies if series else ()
     keeps = (_keep_results(project_dir, batch, version) if version is not None
              and any(item["comment"]["kind"] == "keep" for item in batch["items"]) else {})
     items = []
     for item in batch["items"]:
         comment = item["comment"]
         own = saved_by_id.get(comment["version"])
-        reply = replies.get((numbers.get(own.media["sha256"]) if own else None,
-                             comment["id"], numbers.get(version.media["sha256"])
-                             if version else None))
-        if reply is not None and (
-            reply.evidence is None or reply.evidence.get("schema") != "yap-studio/reply-evidence@1"
-            or reply.evidence.get("batch") != batch["id"]
-        ):
-            reply = None
+        first_result = numbers.get(version.media["sha256"]) if version else None
+        reply = max((reply for reply in replies
+                     if own is not None and first_result is not None
+                     and reply.comment_version == numbers.get(own.media["sha256"])
+                     and reply.comment_id == comment["id"] and reply.version >= first_result
+                     and reply.evidence is not None
+                     and reply.evidence.get("schema") == "yap-studio/reply-evidence@1"
+                     and reply.evidence.get("batch") == batch["id"]),
+                    key=lambda reply: reply.version, default=None)
         suggested = None
         if version is not None and reply is None:
             evidence = _evidence(project_dir, batch, item, version, keeps)

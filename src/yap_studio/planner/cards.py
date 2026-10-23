@@ -445,7 +445,8 @@ def fitted_card(
         data = copy.deepcopy(style.data)
         data["graphics"]["card_width_px"] = width - 2 * PAD_X
         style = replace(style, data=data)
-    return card_layer_plan(template, slots, style, frames=frames, fps=fps, project=project)
+    return card_layer_plan(template, slots, style, frames=frames, fps=fps, project=project,
+                           max_height_px=height)
 
 
 def _place_safe_card(
@@ -713,6 +714,16 @@ def _place_card(
     top_bottom = min(top.bottom, ceiling)
     if top_bottom > top.top:
         selected = candidate_in_band(layer, Band(top.top, top_bottom), top.top)
+    if selected is None and heads and layer.template in {"steps", "text_tag"}:
+        height = min(top_bottom, math.floor(min(head.y for head in heads) - margin)) - top.top
+        if height > 0:
+            try:
+                compact = fitted_card(layer.template, slots, style, frames=layer.frames,
+                                      fps=layer.fps, height=height, project=project)
+            except ValidationError:
+                pass
+            else:
+                selected = candidate_in_band(compact, Band(top.top, top_bottom), top.top)
     if selected is None and heads and ceiling >= layer.height and refit_sides:
         selected = side_candidate()
         if selected is not None:
@@ -1299,9 +1310,7 @@ def render_layers(
                             frames=card.end_frame - card.start_frame,
                             fps=plan.fps,
                             width=card.width,
-                            height=(card.height
-                                    if safe_card_order(card.template, style, card.slots)
-                                    else None),
+                            height=card.height,
                         )
                     layer = replace(layer, x=card.x, y=card.y)
                     motion = card.clearance.get("card_motion", {})

@@ -1440,6 +1440,13 @@ def card_layer_plan(
             raise ValidationError(
                 "slots.text", f"shorten text or remove subtext to fit the {look} look"
             )
+        if max_height_px is not None and height > max_height_px:
+            # Fit the content while retaining the padding for its entrance and shadow.
+            content = (top + bottom + rule + gaps * TAG_GAP[look] + text_size * line_height
+                       + (sub_size * SUBTEXT_LINE_HEIGHT if values["subtext"] else 0))
+            height = math.ceil((content + PAD_TOP + PAD_BOTTOM) / 2) * 2
+            if height > max_height_px:
+                raise ValidationError("slots.text", "not enough height for the fitted text tag")
         variables.update(
             values, look=look, text_px=text_size, subtext_px=sub_size,
             plain_ink_color=max(
@@ -1582,6 +1589,11 @@ def card_layer_plan(
             cue = (values["cues"][index] if index < len(values["cues"])
                    else max(cues[-1] if cues else 0, min(latest, entrance_end + index * gap)))
             cues.append(cue)
+        if max_height_px is not None and height > max_height_px:
+            content = 2 * CONTENT_PAD + 2 * (STEPS_CHIP_PAD_Y + STEPS_CHIP_BORDER)
+            height = math.ceil((content + size * STEPS_LINE_HEIGHT + PAD_TOP + PAD_BOTTOM) / 2) * 2
+            if height > max_height_px:
+                raise ValidationError("slots.steps", "not enough height for the fitted steps")
         variables.update(
             steps=json.dumps(labels, ensure_ascii=False), cues=json.dumps(cues), text_px=size,
         )

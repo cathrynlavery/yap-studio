@@ -873,6 +873,23 @@ def test_video_card_width_search_and_blocked_fix(layer_project: Path, monkeypatc
     assert "box" in clearance["reason"] and "behind" in clearance["reason"]
 
 
+@pytest.mark.parametrize("template,slots,height", [
+    ("steps", {"steps": ["Water", "Sunlight", "One thing"]}, 210),
+    ("text_tag", {"text": "One small win"}, 204),
+])
+def test_compact_card_box_survives_graphics_and_receipt_restore(
+    layer_project: Path, template, slots, height,
+) -> None:
+    set_elements(layer_project, graphic(template=template, slots=slots, hold_s=2,
+                 box={"x": 20, "y": 0, "width": 1040, "height": height}))
+    snapshot = graphics_snapshot(ProjectContext(layer_project))
+    card, = snapshot.graphics
+    assert card.plan.height == height
+    restored, = graphics_snapshot(ProjectContext(layer_project),
+                                  placements=[card.placement()]).graphics
+    assert restored.plan == card.plan
+
+
 def test_video_card_explicit_box_refits_window_before_checking_bounds(layer_project: Path) -> None:
     from yap_studio import receipt
     from yap_studio.planner.cards import fitted_card

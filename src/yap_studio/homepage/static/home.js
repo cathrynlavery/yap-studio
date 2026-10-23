@@ -754,7 +754,7 @@ function stepMake(draft, problems) {
       'Claude cuts your voice and lays your shots over it. You watch the story first, then the final.']
     : ['Claude listens to your take, picks the story from your own words and cuts it.',
       'You watch the story cut first and leave notes.',
-      'Claude adds captions, cards, B-roll and music, renders the final and checks it. You watch it again and approve.'];
+      'Claude applies your chosen look, renders the final and checks it. You watch it again and approve.'];
   return h('section', {},
     ...stepHeader('make', 'Make it', null),
     h('dl', {class: 'summary'}, rows.map(([label, value, href]) => h('div', {}, h('dt', {text: label}), h('dd', {text: value}),
@@ -790,7 +790,8 @@ function renderRequest(route) {
   const request = state.requests.find((item) => item.id === route.id);
   if (!request) return h('section', {}, h('h1', {class: 'title', text: 'This request is gone.'}),
     h('div', {class: 'actions'}, h('a', {class: 'btn primary', href: '#videos', text: 'Your videos'})));
-  const project = request.ack?.project && state.projects.find((item) => item.dir === request.ack.project);
+  const projectDir = request.ack?.project || (request.kind === 'final' ? request.payload?.project : null);
+  const project = projectDir && state.projects.find((item) => item.dir === projectDir);
   if (project && !request.stalled) { queueMicrotask(() => location.replace(`#video/${encodeURIComponent(project.name)}`)); }
   const info = requestInfo(request, state.listening);
   const kind = {learn: 'Learn from your finished videos', final: 'Make the final video', message: 'Message to Claude'}[request.kind]
@@ -884,7 +885,7 @@ function renderVideo(route) {
     cut_ready: 'Watch the story cut and leave notes on any moment. When you send them, Claude makes the next version.',
     final_ready: 'Watch the whole video. Leave notes for another version, or approve it to download it.',
     revising: 'Your notes reached Claude. The next version shows up here when it is ready.',
-    building: 'Captions, titles, cards, B-roll and music go on, then the video renders and every check runs.',
+    building: 'Your chosen look goes on, then the video renders and every check runs.',
     story: 'Claude reads your words and picks the order that tells the story best. It keeps your words and your meaning.',
     transcribing: 'Your speech is turned into words on this Mac. Nothing is uploaded.',
     starting: 'Claude is copying your footage into a new project.',
@@ -899,7 +900,7 @@ function renderVideo(route) {
       project.phase === 'cut_ready' ? h('button', {type: 'button', class: 'btn big', id: 'make-final',
         onclick: (event) => makeFinal(project, event.target), text: 'Make the final video'}) : null));
     if (project.phase === 'cut_ready') {
-      content.push(h('p', {class: 'note', text: 'Happy with the order of the story? Make the final video: Claude adds captions, cards and music, renders it and checks it. Want changes first? Leave notes on the review page.'}));
+      content.push(h('p', {class: 'note', text: 'Happy with the order of the story? Make the final video: Claude applies your chosen look, renders it and checks it. Want changes first? Leave notes on the review page.'}));
     }
   }
   content.push(h('ol', {class: 'progress'}, progressRows(project).map((row) => h('li', {class: row.status},

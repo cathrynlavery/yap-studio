@@ -404,7 +404,7 @@ def test_resulting_version_required_recorded_once_and_cannot_change(reply_projec
     assert _tree(store.root) == before
     _reply(root, store)
     assert load_batch(root, "b1")["resulting_version"] == "v2"
-    with pytest.raises(FeedbackError, match="already has resulting version v2"):
+    with pytest.raises(FeedbackError, match="must be v2 or a later saved version"):
         _reply(root, store, version="v1")
     assert _reply(root, store, version=None).version == 2
 

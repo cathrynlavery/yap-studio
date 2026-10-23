@@ -40,6 +40,7 @@ def video_map(manifest: VersionManifest | None) -> list[dict]:
         lanes[lane]["items"].append({"start": start, "end": end,
                                     "label": " ".join(label.split())[:80], "target": target})
 
+    words = version_cut_words(manifest).words if manifest.snapshots.get("cut_words") else ()
     if manifest.snapshots.get("cut_pieces"):
         saved = version_pieces(manifest)
         fps = Fraction(saved["fps"])
@@ -47,8 +48,10 @@ def video_map(manifest: VersionManifest | None) -> list[dict]:
             start = float(piece["out_f0"] / fps)
             if index:
                 add(0, start, start, "Join", "story")
-            add(0, start, float((piece["out_f0"] + piece["n_frames"]) / fps),
-                piece["segment"], "story")
+            end = float((piece["out_f0"] + piece["n_frames"]) / fps)
+            text = " ".join(word.text for word in words if word.segment == piece["segment"]
+                            and word.start < end and word.end > start)
+            add(0, start, end, text or f"Part {index + 1}", "story")
 
     authored = {}
     timeline = manifest.snapshots.get("timeline")
@@ -76,7 +79,6 @@ def video_map(manifest: VersionManifest | None) -> list[dict]:
 
     if is_cut or not authored:
         return lanes
-    words = version_cut_words(manifest).words if manifest.snapshots.get("cut_words") else ()
     style = None
     entry = manifest.snapshots.get("style")
     if entry:

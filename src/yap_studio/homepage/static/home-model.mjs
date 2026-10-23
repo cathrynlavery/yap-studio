@@ -122,7 +122,7 @@ const ROWS = [
   {key: 'listen', label: 'Listening to your take', done: 'Listened to your take', who: 'Claude'},
   {key: 'story', label: 'Choosing the story', done: 'Chose the story', who: 'Claude'},
   {key: 'cut', label: 'Story cut ready to watch', done: 'You watched the story cut', who: 'You'},
-  {key: 'build', label: 'Captions, cards and music', done: 'Added captions, cards and music',
+  {key: 'build', label: 'Building your final video', done: 'Built your final video',
     who: 'Claude'},
   {key: 'final', label: 'Final video ready to watch', done: 'You watched the final', who: 'You'},
   {key: 'approve', label: 'Approve it', done: 'Approved', who: 'You'},
@@ -224,7 +224,8 @@ export function findProject(projects, name) {
 export function defaultRoute(state, welcomed) {
   const projects = state?.projects ?? [];
   const waiting = (state?.requests ?? []).find((request) =>
-    request.stalled || ['pending', 'delivered', 'claimed'].includes(request.state) && !request.ack?.project);
+    request.stalled || ['pending', 'delivered', 'claimed'].includes(request.state) && !request.ack?.project
+      && !(request.kind === 'final' && projects.some((project) => project.dir === request.payload?.project)));
   if (waiting) return `#request/${waiting.id}`;
   const active = projects.find((project) => !['approved'].includes(project.phase));
   if (active) return `#video/${encodeURIComponent(active.name)}`;

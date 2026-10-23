@@ -571,7 +571,7 @@ def graphics_snapshot(
                 card = fitted_card(template, slots, style,
                                    frames=element.end_frame - element.start_frame,
                                    width=box["width"], project=project,
-                                   height=box["height"] if safe_order is not None else None)
+                                   height=box["height"])
                 card = _card_box(card, element.payload["box"])
             if placement_record is not None:
                 box = {key: placement_record[key] for key in ("x", "y", "width", "height")}
@@ -588,11 +588,12 @@ def graphics_snapshot(
                         raise ValidationError("graphics.receipt", "number ink was not checked; "
                                               "run graphics again")
                     card = resize_number(card, placement_record["clearance"]["value_px"])
-                elif card.width != box["width"] or safe_order is not None:
+                elif (card.width != box["width"] or card.height != box["height"]
+                      or safe_order is not None):
                     card = fitted_card(template, slots, style,
                                        frames=element.end_frame - element.start_frame,
                                        width=box["width"], project=project,
-                                       height=box["height"] if safe_order is not None else None)
+                                       height=box["height"])
                 card = _card_box(card, box)
                 card = replace(card, motion={key: motion_record[key] for key in ("side", "enter")}
                                if motion_record.get("status") == "streak" else None)

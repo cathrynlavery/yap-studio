@@ -625,7 +625,7 @@ def test_supplied_unsafe_card_box_is_refused(
 
 
 @pytest.mark.parametrize("faces", [None, [], [[Box(458, 1200, 396, 396)]]])
-@pytest.mark.parametrize("caption_top", [0, 450, 460, 690])
+@pytest.mark.parametrize("caption_top", [0, 300, 450, 460, 690])
 def test_top_card_respects_caption_ceiling_with_or_without_faces(
     faces: list | None, caption_top: int,
 ) -> None:
@@ -633,7 +633,7 @@ def test_top_card_respects_caption_ceiling_with_or_without_faces(
     slots = {"text": "Hi"}
     layer = fitted_card("text_tag", slots, style, frames=30)
     placed, _, evidence = place_card(layer, slots, style, faces, caption_top=caption_top)
-    if caption_top < 460:
+    if caption_top < (304 if faces else 460):
         assert evidence["status"] == "blocked"
     else:
         assert evidence["status"] == ("unchecked" if faces is None else "clear")
@@ -692,11 +692,11 @@ def test_graphics_uses_moved_measured_captions_only_in_the_card_window(
         "measured": True, "captions": [{"start_frame": 35 if overlaps else 36,
             "end_frame": 60, "boxes": [{"x": 100, "y": 420, "w": 800, "h": 60}]}],
     }))
+    card, = stage.graphics_snapshot(ProjectContext(layer_project)).graphics
     if overlaps:
-        with pytest.raises(ValidationError, match="clearance"):
-            stage.graphics_snapshot(ProjectContext(layer_project))
+        assert card.plan.y + card.plan.height <= 320
     else:
-        assert stage.graphics_snapshot(ProjectContext(layer_project)).graphics[0].plan.y == 0
+        assert card.plan.height == 360
 
 
 def test_graphics_refuses_card_that_cannot_clear_configured_middle_captions(
@@ -706,7 +706,7 @@ def test_graphics_refuses_card_that_cannot_clear_configured_middle_captions(
     data = json.loads(style_path.read_text())
     data["captions"].update(position="middle", top_px=700, size_px=180)
     style_path.write_text(json.dumps(data))
-    set_elements(layer_project, graphic())
+    set_elements(layer_project, graphic(template="stat", slots={"end": 37}))
     timeline = ProjectContext(layer_project).resolved_timeline()
     faces = synthetic_faces(Box(458, 1200, 396, 396),
                             frames=timeline.total_frames + timeline.end_hold_frames)
@@ -780,7 +780,7 @@ def test_automatic_behind_fallback_reaches_the_assembly_contract(
     data = json.loads((layer_project / "style.json").read_bytes())
     data.setdefault("captions", {})["top_px"] = 850
     (layer_project / "style.json").write_text(json.dumps(data))
-    set_elements(layer_project, graphic())
+    set_elements(layer_project, graphic(template="stat", slots={"end": 37}))
     timeline = ProjectContext(layer_project).resolved_timeline()
     faces = synthetic_faces(Box(0, 559.9, 1080, 300),
                             frames=timeline.total_frames + timeline.end_hold_frames)

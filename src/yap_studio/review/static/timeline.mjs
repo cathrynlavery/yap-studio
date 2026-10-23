@@ -577,10 +577,10 @@ export function storyCutStep(series, selected, home) {
   const newest = selected === series.newest;
   if (home.final_requested) {
     return {hideApprove: true, offerFinal: newest, requested: true,
-      hint: 'Claude is adding captions, cards and music, then rendering and checking the final. It shows up in Yap Studio when it is ready.'};
+      hint: 'Claude is applying your chosen look, then rendering and checking the final. It shows up in Yap Studio when it is ready.'};
   }
   return {hideApprove: true, offerFinal: newest, requested: false,
     hint: newest
-      ? 'This is the story cut. Happy with the order? Claude adds captions, cards and music, then renders the final.'
+      ? 'This is the story cut. Happy with the order? Claude applies your chosen look, then renders the final.'
       : 'This is an earlier story cut. Pick the newest version to go on.'};
 }

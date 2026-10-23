@@ -73,9 +73,9 @@ def test_map_includes_each_kind_from_the_selected_snapshot(mapped_server):
     assert [row["name"] for row in rows] == NAMES
     assert all(row["items"] for row in rows)
     assert rows[0]["items"] == [
-        {"start": 0, "end": 2, "label": "s1", "target": "story"},
+        {"start": 0, "end": 2, "label": "Start really", "target": "story"},
         {"start": 2, "end": 2, "label": "Join", "target": "story"},
-        {"start": 2, "end": 4, "label": "s2", "target": "story"},
+        {"start": 2, "end": 4, "label": "Start End", "target": "story"},
     ]
     assert rows[1]["items"] == [
         {"start": 0.2, "end": 1.5, "label": "A phrase", "target": "caption"},

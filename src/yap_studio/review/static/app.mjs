@@ -876,6 +876,18 @@ function fitVideo(video) {
   }
 }
 
+function fitDesktopPlayer() {
+  if (window.innerWidth <= 960) {
+    el.video.style.removeProperty('max-height');
+    return;
+  }
+  const video = el.video.getBoundingClientRect();
+  const controls = el.playPause.closest('.playback-controls').getBoundingClientRect();
+  const below = controls.bottom - video.bottom;
+  const available = window.innerHeight - (video.top + window.scrollY) - below - 24;
+  el.video.style.maxHeight = `${Math.max(180, Math.floor(available))}px`;
+}
+
 function renderHeader() {
   const media = review.media;
   const title = review.series?.project ? (review.series.title || projectTitle(media.name)) : media.name;
@@ -1889,7 +1901,10 @@ function renderVideoMap(lanes = [], status = '') {
       const label = document.createElement('span');
       label.className = 'video-map-label';
       label.textContent = item.label;
-      block.append(label);
+      const time = document.createElement('span');
+      time.className = 'video-map-time';
+      time.textContent = secondsText(item.start);
+      block.append(time, label);
       if (item.start === item.end) block.classList.add('video-map-point');
       const description = `${lane.name}: ${item.label}, ${secondsText(item.start)} to ${secondsText(item.end)}. Comment on ${targetName(item.target)}.`;
       block.setAttribute('aria-label', description);
@@ -2736,9 +2751,11 @@ function wireEvents() {
     setDraftPin({x: clamp(pin.x + move[0] * step), y: clamp(pin.y + move[1] * step)});
   });
   if (typeof ResizeObserver !== 'undefined') {
-    const observer = new ResizeObserver(renderPin);
+    const observer = new ResizeObserver(() => { fitDesktopPlayer(); renderPin(); });
+    observer.observe(document.querySelector('.shell'));
     observer.observe(el.video);
   } else window.addEventListener('resize', renderPin);
+  window.addEventListener('resize', fitDesktopPlayer);
   el.video.addEventListener('emptied', () => { el.pinLayer.hidden = true; });
   el.compareToggle.addEventListener('click', () => setCompareOpen(!compareOpen));
   el.compareVersion.addEventListener('change', () => {

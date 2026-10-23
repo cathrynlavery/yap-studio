@@ -146,8 +146,20 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    Their notes arrive as `DIR/feedback/bN.json`. Write the edits as
    `yap-studio/feedback-operations@1` and run
    `yap-studio feedback apply DIR DIR/plans/ops-bN.json`.
-   A Cut this note carries a cut request with the exact words; write
-   `{"id": "...", "kind": "cut"}` so `feedback apply` removes them and join-tests each new join.
+   For example, this is the complete minimal `DIR/plans/ops-b1.json` for a Cut this note:
+
+   ```json
+   {
+     "schema": "yap-studio/feedback-operations@1",
+     "batch": "b1",
+     "items": [
+       {"comment": "v1:c1", "operations": [{"id": "cut-1", "kind": "cut"}]}
+     ]
+   }
+   ```
+
+   Replace the batch and comment with those in the notes. A Cut this note carries a cut
+   request with the exact words; `feedback apply` removes them and join-tests each new join.
    If it declines a cut, reply `declined` and name its clean options for the creator to pick.
    A note with `pin` points at a spot on the picture. Open `pin.still` to see the frame with
    the pin drawn, and change the first element in `pin.under` (topmost first); `pin.canvas` is
@@ -162,8 +174,11 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    keep broke, so restore it. Run `yap-studio versions save DIR --note "Notes from bN"`; it prints
    the new version vM. Answer every note with `yap-studio feedback reply DIR --batch bN
    --comment vK:cN --version vM --status changed --text "..."` (or `kept`, `declined`,
-   `needs_clarification`), then run `yap-studio review --versions DIR --phone --json --detach`
-   again. Repeat until the creator is happy with the story. They say so with Make the final
+   `needs_clarification`).
+   If a note is completed in a later saved version, pass that version with `--version`;
+   the reply measures that version without changing the batch's first resulting version.
+   Then run `yap-studio review --versions DIR --phone --json --detach` again. Repeat until
+   the creator is happy with the story. They say so with Make the final
    video on the review page or Yap Studio home, which arrives as a `final` request (see Yap
    Studio home in `CLAUDE.md`), or in chat.
 5. Build the picture. Plans read `DIR/cut/cut-words.json` and take `--frames N`, the cut's
