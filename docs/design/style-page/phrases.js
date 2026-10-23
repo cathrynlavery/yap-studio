@@ -36,6 +36,11 @@
   const endsWith = (text, marks) => marks.includes(ending(text).slice(-1)) && ending(text) !== '';
   const milliseconds = (seconds) => Math.floor(seconds * 1000 + 0.5) / 1000;
 
+  function segmentBoundary(previous, word, forcedBreaks) {
+    return endsWith(previous.text, '.!?') || word.start - previous.end > 1.0 ||
+      (word.source_ids || [word.id]).some((id) => forcedBreaks.includes(id));
+  }
+
   function displayWords(words, wordFixes) {
     const visible = words.map((word, order) => ({...word, order})).filter((word) => !word.hidden)
       .sort((a, b) => a.start - b.start || a.order - b.order);
@@ -50,6 +55,9 @@
       let text = visible[i].text;
       for (const {parts, replacement} of fixes) {
         if (i + parts.length <= visible.length && parts.every((part, k) => part === normalized[i + k])) {
+          if (visible.slice(i + 1, i + parts.length).some((word, k) =>
+            visible[i + k].segment !== word.segment ||
+            segmentBoundary(visible[i + k], word, []))) continue;
           count = parts.length;
           const lastText = visible[i + count - 1].text;
           text = replacement + lastText.slice(trimEnd(lastText, PUNCTUATION).length);
@@ -71,8 +79,7 @@
     for (const word of words) {
       const current = result[result.length - 1];
       const previous = current && current[current.length - 1];
-      if (!previous || endsWith(previous.text, '.!?') || word.start - previous.end > 1.0 ||
-          word.source_ids.some((id) => forcedBreaks.includes(id))) result.push([]);
+      if (!previous || segmentBoundary(previous, word, forcedBreaks)) result.push([]);
       result[result.length - 1].push(word);
     }
     return result;

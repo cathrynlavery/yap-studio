@@ -18,6 +18,29 @@ for (const item of cases) {
   });
 }
 
+for (const [name, first, start, breaks, segment, merged] of [
+  ['short gap', 'Zindle', 0.5, [], 's1', true],
+  ['pause threshold', 'Zindle', 1.4, [], 's1', true],
+  ['long gap', 'Zindle', 8, [], 's1', false],
+  ['over pause threshold', 'Zindle', 1.401, [], 's1', false],
+  ['sentence end', 'Zindle.', 0.5, [], 's1', false],
+  ['forced break', 'Zindle', 0.5, ['b'], 's1', true],
+  ['cut', 'Zindle', 0.5, [], 's2', false],
+]) {
+  test(`multiword fix respects speech: ${name}`, () => {
+    const words = [
+      {id: 'a', text: first, start: 0, end: 0.4, segment: 's1'},
+      {id: 'b', text: 'Vay', start, end: start + 0.4, segment},
+    ];
+    const phrases = buildPhrases(words,
+      {max_words_per_phrase: 4, max_characters_per_phrase: 80},
+      {word_fixes: {'zindle vay': 'ZindleVay'}, forced_breaks: breaks});
+    assert.equal(phrases.map((phrase) => phrase.text).join(' '),
+      merged ? 'ZindleVay' : `${first} Vay`);
+    assert.deepEqual(phrases.flatMap((phrase) => phrase.ids), merged ? ['a'] : ['a', 'b']);
+  });
+}
+
 test('classic browser script exports the same engine without dependencies', () => {
   const context = {window: {}};
   vm.runInNewContext(pageFile('phrases.js'), context);

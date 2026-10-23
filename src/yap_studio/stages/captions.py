@@ -1213,7 +1213,8 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
     vocabulary = tuple(list_words())
     green_layouts = layout_windows(timeline)
     phrases = build_phrases(
-        [CaptionWord(word.id, word.text, word.start, word.end) for word in words.words],
+        [CaptionWord(word.id, word.text, word.start, word.end, segment=word.segment)
+         for word in words.words],
         settings, word_fixes=context.project.word_fixes,
         word_text_fixes=context.project.word_text_fixes,
         text_rules=True, vocabulary=vocabulary,
