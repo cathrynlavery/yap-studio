@@ -792,7 +792,9 @@ function renderRequest(route) {
     h('div', {class: 'actions'}, h('a', {class: 'btn primary', href: '#videos', text: 'Your videos'})));
   const projectDir = request.ack?.project || (request.kind === 'final' ? request.payload?.project : null);
   const project = projectDir && state.projects.find((item) => item.dir === projectDir);
-  if (project && !request.stalled) { queueMicrotask(() => location.replace(`#video/${encodeURIComponent(project.name)}`)); }
+  if (project && !request.stalled && !['failed', 'cancelled'].includes(request.state)) {
+    queueMicrotask(() => location.replace(`#video/${encodeURIComponent(project.name)}`));
+  }
   const info = requestInfo(request, state.listening);
   const kind = {learn: 'Learn from your finished videos', final: 'Make the final video', message: 'Message to Claude'}[request.kind]
     ?? `${typeLabel(request.payload?.video_type)} · ${takesText(request.payload?.takes ?? [])}`;

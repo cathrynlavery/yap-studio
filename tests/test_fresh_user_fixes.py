@@ -90,6 +90,34 @@ def test_cut_label_measures_requested_words_not_neighbours(
     assert [word["text"] for word in reply.evidence["change"]["before"]] == ["cut", "these"]
 
 
+@pytest.mark.parametrize("moved", [False, True])
+def test_cut_reply_preserves_new_output_order(feedback_project, tmp_path, moved):
+    words = CutWords("output", {}, (
+        CutWord("t1:0", "s1", "A", 0.1, 0.5),
+        CutWord("t1:1", "s1", "B", 0.7, 1.1),
+    ))
+    after = replace(words, words=tuple(
+        replace(word, start=start, end=start + 0.4,
+                segment="s2" if moved else word.segment)
+        for word, start in zip(reversed(words.words), (0.1, 0.7), strict=True)
+    ))
+    comment = {"kind": "fix", "target": "story", "text": "Cut these words",
+               "start_frame": 3, "end_frame": 33,
+               "request": {"type": "cut", "start": 0.1, "end": 1.1, "words": [
+                   {"id": word.id, "segment": word.segment, "text": word.text}
+                   for word in words.words
+               ]}}
+    store, _, _ = _round(feedback_project, tmp_path / "data", comments=[comment],
+                         own_words=words, next_words=after)
+    reply = write_reply(feedback_project, store, "b1", "v1", "c1", "changed",
+                        "Reordered the words", version_id="v2")
+    change = reply.evidence["change"]
+    assert [word["text"] for word in change["before"]] == ["A", "B"]
+    assert [word["text"] for word in change["after"]] == ["B", "A"]
+    assert change["differences"] == (["words"] if moved else ["order"])
+    assert reply.evidence["moment"]["status"] == ("moved" if moved else "mapped")
+
+
 @pytest.mark.parametrize("template,slots", [
     ("steps", {"steps": ["Water", "Sunlight", "One thing"]}),
     ("text_tag", {"text": "One small win"}),

@@ -122,6 +122,7 @@ def _measure_moment(project_dir: Path, item: dict, version: VersionManifest) -> 
     elif cut_words:
         after = [asdict(mapping.target) for mapping in maps
                  if mapping.status in {"mapped", "moved"} and mapping.target is not None]
+        after.sort(key=targets.index)
     else:
         after = [word for word in targets if _overlaps(
             moment["start_s"], moment["end_s"], word["start"], word["end"]

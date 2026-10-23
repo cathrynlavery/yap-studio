@@ -21,6 +21,25 @@ test('a fresh tab and a request route follow a claimed final to its project', ()
   assert.equal(redirects.length, 1);
 });
 
+for (const status of ['failed', 'cancelled']) {
+  for (const project of [null, 'projects/demo']) {
+    test(`${status} final keeps its request details with ack project ${project}`, () => {
+      const request = {id: 'r2', kind: 'final', state: status, ack: {project, message: 'Render failed'},
+        payload: {project: 'projects/demo'}};
+      const state = {requests: [request], projects: [{name: 'demo', dir: 'projects/demo'}]};
+      const code = source.slice(source.indexOf('function renderRequest('), source.indexOf('function finalRequested('));
+      const redirects = [];
+      const render = new Function('state', 'h', 'requestInfo', 'typeLabel', 'takesText', 'queueMicrotask',
+        `${code}; return renderRequest;`)(state, h, home.requestInfo, home.typeLabel, home.takesText,
+          (fn) => redirects.push(fn));
+      const tree = nodes(render({id: 'r2'}));
+      assert.equal(redirects.length, 0);
+      assert.ok(tree.some((node) => node.text === 'Start again' && node.href === '#new/what'));
+      assert.ok(tree.some((node) => node.text === home.requestInfo(request, false).lede));
+    });
+  }
+}
+
 test('make and building copy promise only the chosen look', () => {
   const state = {style: {saved: true, name: 'Just you'}, listening: true};
   const code = source.slice(source.indexOf('function stepMake('), source.indexOf('// ---------- Request'));

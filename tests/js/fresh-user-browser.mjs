@@ -28,6 +28,20 @@ async function run(reviewUrl, homeUrl, shots, resultFile) {
         return {top, bottom, width, height};
       });
       if (!mobile) {
+        const maxHeight = await page.$eval('#video', (node) => parseFloat(node.style.maxHeight));
+        await page.evaluate(() => window.scrollTo(0, 100));
+        await page.waitForFunction(() => window.scrollY > 0);
+        await page.setViewport({width, height: 800});
+        await page.waitForFunction((previous) => parseFloat(document.querySelector('#video').style.maxHeight) !== previous, {}, maxHeight);
+        const resized = await page.$eval('#video', (node) => parseFloat(node.style.maxHeight));
+        check('desktop resize while scrolled keeps document-based fit', () => assert.equal(resized, maxHeight - 100));
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForFunction(() => window.scrollY === 0);
+        const controls = await rect('.playback-controls');
+        check('desktop controls stay visible after returning to top', () => assert.ok(controls.bottom <= 800, JSON.stringify(controls)));
+        await page.screenshot({path: join(shots, 'review-resized-1440.png')});
+        await page.setViewport({width, height: 900});
+        await page.waitForFunction((previous) => parseFloat(document.querySelector('#video').style.maxHeight) === previous, {}, maxHeight);
         for (const selector of ['#play-pause', '#new-comment', '#mark-start', '#video-map']) {
           const box = await rect(selector);
           check(`desktop controls visible: ${selector}`, () => assert.ok(box.top >= 0 && box.bottom <= 900,
@@ -72,6 +86,29 @@ async function run(reviewUrl, homeUrl, shots, resultFile) {
       });
       await home.screenshot({path: join(shots, `7-home-building-${width}.png`), fullPage: true});
       const state = await home.evaluate(async () => (await fetch('/api/state')).json());
+      let requestState;
+      await home.setRequestInterception(true);
+      home.on('request', (request) => {
+        if (new URL(request.url()).pathname === '/api/state') {
+          const failed = {...state, requests: state.requests.map((item) => ({...item,
+            state: requestState, ack: {...item.ack, message: 'Synthetic render failure'}}))};
+          request.respond({status: 200, contentType: 'application/json', body: JSON.stringify(failed)});
+        } else request.continue();
+      });
+      for (requestState of ['failed', 'cancelled']) {
+        const hash = `#request/${state.requests[0].id}`;
+        await home.goto('about:blank');
+        await home.goto(`${homeUrl}${hash}`);
+        await home.waitForSelector('#main a[href="#new/what"]');
+        check(`${requestState} final stays on request ${width}`, () => assert.equal(new URL(home.url()).hash, hash));
+        const details = await home.$eval('#main', (node) => node.textContent);
+        check(`${requestState} final shows details and restart ${width}`, () => {
+          assert.match(details, requestState === 'failed' ? /Synthetic render failure/ : /This request was cancelled/);
+          assert.match(details, /Start again/);
+        });
+        await home.screenshot({path: join(shots, `home-${requestState}-${width}.png`)});
+      }
+      await home.setRequestInterception(false);
       await home.evaluate((name) => localStorage.setItem(`yap-home-draft:${name}`, JSON.stringify({
         video_type: 'talking_head', has_broll: false, broll_sources: [], takes: ['take.mp4'], album: '',
       })), state.workspace);
