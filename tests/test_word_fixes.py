@@ -146,6 +146,36 @@ def test_occurrence_fix_wins_over_overlapping_heard_phrase() -> None:
 
 
 @pytest.mark.parametrize("camera", [False, True])
+@pytest.mark.parametrize("segment", ["s1", "s2"])
+def test_caption_snapshot_keeps_cut_boundaries_in_word_fixes(
+    layer_project, monkeypatch, camera, segment,
+) -> None:
+    project = json.loads((layer_project / "project.json").read_bytes())
+    project["word_fixes"] = {"zindle vay": "ZindleVay"}
+    write(layer_project / "project.json", project)
+    if camera:
+        style = json.loads((layer_project / "style.json").read_bytes())
+        style["captions"]["camera_3d"] = True
+        write(layer_project / "style.json", style)
+    context = ProjectContext(layer_project)
+    document = json.loads(context.read("cut/cut-words.json"))
+    document["words"] = document["words"][:2]
+    document["words"][0].update(text="Zindle", start=0, end=0.4, segment="s1")
+    document["words"][1].update(text="Vay", start=0.5, end=0.9, segment=segment)
+    read = context.read
+    monkeypatch.setattr(context, "read", lambda name: json.dumps(document).encode()
+                        if name == "cut/cut-words.json" else read(name))
+    snapshot = caption_snapshot(context)
+    shown = (snapshot.words if camera else [
+        {"text": word.text, "source_ids": list(word.source_ids)}
+        for phrase in snapshot.phrases for word in phrase.words])
+    assert [word["text"] for word in shown] == (
+        ["ZindleVay"] if segment == "s1" else ["Zindle", "Vay"])
+    assert [word["source_ids"] for word in shown] == (
+        [["t1:0", "t1:1"]] if segment == "s1" else [["t1:0"], ["t1:1"]])
+
+
+@pytest.mark.parametrize("camera", [False, True])
 @pytest.mark.parametrize("selector", ["--word", "--heard"])
 def test_fix_stales_captions_then_removal_restores_hash(
     layer_project, fake_layers, capsys, camera, selector,

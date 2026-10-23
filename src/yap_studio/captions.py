@@ -99,6 +99,7 @@ class CaptionWord:
     end: float
     hidden: bool = False
     preserve_case: bool = False
+    segment: str | None = None
 
 
 @dataclass(frozen=True)
@@ -185,6 +186,10 @@ def _display_words(
             ):
                 continue
             if tuple(normalized[i : i + len(parts)]) == parts:
+                if any(visible[j - 1].segment != visible[j].segment
+                       or _segment_boundary(visible[j - 1], visible[j], forced_breaks=())
+                       for j in range(i + 1, i + len(parts))):
+                    continue
                 matched_fix = True
                 count = len(parts)
                 last_text = visible[i + count - 1].text
@@ -312,13 +317,15 @@ def kinetic_display_times(
 
 
 def _segment_boundary(
-    previous: PhraseWord, word: PhraseWord, forced_breaks: Collection[str],
+    previous: CaptionWord | PhraseWord, word: CaptionWord | PhraseWord,
+    forced_breaks: Collection[str],
     *, text_rules: bool = False,
 ) -> bool:
+    source_ids = word.source_ids if isinstance(word, PhraseWord) else (word.id,)
     return (
         _ending(previous.text).endswith((".", "!", "?"))
         or word.start - previous.end > 1.0
-        or any(source_id in forced_breaks for source_id in word.source_ids)
+        or any(source_id in forced_breaks for source_id in source_ids)
         or (text_rules and starts_sentence(previous.text, word.text))
     )
 

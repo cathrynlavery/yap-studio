@@ -297,3 +297,101 @@ def test_limits_must_be_positive_integers(field: str, limit: Any) -> None:
     captions = {"max_words_per_phrase": 3, "max_characters_per_phrase": 21, field: limit}
     with pytest.raises(ValueError, match="positive integers"):
         build_phrases([], captions)
+
+
+@pytest.mark.parametrize("text_rules", [False, True])
+@pytest.mark.parametrize(("first", "start", "breaks"), [
+    ("Zindle", 8.0, ()),
+    ("Zindle", 8.0, ("b",)),
+    ("Zindle", 1.401, ()),
+    ("Zindle.", 0.5, ()),
+    ("Zindle!", 0.5, ()),
+    ("Zindle?", 0.5, ()),
+    ("“Zindle.”", 0.5, ()),
+])
+def test_multiword_fix_respects_speech_boundaries(
+    first: str, start: float, breaks: tuple[str, ...], text_rules: bool,
+) -> None:
+    words = [CaptionWord("a", first, 0, 0.4), CaptionWord("b", "Vay", start, start + 0.4)]
+    limits = {"max_words_per_phrase": 4, "max_characters_per_phrase": 80}
+    phrases = build_phrases(words, limits, word_fixes={"zindle vay": "ZindleVay"},
+                            forced_breaks=breaks, text_rules=text_rules)
+    assert [phrase.text for phrase in phrases] == [first, "Vay"]
+    assert [phrase.word_ids for phrase in phrases] == [("a",), ("b",)]
+    assert [word.source_ids for phrase in phrases for word in phrase.words] == [("a",), ("b",)]
+    assert [(word.start, word.end) for phrase in phrases for word in phrase.words] == [
+        (0, 0.4), (start, start + 0.4),
+    ]
+    assert phrases[0].end <= phrases[1].start
+
+
+@pytest.mark.parametrize("start", [0.5, 1.4])
+@pytest.mark.parametrize("breaks", [(), ("b",)])
+def test_multiword_fix_within_speech_keeps_ids_and_timing(
+    start: float, breaks: tuple[str, ...],
+) -> None:
+    words = [CaptionWord("a", "Zindle", 0, 0.4), CaptionWord("b", "Vay.", start, start + 0.4)]
+    limits = {"max_words_per_phrase": 4, "max_characters_per_phrase": 80}
+    phrase, = build_phrases(words, limits, word_fixes={"zindle vay": "ZindleVay"},
+                            forced_breaks=breaks)
+    assert phrase.text == "ZindleVay."
+    assert phrase.word_ids == ("a",)
+    assert phrase.words[0].source_ids == ("a", "b")
+    assert (phrase.words[0].start, phrase.words[0].end) == (0, start + 0.4)
+
+
+@pytest.mark.parametrize("boundary", [1, 2])
+def test_multiword_fix_checks_every_internal_boundary(boundary: int) -> None:
+    words = [CaptionWord(word_id, text, i * 0.5 + (2 if i >= boundary else 0),
+                         i * 0.5 + (2 if i >= boundary else 0) + 0.4)
+             for i, (word_id, text) in enumerate(zip("abc", ["Zindle", "Vay", "Nuv"], strict=True))]
+    limits = {"max_words_per_phrase": 4, "max_characters_per_phrase": 80}
+    phrases = build_phrases(words, limits, word_fixes={"zindle vay nuv": "ZindleVayNuv"})
+    assert [word.text for phrase in phrases for word in phrase.words] == ["Zindle", "Vay", "Nuv"]
+    assert [word.source_ids for phrase in phrases for word in phrase.words] == [
+        ("a",), ("b",), ("c",),
+    ]
+
+
+@pytest.mark.parametrize("occurrence", [False, True])
+def test_single_word_fixes_keep_working_across_speech_boundaries(occurrence: bool) -> None:
+    words = [CaptionWord("a", "zindle", 0, 0.4), CaptionWord("b", "vay", 8, 8.4)]
+    limits = {"max_words_per_phrase": 4, "max_characters_per_phrase": 80}
+    phrases = build_phrases(
+        words, limits, word_fixes={"zindle vay": "ZindleVay", "zindle": "Zindle"},
+        word_text_fixes={"b": "VayNuv"} if occurrence else {}, forced_breaks={"b"},
+    )
+    assert [phrase.text for phrase in phrases] == ["Zindle", "VayNuv" if occurrence else "vay"]
+    assert [word.source_ids for phrase in phrases for word in phrase.words] == [("a",), ("b",)]
+
+
+@pytest.mark.parametrize("segment", ["s1", "s2"])
+@pytest.mark.parametrize("camera", [False, True])
+def test_multiword_fix_respects_cut_segments(segment: str, camera: bool) -> None:
+    from yap_studio.render.camera3d_look import display_words
+
+    words = [
+        {"id": "a", "text": "Zindle", "start": 0, "end": 0.4, "segment": "s1"},
+        {"id": "b", "text": "Vay", "start": 0.5, "end": 0.9, "segment": segment},
+    ]
+    limits = {"max_words_per_phrase": 4, "max_characters_per_phrase": 80}
+    if camera:
+        shown = display_words(words, limits, word_fixes={"zindle vay": "ZindleVay"},
+                              vocabulary=[], gaps=[])
+    else:
+        phrases = build_phrases([CaptionWord(**word) for word in words], limits,
+                                word_fixes={"zindle vay": "ZindleVay"})
+        shown = [{"text": word.text, "source_ids": list(word.source_ids)}
+                 for phrase in phrases for word in phrase.words]
+    assert [word["text"] for word in shown] == (
+        ["ZindleVay"] if segment == "s1" else ["Zindle", "Vay"])
+    assert [word["source_ids"] for word in shown] == (
+        [["a", "b"]] if segment == "s1" else [["a"], ["b"]])
+
+
+def test_vocabulary_fix_respects_speech_boundaries() -> None:
+    words = [CaptionWord("a", "zindle", 0, 0.4), CaptionWord("b", "vay", 8, 8.4)]
+    limits = {"max_words_per_phrase": 4, "max_characters_per_phrase": 80}
+    phrases = build_phrases(words, limits, text_rules=True, vocabulary=["Zindle Vay"])
+    assert [phrase.text for phrase in phrases] == ["zindle", "vay"]
+    assert [word.source_ids for phrase in phrases for word in phrase.words] == [("a",), ("b",)]

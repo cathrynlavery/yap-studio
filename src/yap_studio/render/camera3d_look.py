@@ -88,7 +88,8 @@ def display_words(words: list[dict], captions: dict, *, word_fixes: dict,
                   vocabulary: Sequence[str], gaps: Sequence[tuple[float, float]],
                   word_text_fixes: dict | None = None) -> list[dict]:
     """Flatten the same corrected display words the caption engine produces."""
-    phrases = build_phrases([CaptionWord(w["id"], w["text"], w["start"], w["end"])
+    phrases = build_phrases([CaptionWord(w["id"], w["text"], w["start"], w["end"],
+                                        segment=w.get("segment"))
                              for w in words], captions, word_fixes=word_fixes,
                             word_text_fixes=word_text_fixes,
                             text_rules=True, vocabulary=vocabulary)
