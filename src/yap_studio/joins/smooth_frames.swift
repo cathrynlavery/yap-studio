@@ -79,13 +79,23 @@ func read(_ buffer: CVPixelBuffer, width: Int, height: Int) throws -> Data {
 }
 
 @available(macOS 15.4, *)
+func frameRateConversionSupported() -> Bool {
+#if compiler(>=6.2)
+    return VTFrameRateConversionConfiguration.isSupported
+#else
+    // Older SDKs have no isSupported; processing reports an unsupported Mac instead.
+    return true
+#endif
+}
+
+@available(macOS 15.4, *)
 func run() throws {
     let arguments = Array(CommandLine.arguments.dropFirst())
     if arguments == ["--check"] {
-        print("{\"supported\":\(VTFrameRateConversionConfiguration.isSupported),\"revision\":1}")
+        print("{\"supported\":\(frameRateConversionSupported()),\"revision\":1}")
         return
     }
-    if !VTFrameRateConversionConfiguration.isSupported {
+    if !frameRateConversionSupported() {
         FileHandle.standardError.write(Data("Frame rate conversion processor is not supported on this Mac.\n".utf8))
         exit(3)
     }
