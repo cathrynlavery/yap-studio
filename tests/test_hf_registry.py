@@ -12,14 +12,16 @@ from pathlib import Path
 import pytest
 
 from yap_studio.errors import DependencyError, ValidationError, YapError
+from yap_studio.hf_registry.catalog import CATALOG_PATH
 from yap_studio.render import fonts, hyperframes, user_fonts
 
 pytestmark = pytest.mark.usefixtures("_no_real_node")
-COMMIT = "d15a274c198cf18bc1df177cbe20df95392a8947"
-URL = f"https://raw.githubusercontent.com/heygen-com/hyperframes/{COMMIT}/registry"
+REGISTRY = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))["registry"]
+COMMIT = REGISTRY["commit"]
+URL = REGISTRY["url"]
 PLUGIN = b"/* synthetic license https://gsap.com */\nwindow.CustomEase = {};"
-CORE = "https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"
-CUSTOM = "https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomEase.min.js"
+CORE = f"https://cdn.jsdelivr.net/npm/gsap@{hyperframes.GSAP_VERSION}/dist/{hyperframes.GSAP_SCRIPT}"
+CUSTOM = f"https://cdn.jsdelivr.net/npm/gsap@{hyperframes.GSAP_VERSION}/dist/CustomEase.min.js"
 
 
 def registry_modules():
@@ -197,7 +199,7 @@ def test_catalog_shipped_items():
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("hyperframes_version", "0.0.1", "0.0.1.*0.8.184"),
+        ("hyperframes_version", "0.0.1", rf"0\.0\.1.*{re.escape(hyperframes.HYPERFRAMES_VERSION)}"),
         ("commit", "bad", "commit"),
         ("url", "https://example.com/registry", "url"),
         ("path", "../escape.html", "path"),
@@ -440,7 +442,7 @@ def test_localize_creator_font(synthetic, tmp_path, monkeypatch):
     ("source", "code"),
     [
         (
-            f'<script src="{CORE.replace("3.14.2", "3.15.0")}"></script>',
+            f'<script src="{CORE.replace(hyperframes.GSAP_VERSION, "0.0.0")}"></script>',
             "registry_item_gsap_version",
         ),
         (

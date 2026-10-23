@@ -1990,7 +1990,9 @@ def test_card_motion_stage_accepts_ordinary_placement_fallback(
     assert restored.graphics[0].clearance == snapshot.clearance
 
 
-def test_card_motion_none_matches_main_cache_and_placement(layer_project: Path, fake_layers):
+def test_card_motion_none_matches_main_cache_and_placement(
+    layer_project: Path, fake_layers, monkeypatch,
+):
     from yap_studio.planner.cards import _render_key
     from yap_studio.style import resolve
 
@@ -2000,6 +2002,8 @@ def test_card_motion_none_matches_main_cache_and_placement(layer_project: Path, 
     # Print actual_key, actual_placement and record["inputs"]["graphic:agent-tag"]
     # before the assertions, then run the archive's own uv:
     # uv run pytest tests/test_stage_graphics.py -k none_matches_main -s
+    # Hold the historical renderer identity fixed so release bumps keep this baseline valid.
+    monkeypatch.setattr(hyperframes, "HYPERFRAMES_VERSION", "0.8.184")
     style = resolve("preset:clean_minimal")
     style.data["graphics"]["card_motion"] = "none"
     slots = json.loads((cards.template_dir("quote") / "preview.json").read_text())["slots"]
@@ -2029,6 +2033,20 @@ def test_card_motion_none_matches_main_cache_and_placement(layer_project: Path, 
     assert record["inputs"]["graphic:agent-tag"] == (
         "e9702b2cf9b284a0a505b64b191432991df82a3584a43f5219dc0a8e9b5c0e00"
     )
+
+
+def test_renderer_change_invalidates_verified_receipts(
+    layer_project: Path, fake_layers, monkeypatch,
+):
+    set_elements(layer_project, graphic())
+    graphics(layer_project)
+    before = read_receipt(layer_project / "graphics")
+    monkeypatch.setattr(hyperframes, "HYPERFRAMES_VERSION", "0.0.0")
+    result = graphics(layer_project)
+    after = read_receipt(layer_project / "graphics")
+    assert not result["noop"] and len(fake_layers) == 2
+    assert before["status"] == after["status"] == "verified"
+    assert before["inputs"] != after["inputs"]
 
 
 @pytest.mark.parametrize("fallback", [False, True])
