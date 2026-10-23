@@ -236,6 +236,7 @@ details.fold > summary span { color: var(--muted); font-weight: 400; font-size: 
 .banner.turn { background: var(--turn-bg); color: var(--turn-ink); }
 .banner.info { background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); }
 .banner.error { background: var(--error-bg); color: var(--error); }
+.connection { margin: 16px auto; max-width: min(620px, calc(100% - 40px)); }
 .banner.done { background: var(--done-bg); color: #155a38; }
 .banner .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .banner code { font: 600 15px/1 ui-sans-serif, -apple-system, sans-serif; background: rgb(255 255 255 / .7); border: 1px solid rgb(107 59 0 / .22); border-radius: 8px; padding: 9px 12px; color: var(--ink); }

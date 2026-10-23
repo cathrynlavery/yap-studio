@@ -150,6 +150,45 @@ async function run(url, resultFile, shots) {
       assert.ok(Math.abs(selectedMarker.top + selectedMarker.height / 2
         - (selectedPicture.top + selectedPicture.height * 0.31)) <= 2);
       await shot('4-selected.png');
+      // A synthetic project lets the same live page exercise approval and a server stop.
+      const review = await page.evaluate(async () => {
+        const token = new URLSearchParams(location.search).get('t');
+        return (await fetch('api/review', {headers: {'X-Yap-Token': token}})).json();
+      });
+      review.home = {url: 'http://localhost:1234/', phone_url: 'https://home.example/?t=home'};
+      review.series = {project: true, current: 1, current_version: 1, newest: 1,
+        versions: [{number: 1, name: 'sample-v1.mp4', final: true, report_status: 'pass'}],
+        rounds: [], threads: [], questions: []};
+      let approved = false;
+      const afterApproval = [];
+      await page.setRequestInterception(true);
+      page.on('request', (request) => {
+        const route = new URL(request.url()).pathname;
+        if (approved && route.includes('/api/')) {
+          afterApproval.push(route);
+          void request.abort();
+        } else if (route.endsWith('/api/review')) {
+          void request.respond({status: 200, contentType: 'application/json', body: JSON.stringify(review)});
+        } else if (route.endsWith('/api/approve')) {
+          approved = true;
+          void request.respond({status: 200, contentType: 'application/json', body: '{}'});
+        } else void request.continue();
+      });
+      await page.reload();
+      await page.waitForFunction(() => !document.getElementById('approve-version').hidden);
+      await page.waitForNetworkIdle();
+      page.once('dialog', (dialog) => dialog.accept());
+      await tap('#approve-version');
+      await page.waitForFunction(() => document.getElementById('approval-confirmation')?.hidden === false);
+      assert.equal(await page.$eval('#approval-title', (element) => element.textContent), 'Approved: sample-v1.mp4');
+      assert.match(await page.$eval('#approval-text', (element) => element.textContent), /approved file on Yap Studio home/);
+      assert.equal(await page.$eval('#approval-home', (element) => element.href), review.home.url);
+      await page.setOfflineMode(true);
+      await page.waitForNetworkIdle();
+      assert.equal(await page.$eval('#approval-confirmation', (element) => element.hidden), false);
+      assert.deepEqual(afterApproval, []);
+      await show('#approval-confirmation');
+      await shot('5-approved.png');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), mobile ? 390 : 1440);
       assert.deepEqual(errors, []);
       results.push({mobile, stall: true, retry: true, comment: comment.id, x: 0.42, y: 0.31, frame,

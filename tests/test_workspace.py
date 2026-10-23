@@ -1115,8 +1115,8 @@ def test_setup_json_offers_engine_install_without_running_it(
     assert result == {
         "ready": False, "refused": None, "steps": [{
             "id": "engine", "does": "Install Yap Studio and its speech engine, then download "
-            "the speech model (about 2.5 GB on a Mac with Apple silicon; about 670 MB on any "
-            "other computer, including Intel Macs and Linux), then download and install "
+            "the speech model (about 2.5 GB on a Mac with Apple silicon; about 670 MB on an "
+            "Intel Mac), then download and install "
             "the renderer and its browser for video graphics.",
             "command": f"{shlex.quote(uv)} tool install --force {shlex.quote(requirement)}"
             f" && {shlex.quote(str(engine))} speech download"
@@ -1767,8 +1767,8 @@ def test_setup_reinstalls_a_same_version_engine_without_doctor_edit(
     assert stale == {
         "ready": False, "refused": None, "steps": [{
             "id": "engine", "does": "Install Yap Studio and its speech engine, then download "
-            "the speech model (about 2.5 GB on a Mac with Apple silicon; about 670 MB on any "
-            "other computer, including Intel Macs and Linux), then download and install "
+            "the speech model (about 2.5 GB on a Mac with Apple silicon; about 670 MB on an "
+            "Intel Mac), then download and install "
             "the renderer and its browser for video graphics.",
             "command": "/usr/bin/uv tool install --force "
             + shlex.quote(f"yap-studio[asr] @ {(wheels / WHEEL).as_uri()}")

@@ -7,6 +7,7 @@
 - Multiword caption fixes keep words separate across long pauses, sentence ends and cuts. Layout breaks preserve merged spellings.
 - Catch repeated points in unpunctuated story cuts using pauses and edit segment edges, and check the whole story again after review notes.
 - Review videos show a Retry button when loading stalls or fails, keep your place on retry, and retry a network error once. Finished background runs open the newest saved version for review and report how to recover if the page cannot start.
+- Home shows newer work after a stopped run and warns when it loses contact with your Mac. Review confirms approval, says the download is ready, and leaves internal layer lint out of its flagged items.
 
 ## 1.0.0 (2026-10-23)
 

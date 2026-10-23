@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
+import vm from 'node:vm';
+import * as home from '../../src/yap_studio/homepage/static/home-model.mjs';
 
 import {
   answersPayload, answersSummary, brollText, defaultRoute, draftFromDefault, draftProblems,
@@ -11,6 +13,64 @@ import {
 const inbox = {takes: [
   {name: 'IMG_0002.mp4', kind: 'take'}, {name: 'memo.m4a', kind: 'memo'},
 ]};
+
+test('connection waits for two failures and clears on the next good refresh', () => {
+  let connection = home.connectionUpdate({}, true, Date.parse('2026-10-22T10:00:00Z'));
+  assert.equal(home.connectionMessage(connection), '');
+  connection = home.connectionUpdate(connection, false);
+  assert.equal(home.connectionMessage(connection), '');
+  connection = home.connectionUpdate(connection, false);
+  assert.match(home.connectionMessage(connection), /^Lost contact with your Mac\. Last updated /);
+  assert.ok(home.connectionMessage(connection).includes(new Date(connection.lastUpdated)
+    .toLocaleString([], {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit'})));
+  connection = home.connectionUpdate(connection, true, Date.parse('2026-10-22T10:01:00Z'));
+  assert.equal(home.connectionMessage(connection), '');
+  assert.equal(connection.failures, 0);
+  assert.equal(connection.lastUpdated, Date.parse('2026-10-22T10:01:00Z'));
+});
+
+test('refresh bounds reads and clears the banner even when state is unchanged or typing', async () => {
+  const source = readFileSync(new URL('../../src/yap_studio/homepage/static/home.js', import.meta.url), 'utf8');
+  const code = source.slice(source.indexOf('async function api('), source.indexOf('function schedule('));
+  const banner = {hidden: true};
+  let resolve, reject, renders = 0;
+  const state = {listening: true};
+  const context = vm.createContext({...home, URLSearchParams,
+    document: {activeElement: null},
+    $: (id) => id === 'connection' ? banner : id === 'main' ? {contains: () => true} : null,
+    fetch: (_url, options) => {
+      assert.equal(options.signal.timeout, 5000);
+      return new Promise((yes, no) => { resolve = yes; reject = no; });
+    },
+    AbortSignal: {timeout: (timeout) => ({timeout})},
+    render: () => { renders++; }, renderListener() {},
+  });
+  vm.runInContext(`let state = null, connection = {failures: 0, lastUpdated: null};
+    const token = '', uploads = new Map(); ${code}`, context);
+  const refresh = () => vm.runInContext('refresh()', context);
+  const succeed = () => resolve({ok: true, json: async () => state});
+  let pending = refresh();
+  succeed();
+  await pending;
+  assert.equal(renders, 1);
+  pending = refresh();
+  assert.equal(banner.hidden, true, 'one pending slow request does not show the banner');
+  reject(new Error('Timed out'));
+  await pending;
+  assert.equal(banner.hidden, true);
+  pending = refresh();
+  resolve({ok: true, json: async () => { throw new Error('Body timed out'); }});
+  await pending;
+  assert.equal(banner.hidden, false);
+  assert.match(banner.textContent, /^Lost contact with your Mac\. Last updated /);
+  context.document.activeElement = {tagName: 'TEXTAREA'};
+  pending = refresh();
+  succeed();
+  await pending;
+  assert.equal(banner.hidden, true);
+  assert.equal(banner.textContent, '');
+  assert.equal(renders, 1);
+});
 
 test('labels read as plain words', () => {
   assert.equal(typeLabel('talking_head'), 'Talking head');

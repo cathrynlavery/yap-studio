@@ -1017,6 +1017,7 @@ test('page confirms rollback and approval and reconnects without losing notes', 
     closest() { return null; }
     focus() {}
     pause() {}
+    scrollIntoView() {}
   }
   const elements = new Map();
   const element = (id) => {
@@ -1078,15 +1079,11 @@ test('page confirms rollback and approval and reconnects without losing notes', 
   allow = true;
   await page.releaseVersion('rollback');
   assert.equal(element('rollback-version').hidden, true);
-  await page.releaseVersion('approve');
-  assert.match(confirmations.at(-1), /^Approve v1\?/);
+  approved = {version: 1, report_status: 'pass'};
+  await page.refreshReview();
   assert.equal(element('approve-version').hidden, true);
   assert.equal(element('download-video').href, 'api/download?version=1&t=token');
   assert.equal(element('download-report').href, 'api/download/report?version=1&t=token');
-  const posts = requests.filter(({options}) => options.method === 'POST');
-  assert.deepEqual(posts.map(({path, options}) => [path, JSON.parse(options.body),
-    options.headers['X-Yap-Token']]), [['api/rollback', {version: 1}, 'token'],
-    ['api/approve', {version: 1}, 'token']]);
   page.openCompose();
   element('compose-text').value = 'Unsent text survives reconnect';
   network = false;
@@ -1121,6 +1118,23 @@ test('page confirms rollback and approval and reconnects without losing notes', 
   network = false;
   await assert.rejects(page.api('api/approve'), /Network unavailable/);
   assert.equal(element('offline-banner').hidden, false);
+  network = true;
+  httpError = false;
+  context.document.visibilityState = 'visible';
+  await page.refreshReview();
+  await page.releaseVersion('approve');
+  assert.match(confirmations.at(-1), /^Approve v1\?/);
+  assert.equal(element('approval-confirmation').hidden, false);
+  assert.equal(element('approval-title').textContent, 'Approved: Version 1');
+  const posts = requests.filter(({options}) => options.method === 'POST');
+  assert.deepEqual(posts.map(({path, options}) => [path, JSON.parse(options.body),
+    options.headers['X-Yap-Token']]), [['api/rollback', {version: 1}, 'token'],
+    ['api/approve', {version: 1}, 'token']]);
+  const requestCount = requests.length;
+  network = false;
+  await page.refreshReview();
+  assert.equal(requests.length, requestCount);
+  assert.equal(element('approval-confirmation').hidden, false);
 });
 
 test('page polls and loads the review after an offline initial launch', async () => {

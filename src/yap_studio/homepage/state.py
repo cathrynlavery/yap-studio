@@ -33,7 +33,28 @@ def phase(
     result = {"phase": "starting", "step": None, "message": None}
     run = snapshot.get("run") or {}
     stages = snapshot.get("stages", [])
-    running = next((row for row in stages if row["state"] == "running"), None)
+
+    def when(value: str | None) -> datetime:
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+        except (ValueError, AttributeError):
+            return datetime.min.replace(tzinfo=UTC)
+
+    running = max(
+        (row for row in stages if row["state"] == "running"),
+        key=lambda row: when((row.get("progress") or {}).get("started")),
+        default=None,
+    )
+    version_time = when(versions[-1].get("created_at")) if versions else when(None)
+    stage_time = when(((running or {}).get("progress") or {}).get("started"))
+    run_time = when(
+        run.get("finished") or (run.get("progress") or {}).get("started") or run.get("started")
+    )
+    # Keep the existing priority on ties, including failures recorded in the same second.
+    if run_time < max(stage_time, version_time):
+        run = {}
+    if stage_time < version_time:
+        running = None
     if approved:
         result["phase"] = "approved"
     elif run.get("state") in {"failed", "cancelled", "stopped", "lost"}:

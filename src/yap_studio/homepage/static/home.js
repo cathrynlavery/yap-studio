@@ -1,5 +1,5 @@
 import {
-  NEW_STEPS, OFFERED_TYPES, TYPE_COPY, answersPayload, answersSummary, brollText, defaultRoute,
+  NEW_STEPS, OFFERED_TYPES, TYPE_COPY, answersPayload, answersSummary, brollText, connectionMessage, connectionUpdate, defaultRoute,
   draftFromDefault, draftProblems, findProject, firstOpenStep, formatBytes, formatDuration, formatWhen, hasFinal, isVideoFile, linkFor,
   parseRoute, phaseInfo, phoneLinkLabel, plural, progressRows, requestInfo, sourcesToSend, takesText, textHookProblem, typeLabel,
 } from './home-model.mjs';
@@ -7,6 +7,7 @@ import {
 const token = new URLSearchParams(location.search).get('t') ?? '';
 const $ = (id) => document.getElementById(id);
 let state = null;
+let connection = {failures: 0, lastUpdated: null};
 let pollTimer = null;
 let busy = false;
 const uploads = new Map();
@@ -73,6 +74,7 @@ function copyButton(text, label = 'Copy') {
 
 async function api(path, body, method = body === undefined ? 'GET' : 'POST') {
   const options = {method, headers: {}, credentials: 'same-origin'};
+  if (method === 'GET') options.signal = AbortSignal.timeout(5000);
   if (method !== 'GET') {
     options.headers['X-Home-Token'] = token;
     options.headers['Content-Type'] = 'application/json';
@@ -85,7 +87,9 @@ async function api(path, body, method = body === undefined ? 'GET' : 'POST') {
     throw new Error('Yap Studio is not reachable. Check that it is still running on your Mac.');
   }
   let data = null;
-  try { data = await response.json(); } catch { /* not JSON */ }
+  try { data = await response.json(); } catch {
+    if (method === 'GET') throw new Error('Yap Studio did not send an update. Trying again.');
+  }
   if (!response.ok) throw new Error(data?.error?.message ?? `Something went wrong (${response.status}).`);
   return data;
 }
@@ -108,17 +112,28 @@ async function refresh() {
     const next = await api('/api/state');
     const nextSignature = JSON.stringify(next);
     state = next;
+    connection = connectionUpdate(connection, true);
+    renderConnection();
     $('loading')?.remove();
     if (nextSignature === signature && !uploads.size) return;
     signature = nextSignature;
     if (typing()) { deferred = true; return; }
     render();
   } catch (error) {
+    connection = connectionUpdate(connection, false);
+    renderConnection();
     if (!state) {
       $('main').replaceChildren(h('div', {class: 'banner error'}, h('strong', {text: 'Yap Studio could not load.'}),
         h('span', {text: error.message})));
     }
   }
+}
+
+function renderConnection() {
+  const message = connectionMessage(connection);
+  $('connection').textContent = message;
+  $('connection').hidden = !message;
+  if (state) renderListener();
 }
 
 function schedule() {
@@ -206,9 +221,10 @@ function claudeWorking() {
 
 function renderListener() {
   const el = $('listener');
-  const mode = state.listening ? 'on' : claudeWorking() ? 'working' : 'off';
+  const lost = Boolean(connectionMessage(connection));
+  const mode = lost ? 'off' : state.listening ? 'on' : claudeWorking() ? 'working' : 'off';
   el.replaceChildren(h('span', {class: 'dot', 'aria-hidden': 'true'}),
-    {on: 'Claude is listening', working: 'Claude is working', off: "Claude Code isn't listening"}[mode]);
+    lost ? 'Connection lost' : {on: 'Claude is listening', working: 'Claude is working', off: "Claude Code isn't listening"}[mode]);
   el.className = `listener ${mode}`;
   const phoneLink = $('phone-link');
   phoneLink.hidden = !state.phone;

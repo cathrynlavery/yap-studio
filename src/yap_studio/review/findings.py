@@ -164,6 +164,8 @@ def _layer_findings(project_dir: Path, sha256: str) -> tuple[list, list, list]:
                 continue
             skipped = []
             for pass_name, check in checks.get("passes", {}).items():
+                if pass_name == "lint":
+                    continue
                 if check.get("status") == "skipped":
                     if not (stage == "captions" and pass_name == "contrast" and contrast_ran):
                         skipped.append({"pass": pass_name, "reason": check.get("reason")})

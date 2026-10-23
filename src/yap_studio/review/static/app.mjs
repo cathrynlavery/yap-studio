@@ -14,7 +14,7 @@ import {
   spellingAvailable, spellingRequest, requestText, editedRequest,
   wordsInRange, cutWordsText, cutState, cutBody, rangeLengthText,
   removedKindName, visibleRemovedRanges, rangeRequested,
-  versionBadges, reportStatusLabel, offlineState,
+  versionBadges, reportStatusLabel, offlineState, approvalConfirmation,
   findingKindLabel, findingSourceLabel, findingEvidenceText, findingNoteBody, findingAdded,
   pictureRect, pinAt, pinPoint, pinText, pinBody, pinInSpan, pinShown, captionAt,
 } from './timeline.mjs';
@@ -62,6 +62,8 @@ const el = {
   versionActions: $('version-actions'), rollback: $('rollback-version'), approve: $('approve-version'),
   makeFinal: $('make-final'), approveHint: $('approve-hint'),
   downloadVideo: $('download-video'), downloadReport: $('download-report'), offline: $('offline-banner'),
+  approval: $('approval-confirmation'), approvalTitle: $('approval-title'),
+  approvalText: $('approval-text'), approvalHome: $('approval-home'),
   compareToggle: $('compare-toggle'), players: $('players'), comparePanel: $('compare-panel'),
   compareVersion: $('compare-version'), compareVideo: $('compare-video'),
   matchMoment: $('match-moment'), matchReverse: $('match-reverse'),
@@ -113,6 +115,7 @@ let refreshPending = false;
 let refreshTimer = null;
 let roundBusy = false;
 let releaseBusy = false;
+let approvedVersion = null;
 let offline = false;
 const MEDIA_METADATA_DEADLINE_MS = 10000;
 const MEDIA_FIRST_FRAME_DEADLINE_MS = 15000;
@@ -210,6 +213,7 @@ async function request(path, options) {
 
 function schedulePoll() {
   if (refreshTimer !== null) clearInterval(refreshTimer);
+  if (approvedVersion !== null) return;
   refreshTimer = setInterval(refreshReview, reviewPollInterval(review?.series?.rounds, offline));
 }
 
@@ -944,7 +948,8 @@ function renderVersions() {
     el.makeFinal.disabled = Boolean(story.requested);
     el.makeFinal.textContent = story.requested ? 'Claude is making the final' : 'Make the final video';
   }
-  if (el.approveHint) el.approveHint.textContent = story.hint;
+  if (el.approveHint) el.approveHint.textContent = approved
+    ? 'This version is approved. Your download is ready.' : story.hint;
   const blocked = offline || releaseBusy || switchingVersion || composeBusy || roundBusy
     || answerBusy || tasteSaving.size > 0 || Boolean(editState?.busy) || Boolean(review.media_changed);
   el.rollback.disabled = blocked;
@@ -989,6 +994,21 @@ async function releaseVersion(action) {
   renderSendBar();
   try {
     const result = await api(`api/${action}`, {method: 'POST', body: {version}});
+    if (action === 'approve') {
+      approvedVersion = version;
+      loadVersion += 1;
+      clearInterval(refreshTimer);
+      review.series.approved = {version};
+      const message = approvalConfirmation(seriesVersion(version), review.home, location.hostname);
+      el.approvalTitle.textContent = message.title;
+      el.approvalText.textContent = message.text;
+      el.approvalHome.hidden = !message.url;
+      if (message.url) el.approvalHome.href = message.url;
+      el.approval.hidden = false;
+      el.video.pause();
+      el.approval.scrollIntoView({block: 'center'});
+      return;
+    }
     await loadReview(version);
     if (action === 'rollback' && result.not_restored?.length) {
       showStatus(`Current version: v${version}. Not restored: ${result.not_restored.join(', ')}.`);
@@ -2302,6 +2322,7 @@ function tasteWordingFocused() {
 }
 
 async function refreshReview() {
+  if (approvedVersion !== null) return;
   if ((!offline && document.visibilityState !== 'visible') || composeBusy
     || editState?.busy || answerBusy || tasteSaving.size > 0 || refreshPending || switchingVersion
     || tasteWordingFocused() || document.activeElement?.closest('.text-hook-panel')

@@ -2,6 +2,19 @@
 
 export const OFFERED_TYPES = ['talking_head', 'voiceover'];
 
+export function connectionUpdate(connection, success, now = Date.now()) {
+  return success ? {failures: 0, lastUpdated: now}
+    : {...connection, failures: (connection.failures ?? 0) + 1};
+}
+
+export function connectionMessage(connection) {
+  if (connection.failures < 2 || !connection.lastUpdated) return '';
+  const when = new Date(connection.lastUpdated).toLocaleString([], {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit',
+  });
+  return `Lost contact with your Mac. Last updated ${when}. Trying again.`;
+}
+
 export function textHookProblem(text) {
   return text.trim().length > 80 ? 'Please use shorter text for the Text hook.' : '';
 }
