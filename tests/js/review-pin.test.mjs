@@ -82,6 +82,7 @@ async function pinPage({cfr = true, project = true, available = true, captions =
     }
     querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
     focus() { document.activeElement = this; }
+    scrollIntoView() {}
     setSelectionRange() {}
     getBoundingClientRect() { return this.rect ?? {left: 0, top: 0, width: 300, height: 40}; }
     setPointerCapture(id) { this.capture = id; }
@@ -112,21 +113,26 @@ async function pinPage({cfr = true, project = true, available = true, captions =
   for (const edge of ['start', 'end']) element(`selection-${edge}`).className = `selection-handle ${edge}`;
   element('compose').hidden = true;
   element('caption-fix').hidden = true;
+  element('offline-banner').hidden = true;
+  element('approval-confirmation').hidden = true;
   const state = {comments: [], available, words, fail: false, failWords: false, gate: null};
   const requests = [];
   const timers = new Map();
+  const intervals = new Map();
   let clock = 0;
   let timerId = 0;
-  const context = vm.createContext({...helpers, URLSearchParams, AbortController, Element: Node, document,
+  const context = vm.createContext({...helpers, URLSearchParams, AbortController, DOMException, Element: Node, document,
     performance: {now: () => 0},
     location: new URL('http://review.example.net/?t=token&version=2'), history: {replaceState() {}},
-    window: {addEventListener() {}}, setInterval() {}, clearInterval() {},
+    window: {addEventListener() {}}, confirm: () => true,
+    setInterval(fn) { intervals.set(++timerId, fn); return timerId; },
+    clearInterval(id) { intervals.delete(id); },
     setTimeout(fn, delay) { timers.set(++timerId, {fn, at: clock + delay}); return timerId; },
     clearTimeout(id) { timers.delete(id); }, requestAnimationFrame(fn) { fn(); return 1; },
     fetch: async (path, options) => {
       requests.push({path, options});
-      if (state.unreachable) throw new TypeError('Network unavailable');
       if (state.readGate && path.startsWith('api/review')) await state.readGate;
+      if (state.unreachable) throw new TypeError('Network unavailable');
       const url = new URL(path, 'http://review.example.net/');
       const version = Number(url.searchParams.get('version') || 2);
       const reply = (data, status = 200) => ({ok: status < 400, status, json: async () => structuredClone(data)});
@@ -135,6 +141,14 @@ async function pinPage({cfr = true, project = true, available = true, captions =
         if (state.fail) return reply({error: {message: state.failMessage
           ?? 'No spoken words in this range'}}, state.failStatus ?? 400);
         const body = JSON.parse(options.body);
+        if (path === 'api/approve') {
+          state.approved = {version: body.version};
+          return reply({});
+        }
+        if (url.pathname === '/api/rounds') {
+          state.rounds = [{id: 'r1', status: 'sending', version, comments: ['c1']}];
+          return reply(state.rounds[0], 201);
+        }
         if (options.method === 'PATCH') {
           Object.assign(state.comments[0], body);
           return reply(state.comments[0]);
@@ -158,7 +172,7 @@ async function pinPage({cfr = true, project = true, available = true, captions =
       return reply({media: {name: 'render.mp4', sha256: `hash${version}`, duration_s: 10, cfr, fps: '30/1'},
         comments: state.comments, previous: null, text: '', media_changed: state.writing ?? false,
         series: project ? {project: true, current: version, newest: 2, threads: [], questions: [],
-          rounds: [], versions: [{number: 1}, {number: 2}]} : null});
+          approved: state.approved, rounds: state.rounds ?? [], versions: [{number: 1}, {number: 2}]} : null});
     }});
   const source = readFileSync(new URL('../../src/yap_studio/review/static/app.mjs', import.meta.url), 'utf8');
   vm.runInContext(source.replace(/^import \{[\s\S]*?\} from '.\/timeline.mjs';/, '')
@@ -174,7 +188,7 @@ async function pinPage({cfr = true, project = true, available = true, captions =
       if (timer.at <= clock && timers.delete(id)) await timer.fn();
     }
   };
-  return {page: context.page, element, state, requests, at, click, mark, evaluate, document, tick};
+  return {page: context.page, element, state, requests, at, click, mark, evaluate, document, tick, intervals};
 }
 
 test('metadata and first frame have separate deadlines and clear after a frame loads', async () => {
@@ -235,6 +249,19 @@ test('network errors retry once and use one offline banner with Retry', async ()
   assert.equal(page.element('codec-error').hidden, true);
 });
 
+test('a reachability timeout still marks the page offline', async () => {
+  const page = await pinPage();
+  let release;
+  page.state.readGate = new Promise((resolve) => { release = resolve; });
+  const pending = page.tick(10000);
+  await page.tick(3000);
+  page.state.readGate = null;
+  release();
+  await pending;
+  assert.equal(page.element('offline-banner').hidden, false);
+  assert.match(page.element('offline-player-message').textContent, /could not reach the Mac/u);
+});
+
 test('changed media reports a file still being written and does not retry automatically', async () => {
   const page = await pinPage();
   page.state.writing = true;
@@ -243,6 +270,59 @@ test('changed media reports a file still being written and does not retry automa
   assert.match(page.element('player-message').textContent, /file is still being written/u);
   assert.equal(page.element('video').loads, undefined);
 });
+
+test('switching away from an approval hides its confirmation and resumes round polling', async () => {
+  const page = await pinPage();
+  await page.click('approve-version');
+  assert.equal(page.element('approval-confirmation').hidden, false);
+  assert.equal(page.intervals.size, 0);
+  await page.page.selectVersion(1);
+  assert.equal(page.element('approval-confirmation').hidden, true);
+  assert.equal(page.intervals.size, 1);
+  await page.click('new-comment');
+  page.element('compose-text').value = 'Please change this.';
+  await page.click('compose-submit');
+  await page.click('send-notes');
+  page.state.rounds[0].step = 'Checking the whole story';
+  const before = page.requests.length;
+  await [...page.intervals.values()][0]();
+  assert.ok(page.requests.length > before);
+  assert.equal(page.evaluate('review.series.rounds[0].step'), 'Checking the whole story');
+  assert.equal(page.element('round-list').children[0].children[0].textContent, 'Checking the whole story');
+});
+
+for (const retry of [false, true]) {
+  test(`approval cancels player deadlines (retry: ${retry})`, async () => {
+    const page = await pinPage();
+    if (retry) await page.click('player-retry');
+    await page.click('approve-version');
+    const before = page.requests.length;
+    page.state.unreachable = true;
+    await page.tick(30000);
+    await page.element('video').emit('error');
+    assert.equal(page.requests.length, before);
+    assert.equal(page.element('offline-banner').hidden, true);
+    assert.equal(page.element('download-video').href, 'api/download?version=2&t=token');
+  });
+}
+
+for (const failure of [false, true]) {
+  test(`approval ignores a pending recovery probe (failure: ${failure})`, async () => {
+    const page = await pinPage();
+    let release;
+    page.state.readGate = new Promise((resolve) => { release = resolve; });
+    const pending = page.tick(10000);
+    await page.click('approve-version');
+    page.state.unreachable = failure;
+    page.state.writing = !failure;
+    release();
+    await pending;
+    assert.equal(page.element('approval-confirmation').hidden, false);
+    assert.equal(page.element('offline-banner').hidden, true);
+    assert.equal(page.element('codec-error').hidden, true);
+    assert.equal(page.element('download-video').href, 'api/download?version=2&t=token');
+  });
+}
 
 test('version changes cancel old deadlines and ignore an old recovery response', async () => {
   const page = await pinPage();
