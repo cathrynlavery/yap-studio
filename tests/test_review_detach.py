@@ -336,7 +336,12 @@ def test_background_review_requires_posix(tmp_path: Path, monkeypatch, capsys) -
     captured = capsys.readouterr()
     assert captured.err.count("error: background reviews need macOS or Linux") == 2
     assert "fix: run review without --detach and keep it open" in captured.err
-    assert not (tmp_path / "data").exists()
+    data = tmp_path / "data"
+    if data.exists():
+        # Automatic feedback keeps its ledger and persistent lock, but no review state.
+        contents = list(data.iterdir())
+        assert {item.name for item in contents} <= {"feedback.jsonl", ".feedback.lock"}
+        assert all(item.is_file() for item in contents)
 
 
 def test_stop_keeps_record_if_process_check_fails(tmp_path: Path, monkeypatch, capsys) -> None:
