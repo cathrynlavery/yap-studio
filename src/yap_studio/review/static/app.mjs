@@ -127,6 +127,7 @@ let playerResumeTime = null;
 let playerNetworkRetried = false;
 let playerMessage = '';
 let playerRecoveryPending = false;
+let playerRecoveryController = null;
 let playerMetadataLoaded = false;
 let answerBusy = false;
 let activeWrites = 0;
@@ -186,8 +187,11 @@ async function request(path, options) {
   try {
     response = await fetch(path, {...options, headers, body: options.body === undefined
       ? undefined : JSON.stringify(options.body)});
+    options.signal?.throwIfAborted();
   } catch (error) {
-    setOffline(offlineState(offline, 'network_error'));
+    if (!options.signal?.aborted || options.signal.reason?.name !== 'AbortError') {
+      setOffline(offlineState(offline, 'network_error'));
+    }
     throw error;
   }
   const reconnecting = offline;
@@ -206,7 +210,9 @@ async function request(path, options) {
   try {
     return response.status === 204 ? null : await response.json();
   } catch (error) {
-    if (error instanceof TypeError) setOffline(offlineState(offline, 'network_error'));
+    if (error instanceof TypeError && !options.signal?.aborted) {
+      setOffline(offlineState(offline, 'network_error'));
+    }
     throw error;
   }
 }
@@ -245,6 +251,7 @@ function renderPlayerRecovery() {
 function clearPlayerDeadlines() {
   clearTimeout(metadataTimer);
   clearTimeout(firstFrameTimer);
+  playerRecoveryController?.abort();
 }
 
 function beginPlayerLoad(time = null, resetNetworkRetry = true) {
@@ -270,13 +277,15 @@ function retryPlayer(automatic = false) {
 }
 
 async function recoverPlayer(reason) {
-  if (playerRecoveryPending) return;
+  if (approvedVersion !== null || playerRecoveryPending) return;
   playerRecoveryPending = true;
   if (reason === 'error') clearPlayerDeadlines();
   const generation = playerGeneration;
   const code = el.video.error?.code;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), MEDIA_REACHABILITY_DEADLINE_MS);
+  playerRecoveryController = controller;
+  const timer = setTimeout(() => controller.abort(new DOMException(
+    'The video reachability check timed out.', 'TimeoutError')), MEDIA_REACHABILITY_DEADLINE_MS);
   let fresh;
   let unreachable = false;
   try {
@@ -285,6 +294,7 @@ async function recoverPlayer(reason) {
     unreachable = offline;
   } finally {
     clearTimeout(timer);
+    if (playerRecoveryController === controller) playerRecoveryController = null;
   }
   if (generation !== playerGeneration) return;
   playerRecoveryPending = false;
@@ -998,6 +1008,9 @@ async function releaseVersion(action) {
       approvedVersion = version;
       loadVersion += 1;
       clearInterval(refreshTimer);
+      clearPlayerDeadlines();
+      playerGeneration += 1;
+      playerRecoveryPending = false;
       review.series.approved = {version};
       const message = approvalConfirmation(seriesVersion(version), review.home, location.hostname);
       el.approvalTitle.textContent = message.title;
@@ -2223,6 +2236,10 @@ function renderReview(fresh, preserveStatus = false) {
   }
   review = fresh;
   selectedVersion = fresh.series?.current ?? null;
+  if (approvedVersion !== null && approvedVersion !== selectedVersion) {
+    approvedVersion = null;
+    el.approval.hidden = true;
+  }
   fps = freshFps;
   if (changed) {
     selection = null;

@@ -1902,6 +1902,17 @@ def test_legacy_extended_caption_receipt_requires_a_new_render(layer_project: Pa
     assert not captions(layer_project)["noop"]
 
 
+def test_legacy_caption_grouping_receipt_requires_a_new_render(layer_project: Path) -> None:
+    captions(layer_project)
+    target = layer_project / "captions/receipt.json"
+    record = json.loads(target.read_bytes())
+    record["inputs"].pop("phrases", None)
+    write(target, record)
+    assert state(layer_project, "captions")["state"] == "stale"
+    assert not captions(layer_project)["noop"]
+    assert captions(layer_project)["noop"]
+
+
 def test_caption_outputs_use_cut_frames_output_times_and_last_frame(
     layer_project: Path, fake_layers: list[dict], checked_layers: list[dict],
 ) -> None:

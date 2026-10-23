@@ -1255,6 +1255,7 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
             "phrase_tail": "natural",
         }),
         "word_fixes": projection_sha256(context.project.word_fixes),
+        "phrases": projection_sha256([phrase.to_dict() for phrase in phrases]),
         **({"word_text_fixes": projection_sha256(context.project.word_text_fixes)}
            if context.project.word_text_fixes else {}),
         "brand:words": projection_sha256(vocabulary),

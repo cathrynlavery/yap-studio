@@ -20,10 +20,11 @@ async function run(url, resultFile, shots) {
       await page.setRequestInterception(true);
       let holdMedia = true;
       const held = new Set();
-      page.on('request', (request) => {
+      const stallMedia = (request) => {
         if (holdMedia && new URL(request.url()).pathname.endsWith('/media')) held.add(request);
         else void request.continue();
-      });
+      };
+      page.on('request', stallMedia);
       await page.goto(url);
       await page.waitForSelector('#codec-error:not([hidden])', {timeout: 20000});
       assert.match(await page.$eval('#player-message', (node) => node.textContent), /load stalled/u);
@@ -161,7 +162,7 @@ async function run(url, resultFile, shots) {
         rounds: [], threads: [], questions: []};
       let approved = false;
       const afterApproval = [];
-      await page.setRequestInterception(true);
+      page.off('request', stallMedia);
       page.on('request', (request) => {
         const route = new URL(request.url()).pathname;
         if (approved && route.includes('/api/')) {
