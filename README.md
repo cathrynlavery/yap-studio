@@ -2,7 +2,9 @@
 
 # Yap Studio
 
-**You like recording. Editing is the part that stops you.**
+**The video editor you never have to learn.**
+
+For people with more to say than time to edit. 30 card types. Every cut checked. No timeline.
 
 Drop in your raw takes, stumbles and all. An agent in Claude Code cuts the dead air and the
 restarts, adds your captions, cards, B-roll and music, and checks the video before you see it.
@@ -16,9 +18,9 @@ You leave notes from your phone, and the next version follows them.
 
 </div>
 
-<p align="center"><img src="docs/images/demo.gif" alt="A sample take raw on the left and finished on the right, then a run of Yap Studio: the creator picks talking head and a look, Claude Code makes the edit, they pin a note on their phone, and the approved video is ready to download." width="720"></p>
+<p align="center"><img src="docs/images/demo.gif" alt="A scroll through Yap Studio with a generated sample presenter: a take with the restarts and dead air struck out, cards and captions timed to the words, approved notes becoming taste rules, and the checks every render passes before you see it." width="720"></p>
 
-<p align="center">One raw take in, the finished video out.</p>
+<p align="center">You talk. The agent edits. You comment.</p>
 
 Yap Studio is an open-source add-on for [HyperFrames](https://www.npmjs.com/package/hyperframes)
 that edits vertical videos on your own computer. It is for people who talk to a camera and would
@@ -95,6 +97,14 @@ note. When the story is right, press Make the final video.</td>
 The same pages work on a phone over the same Wi-Fi or Tailscale. Anything paid, such as
 generated music, still goes through Claude in chat, and Claude asks first.
 
+## Made with Yap Studio
+
+- [How I use Tailscale](https://x.com/cathrynlavery/status/2105099276225307134): a talking-head
+  video, edited end to end by the agent.
+- [A cold plunge build](https://x.com/cathrynlavery/status/2110819344745923004): the first
+  voiceover test, made from footage that sat in a camera roll since 2023.
+- [The launch teaser](https://x.com/cathrynlavery/status/2108720117635022887).
+
 ## What goes into the edit
 
 - A story cut from your own words. Fillers, restarts and long pauses come out, and every join
@@ -167,8 +177,9 @@ your phone. Each round of comments makes a new version.
 The home page asks for a talking head or a voiceover. For the other two, tell Claude in chat.
 
 - Talking head, from one or more takes to camera. That is the quick start above.
-- Voiceover, from a voice memo and your own photos and clips of a project or a day. See
-  [docs/recipes/voiceover.md](docs/recipes/voiceover.md).
+- Voiceover, from a voice memo and your own photos and clips of a project or a day. This one
+  is early and still being built. See [docs/recipes/voiceover.md](docs/recipes/voiceover.md)
+  and [the first test](https://x.com/cathrynlavery/status/2110819344745923004).
 - Green screen, with you cut out over a page, screenshot, photo or clip that fills the frame
   (macOS). You can sit full size, along the bottom or in a corner. See
   [the workspace guide](workspace/CLAUDE.md#what-are-you-making).
