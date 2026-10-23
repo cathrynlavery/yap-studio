@@ -274,8 +274,7 @@ def _engine_step(uv: str, wheel: Path, engine: Path, *, include_renderer: bool =
     command = " && ".join(_shell_join(args) for args in commands)
     # These estimates match the default speech backends' download notices.
     does = ("Install Yap Studio and its speech engine, then download the speech model "
-            "(about 2.5 GB on a Mac with Apple silicon; about 670 MB on any other computer, "
-            "including Intel Macs and Linux)")
+            "(about 2.5 GB on a Mac with Apple silicon; about 670 MB on an Intel Mac)")
     does += (", then download and install the renderer and its browser for video graphics."
              if include_renderer else ".")
     return _step("engine", does, command)

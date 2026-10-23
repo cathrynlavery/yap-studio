@@ -542,6 +542,17 @@ export function phoneLinkLabel(via) {
   return via === 'tailscale' ? 'Encrypted (Tailscale)' : via === 'wifi' ? 'Not encrypted (same Wi-Fi)' : '';
 }
 
+export function approvalConfirmation(version, home, hostname) {
+  let url = homeUrl(home, hostname);
+  const local = ['127.0.0.1', 'localhost', '[::1]'];
+  if (url && !local.includes(hostname) && local.includes(new URL(url).hostname)) url = null;
+  return {
+    title: `Approved: ${version?.name ?? `Version ${version?.number}`}`,
+    text: 'Download the approved file on Yap Studio home.',
+    url,
+  };
+}
+
 /** What happens after notes are sent, when Yap Studio home knows whether Claude is listening. */
 export function sendNextText(series, home) {
   if (!home || !series?.rounds?.length) return null;

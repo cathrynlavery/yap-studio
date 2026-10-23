@@ -50,6 +50,33 @@ def test_phase_table(stages, run, versions, newer, approved, expected):
         assert result["message"]
 
 
+@pytest.mark.parametrize("run_state", ["cancelled", "failed"])
+@pytest.mark.parametrize(
+    "run_time,stage_time,version_time,expected",
+    [
+        ("10:00:00", None, "10:01:00", "final_ready"),
+        ("10:00:00", "10:02:00", "10:01:00", "building"),
+        ("10:03:00", "10:02:00", "10:01:00", "stopped"),
+        ("10:03:00", None, "10:01:00", "stopped"),
+        ("10:00:00", "09:59:00", "10:01:00", "final_ready"),
+        ("10:01:00", None, "10:01:00", "stopped"),
+    ],
+)
+def test_phase_uses_newest_work(run_state, run_time, stage_time, version_time, expected):
+    snapshot = {
+        "run": {"state": run_state, "finished": f"2026-10-22T{run_time}Z"},
+        "stages": [] if stage_time is None else [{
+            "name": "assemble", "state": "running",
+            "progress": {"started": f"2026-10-22T{stage_time}+00:00", "step": "Rendering"},
+        }],
+    }
+    versions = [{"final": True, "created_at": f"2026-10-22T{version_time}Z"}]
+    result = state.phase(snapshot, versions)
+    assert result["phase"] == expected
+    if expected == "building":
+        assert result["step"] == "Rendering"
+
+
 def test_inbox_rules_cache_and_no_absolute_state(tmp_path, monkeypatch):
     inbox = tmp_path / "inbox"
     inbox.mkdir()

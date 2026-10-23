@@ -649,6 +649,33 @@ def test_final_layer_findings_merge_in_time_order_with_targets(
     assert str(project) not in json.dumps(result)
 
 
+@pytest.mark.parametrize("stage", ["captions", "graphics"])
+@pytest.mark.parametrize("severity", ["warning", "error"])
+def test_lint_pass_stays_in_receipts_without_review_items_or_count(
+    checked_project: tuple[Path, Path], stage: str, severity: str,
+) -> None:
+    project, media = checked_project
+    digest = sha256_file(media)
+    before = findings_for_media(media, digest, project_dir=project)
+    path = project / stage / "receipt.json"
+    data = json.loads(path.read_bytes())
+    checks = data["layer_checks"] if stage == "captions" else data["layer_checks"]["agent-card"]
+    lint = _layer_checks("lint", "This HTML composition file has 925 lines.",
+                         severity=severity)["passes"]["lint"]
+    lint["errors" if severity == "error" else "warnings"] = 2
+    checks["passes"]["lint"] = lint
+    _write_receipt(project, stage, data)
+    saved = path.read_bytes()
+
+    result = findings_for_media(media, digest, project_dir=project)
+
+    assert len(result["items"]) == len(before["items"]) == 3
+    assert result == before
+    assert [item["pass"] for item in result["items"]] == ["runtime", "layout", "contrast"]
+    assert path.read_bytes() == saved
+    assert json.loads(saved)["layer_checks"] == data["layer_checks"]
+
+
 @pytest.mark.parametrize(("stage", "path", "message"), [
     ("captions", "captions/captions.mov", "Caption overlaps"),
     ("graphics", "graphics/agent-card.mov", "Card contrast is low"),
