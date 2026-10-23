@@ -25,6 +25,7 @@ Your video files stay on your computer. Still frames from pinned notes and conta
 your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
 Claude reads, as part of your Claude Code session.
 ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.
+Product feedback stays local until you agree to share it, with private values scrubbed.
 
 On macOS, CI runs on macOS 15 with Apple silicon. The locked MLX speech packages
 require macOS 14 or newer; earlier macOS versions are unverified. Apple silicon

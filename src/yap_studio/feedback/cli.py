@@ -288,8 +288,15 @@ def register(subparsers: argparse._SubParsersAction) -> None:
             command.add_argument("version", metavar="vK")
         command.add_argument("--json", action="store_true")
         command.set_defaults(func=_versions)
-    feedback = subparsers.add_parser("feedback", help="build feedback batches and check keeps")
+    feedback = subparsers.add_parser(
+        "feedback", help="record product feedback or handle video review notes",
+        description='Record product feedback: yap-studio feedback "TEXT" [--step STEP] '
+                    'or yap-studio feedback --stdin. Video review commands remain below.',
+    )
     commands = feedback.add_subparsers(dest="feedback_command", required=True)
+    from yap_studio.product_feedback import register as register_product_feedback
+
+    register_product_feedback(commands)
     build = commands.add_parser("build", help="locate review comments in their render snapshots")
     build.add_argument("project", metavar="PROJECT")
     build.add_argument("export", metavar="EXPORT")

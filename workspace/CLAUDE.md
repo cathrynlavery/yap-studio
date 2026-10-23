@@ -18,6 +18,19 @@ the page, wait until they say it is done, then run setup again.
 Tailscale is optional; the Wi-Fi link works without it on the same network.
 Offer it once, and if the creator skips it, move on.
 
+After the engine is installed, check `yap-studio doctor --json` for `feedback.mode`.
+During first setup, ask once: "May Yap Studio share short notes about problems so it can
+improve? Nothing private is shared: no footage, words, names, file names or paths."
+Offer ask each time, always share, or keep local. Run `yap-studio feedback setting ask`,
+`always` or `never` with their answer. Explain an environment override if doctor still says
+always. Keep product notes about the tool; never copy the creator's words or names into them.
+
+Run `yap-studio feedback "..." --step STEP` whenever a step fails, needs a retry or a
+workaround, the docs were wrong or missing, or the creator corrects something the checks
+should have caught. With mode ask, at the end of a video show
+`yap-studio feedback send --dry-run` to the creator. Run `yap-studio feedback send --yes`
+only if they agree. With mode never, keep the notes local.
+
 When the steps are done, run `python3 setup.py` again. Setup exits 0 only after every required
 step is done and Yap Studio home answers its state check. Do not begin an edit before that.
 Use the home link setup prints. Run `open URL` with that link on this Mac. Start

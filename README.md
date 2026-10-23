@@ -37,6 +37,7 @@ Your video files stay on your computer. Still frames from pinned notes and conta
 your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
 Claude reads, as part of your Claude Code session.
 ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.
+Notes about problems with the tool stay on your computer until you agree to share them.
 
 If you build software, the engine is Python with a command line. Skip to
 [For developers](#for-developers).
@@ -148,6 +149,17 @@ Yap Studio enforces some of those rules itself. The agent follows the rest:
 It can also learn a style from videos you already posted.
 [Styles and taste rules](docs/styles.md#taste-rules) has the details.
 
+## It gets better from real use
+
+When the agent struggles, it writes a one-line note about the tool: a step that failed, a doc
+that was wrong, a check that missed something. With your OK, those notes become issues on this
+repo, and that is how Yap Studio gets better.
+
+Nothing private is shared. A note carries the agent's sentence, the step, the error code and the
+Yap Studio and macOS versions, never your footage, your words, names, file names or paths. You
+can read every note before it goes, or turn sharing off. [Feedback](docs/feedback.md) has the
+details.
+
 ## Checked before you see it
 
 Every render is checked before anyone watches it. Verify looks at every join for clicks, gaps,
@@ -237,6 +249,7 @@ The rest, and what Yap Studio never judges, is in [docs/limits.md](docs/limits.m
 - [The style page](docs/style-page.md): each screen, saving, and learning a style from videos
   you already posted.
 - [Review](docs/review.md): the review page, phone links, keys and exported feedback.
+- [Feedback](docs/feedback.md): local product notes, consent and sharing.
 - [Verify](docs/verify.md): what it checks, findings, the JSON report and exit codes.
 - [Edit lists](docs/edit-lists.md): the formats verify reads.
 - [Limits](docs/limits.md)

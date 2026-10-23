@@ -5,6 +5,9 @@ from __future__ import annotations
 import platform
 import re
 from collections.abc import Sequence
+from contextvars import ContextVar
+
+_command_error: ContextVar[list[YapError] | None] = ContextVar("command_error", default=None)
 
 
 def shorten_text(text: str, limit: int = 240) -> str:
@@ -47,7 +50,14 @@ class YapError(Exception):
     @property
     def message(self) -> str:
         """Read the message from the current exception arguments."""
+        # The CLI prints errors through .message, so a read marks the error a command surfaced.
+        observed = _command_error.get()
+        if observed is not None:
+            observed[:] = [self]
         return str(self.args[0]) if self.args else ""
+
+    def __str__(self) -> str:
+        return self.message
 
     @message.setter
     def message(self, value: str) -> None:

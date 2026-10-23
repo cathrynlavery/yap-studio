@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from yap_studio.cli import _parser
+from yap_studio.cli import _argument_parser
 from yap_studio.project.model import parse_document
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -98,7 +98,6 @@ def test_walk_through_applies_removals_before_story_review() -> None:
 
 
 def test_documented_console_commands_parse() -> None:
-    parser = _parser()
     failures: list[str] = []
     checked = 0
     files = [
@@ -121,7 +120,8 @@ def test_documented_console_commands_parse() -> None:
                 checked += 1
                 with redirect_stderr(StringIO()):
                     try:
-                        parser.parse_args(argv)
+                        parser, arguments = _argument_parser(argv)
+                        parser.parse_args(arguments)
                     except SystemExit:
                         failures.append(f"{file.relative_to(ROOT)}: {line}")
     assert not failures, "Documented commands failed to parse:\n" + "\n".join(failures)

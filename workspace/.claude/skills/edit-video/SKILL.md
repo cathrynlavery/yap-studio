@@ -24,6 +24,12 @@ Still frames from pinned notes and contact sheets of the creator's clips go to C
   shows them (What are you making? in `CLAUDE.md`). Never invent screens or images, and
   never download or generate anything they have not approved.
 - Use a feature only where the story calls for it. Most videos need a few, not all.
+- Run `yap-studio feedback "..." --step STEP` whenever a step fails, needs a retry or a
+  workaround, the docs were wrong or missing, or the creator corrects something the checks
+  should have caught. Describe the tool problem only, with no creator words or names.
+  Check `feedback.mode` in `yap-studio doctor --json`. With mode ask, at the end of a video
+  show `yap-studio feedback send --dry-run` and run `yap-studio feedback send --yes` only
+  if the creator agrees. With mode never, keep the notes local.
 - Stop for the creator's review of the cut and of the final. A passing check is not approval.
 - Never run `assemble --allow-violations` or pass `--allow-violations` to `run`. Move or drop
   what covers the face instead.
