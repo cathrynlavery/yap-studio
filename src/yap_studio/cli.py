@@ -292,6 +292,12 @@ def _doctor(args: argparse.Namespace) -> int:
                   "Wi-Fi link (Tailscale not set up)" if phone_via else
                   "no network a phone can reach (connect to Wi-Fi or set up Tailscale)")
     lines.append(f"phone    {phone_text}")
+    from yap_studio.product_feedback import availability
+
+    feedback = availability()
+    lines.append(f"feedback {feedback['mode']}; endpoint "
+                 f"{'available' if feedback['endpoint'] else 'not set'}; gh "
+                 f"{'ready' if feedback['gh_logged_in'] else 'unavailable'}")
     # Verify needs only ffmpeg; --edit also fails on the editing dependencies.
     edit_missing = [name for name, ok in (
         ("node", node_ok), ("renderer", renderer is not None), ("browser", browser_ok),
@@ -328,6 +334,7 @@ def _doctor(args: argparse.Namespace) -> int:
         "speech": {"available": auto is not None, "engines": speech, "model": model_ready},
         "cutout": {"available": cutout_reason is None, "reason": cutout_reason},
         "phone": {"tailscale": tailscale_state, "name": phone_name, "via": phone_via},
+        "feedback": feedback,
         "problems": [str(problem) for problem in problems],
         "edit_missing": edit_missing,
         "ready_to_edit": ready_to_edit,
@@ -1906,7 +1913,17 @@ def _parser() -> argparse.ArgumentParser:
 
 def _argument_parser(arguments: list[str]) -> tuple[argparse.ArgumentParser, list[str]]:
     """Select the parser and arguments for ordinary commands or filler decisions."""
-    if arguments[:2] == ["words", "fix"]:
+    if arguments[:1] == ["feedback"] and (
+        len(arguments) < 2 or arguments[1] not in {
+            "build", "apply", "check", "reply", "replies", "ask", "answer",
+            "list", "send", "setting", "--help", "-h",
+        }
+    ):
+        from yap_studio.product_feedback import record_parser
+
+        parser = record_parser()
+        arguments = arguments[1:]
+    elif arguments[:2] == ["words", "fix"]:
         parser = argparse.ArgumentParser(prog="yap-studio words fix")
         parser.add_argument("directory", metavar="DIR")
         parser.add_argument("--word", metavar="ID")
@@ -1936,7 +1953,7 @@ def _argument_parser(arguments: list[str]) -> tuple[argparse.ArgumentParser, lis
     return parser, arguments
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _main(argv: Sequence[str] | None = None) -> int:
     """Run the command line interface."""
     tools.add_homebrew_path()
     parser, arguments = _argument_parser(list(sys.argv[1:] if argv is None else argv))
@@ -1964,3 +1981,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.print_help()
         return 2
     return int(func(args))
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Capture a surfaced Yap error only when its command actually fails."""
+    from yap_studio.errors import _command_error
+    from yap_studio.product_feedback import automatic
+
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    observed: list[YapError] = []
+    token = _command_error.set(observed)
+    failed = False
+    try:
+        result = _main(arguments)
+        failed = result != 0
+        return result
+    except YapError as exc:
+        observed[:] = [exc]
+        failed = True
+        raise
+    finally:
+        _command_error.reset(token)
+        if failed and observed:
+            automatic(arguments[0] if arguments else "unknown", observed[-1].code)

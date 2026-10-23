@@ -92,7 +92,7 @@ def test_highest_head_wins_over_median_position() -> None:
 ])
 def test_moving_face_refuses_when_one_crop_cannot_hold_window(boxes) -> None:
     with pytest.raises(picture.PictureError, match=(
-        "broll-moving: she moves too much for one crop; "
+        "broll-moving: the person moves too much for one crop; "
         "use fit cover for this shot or shorten it"
     )):
         split.calculate_layout("broll-moving", boxes)
@@ -253,7 +253,7 @@ def test_top_edge_head_refuses() -> None:
 
 def test_impossible_head_refuses_with_element_and_fix() -> None:
     with pytest.raises(picture.PictureError, match=(
-        "broll-impossible.*use fit cover for this shot, or start it where she sits lower"
+        "broll-impossible.*use fit cover for this shot, or start it where the person sits lower"
     )):
         split.calculate_layout("broll-impossible", [Box(400, 0, 200, 300)])
 

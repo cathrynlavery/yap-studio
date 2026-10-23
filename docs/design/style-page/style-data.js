@@ -3,7 +3,7 @@
 window.YAP_STYLE_DATA = {
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Yap Studio buyer style v1",
+    "title": "Yap Studio style v1",
     "type": "object",
     "additionalProperties": false,
     "required": [
@@ -78,7 +78,7 @@ window.YAP_STYLE_DATA = {
       },
       "name": {
         "type": "string",
-        "description": "Name shown in the buyer portal.",
+        "description": "Name shown on the style page.",
         "default": "Untitled style",
         "minLength": 1,
         "maxLength": 80

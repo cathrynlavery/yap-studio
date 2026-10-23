@@ -80,8 +80,13 @@ def test_doctor_setup_checks_json(
     monkeypatch.setattr(phone, "tailscale_name", lambda: name)
     monkeypatch.setattr(phone, "lan_address", lambda: lan)
 
+    from yap_studio.product_feedback import setting
+
+    setting("never")
     assert main(["doctor", "--edit", "--json"]) == 2
     report = json.loads(capsys.readouterr().out)
+    assert report["feedback"]["mode"] == "never"
+    assert report["feedback"]["endpoint"] is False
     assert report["node"] == {"available": True, "version": "v26.1.0", "path": str(working)}
     assert report["folder"] == {"path": str(tmp_path), "synced": True, "service": service}
     assert report["disk"] == {"free_gb": 8.5, "min_gb": 10, "enough": False}
@@ -101,6 +106,7 @@ def test_doctor_setup_checks_json(
     capsys.readouterr()
     assert main(["doctor", "--edit"]) == 2
     lines = capsys.readouterr().out.splitlines()
+    assert any(line.startswith("feedback never;") for line in lines)
     assert any(line.startswith("folder   ") for line in lines)
     assert any(line.startswith("disk     ") for line in lines)
     assert any(line.startswith("model    ") for line in lines)

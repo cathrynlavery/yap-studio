@@ -45,5 +45,5 @@ def spoken_number_fix(slots: dict, words: Sequence[CutWord], start: int, end: in
            for value, spoken_percent, _ in heard):
         return None
     listing = ", ".join(dict.fromkeys(text for _, _, text in heard)) or "none"
-    return (f"use a number she says here (heard: {listing}), or anchor the card to the line "
-            "that says it")
+    return (f"use a number the creator says here (heard: {listing}), or anchor the card "
+            "to the line that says it")

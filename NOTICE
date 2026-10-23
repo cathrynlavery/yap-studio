@@ -33,6 +33,13 @@ renderer installation, which npm fetches from the npm registry at first install.
 under the GSAP Standard License (https://gsap.com/standard-license), which is not an open source
 license.
 
+Bundled sample pictures
+-----------------------
+The sample presenters in src/yap_studio/gallery/sample-still.jpg,
+src/yap_studio/gallery/static/shot.jpg, docs/images/demo.gif and
+docs/images/journey/*.jpg were generated for Yap Studio. They are not photos of
+a real person and are distributed under the project license, Apache-2.0.
+
 Third-party fonts
 -----------------
 Instrument Serif: SIL Open Font License 1.1 (LICENSES/OFL-instrumentserif.txt)

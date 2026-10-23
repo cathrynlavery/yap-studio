@@ -2,23 +2,30 @@
 
 # Yap Studio
 
-**You like recording. Editing is the part that stops you.**
+**The video editor you never have to learn.**
+
+For people with more to say than time to edit. 30 card types. Every cut checked. No timeline.
 
 Drop in your raw takes, stumbles and all. An agent in Claude Code cuts the dead air and the
 restarts, adds your captions, cards, B-roll and music, and checks the video before you see it.
 You leave notes from your phone, and the next version follows them.
 
 <p>
+<a href="https://github.com/cathrynlavery/yap-studio/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/cathrynlavery/yap-studio?style=flat&color=2f3bff"></a>
 <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2f3bff"></a>
 <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-2f3bff">
 <img alt="macOS only" src="https://img.shields.io/badge/platform-macOS%20only-2f3bff">
 </p>
 
+**[Website](https://yapstudio.app) · [Changelog](CHANGELOG.md) · [Discussions](https://github.com/cathrynlavery/yap-studio/discussions)**
+
 </div>
 
-<p align="center"><img src="docs/images/demo.gif" alt="A sample take raw on the left and finished on the right, then a run of Yap Studio: the creator picks talking head and a look, Claude Code makes the edit, she pins a note on her phone, and the approved video is ready to download." width="720"></p>
+<p align="center"><img src="docs/images/demo.gif" alt="A scroll through Yap Studio with a generated sample presenter: a take with the restarts and dead air struck out, cards and captions timed to the words, approved notes becoming taste rules, and the checks every render passes before you see it." width="720"></p>
 
-<p align="center">One raw take in, the finished video out.</p>
+<p align="center">You talk. The agent edits. You comment.</p>
+
+<p align="center">If it saves you an evening of editing, star the repo so other creators can find it.</p>
 
 Yap Studio is an open-source add-on for [HyperFrames](https://www.npmjs.com/package/hyperframes)
 that edits vertical videos on your own computer. It is for people who talk to a camera and would
@@ -26,9 +33,11 @@ rather not spend the evening in an editor. There is no timeline to drag. A page 
 walks you through each video, and the notes you approve become taste rules, so the next video
 starts closer to how you like it.
 
-Your footage, renders and review files stay on your computer. The transcript, your notes and
-the project files Claude reads go to Claude (Anthropic) as part of your Claude Code session.
+Your video files stay on your computer. Still frames from pinned notes and contact sheets of
+your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
+Claude reads, as part of your Claude Code session.
 ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.
+Notes about problems with the tool stay on your computer until you agree to share them.
 
 If you build software, the engine is Python with a command line. Skip to
 [For developers](#for-developers).
@@ -94,6 +103,16 @@ note. When the story is right, press Make the final video.</td>
 The same pages work on a phone over the same Wi-Fi or Tailscale. Anything paid, such as
 generated music, still goes through Claude in chat, and Claude asks first.
 
+## Made with Yap Studio
+
+- [How I use Tailscale](https://x.com/cathrynlavery/status/2105099276225307134): a talking-head
+  video, edited end to end by the agent.
+- [A cold plunge build](https://x.com/cathrynlavery/status/2110819344745923004): the first
+  voiceover test, made from footage that sat in a camera roll since 2023.
+- [The launch teaser](https://x.com/cathrynlavery/status/2108720117635022887).
+
+Made something with it? Share it in [Discussions](https://github.com/cathrynlavery/yap-studio/discussions).
+
 ## What goes into the edit
 
 - A story cut from your own words. Fillers, restarts and long pauses come out, and every join
@@ -110,7 +129,8 @@ generated music, still goes through Claude in chat, and Claude asks first.
   you approve it.
 - Sound effects on cuts, cards and counts, kept under your voice. They are made on your
   computer with no account, or come from your own ElevenLabs kit.
-- Captions and cards that stay off your face. A final that covers it fails its check.
+- Captions and cards that stay off your face. When faces were measured, a final that covers
+  them fails its check. Otherwise, verify reports face clearance as "not measured".
 - Phone review with comments pinned to a frame, a range or a spot on the picture, and versions
   side by side with earlier comments carried over.
 
@@ -129,11 +149,26 @@ Yap Studio enforces some of those rules itself. The agent follows the rest:
 It can also learn a style from videos you already posted.
 [Styles and taste rules](docs/styles.md#taste-rules) has the details.
 
+## It gets better from real use
+
+When the agent struggles, it writes a one-line note about the tool: a step that failed, a doc
+that was wrong, a check that missed something. With your OK, those notes become issues on this
+repo, and that is how Yap Studio gets better.
+
+Nothing private is shared. A note carries the agent's sentence, the step, the error code and the
+Yap Studio and macOS versions, never your footage, your words, names, file names or paths. You
+can read every note before it goes, or turn sharing off. [Feedback](docs/feedback.md) has the
+details.
+
 ## Checked before you see it
 
 Every render is checked before anyone watches it. Verify looks at every join for clicks, gaps,
 broken words and wrong frames, and at picture and sound sync, frame and sample counts, loudness,
 black or frozen picture, and the published rules for YouTube, Shorts, TikTok and Reels.
+
+Source comparisons for sync, joins and expected frame and sample counts need an edit list
+(`--edl`); platform rules need `--platform`. Checks that listen for words at joins or compare
+captions with heard speech need a speech engine.
 
 It works without the editor too. Point it at any finished video:
 
@@ -161,8 +196,9 @@ your phone. Each round of comments makes a new version.
 The home page asks for a talking head or a voiceover. For the other two, tell Claude in chat.
 
 - Talking head, from one or more takes to camera. That is the quick start above.
-- Voiceover, from a voice memo and your own photos and clips of a project or a day. See
-  [docs/recipes/voiceover.md](docs/recipes/voiceover.md).
+- Voiceover, from a voice memo and your own photos and clips of a project or a day. This one
+  is early and still being built. See [docs/recipes/voiceover.md](docs/recipes/voiceover.md)
+  and [the first test](https://x.com/cathrynlavery/status/2110819344745923004).
 - Green screen, with you cut out over a page, screenshot, photo or clip that fills the frame
   (macOS). You can sit full size, along the bottom or in a corner. See
   [the workspace guide](workspace/CLAUDE.md#what-are-you-making).
@@ -213,6 +249,7 @@ The rest, and what Yap Studio never judges, is in [docs/limits.md](docs/limits.m
 - [The style page](docs/style-page.md): each screen, saving, and learning a style from videos
   you already posted.
 - [Review](docs/review.md): the review page, phone links, keys and exported feedback.
+- [Feedback](docs/feedback.md): local product notes, consent and sharing.
 - [Verify](docs/verify.md): what it checks, findings, the JSON report and exit codes.
 - [Edit lists](docs/edit-lists.md): the formats verify reads.
 - [Limits](docs/limits.md)

@@ -1,6 +1,7 @@
 /* Derived from hyperframes-community-skills camera-3d-captions.
    Upstream: skills/camera-3d-captions/assets/kit/cam3d.js at 7cc7c6230c808c5f279628f357f3b80df953c4b1.
-   License: Apache-2.0 (LICENSES/Apache-2.0.txt). */
+   License: Apache-2.0 (LICENSES/Apache-2.0.txt).
+   Modified for Yap Studio, 2026. */
 /* cam3d.js — kit copy (skill camera-3d-captions). The "3D text camera" technique (3D camera + depth of field + text on a path + posterized motion blur)
    as a deterministic per-frame painter for HyperFrames. One analytic clock: CAM3D.render(t) writes every style.
    Model: each shot has a camera {cz (dolly toward the scene), px/py (pan/tilt as screen shift)}; every layer lives in

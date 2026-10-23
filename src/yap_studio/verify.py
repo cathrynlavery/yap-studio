@@ -580,7 +580,7 @@ def _verify(
     words_audio: str | Path | None = None,
 ) -> dict:
     """Verify internal transition windows while retaining every audio join check."""
-    del strict  # Exit policy belongs to report.exit_code; keep this public parameter for T12.
+    del strict  # Exit policy belongs to report.exit_code; keep this public parameter.
     if detail not in {"summary", "full"}:
         raise ValidationError("detail", "must be summary or full")
     if platform not in {"none", *PLATFORMS}:

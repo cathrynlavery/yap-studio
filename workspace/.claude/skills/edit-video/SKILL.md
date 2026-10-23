@@ -11,6 +11,9 @@ Put the files you write in `DIR/plans/`. When unsure what comes next, run
 
 ## Rules
 
+Still frames from pinned notes and contact sheets of the creator's clips go to Claude
+(Anthropic), along with the transcript, notes and project files you read in this session.
+
 - Never write to, move, or rename the original in `inbox/`. Work only in DIR.
 - On-screen words come from the creator's words or facts they supplied. Ask before naming a
   person or company on screen.
@@ -21,6 +24,12 @@ Put the files you write in `DIR/plans/`. When unsure what comes next, run
   shows them (What are you making? in `CLAUDE.md`). Never invent screens or images, and
   never download or generate anything they have not approved.
 - Use a feature only where the story calls for it. Most videos need a few, not all.
+- Run `yap-studio feedback "..." --step STEP` whenever a step fails, needs a retry or a
+  workaround, the docs were wrong or missing, or the creator corrects something the checks
+  should have caught. Describe the tool problem only, with no creator words or names.
+  Check `feedback.mode` in `yap-studio doctor --json`. With mode ask, at the end of a video
+  show `yap-studio feedback send --dry-run` and run `yap-studio feedback send --yes` only
+  if the creator agrees. With mode never, keep the notes local.
 - Stop for the creator's review of the cut and of the final. A passing check is not approval.
 - Never run `assemble --allow-violations` or pass `--allow-violations` to `run`. Move or drop
   what covers the face instead.
@@ -34,19 +43,19 @@ request or text they typed in a note. Save it as `chosen` with `source: typed` o
 
 Otherwise, after reading the transcript, write three ideas to that file:
 `{"schema":"yap-studio/text-hook@1","ideas":["...","...","..."],"chosen":null,"source":"idea"}`.
-Each is one line of her point in her plain voice, about 45 characters. Give each a
+Each is one line of their point in their plain voice, about 45 characters. Give each a
 clear tension, claim or question that makes someone keep watching. Use no facts or
-numbers she did not say, hashtags, emoji or all caps. Keep each to at most two
+numbers they did not say, hashtags, emoji or all caps. Keep each to at most two
 balanced lines when set, with at least two words on each line when it wraps.
 Vary the three ideas: a short video label like "Security rant", "Is it just me, or ...?",
 a claim that pushes back on an accepted belief, or a question that challenges an assumption.
 Keep each short; a label of two or three words is fine.
 
-Show all three ideas as plain text in the Story cut note. Wait for her choice or
-her own text before rendering any Text hook. The review page offers those choices
-and saves her choice with a note. If she chooses in chat, save the chosen text and
-use `source: idea` for an offered idea or `source: note` for her own words.
-If she asks for or approves the final without choosing, ask once and wait. Never pick for her.
+Show all three ideas as plain text in the Story cut note. Wait for their choice or
+their own text before rendering any Text hook. The review page offers those choices
+and saves their choice with a note. If they choose in chat, save the chosen text and
+use `source: idea` for an offered idea or `source: note` for their own words.
+If they ask for or approve the final without choosing, ask once and wait. Never pick for them.
 
 The engine fits the text from 72 down to 60 px in bundled Inter. It refuses text
 that needs more than two balanced lines or covers the face at the 120 px top floor.
@@ -88,14 +97,14 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    names them, or `--newest N` if they ask for several. Run `yap-studio ingest DIR`, then
    `yap-studio words DIR`.
    Read the transcript once as a proofreader. A word that makes no sense in its sentence is
-   probably misheard. Look for near sounds, like "blogging" when she is logging into an
-   account, cut-off words like "CAPTS", or a common word in place of a name or term she uses
+   probably misheard. Look for near sounds, like "blogging" when they are logging into an
+   account, cut-off words like "CAPTS", or a common word in place of a name or term they use
    elsewhere, like "capture" next to "riddle" in a video about captchas.
    Fix each one with `yap-studio words fix DIR --word ID --to TEXT`. Use `--heard` only when
-   the same mishearing repeats. Never change what she actually said. Keep her slang, swears,
-   grammar, fillers she kept and the way she phrases things. If unsure, listen to that word
+   the same mishearing repeats. Never change what they actually said. Keep their slang, swears,
+   grammar, fillers they kept and the way they phrase things. If unsure, listen to that word
    with `yap-studio media sound ID` or the take, or leave it and list it as a question.
-   Name the fixes in the Story cut note so she can undo any, for example "Fixed 1 misheard
+   Name the fixes in the Story cut note so they can undo any, for example "Fixed 1 misheard
    word: capture -> captcha at 0:39." Fix review notes about a wrong caption word the same way.
    If ingest or status warns that speech has no words, listen to
    that part before using it in the story. Read the transcript and source. Choose a short
@@ -111,12 +120,12 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    render on their own; follow pacing, filler, and placement rules yourself. Choose the story
    order; if `style/answers.json` has `about`, use it for titles, card moments and what to keep.
    Run `yap-studio edit schema` for the `edit.json` format and an example.
-   Before writing `edit.json`, read the whole transcript as a script. List her points in order,
-   one line each. If she makes the same point more than once, keep the clearest and most complete
-   telling. Leave the others out, even when each is a clean sentence. Her words stay hers:
-   choose among her sentences, never rewrite them. Leave out a line that points at something to
+   Before writing `edit.json`, read the whole transcript as a script. List their points in order,
+   one line each. If they make the same point more than once, keep the clearest and most complete
+   telling. Leave the others out, even when each is a clean sentence. Their words stay theirs:
+   choose among their sentences, never rewrite them. Leave out a line that points at something to
    show, such as "this is one I had the other day", unless the video will show it. If the video
-   has no B-roll, ask whether she has it.
+   has no B-roll, ask whether they have it.
    Write `DIR/edit.json` with the engine's project schema. Keep
    the creator's words and meaning. Run `yap-studio fillers DIR`. Only removals applied before
    the cut review reach the final. `run` never applies new ones. To use a proposal, run
@@ -131,7 +140,7 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    leave one telling out, or keep both on purpose and say why in the version note. Check again
    after any change, then run `yap-studio cut DIR`.
 4. Review the cut. Run `yap-studio versions save DIR --note "Story cut. ..."`; when you left
-   repeats out, name those lines in the note so she can ask for any back. Then run
+   repeats out, name those lines in the note so they can ask for any back. Then run
    `yap-studio review --versions DIR --phone --json --detach`. Stop for the creator's review.
    Their notes arrive as `DIR/feedback/bN.json`. Write the edits as
    `yap-studio/feedback-operations@1` and run
@@ -224,18 +233,18 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
      approved taste have on; use no other kind (newer kinds stay off until the creator turns
      them on in the style page).
      Video clip objects use a path inside the project and sha256 from `shasum -a 256`.
-     Use `big_number` only when the style has it on and only for a number she says.
+     Use `big_number` only when the style has it on and only for a number they say.
      Never place two big numbers close together.
      For screen recordings, use `crop: [x, y, width, height]` in displayed pixels after rotation
      to show the part the speaker talks about, so its text reads on a phone. Aim for the smallest
      text to be about 24 px tall in the final video.
-     Use `choices` only when she lists 2 to 4 options, with her words shortened at word boundaries
-     and numbers as she says them, and cues as word anchors on each option.
-     With `graphics.flow_look` set to `tags`, use 2 or 3 labels from her words,
+     Use `choices` only when they list 2 to 4 options, with their words shortened at word boundaries
+     and numbers as they say them, and cues as word anchors on each option.
+     With `graphics.flow_look` set to `tags`, use 2 or 3 labels from their words,
      shortened at word boundaries, one cue per tag and at least 1.5 s, ending
      the card on the first word after a cut for its quick clear.
      Use Specs list row cues or Stat breakdown rows only when the style has rows on cue,
-     taking rows from her words and numbers, keeping her exact figure, with cues as word anchors.
+     taking rows from their words and numbers, keeping their exact figure, with cues as word anchors.
      Motion streak follows `graphics.card_motion`; do not add a second card entrance.
      Keep the planner's rest box and motion evidence. Unsupported cards or unsafe paths enter as usual.
      Run `yap-studio faces detect DIR/cut/cut.mp4 --out DIR/plans/faces.json`. Write
@@ -328,8 +337,8 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
      ```
 
      Use the speaker's own words from the cut, in order. Shorten only by dropping words at
-     the start or end of her line. No rewording, new words, or turning a statement into a
-     question. Do not add `?` or `!` she did not say. The engine applies brand spellings
+     the start or end of their line. No rewording, new words, or turning a statement into a
+     question. Do not add `?` or `!` they did not say. The engine applies brand spellings
      and numbers.
    - Use Video in letters only when the style allows it. Opening inserts need
      `hook.style: video_letters`. Key lines later need `video_letters` in

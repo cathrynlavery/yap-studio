@@ -175,8 +175,9 @@ against their limits.
 
 ## What it does not check
 
-Yap Studio does not judge writing, pacing, caption accuracy, or whether a subject is
-framed well. Its taste checks cover only supported, measurable approved style fields.
+Yap Studio does not judge writing, pacing, or whether a subject is framed well.
+It checks that captions agree with the speech it hears; it does not guarantee the transcript
+is right. Its taste checks cover only supported, measurable approved style fields.
 
 Agents can call verify as a tool through the Claude Code, Codex and Claude Desktop plugins;
 see [install.md](install.md#use-it-from-claude-code-codex-or-claude-desktop).

@@ -3,6 +3,9 @@
 A voiceover video is told only in your voice, over photos and clips you already have: a project
 you built, a trip, a day. Nobody is on camera.
 
+This recipe is early and still being built. Expect rough edges, and say what went wrong in an
+issue.
+
 ## What you need
 
 - The Yap Studio workspace, set up (`python3 setup.py` reports ready).

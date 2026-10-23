@@ -7,9 +7,9 @@ import * as timeline from '../../src/yap_studio/review/static/timeline.mjs';
 
 const homeRoot = new URL('../../src/yap_studio/homepage/static/', import.meta.url);
 const reviewRoot = new URL('../../src/yap_studio/review/static/', import.meta.url);
-const disclosure = 'Your footage, renders and review files stay on your computer. '
-  + 'The transcript, your notes and the project files Claude reads go to Claude (Anthropic) '
-  + 'as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels get only what '
+const disclosure = 'Your video files stay on your computer. Still frames from pinned notes and contact sheets of '
+  + 'your clips go to Claude (Anthropic), along with the transcript, your notes and the project files '
+  + 'Claude reads, as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels get only what '
   + 'they need, and only if you turn them on.';
 
 class Element {

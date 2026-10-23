@@ -350,7 +350,7 @@ def _element(request: dict, item: Mapping[str, Any], style_data: Mapping, locati
         for field in ("crop", "audio", "box", "color_match"):
             if field in request:
                 raise ValidationError(f"{location}.{field}", "backgrounds do not accept this field")
-        # Colour match shifts inserts and overlays; a background blends her in instead.
+        # Colour match shifts inserts and overlays; a background blends the creator in instead.
         element.pop("color_match", None)
         if request.get("placement", "green_screen") != "green_screen":
             raise ValidationError(f"{location}.placement", "backgrounds use green_screen")

@@ -85,7 +85,8 @@ def broll_limits(
         face_frames = total_frames - _covered(absent, total_frames)
         if face_frames * 100 < MIN_FACE_PERCENT * total_frames:
             finding("face_on_screen",
-                    f"her face shows for {100 * face_frames / total_frames:.1f}% of runtime",
+                    f"the creator's face shows for {100 * face_frames / total_frames:.1f}% "
+                    "of runtime",
                     *absent, severity="warning", suggested_action=action)
     for item in inserts:
         if (not item.payload.get("group") and item.id not in insert_length_ids

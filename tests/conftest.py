@@ -28,6 +28,24 @@ import synth  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
+def _no_real_product_feedback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Feedback tests may use a local server and a gh executable inside their temp folder."""
+    from yap_studio import product_feedback
+
+    monkeypatch.delenv("YAP_STUDIO_FEEDBACK_ENDPOINT", raising=False)
+    monkeypatch.delenv("YAP_STUDIO_FEEDBACK_AUTO_SEND", raising=False)
+    run = product_feedback._gh
+
+    def local_gh(*arguments: str) -> str:
+        executable = shutil.which("gh")
+        if executable is None or not Path(executable).resolve().is_relative_to(tmp_path.resolve()):
+            raise OSError("Real GitHub is disabled in tests")
+        return run(*arguments)
+
+    monkeypatch.setattr(product_feedback, "_gh", local_gh)
+
+
+@pytest.fixture(autouse=True)
 def _no_real_homebrew(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from yap_studio import tools
 

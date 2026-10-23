@@ -754,15 +754,16 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                     from yap_studio.text_hook import unspoken_numbers
 
                     if unspoken_numbers(title, spoken):
-                        finding("number_not_spoken", "Text hook uses a number or amount she did "
-                                "not say. Use a number or amount from the take.", item)
+                        finding("number_not_spoken", "Text hook uses a number or amount "
+                                "the creator did not say. Use a number or amount from the take.",
+                                item)
                 elif not (_title_words_match(title, spoken) or _title_words_match(
                     apply_text_rules(title, vocabulary), display_spoken,
                 )):
                     finding("title_words", "title is not a contiguous run of the cut's words "
                             "with its spoken punctuation", item, severity="warning",
-                            suggested_action="Use her words, shortened only at word boundaries. "
-                            "This wording can stay only when the creator asked for it.")
+                            suggested_action="Use the creator's words, shortened only at word "
+                            "boundaries. This wording can stay only when the creator asked for it.")
             if end <= start:
                 finding("duration", "end must be after start on the frame grid", item)
             if start < 0 or end > total_frames + (hold_frames if text_hook

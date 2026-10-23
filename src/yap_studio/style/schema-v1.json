@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:yap-studio:style:1",
-  "title": "Yap Studio buyer style v1",
+  "title": "Yap Studio style v1",
   "description": "Portable visual and sound choices for one creator. Defaults are the Clean Minimal look with bundled fonts.",
   "type": "object",
   "additionalProperties": false,
@@ -51,7 +51,7 @@
     },
     "name": {
       "type": "string",
-      "description": "Name shown in the buyer portal.",
+      "description": "Name shown on the style page.",
       "default": "Untitled style",
       "minLength": 1,
       "maxLength": 80

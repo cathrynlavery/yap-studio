@@ -3,7 +3,7 @@ The engine page is `yap-studio style pick`. Its shipped page now lives in
 
 # Create your video style (design prototype)
 
-A working prototype of the buyer portal page where someone builds a video style from four choices, watches it play on a sample video, and saves a style file.
+A working prototype of the creator style page where someone builds a video style from four choices, watches it play on a sample video, and saves a style file.
 
 ```console
 uv run python docs/design/style-page/serve.py
@@ -13,7 +13,7 @@ Run this from the repository root, then open the address it prints (it starts at
 
 ## How the page works
 
-The big preview stays pinned on the left. On the right, the buyer can start from a preset, then change any of four choices:
+The big preview stays pinned on the left. On the right, the creator can start from a preset, then change any of four choices:
 
 | Choice | Options | What it sets in the style file |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ The big preview stays pinned on the left. On the right, the buyer can start from
 | Font | Same font for everything or Different font for graphics; ten bundled fonts including Geist; Instrument Serif captions with Geist titles and cards in one tap; Letter width: Normal, Condensed, Narrow | Captions font and graphics font (opening title and cards), caption letter spacing, `captions.width_scale` |
 | Colors | Ten palettes, four hex fields, or colors pulled from a website | Every caption, title and graphics color |
 
-Caption font options are drawn as live previews with the buyer's other choices already applied. A captions font option shows the current colors and highlight, and a palette option shows the current font. In Different font for graphics, a second grid shows sample text for the titles and cards font. Letter width applies to captions only. No highlight also turns italics off, since italics are a highlight too. Opening title, music volume and a fine-tune panel (exact size, letter width, word limit, position) sit below the four choices.
+Caption font options are drawn as live previews with the creator's other choices already applied. A captions font option shows the current colors and highlight, and a palette option shows the current font. In Different font for graphics, a second grid shows sample text for the titles and cards font. Letter width applies to captions only. No highlight also turns italics off, since italics are a highlight too. Opening title, music volume and a fine-tune panel (exact size, letter width, word limit, position) sit below the four choices.
 
 Pill puts the whole phrase inside a soft pill. Each spoken word lights up and stays lit, while upcoming words stay muted. Word fill sweeps color across each word from left to right as it is spoken. Bold key word keeps the stressed word bold for the whole phrase and colors it once spoken, so line breaks stay fixed. Italics still follow the separate choice for key words.
 
@@ -36,10 +36,12 @@ Pill warns if spoken text falls below 4.5:1 contrast or muted upcoming text fall
 
 `serve.py` answers `GET /api/site-colors?url=...`. It combines two sources:
 
-1. The context.dev brand lookup, when `context-dev-pp-cli` is installed and signed in. It returns named logo and site colors. Each lookup costs context.dev credits, so the server caches results while it runs.
+1. The optional context.dev brand lookup, when `context-dev-pp-cli` is installed and signed in. It returns named logo and site colors. Each lookup costs context.dev credits, so the server caches results while it runs.
 2. The site's own HTML and up to six stylesheets. Colors on buttons and links count extra, the body background becomes the card color, and browser default link colors are ignored.
 
-The highlight must be a saturated color. When a site is black and white, the page keeps the buyer's current highlight and says so. The server only listens on 127.0.0.1, only fetches public http and https addresses, and caps time and size on every request.
+Without the CLI or a successful brand lookup, the server uses the site's HTML and stylesheets alone.
+
+The highlight must be a saturated color. When a site is black and white, the page keeps the creator's current highlight and says so. The server only listens on 127.0.0.1, only fetches public http and https addresses, and caps time and size on every request.
 
 ## Presets and source data
 

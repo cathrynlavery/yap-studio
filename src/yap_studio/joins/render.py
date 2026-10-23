@@ -185,7 +185,7 @@ def render_joins(project_dir: Path, timeline: ResolvedTimeline, cut: Path,
                 if item.payload.get("template") != "playing_grid":
                     front = ", or use layer front" if item.layer == "behind" else ""
                     raise TimelineRefusal(
-                        f"{item.id}: the card behind the speaker is too close to her head "
+                        f"{item.id}: the card behind the speaker is too close to their head "
                         "without person restoration; "
                         f"move the card off the smooth join{front}",
                         code="card_behind_join",

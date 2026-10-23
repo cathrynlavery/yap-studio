@@ -19,6 +19,8 @@ node_modules/
 *.key
 
 # Local creator data; packaged README files and synthetic fixtures stay visible.
+/.yap-studio/
+/workspace/.yap-studio/
 /projects/
 /project/
 /inbox/*
@@ -30,6 +32,9 @@ node_modules/
 !/workspace/inbox/README.md
 /workspace/brand/fonts/*
 !/workspace/brand/fonts/README.md
+/workspace/brand/*
+!/workspace/brand/README.md
+!/workspace/brand/fonts/
 /workspace/style/
 /workspace/preview/
 

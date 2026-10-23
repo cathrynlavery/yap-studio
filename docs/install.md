@@ -15,15 +15,17 @@ commands yourself.
 - [ffmpeg and ffprobe](https://ffmpeg.org/download.html) 6.1 or newer, on your PATH.
 - [Node.js](https://nodejs.org/en/download) 22 or newer, including npm, for captions
   and graphics. Verification alone does not need Node or the renderer.
-- At least 10 GiB free on a local disk, plus room for your takes, intermediate layers
+- At least 10 GB free on a local disk, plus room for your takes, intermediate layers
   and final videos. Longer projects need more space. Keep the working folder outside
   cloud-synced folders.
 - Internet access for installation and the first renderer/browser and speech-model
   downloads. Editing uses local files after those dependencies are cached.
 
-Your footage, renders and review files stay on your computer. The transcript, your notes and
-the project files Claude reads go to Claude (Anthropic) as part of your Claude Code session.
+Your video files stay on your computer. Still frames from pinned notes and contact sheets of
+your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
+Claude reads, as part of your Claude Code session.
 ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.
+Product feedback stays local until you agree to share it, with private values scrubbed.
 
 On macOS, CI runs on macOS 15 with Apple silicon. The locked MLX speech packages
 require macOS 14 or newer; earlier macOS versions are unverified. Apple silicon
@@ -142,6 +144,34 @@ ask it to edit the video; the workspace instructions guide story and final revie
 For manual editing, run `python3 new_project.py --newest 1` to copy an unused take
 into a fresh project, then use the project directory it prints with the commands in
 [Edit from the command line](editing.md). The inbox originals stay intact.
+
+### Update
+
+Download the new workspace zip from [Releases](https://github.com/cathrynlavery/yap-studio/releases)
+and unzip it into a new local folder. Copy your `projects/`, `inbox/`, `brand/` and `style/`
+folders from the old workspace into it. Open the new folder in Claude Code and say "set me up"
+to install the matching engine. Keep the old folder until you have checked your projects in
+the new one.
+
+### Uninstall
+
+Stop the home, style and review pages, then remove the tool:
+
+```console
+uv tool uninstall yap-studio
+```
+
+On macOS, delete `~/Library/Caches/yap-studio/` to remove the renderer and other Yap Studio
+caches. Speech models use the Hugging Face cache at `~/.cache/huggingface/hub/`; remove only
+the model folders downloaded for Yap Studio if other tools share that cache.
+The default model folder is `models--mlx-community--parakeet-tdt-0.6b-v3/` on Apple silicon
+or `models--istupakov--parakeet-tdt-0.6b-v3-onnx/` on Intel.
+Delete `~/Library/Application Support/yap-studio/` to remove saved styles, taste rules and
+review data. If you set `YAP_STUDIO_CACHE`, `YAP_STUDIO_CONFIG`, `YAP_STUDIO_DATA_DIR`,
+`HF_HUB_CACHE` or `HF_HOME`, use those locations instead.
+
+Your projects, footage, brand files and workspace style stay in the workspace until you
+delete that folder. Keep anything you want before deleting it.
 
 ### Build the zip yourself
 

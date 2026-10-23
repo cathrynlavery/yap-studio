@@ -1071,7 +1071,7 @@ def test_title_words_follow_a_contiguous_spoken_run(
     assert bool(findings) is warns
     for item in findings:
         assert item.severity == "warning"
-        assert "her words" in item.suggested_action
+        assert "the creator's words" in item.suggested_action
         assert "word boundaries" in item.suggested_action
         assert "creator asked" in item.suggested_action
 

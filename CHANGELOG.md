@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Record scrubbed product feedback locally, with consent settings, repeat grouping and optional sharing.
+
 ## 1.0.0 (2026-10-23)
 
 - Home lets you send a stalled request again or cancel it after ten quiet minutes, keeping the previous project and progress so the agent can continue.
@@ -202,5 +204,5 @@
 - Read constant-rate files with B-frames correctly during review.
 - Verify cuts, sound, sync, frames, loudness, and delivery rules in a finished video.
 - Review a render in the browser with comments pinned to frames and ranges.
-- Add the buyer style page with previews of captions and titles.
+- Add the style page with previews of captions and titles.
 - Use saved styles in the engine to render captions and titles.
