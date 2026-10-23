@@ -2006,3 +2006,29 @@ def test_edit_check_repeats_use_retained_words_in_cut_order(
             'Repeated: "amber lantern glows" at 0:00 and again at 0:03 '
             '("Amber lantern glows."). Keep it once unless the repeat is on purpose.'
         ) in checked["warnings"]
+
+
+@pytest.mark.parametrize(("gap", "segment_edge", "expected"), [
+    (0.39, False, 0), (0.4, False, 1), (0.1, True, 1),
+])
+def test_edit_check_unpunctuated_repeats_use_word_ends_and_segment_edges(
+    tmp_path: Path, gap: float, segment_edge: bool, expected: int,
+) -> None:
+    source = synth.calib_source(tmp_path / "source.mov", seconds=12)
+    rows = [
+        (text, start + offset * 0.8, start + offset * 0.8 + 0.7)
+        for start in (0.5, 4.4 + gap)
+        for offset, text in enumerate("Amber lanterns glow brightly tonight".split())
+    ]
+    root = make_project(tmp_path / "project", [source], word_rows=[rows])
+    segments = ([time_segment("first", "t1", 0, 4.4),
+                 time_segment("second", "t1", 4.4, 10)] if segment_edge
+                else [time_segment("story", "t1", 0, 10)])
+    write_edit(root, segments)
+    before = snapshot(root)
+    checked = edit_check(root)
+    assert snapshot(root) == before
+    assert len(checked["repeats"]) == expected
+    assert sum(warning.startswith("Repeated:") for warning in checked["warnings"]) == expected
+    if expected:
+        assert checked["repeats"][0]["shared"] == "amber lanterns glow brightly tonight"

@@ -11,7 +11,8 @@ def script(*sentences: tuple[float, str]) -> list[RepeatWord]:
     words = []
     for start, sentence in sentences:
         for offset, text in enumerate(sentence.split()):
-            words.append(RepeatWord(f"t1:{len(words)}", text, start + offset * 0.2))
+            words.append(RepeatWord(f"t1:{len(words)}", text, start + offset * 0.2,
+                                    start + offset * 0.2 + 0.15))
     return words
 
 
@@ -100,6 +101,38 @@ def test_normalizes_punctuation_and_apostrophes_and_keeps_unfinished_sentence() 
     assert len(repeats) == 1
     assert repeats[0]["shared"] == "lanterns soft amber light"
     assert repeats[0]["second"]["sentence"] == "The LANTERN’S soft amber light"
+
+
+@pytest.mark.parametrize("ending", ["", "."])
+def test_repeated_phrase_with_or_without_punctuation(ending: str) -> None:
+    sentence = f"Amber lanterns glow brightly tonight{ending}"
+    repeats = find_repeats(script((0, sentence), (10, sentence)))
+    assert len(repeats) == 1
+    assert repeats[0]["shared"] == "amber lanterns glow brightly tonight"
+    assert repeats[0]["first"]["time_s"] == 0
+    assert repeats[0]["second"]["time_s"] == 10
+    assert len(repeat_warnings(repeats)) == 1
+
+
+def test_unpunctuated_same_point_in_different_words() -> None:
+    repeats = find_repeats(script(
+        (0, "Lantern light makes the garden welcoming"),
+        (10, "The garden glows with light from a lantern"),
+    ))
+    assert len(repeats) == 1
+    assert repeats[0]["kind"] == "point"
+
+
+@pytest.mark.parametrize("ending", ["", "."])
+def test_short_phrase_does_not_warn_without_punctuation(ending: str) -> None:
+    assert find_repeats(script((0, f"you know{ending}"), (10, f"you know{ending}"))) == []
+
+
+def test_punctuated_rhetorical_repetition_keeps_one_sentence_despite_pause() -> None:
+    assert find_repeats(script(
+        (0, "Amber lanterns glow brightly tonight"),
+        (10, "amber lanterns glow brightly tonight, I say again."),
+    )) == []
 
 
 @pytest.mark.parametrize(("opening", "closing"), [
