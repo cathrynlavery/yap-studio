@@ -1563,6 +1563,7 @@ function seekFinding(finding) {
 }
 
 function findingLabel(kind) {
+  if (kind === 'join_listen') return 'Listen to this join';
   if (kind === 'behind_hidden') return 'Hidden behind speaker';
   if (kind === 'caption_contrast') return 'Hard to read';
   return kind === 'layer_check' ? 'Layer check' : findingKindLabel(kind);
@@ -1616,7 +1617,12 @@ function renderFindings() {
     }
     const actions = document.createElement('div');
     actions.className = 'finding-actions';
-    const go = makeButton('Go to', '', () => seekFinding(finding));
+    const listen = finding.kind === 'join_listen';
+    const go = makeButton(listen ? 'Listen' : 'Go to', '', () => {
+      if (findingsBlocked()) return;
+      if (listen) playRange({...finding, id: null});
+      else seekFinding(finding);
+    });
     const add = makeButton('Add as my note', '', () => addFinding(finding));
     findingControls.push({button: go, finding, add: false}, {button: add, finding, add: true});
     actions.append(go, add);

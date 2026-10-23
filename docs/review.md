@@ -22,6 +22,9 @@ start and open a comment with its target selected and label quoted. An open draf
 as it is. Blocks cannot be dragged or edited. On a phone,
 tap the one-line Video map summary to open or close the lanes.
 
+Uncertain joins appear under Flagged by the checks as “Listen to this join”; tap Listen to hear about 1.5 seconds on each side.
+Joins whose source edges no longer meet in the reviewed version are left out.
+
 ## Several videos
 
 Pass several files or a directory to review them on one server:

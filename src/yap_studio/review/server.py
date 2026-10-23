@@ -594,6 +594,8 @@ class ReviewServer:
                         self._selected.media.path, self._selected.sha256,
                         project_dir=(self._video.series.project_dir
                                      if self._video.series is not None else None),
+                        version_id=(self._selected.version_id
+                                    if self._video.series is not None else None),
                     ),
                 }
 

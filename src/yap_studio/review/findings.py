@@ -9,6 +9,12 @@ from math import isfinite
 from pathlib import Path
 
 from yap_studio.errors import InputError
+from yap_studio.feedback.versions import (
+    _receipt_pieces,
+    find_version_by_media,
+    load_version,
+    version_pieces,
+)
 from yap_studio.project.receipts import read_receipt
 from yap_studio.review.media import stat_identity
 from yap_studio.watch.findings import default_findings_path, read_findings
@@ -21,6 +27,7 @@ def note_target(kind: str, *, layer_kind: str | None = None) -> str | None:
     return {
         "slow": "story",
         "jarring_cut": "story",
+        "join_listen": "story",
         "face_covered": "element",
         "behind_hidden": "element",
         "caption_issue": "caption",
@@ -214,8 +221,84 @@ def _layer_findings(project_dir: Path, sha256: str) -> tuple[list, list, list]:
     return items, summary, stale
 
 
+def _join_findings(project_dir: Path, sha256: str, version_id: str | None) -> list[dict]:
+    """Keep uncertain source edges only where they still meet on the review timeline."""
+    try:
+        record = read_receipt(project_dir / "cut")
+        if not record or record.get("status") != "verified":
+            return []
+        joins = record.get("plan", {}).get("listen_joins", [])
+        if not isinstance(joins, list) or not joins:
+            return []
+        source = _receipt_pieces(record, project_dir / "cut/receipt.json")
+        manifest = (load_version(project_dir, version_id) if version_id is not None else
+                    find_version_by_media(project_dir, sha256))
+        if manifest is not None:
+            if manifest.media["sha256"] != sha256 or not manifest.snapshots.get("cut_pieces"):
+                return []
+            target = version_pieces(manifest)
+            duration = Fraction(str(manifest.media["duration_s"]))
+        else:
+            digest = next((item["sha256"] for item in record.get("outputs", [])
+                           if item.get("path") == "cut/cut.mp4"), None)
+            duration = Fraction(source["total_frames"], 1) / Fraction(source["fps"])
+            if digest != sha256:
+                final = read_receipt(project_dir / "final")
+                if (not final or final.get("status") != "verified" or digest is None
+                        or final.get("inputs", {}).get("media:cut/cut.mp4") != digest
+                        or not any(item.get("sha256") == sha256
+                                   for item in final.get("outputs", []))):
+                    return []
+                duration = Fraction(str(final.get("timeline", {}).get("duration_s", duration)))
+            target = source
+    except (InputError, OSError, KeyError, TypeError, ValueError, ZeroDivisionError):
+        return []
+
+    def boundary(left, right):
+        return (left["segment"], left["take"], Fraction(left["src_t1"]),
+                right["segment"], right["take"], Fraction(right["src_t0"]))
+
+    source_edges = {right["out_f0"]: (left, right) for left, right in
+                    zip(source["pieces"], source["pieces"][1:], strict=False)}
+    target_edges = {}
+    for left, right in zip(target["pieces"], target["pieces"][1:], strict=False):
+        same_takes = all(source.get("inputs", {}).get(f"take:{piece['take']}") ==
+                         target.get("inputs", {}).get(f"take:{piece['take']}")
+                         for piece in (left, right))
+        if same_takes and left["out_f0"] + left["n_frames"] == right["out_f0"]:
+            target_edges.setdefault(boundary(left, right), []).append(right["out_f0"])
+    fps = Fraction(target["fps"])
+    last = int(duration * fps)
+    padding = round(Fraction(3, 2) * fps)
+    items, seen = [], set()
+    for index, join in enumerate(joins, 1):
+        if not isinstance(join, dict) or type(join.get("frame")) is not int:
+            continue
+        pair = source_edges.get(join["frame"])
+        if pair is None or (join.get("left"), join.get("right")) != (
+                pair[0]["segment"], pair[1]["segment"]):
+            continue
+        matches = target_edges.get(boundary(*pair), [])
+        if len(matches) != 1 or matches[0] in seen:
+            continue
+        frame = matches[0]
+        if not 0 < frame < last:
+            continue
+        seen.add(frame)
+        start, end = max(0, frame - padding), min(last, frame + padding)
+        items.append({
+            "id": f"j{index}", "kind": "join_listen", "source": "machine", "reviewer": None,
+            "start_frame": start, "end_frame": end,
+            "start_s": float(start / fps), "end_s": float(end / fps),
+            "reason": "Listen to this join", "fix": "Check that the speech flows across the join.",
+            "severity": "warning", "evidence": {}, "target": note_target("join_listen"),
+        })
+    return items
+
+
 def findings_for_media(
     media_path: Path, sha256: str, *, project_dir: Path | None = None,
+    version_id: str | None = None,
 ) -> dict:
     """Find the first matching findings file, keeping stale notes off the review."""
     result = {"available": False, "file": None, "stale": [], "items": []}
@@ -249,6 +332,7 @@ def findings_for_media(
         ])
     if project_dir is not None:
         items, summary, stale = _layer_findings(project_dir, sha256)
+        items.extend(_join_findings(project_dir, sha256, version_id))
         result["items"] = sorted([*result["items"], *items], key=_item_order)
         if summary:
             result["layer_checks"] = summary

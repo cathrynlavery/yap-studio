@@ -141,6 +141,7 @@ async function findingsPage({cfr = true, series = true, duration = 10} = {}) {
     append(...children) { this.children.push(...children); }
     closest(selector) { return selector === 'main' ? main : null; }
     pause() { this.paused = true; }
+    play() { this.paused = false; this.listeners.play?.(); return Promise.resolve(); }
     focus() { document.activeElement = this; }
     querySelector(selector) {
       for (const child of this.children) {
@@ -205,7 +206,7 @@ async function findingsPage({cfr = true, series = true, duration = 10} = {}) {
   });
   const source = readFileSync(new URL('../../src/yap_studio/review/static/app.mjs', import.meta.url), 'utf8');
   vm.runInContext(source.replace(/^import \{[\s\S]*?\} from '.\/timeline.mjs';/, '')
-    .replace(/start\(\);\s*$/, 'globalThis.page = {start, loadReview, refreshReview, selectVersion, setOffline, changeComment};'), context);
+    .replace(/start\(\);\s*$/, 'globalThis.page = {start, loadReview, refreshReview, selectVersion, setOffline, changeComment, checkRangeStop};'), context);
   await context.page.start();
   const click = (node) => node.listeners.click({stopPropagation() {}});
   const actions = (index) => element('findings-list').children[index].querySelector('.finding-actions').children;
@@ -297,6 +298,34 @@ for (const cfr of [true, false]) {
     state.comments.pop();
     await page.loadReview();
     assert.equal(actions(0)[1].textContent, 'Add as my note');
+  });
+}
+
+for (const cfr of [true, false]) {
+  test(`join listens play each range and stop without writing at cfr=${cfr}`, async () => {
+    const {page, element, state, requests, click, actions} = await findingsPage({cfr});
+    state.findings.items = [
+      reviewerFinding({id: 'j1', kind: 'join_listen', start_frame: 0, end_frame: 90,
+        start_s: 0, end_s: 3, reason: 'Listen to this join'}),
+      reviewerFinding({id: 'j2', kind: 'join_listen', start_frame: 120, end_frame: 210,
+        start_s: 4, end_s: 7, reason: 'Listen to this join'}),
+    ];
+    await page.refreshReview();
+    assert.equal(element('findings-list').children.length, 2);
+    for (const [index, start, end] of [[0, 0, 3], [1, 4, 7]]) {
+      assert.equal(actions(index)[0].textContent, 'Listen');
+      await click(actions(index)[0]);
+      const video = element('video');
+      assert.ok(Math.abs(video.currentTime - start) < 0.04);
+      video.listeners.seeked();
+      assert.equal(video.paused, false);
+      page.checkRangeStop(end);
+      assert.equal(video.paused, true);
+      assert.ok(Math.abs(video.currentTime - end) < 0.04);
+    }
+    assert.equal(requests.filter(({options}) => options.method).length, 0);
+    page.setOffline(true);
+    assert.equal(actions(0)[0].disabled, true);
   });
 }
 
