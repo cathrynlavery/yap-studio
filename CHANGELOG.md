@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Pin the renderer to HyperFrames 0.8.188.
 - Record scrubbed product feedback locally, with consent settings, repeat grouping and optional sharing.
 
 ## 1.0.0 (2026-10-23)
