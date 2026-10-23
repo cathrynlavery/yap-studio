@@ -2,6 +2,18 @@
 
 from __future__ import annotations
 
+import sys
+
+if sys.version_info < (3, 11):
+    import os
+    import shlex
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    raise SystemExit(
+        "scripts/release_check_scope.py needs Python 3.11 or newer. "
+        f"Run it with: cd {shlex.quote(root)} && uv run python scripts/release_check_scope.py"
+    )
+
 import json
 import os
 import subprocess
