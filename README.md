@@ -229,7 +229,10 @@ step yourself, see [docs/editing.md](docs/editing.md).
 
 ## Version 1 limits
 
-- Editing makes vertical 9:16 videos only, at 1080 by 1920. `verify` also checks other shapes.
+- Vertical 9:16 at 1080 by 1920 stays the default. New horizontal talking-head videos at
+  1920 by 1080 support hard cuts and captions: use `init DIR --take FILE --shape horizontal`.
+  Titles, cards, B-roll, zooms, effects, grades, taste preferences, covers and studio exports
+  are not supported horizontally yet; use platform `youtube` or `none`.
 - The filler and restart rules are English only. For other languages, `fillers` proposes
   pauses only.
 - Person cutouts, face detection and backgrounds behind you need macOS with the Xcode command

@@ -397,6 +397,13 @@
     "schema": {
       "const": "yap-studio/project@1"
     },
+    "shape": {
+      "default": "vertical",
+      "enum": [
+        "vertical",
+        "horizontal"
+      ]
+    },
     "style": {
       "anyOf": [
         {

@@ -17,6 +17,7 @@ from typing import Any, cast
 import numpy as np
 
 from yap_studio import audio, ffmpeg, paths, receipt
+from yap_studio.canvas import canvas, require_supported, unsupported
 from yap_studio.checks.platform import load_presets
 from yap_studio.edl.model import EditList, Source
 from yap_studio.edl.model import Segment as Span
@@ -516,6 +517,8 @@ def _settle_edges(
 
 def _resolve(context: ProjectContext) -> CutPlan:
     """Resolve source edges and removals before handing placement to Plan.build."""
+    require_supported(context)
+    frame = canvas(context.project.shape)
     edit = cast(Edit, _document(context, "edit", "edit.json"))
     try:
         context.read("removals.json")
@@ -532,6 +535,8 @@ def _resolve(context: ProjectContext) -> CutPlan:
         source = paths.validate_input(context.take_path(take_id))
         sources[take_id] = source
         info = media[take_id] = ffmpeg.probe(source)
+        if context.project.shape == "horizontal" and info.orientation != "horizontal":
+            unsupported(f"non-horizontal take {take_id}", "Use horizontal source takes")
         if not info.has_video or not info.fps or info.video_duration_s is None:
             raise InputError(take_id, "source has no readable picture duration")
         raw = context.read(f"ingest/{take_id}/words.json")
@@ -563,8 +568,10 @@ def _resolve(context: ProjectContext) -> CutPlan:
             manifest = {}
         if any(item.get("id") == take_id and item.get("vfr") for item in manifest.get("takes", [])):
             warnings.append(f"Take {take_id} has variable frame timing and conforms to 30 fps.")
-        if info.width and info.height and max(1080 / info.width, 1920 / info.height) > 1:
-            warnings.append(f"Take {take_id} is upscaled for the 1080x1920 cover crop.")
+        if (info.width and info.height
+                and max(frame.width / info.width, frame.height / info.height) > 1):
+            warnings.append(f"Take {take_id} is upscaled for the "
+                            f"{frame.width}x{frame.height} cover crop.")
     pieces: list[Piece] = []
     segment_word_ids: dict[str, tuple[str, ...]] = {}
     segment_rows: list[dict[str, Any]] = []
@@ -855,7 +862,9 @@ def _picture(piece: Piece, plan: CutPlan, target: Path, hdr: HdrConversion | Non
     """Conform on the source frame clock before selecting and scaling a piece."""
     info = plan.media[piece.take]
     take = next(take for take in plan.context.project.takes if take.id == piece.take)
-    scale = "scale=1080:1920:force_original_aspect_ratio=increase:force_divisible_by=2:out_range=tv"
+    frame = canvas(plan.context.project.shape)
+    scale = (f"scale={frame.width}:{frame.height}:force_original_aspect_ratio=increase:"
+             "force_divisible_by=2:out_range=tv")
     if hdr is None and info.color_space in {"bt470bg", "smpte170m"}:
         scale += ":in_color_matrix=bt601:out_color_matrix=bt709"
     filters = [] if hdr is None else [hdr.filter_prefix]
@@ -866,7 +875,7 @@ def _picture(piece: Piece, plan: CutPlan, target: Path, hdr: HdrConversion | Non
             f"trim=start_frame={piece.src_f0}:end_frame={piece.src_f1}",
             "setpts=PTS-STARTPTS",
             scale,
-            f"crop=1080:1920:x=(iw-ow)*{take.crop_x:.9f}:y=(ih-oh)/2",
+            f"crop={frame.width}:{frame.height}:x=(iw-ow)*{take.crop_x:.9f}:y=(ih-oh)/2",
             "setsar=1",
             "format=yuv420p",
         ]
@@ -1141,6 +1150,8 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
     with paths.operation():
         context = ProjectContext(project_dir)
         context.identity = _ReadOnlyIdentity(context.project_dir)
+        require_supported(context)
+        frame = canvas(context.project.shape)
         root = context.project_dir
         inputs = cut_inputs(context)
         run = StageRun(root, "cut")
@@ -1333,8 +1344,9 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                             info.color_primaries,
                             info.color_transfer,
                         )
-                        == (1080, 1920, FPS, "h264", "yuv420p", "bt709", "bt709", "bt709"),
-                        "expected": {"width": 1080, "height": 1920, "fps": str(FPS),
+                        == (frame.width, frame.height, FPS, "h264", "yuv420p",
+                            "bt709", "bt709", "bt709"),
+                        "expected": {"width": frame.width, "height": frame.height, "fps": str(FPS),
                                      "codec": "h264", "pix_fmt": "yuv420p",
                                      "color_space": "bt709", "color_primaries": "bt709",
                                      "color_transfer": "bt709"},

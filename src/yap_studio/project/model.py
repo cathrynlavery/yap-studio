@@ -316,6 +316,7 @@ SPECS: dict[str, dict[str, Any]] = {
         "name": _str(minLength=1, maxLength=80, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$"),
         "style": _nullable(_PATH), "creator": _nullable(_PATH),
         "video_type": _enum(*VIDEO_TYPES),
+        "shape": {**_enum("vertical", "horizontal"), "default": "vertical"},
         "broll_sources": _arr(_enum(*BROLL_SOURCES), uniqueItems=True),
         "grade": _obj({
             "look": _enum("none", "film", "eyedropper"),
@@ -547,10 +548,13 @@ class Project:
     grade: dict[str, Any] | None = None
     video_type: str | None = None
     broll_sources: tuple[str, ...] | None = None
+    shape: str = "vertical"
 
     def to_dict(self) -> dict[str, Any]:
         """Return JSON with the version marker and resolved defaults."""
         data = asdict(self)
+        if self.shape == "vertical":
+            data.pop("shape")
         if self.grade is None:
             data.pop("grade")
         if self.video_type is None:

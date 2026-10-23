@@ -487,6 +487,9 @@ def camera_findings(elements: list[ResolvedElement], moves: dict) -> list[Timeli
 
 def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> ResolvedTimeline:
     """Check a complete proposed merge from a single retained project snapshot."""
+    from yap_studio.canvas import require_supported
+
+    require_supported(context, lanes)
     data = _fresh_cut(context)
     cut_words = cast(CutWords, _document(context, "cut-words", "cut/cut-words.json"))
     edit = cast(Edit, _document(context, "edit", "edit.json"))

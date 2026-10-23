@@ -78,7 +78,7 @@ def picture_faces(
         camera=camera,
         video=VideoIdentity("picture.mp4", cut.video.sha256,
                             timeline.total_frames + timeline.end_hold_frames,
-                            Fraction(30), 1080, 1920),
+                            Fraction(30), cut.video.width, cut.video.height),
     )[0]
 
 

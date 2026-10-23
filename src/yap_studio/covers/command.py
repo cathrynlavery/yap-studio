@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from yap_studio import paths, receipt
+from yap_studio.canvas import unsupported
 from yap_studio.covers.layout import validate_text
 from yap_studio.covers.pick import TimelineSnapshot, pick_frame
 from yap_studio.covers.render import prepare_assets, render_cover
@@ -114,6 +115,8 @@ def _run(args: argparse.Namespace) -> int:
                 try:
                     project_data = json.loads(project_file.read_text(encoding="utf-8"))
                     project_name = project_data["name"]
+                    if project_data.get("shape", "vertical") == "horizontal":
+                        unsupported("covers", "Create the horizontal thumbnail separately")
                 except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
                     raise ValidationError("project.json", "readable project name required") from exc
             final, final_receipt = require_finished(root, project_name)

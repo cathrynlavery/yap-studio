@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 
 from yap_studio import ffmpeg, letters, paths, receipt
+from yap_studio.canvas import Canvas, canvas
 from yap_studio.cards_video import window_rect
 from yap_studio.edl import load_edit_list
 from yap_studio.errors import ProcessingError, YapError
@@ -1050,10 +1051,11 @@ def _card_windows(graph: _Graph, base: str, placement: dict,
     return base, seconds
 
 
-def _assert_picture(info: ffmpeg.MediaInfo, expected: int) -> None:
+def _assert_picture(info: ffmpeg.MediaInfo, expected: int, frame: Canvas | None = None) -> None:
     """Refuse to hand audio assembly an incorrectly encoded delivery stream."""
-    checks = {"frames": (info.video_frames, expected), "width": (info.width, WIDTH),
-              "height": (info.height, HEIGHT), "fps": (info.fps, FPS),
+    frame = frame or canvas()
+    checks = {"frames": (info.video_frames, expected), "width": (info.width, frame.width),
+              "height": (info.height, frame.height), "fps": (info.fps, FPS),
               "pixel format": (info.pix_fmt, PIX_FMT),
               "primaries": (info.color_primaries, COLOUR),
               "transfer": (info.color_transfer, COLOUR), "matrix": (info.color_space, COLOUR),
@@ -1095,6 +1097,7 @@ def render_picture(
     """
     with paths.operation():
         root = Path(project_dir).resolve()
+        frame = canvas(load_project(root / "project.json").shape)
         cache_root = Path(matte_project_dir or root).resolve()
         timeline = timeline if timeline is not None else resolve_timeline(root).require_valid()
         check_split_voiceover(root, timeline.elements)
@@ -1121,8 +1124,8 @@ def render_picture(
                                  "Behind graphics, backgrounds and moments need a constant-rate "
                                  "30 fps cut."),
                                 timing=True)
-        if (cut.info.video_frames != timeline.total_frames or cut.info.width != WIDTH
-                or cut.info.height != HEIGHT or cut.info.fps != FPS):
+        if (cut.info.video_frames != timeline.total_frames or cut.info.width != frame.width
+                or cut.info.height != frame.height or cut.info.fps != FPS):
             raise PictureError("Cut picture dimensions or frame count disagree with the timeline.")
         inserts = _insert_inputs(root, timeline, commands, conversions)
         layouts = split_layouts(cache_root, timeline)
@@ -1425,7 +1428,8 @@ def render_picture(
             owners = [graph.owners[index] for index in indexes if index in graph.owners]
             raise PictureProcessingError(exc, owners, cache_root, frames=frames) from exc
         commands.append(tuple(result.args))
-        _assert_picture(_probe(target, commands), frames[1] - frames[0] + 1 if frames else total)
+        _assert_picture(_probe(target, commands),
+                        frames[1] - frames[0] + 1 if frames else total, frame)
         measurements = measure_behind_layers(
             root, matte_path, cut.info, [item for item in behind if item["id"] not in number_ids],
             skipped_windows=skipped,

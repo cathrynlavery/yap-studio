@@ -207,6 +207,10 @@ def export_project(project_dir: Path) -> Path:
 
 def _export_project(project_dir: Path) -> Path:
     context = ProjectContext(project_dir)
+    if context.project.shape == "horizontal":
+        from yap_studio.canvas import unsupported
+
+        unsupported("studio export", "Review final video playback on the review page")
     identities = {}
     for stage, input_fn in (("ingest", ingest_inputs), ("cut", cut_inputs)):
         record, reason = _verified(context, stage, lambda fn=input_fn: fn(context))

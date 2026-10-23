@@ -13,6 +13,7 @@ from pathlib import Path
 
 from yap_studio import ffmpeg, paths
 from yap_studio import video_type as video_choices
+from yap_studio.canvas import unsupported
 from yap_studio.errors import InputError, YapError
 from yap_studio.project.lock import ConflictError, project_lock, write_json_cas
 from yap_studio.project.model import Project, Take, load_project, parse_document
@@ -41,8 +42,11 @@ def init_project(
     project_dir: Path, *, takes: Sequence[Path], style: str | None = None, name: str | None = None,
     answers: Path | None = None, voiceovers: Sequence[Path] = (),
     video_type: str | None = None, broll_sources: Sequence[str] | None = None,
+    shape: str = "vertical",
 ) -> Project:
     """Probe read-only takes and atomically initialize an isolated project style."""
+    if shape == "horizontal" and voiceovers:
+        unsupported("voiceover takes", "Use horizontal video takes with --take")
     if takes and voiceovers:
         raise InputError(str(project_dir), "cannot mix --take and --voiceover in one project")
     directory = Path(project_dir).absolute()
@@ -51,8 +55,8 @@ def init_project(
                 and voiceovers else None)
     if (target.exists() or target.is_symlink()) and existing is None:
         raise ProjectRefusal()
-    if existing and (takes or style or name or answers or video_type is not None
-                     or broll_sources is not None or
+    if existing and (takes or style or name or answers or shape != "vertical"
+                     or video_type is not None or broll_sources is not None or
                      not all(take.voiceover for take in existing.takes)):
         raise ProjectRefusal()
     defaults = {}
@@ -67,11 +71,15 @@ def init_project(
         default=(video_choices.load_default()
                  if video_type is None or broll_sources is None else None))
         if existing is None else (None, None))
+    if shape == "horizontal" and kind not in (None, "talking_head"):
+        unsupported(f"video type {kind}", "Use --video-type talking_head")
     with paths.operation():
         sources = list(existing.takes) if existing else []
         for index, source in enumerate(takes, 1):
             validated = paths.validate_input(source)
             media = ffmpeg.probe(validated)
+            if shape == "horizontal" and media.orientation != "horizontal":
+                unsupported(f"non-horizontal take {source.name}", "Use horizontal source takes")
             if not media.has_video or not media.has_audio:
                 raise InputError(str(source), "a take must have both picture and audio")
             try:
@@ -132,7 +140,7 @@ def init_project(
             copied = directory / "styles" / f"{_slug(source.stem, limit=64)}.json"
             stored_style = copied.relative_to(directory).as_posix()
         project = Project(name=name if name is not None else _slug(directory.name),
-                          takes=tuple(sources), style=stored_style, video_type=kind,
+                          takes=tuple(sources), style=stored_style, video_type=kind, shape=shape,
                           broll_sources=(tuple(chosen_sources)
                                          if chosen_sources is not None else None))
         document = project.to_dict()

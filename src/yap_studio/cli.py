@@ -1057,6 +1057,7 @@ def _project(args: argparse.Namespace) -> int:
             project = init_project(Path(args.directory), takes=[Path(take) for take in args.take],
                                    voiceovers=[Path(memo) for memo in args.voiceover],
                                    style=args.style, name=args.name,
+                                   shape=args.shape,
                                    video_type=args.video_type, broll_sources=args.broll,
                                    answers=Path(args.answers) if args.answers else None)
             result = project.to_dict()
@@ -1612,6 +1613,8 @@ def _parser() -> argparse.ArgumentParser:
     from yap_studio.video_type import BROLL_SOURCES, VIDEO_TYPES
 
     init_parser.add_argument("--video-type", choices=VIDEO_TYPES)
+    init_parser.add_argument("--shape", choices=("vertical", "horizontal"), default="vertical",
+                             help="delivery shape; horizontal supports talking head and captions")
     init_parser.add_argument("--broll", action="append", choices=(*BROLL_SOURCES, "none"))
     init_parser.add_argument("--style", metavar="SPEC")
     init_parser.add_argument("--name", metavar="NAME")

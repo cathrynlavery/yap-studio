@@ -26,6 +26,7 @@ import numpy as np
 
 from yap_studio import ffmpeg, paths, receipt, transcript
 from yap_studio.brand_words import list_words
+from yap_studio.canvas import Canvas, canvas, require_supported
 from yap_studio.captions import (
     CaptionWord,
     Phrase,
@@ -162,6 +163,7 @@ class LayerPlan:
     frames: int
     variables: dict
     warnings: tuple[str, ...] = ()
+    shape: str = "vertical"
 
     def placement(self, path: str) -> dict[str, Any]:
         """Return the box and exact frame window assembly should overlay."""
@@ -277,9 +279,11 @@ def caption_layer_plan(
     offsets: Sequence[int] | None = None,
     caption_settings: Mapping[str, Any] | None = None,
     backing: Sequence[str | None] | None = None,
+    shape: str = "vertical",
 ) -> LayerPlan:
     """Anchor bottom captions on their last line, reserving room to wrap upward."""
     hyperframes.layer_duration_s(frames, fps)
+    frame = canvas(shape)
     if bleep.enabled(style.data):
         masked_words = iter(bleep.mask_display_words(
             [word for phrase in phrases for word in phrase.words],
@@ -288,6 +292,11 @@ def caption_layer_plan(
                    for phrase in phrases]
     captions = (caption_layout_settings(style.data["captions"], style.data["brand"])
                 if caption_settings is None else caption_settings)
+    safe_bottom = style.data["internal"]["caption_safe_bottom_px"]
+    if shape == "horizontal":
+        captions = {**captions, "position": "bottom", "placement": "fixed",
+                    "top_px": frame.caption_top}
+        safe_bottom = frame.caption_safe_bottom
     duration = frames / fps
     slots = []
     for phrase in phrases:
@@ -323,14 +332,15 @@ def caption_layer_plan(
     if (captions["highlight_style"] not in {"slam", "weight_shift", "clip_wipe"}
             and captions["max_words_per_phrase"] > 1):
         for slot in slots:
-            breaks = _caption_breaks(slot, captions, boxed=slot.get("backing") == "box")
+            breaks = _caption_breaks(slot, captions, boxed=slot.get("backing") == "box",
+                                     frame=frame)
             if breaks:
                 slot["breaks"] = list(breaks)
     geometry = caption_band_geometry(
-        captions, safe_bottom_px=style.data["internal"]["caption_safe_bottom_px"],
+        captions, safe_bottom_px=safe_bottom,
     )
     outer = caption_band_geometry(
-        captions, safe_bottom_px=style.data["internal"]["caption_safe_bottom_px"],
+        captions, safe_bottom_px=safe_bottom,
         backing=backing if backing is not None else (),
     )
     if backing is not None and any(backing):
@@ -339,7 +349,7 @@ def caption_layer_plan(
                 continue
             # Keep plain slots on the default band while backed phrases reserve their own.
             own = caption_band_geometry(
-                captions, safe_bottom_px=style.data["internal"]["caption_safe_bottom_px"],
+                captions, safe_bottom_px=safe_bottom,
                 backing=(look,),
             )
             slot["band"] = {"top_px": own.y - geometry.y, "height_px": own.height,
@@ -386,7 +396,7 @@ def caption_layer_plan(
         "captions",
         0,
         top,
-        1080,
+        frame.width,
         bottom - top,
         0,
         frames,
@@ -402,12 +412,14 @@ def caption_layer_plan(
             "phrases": json.dumps(slots, ensure_ascii=False, allow_nan=False),
         },
         warnings=outer.warnings,
+        shape=shape,
     )
 
 
 def _caption_breaks(slot: Mapping[str, Any], captions: Mapping[str, Any], *,
-                    boxed: bool = False) -> tuple[int, ...]:
+                    boxed: bool = False, frame: Canvas | None = None) -> tuple[int, ...]:
     """Mirror the template's text width and line width for stable rows."""
+    frame = frame or canvas()
     mode = captions["highlight_style"]
     size = captions["size_px"]
     scale = captions["width_scale"]
@@ -420,17 +432,17 @@ def _caption_breaks(slot: Mapping[str, Any], captions: Mapping[str, Any], *,
         "neon_glow", "parallax_layers", "particle_burst", "pill_karaoke", "texture",
     }
     effect_pad = math.ceil(size * 0.25) if ported else 0
-    available = 940 / scale if scale < 1 else 940
+    available = frame.caption_width / scale if scale < 1 else frame.caption_width
     if ported:
-        available = (940 - 2 * (ground_pad + effect_pad)) / scale
+        available = (frame.caption_width - 2 * (ground_pad + effect_pad)) / scale
     if mode == "pill":
         shadow = (captions["shadow_blur_px"] * 3 + abs(captions["shadow_x_px"])
                   if captions["shadow_opacity"] > 0 else 0)
-        available = min(940, 1080 - size * 0.8 - shadow * 2) / scale
+        available = min(frame.caption_width, frame.width - size * 0.8 - shadow * 2) / scale
     if ground:
         highlight_pad = size * (0.4 if mode == "pill" else
                                 0.08 if mode == "moving_block" else 0)
-        available = min(available, (940 - 2 * (ground_pad + highlight_pad)) / scale)
+        available = min(available, (frame.caption_width - 2 * (ground_pad + highlight_pad)) / scale)
     if mode == "pill_karaoke":
         available -= size * 0.6
     weight = (800 if mode in {"camera_follow", "glitch_rgb", "highlight", "neon_glow",
@@ -634,7 +646,8 @@ def caption_layout(checks: Mapping[str, Any] | None, plan: LayerPlan) -> dict[st
     Boxes cover the area each word's glyphs occupy on any drawn frame,
     including the entry rise and slam punch.
     """
-    document = {"schema": LAYOUT_SCHEMA, "width": 1080, "height": 1920,
+    frame = canvas(plan.shape)
+    document = {"schema": LAYOUT_SCHEMA, "width": frame.width, "height": frame.height,
                 "measured": False, "reason": None, "elements": [], "captions": []}
 
     def unmeasured(reason: str) -> dict[str, Any]:
@@ -1078,6 +1091,12 @@ def prepare_layer_plan(
         composition.mkdir(parents=True, exist_ok=True)
         source = (assets.html if assets else
                   (_TEMPLATES / plan.template / "template.html").read_text(encoding="utf-8"))
+        if plan.template == "captions" and plan.shape == "horizontal":
+            frame = canvas(plan.shape)
+            # shortcut: adapt the shipped portrait template, replace with shape tokens when shared.
+            for old, new in (("1080", frame.width), ("940", frame.caption_width),
+                             ("70", frame.caption_inset)):
+                source = re.sub(rf"\b{old}(?=\b|px)", str(new), source)
         parser = _RootParser()
         parser.feed(source)
         if parser.root is None:
@@ -1200,6 +1219,7 @@ def _text_hook_bottom(timeline: ResolvedTimeline, style: ResolvedStyle) -> int |
 
 def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapshot:
     """Build captions from retained output words, fixes, gaps and caption style."""
+    require_supported(context)
     style = context.render_style()
     if style.data["captions"].get("camera_3d", False):
         from yap_studio.stages.captions_3d import snapshot
@@ -1246,8 +1266,11 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
                     else "shadow" if automatic else None
                     for key, automatic in zip(keys, auto, strict=True))
     plan = caption_layer_plan(phrases, style, frames=timeline.total_frames,
-                              caption_settings=settings, backing=backing)
+                              caption_settings=settings, backing=backing,
+                              shape=context.project.shape)
     inputs = {
+        **({"project:shape": projection_sha256(context.project.shape)}
+           if context.project.shape != "vertical" else {}),
         # Word times alone cannot identify trailing picture, so retain the cut's frame clock.
         "cut/cut-words.json": projection_sha256({
             "sha256": hashlib.sha256(cut_bytes).hexdigest(), "frames": timeline.total_frames,
@@ -1362,6 +1385,7 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
     """Publish a project caption band, output-time phrases, SRT and owned receipt."""
     with paths.operation():
         context = ProjectContext(project_dir)
+        frame = canvas(context.project.shape)
         snapshot = caption_snapshot(context)
         if not isinstance(snapshot, CaptionSnapshot):
             from yap_studio.stages.captions_3d import captions as camera_captions
@@ -1409,7 +1433,7 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                     layouts=layout_windows(timeline),
                     video=VideoIdentity("picture.mp4", cut.video.sha256,
                                         timeline.total_frames + timeline.end_hold_frames,
-                                        Fraction(30), 1080, 1920),
+                                        Fraction(30), frame.width, frame.height),
                 )
             geometry = caption_band_geometry(
                 snapshot.caption_settings,
@@ -1427,7 +1451,7 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                 plan = caption_layer_plan(snapshot.phrases, style, frames=timeline.total_frames,
                                           offsets=[item["offset_px"] for item in placements],
                                           caption_settings=snapshot.caption_settings,
-                                          backing=snapshot.backing)
+                                          backing=snapshot.backing, shape=context.project.shape)
             kept_reasons = {"kept: no face detected", "kept: clear of the head",
                             "kept: fixed caption placement", "kept: no faces data",
                             f"kept: faces not measured: {faces.reason if faces else None}"}

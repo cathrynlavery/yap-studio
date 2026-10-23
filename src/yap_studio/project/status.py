@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from yap_studio import paths
+from yap_studio.canvas import canvas
 from yap_studio.errors import InputError, YapError
 from yap_studio.project.anchors import edit_needs_edge_engine
 from yap_studio.project.lock import pid_alive, project_lock
@@ -224,6 +225,13 @@ class ProjectContext:
             self._taste_application = render_style(ResolvedStyle(data["name"], spec, data),
                                                    explicit=None)
             self._render_style = self._taste_application.style
+            if self.project.shape == "horizontal":
+                data = copy.deepcopy(self._render_style.data)
+                frame = canvas(self.project.shape)
+                data["captions"].update(position="bottom", placement="fixed",
+                                        top_px=frame.caption_top)
+                data["internal"]["caption_safe_bottom_px"] = frame.caption_safe_bottom
+                self._render_style = replace(self._render_style, data=data)
         return self._render_style
 
     def taste_application(self) -> TasteApplication:
@@ -330,6 +338,8 @@ def cut_inputs(context: ProjectContext) -> dict[str, str]:
     engine_identity = _edge_engine_identity(context) if needs_engine else {"engine": "not-needed"}
     return {
         "edit.json": hashlib.sha256(edit_bytes).hexdigest(),
+        **({"project:shape": projection_sha256(context.project.shape)}
+           if context.project.shape != "vertical" else {}),
         "removals:applied": projection_sha256(applied),
         "asr": projection_sha256(context.project.asr),
         "asr:resolved": projection_sha256(engine_identity),

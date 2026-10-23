@@ -24,6 +24,7 @@ import numpy as np
 
 from yap_studio import elevenlabs, ffmpeg, letters, paths, receipt
 from yap_studio import sfx as sound_effects
+from yap_studio.canvas import canvas, require_supported
 from yap_studio.captions import phrase_keys
 from yap_studio.checks.caption_contrast import (
     CONTRAST_SCHEMA,
@@ -423,6 +424,7 @@ def _resolve_tall_framing(context: ProjectContext, timeline: ResolvedTimeline,
 def assembly_snapshot(context: ProjectContext, *, allow_violations: bool = False
                       ) -> AssemblySnapshot:
     """Validate upstream receipts and retain every input before any render starts."""
+    require_supported(context)
     timeline = context.resolved_timeline(allow_violations=allow_violations)
     # An override permits editorial rule violations, never broken media or clock bounds.
     unsafe = {"duration", "inside_video", "end_hold", "media_hash", "insert_bounds",
@@ -771,6 +773,8 @@ def _retained(snapshot: AssemblySnapshot, root: Path) -> ResolvedTimeline:
 def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
                      references: dict[str, str] | None = None) -> dict[str, Any]:
     """Describe source spans, changed picture regions and the silent composited hold."""
+    frame = canvas(json.loads(snapshot.small_files.get("project.json", b"{}")).get(
+        "shape", "vertical"))
     sources = {name: str(source) for name, source in
                ((name, snapshot.media[relative]) for name, relative in snapshot.sources.items())}
     picture = getattr(snapshot, "picture", None)
@@ -786,7 +790,8 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
                     if first >= last:
                         continue
                     x, y = max(0, box["x"]), max(0, box["y"])
-                    right, bottom = min(1080, box["x"] + box["w"]), min(1920, box["y"] + box["h"])
+                    right = min(frame.width, box["x"] + box["w"])
+                    bottom = min(frame.height, box["y"] + box["h"])
                     if x >= right or y >= bottom:
                         continue
                     overlays.append({"start_in_output": first / 30,
@@ -795,8 +800,8 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
             continue
         x = max(0, placement["x"])
         y = max(0, placement["y"])
-        right = min(1080, placement["x"] + placement["width"])
-        bottom = min(1920, placement["y"] + placement["height"])
+        right = min(frame.width, placement["x"] + placement["width"])
+        bottom = min(frame.height, placement["y"] + placement["height"])
         # Invalid or empty regions become whole-frame masks in the ranges reader.
         if right <= x or bottom <= y:
             continue
@@ -876,6 +881,7 @@ def _camera_transforms(snapshot: AssemblySnapshot) -> list[tuple[float, float, f
 def _final_records(context: ProjectContext, snapshot: AssemblySnapshot, retained: Path,
                    timeline: ResolvedTimeline, final: Path) -> tuple[Path, Path]:
     """Bind retained caption/card geometry and mapped cut faces to the final bytes."""
+    frame = canvas(context.project.shape)
     behind_ids = {item.id for item in timeline.elements
                   if item.kind == "graphic" and item.layer == "behind"}
     captions_layout = json.loads((retained / "captions/layout.json").read_bytes())
@@ -979,7 +985,7 @@ def _final_records(context: ProjectContext, snapshot: AssemblySnapshot, retained
                              **({"face_windows": []}
                                 if item.payload.get("placement") == "tall_behind" else {})})
     layout_document = final_layout(
-        captions_layout, elements, width=1080, height=1920,
+        captions_layout, elements, width=frame.width, height=frame.height,
         clearance_px=face_clearance_px(context.render_style().data),
         caption_gap_px=caption_gap_px(context.render_style().data),
     )
@@ -996,7 +1002,7 @@ def _final_records(context: ProjectContext, snapshot: AssemblySnapshot, retained
         splits=split_windows(timeline, split_layouts(context.project_dir, timeline)),
         video=VideoIdentity(final.name, receipt.sha256_file(final),
                             timeline.total_frames + timeline.end_hold_frames,
-                            Fraction(30, 1), 1080, 1920),
+                            Fraction(30, 1), frame.width, frame.height),
     )
     return layout, write_faces(final.with_suffix(".faces.json"), faces)
 

@@ -3,6 +3,8 @@
 This folder is for one creator's videos. Use the bundled Yap Studio engine. Keep raw takes in
 `inbox/` and one edit per folder under `projects/`.
 
+For horizontal talking-head videos, use `init DIR --take FILE --shape horizontal`: hard cuts and captions only; see docs/limits.md for unsupported features.
+
 ## Set me up
 
 Run `python3 setup.py --json` from this folder. If `refused` is set, explain why.
