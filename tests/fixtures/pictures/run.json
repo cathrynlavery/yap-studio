@@ -1,0 +1,38 @@
+{
+  "prediction": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "id": "abc123",
+      "model": "bytedance/seedream-v4",
+      "outputs": [
+        "https://cdn.example.test/picture.jpeg"
+      ],
+      "urls": {
+        "get": "https://api.wavespeed.ai/api/v3/predictions/abc123/result"
+      },
+      "status": "completed",
+      "created_at": "2026-10-19T12:00:00.000Z",
+      "code": 200,
+      "error": "",
+      "timings": {
+        "inference": 5123
+      }
+    }
+  },
+  "pricing": {
+    "code": 200,
+    "data": {
+      "currency": "USD",
+      "model_id": "bytedance/seedream-v4",
+      "unit_price": 0.027
+    },
+    "message": "success"
+  },
+  "downloads": [
+    {
+      "url": "https://cdn.example.test/picture.png",
+      "path": "STAGING/out.png"
+    }
+  ]
+}

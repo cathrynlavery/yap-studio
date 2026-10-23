@@ -1,0 +1,7 @@
+{
+  "slots": {
+    "left_label": "Laptop",
+    "right_label": "Desktop",
+    "payload": "notes.txt"
+  }
+}

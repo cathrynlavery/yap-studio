@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en" data-composition-variables='[{"id":"config","type":"string","label":"Cover configuration","default":"{}"}]'>
+<head><meta charset="utf-8"><style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: transparent; }
+#root { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+.backdrop, .copy { position: absolute; inset: 0; }
+.photo, .blur, .dark, .person { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.person { object-fit: cover; }
+.veil { position: absolute; inset: 0; pointer-events: none; }
+.text-block { position: absolute; margin: 0; white-space: pre; line-height: 1.08; font-weight: 400; }
+.accent { font-style: italic; }
+.small-caps { font-variant: small-caps; letter-spacing: .12em; }
+.polaroid { position: absolute;
+  background: #fff; transform: rotate(-6deg); box-shadow: 0 16px 35px #0008; }
+.polaroid img { width: 100%; height: 100%; object-fit: cover; }
+.strike { text-decoration: line-through; text-decoration-thickness: .06em; }
+</style></head>
+<body><div id="root" data-composition-id="cover" data-no-timeline data-start="0" data-width="1080" data-height="1920" data-duration="0.1">
+  <div class="backdrop"></div><div class="copy"></div>
+</div><script>
+(() => {
+  'use strict';
+  const c = JSON.parse(window.__hyperframes.getVariables().config);
+  const root = document.querySelector('#root');
+  const backdrop = root.querySelector('.backdrop');
+  const copy = root.querySelector('.copy');
+  function image(name, klass) {
+    const node = document.createElement('img');
+    node.className = klass;
+    node.src = name;
+    backdrop.append(node);
+    return node;
+  }
+  if (c.look === 'number') {
+    backdrop.style.background = c.paper;
+    const person = image('cutout.png', 'person');
+    person.style.transform = `translateX(${c.speaker_shift_px}px)`;
+  } else if (c.look === 'hook') {
+    image('blur.png', 'blur');
+    image('cutout.png', 'person');
+  } else if (c.look === 'before-after') {
+    image('dark.png', 'dark');
+  } else {
+    image('frame.png', 'photo');
+  }
+  if (c.veil_css) {
+    const veil = document.createElement('div');
+    veil.className = 'veil';
+    veil.style.background = c.veil_css;
+    backdrop.append(veil);
+  }
+  if (c.inset) {
+    const frame = document.createElement('div');
+    frame.className = 'polaroid';
+    frame.style.left = `${c.inset_x}px`;
+    frame.style.top = `${c.inset_y}px`;
+    frame.style.width = `${c.inset_width}px`;
+    frame.style.height = `${c.inset_height}px`;
+    frame.style.padding = `${c.inset_padding}px ${c.inset_padding}px ${c.inset_bottom_padding}px`;
+    const picture = document.createElement('img');
+    picture.src = 'inset.png';
+    frame.append(picture);
+    backdrop.append(frame);
+  }
+  c.blocks.forEach(block => {
+    const node = document.createElement('p');
+    node.className = `text-block${block.small_caps ? ' small-caps' : ''}${block.strike ? ' strike' : ''}`;
+    node.style.left = `${block.x}px`;
+    node.style.top = `${block.y}px`;
+    node.style.width = `${block.width}px`;
+    node.style.height = `${block.height}px`;
+    node.style.paddingLeft = `${block.text_inset || 0}px`;
+    node.style.fontSize = `${block.font_size}px`;
+    node.style.color = block.color;
+    node.style.fontFamily = block.font_stack;
+    node.style.opacity = block.opacity;
+    if (block.accent_start >= 0) {
+      node.append(document.createTextNode(block.text.slice(0, block.accent_start)));
+      const mark = document.createElement('span');
+      mark.className = 'accent';
+      mark.style.color = block.accent_color;
+      mark.textContent = block.text.slice(block.accent_start, block.accent_end);
+      node.append(mark, document.createTextNode(block.text.slice(block.accent_end)));
+    } else node.textContent = block.text;
+    copy.append(node);
+  });
+  backdrop.animate([
+    { opacity: 1, offset: 0, easing: 'steps(1, end)' },
+    { opacity: 0, offset: 1 / 2 },
+    { opacity: 0, offset: 1 },
+  ], { duration: 100, fill: 'both' });
+  copy.animate([
+    { opacity: 1, offset: 0, easing: 'steps(1, end)' },
+    { opacity: 0, offset: 1 / 6, easing: 'steps(1, end)' },
+    { opacity: 1, offset: 1 / 2 },
+    { opacity: 1, offset: 1 },
+  ], { duration: 100, fill: 'both' });
+})();
+</script></body></html>

@@ -1,0 +1,239 @@
+{
+  "id": "choices",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [],
+  "slots": {
+    "options": {
+      "type": "string_list",
+      "required": true,
+      "min_items": 2,
+      "max_items": 4,
+      "min_length": 1,
+      "max_length": 24
+    },
+    "cues": {
+      "type": "number_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 4,
+      "default": []
+    },
+    "letters": {
+      "type": "boolean",
+      "required": false,
+      "default": true
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "options",
+      "type": "string",
+      "label": "Options",
+      "default": "[\"Ten minutes\", \"One hour\", \"All day\"]"
+    },
+    {
+      "id": "cues",
+      "type": "string",
+      "label": "Cues",
+      "default": "[0, 0.616167, 1.232333]"
+    },
+    {
+      "id": "letters",
+      "type": "boolean",
+      "label": "Letters",
+      "default": true
+    },
+    {
+      "id": "text_px",
+      "type": "number",
+      "label": "Text px",
+      "default": 64
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Scale",
+      "default": 1.6
+    },
+    {
+      "id": "glow_color",
+      "type": "color",
+      "label": "Glow color",
+      "default": "#365A58"
+    },
+    {
+      "id": "text_color",
+      "type": "color",
+      "label": "Text color",
+      "default": "#B9C5C5"
+    },
+    {
+      "id": "glow_pad_px",
+      "type": "number",
+      "label": "Glow pad px",
+      "default": 52
+    },
+    {
+      "id": "land_s",
+      "type": "number",
+      "label": "Land s",
+      "default": 0.16666666666666666
+    },
+    {
+      "id": "hold_s",
+      "type": "number",
+      "label": "Hold s",
+      "default": 0.5
+    },
+    {
+      "id": "settle_s",
+      "type": "number",
+      "label": "Settle s",
+      "default": 0.2
+    },
+    {
+      "id": "rest_s",
+      "type": "number",
+      "label": "Rest s",
+      "default": 0.3
+    },
+    {
+      "id": "out_s",
+      "type": "number",
+      "label": "Out s",
+      "default": 0.1
+    },
+    {
+      "id": "fade_in_s",
+      "type": "number",
+      "label": "Fade in s",
+      "default": 0.06666666666666667
+    },
+    {
+      "id": "lines",
+      "type": "string",
+      "label": "Lines",
+      "default": "[[\"A) Ten\", \"minutes\"], [\"B) One hour\"], [\"C) All day\"]]"
+    },
+    {
+      "id": "stack_top_px",
+      "type": "number",
+      "label": "Stack top px",
+      "default": 95
+    },
+    {
+      "id": "row_heights",
+      "type": "string",
+      "label": "Row heights",
+      "default": "[140.8, 70.4, 70.4]"
+    },
+    {
+      "id": "row_gaps",
+      "type": "string",
+      "label": "Row gaps",
+      "default": "[47, 26]"
+    },
+    {
+      "id": "line_height",
+      "type": "number",
+      "label": "Line height",
+      "default": 1.1
+    }
+  ],
+  "box": {
+    "width": "widest landed line plus glow padding",
+    "height": "fitted rows plus landing and glow padding",
+    "y": "internal.key_text_top_px minus glow padding"
+  }
+}

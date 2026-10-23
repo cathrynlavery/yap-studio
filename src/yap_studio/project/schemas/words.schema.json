@@ -1,0 +1,101 @@
+{
+  "$id": "urn:yap-studio:words:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "audio_offset_s": {
+      "type": "number"
+    },
+    "engine": {
+      "enum": [
+        "auto",
+        "parakeet-mlx",
+        "parakeet-onnx",
+        "faster-whisper",
+        "none"
+      ]
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema": {
+      "const": "yap-studio/words@1"
+    },
+    "take": {
+      "pattern": "^t[1-9][0-9]*$",
+      "type": "string"
+    },
+    "take_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "time_base": {
+      "const": "source"
+    },
+    "transcript_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "words": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "conf": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "id": {
+            "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "start",
+          "end"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "take",
+    "take_sha256",
+    "time_base",
+    "audio_offset_s",
+    "engine",
+    "model",
+    "transcript_sha256",
+    "words"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,269 @@
+{
+  "id": "title",
+  "version": 2,
+  "reads": "hook",
+  "variables": [
+    {
+      "id": "font_name",
+      "type": "string",
+      "label": "Font name",
+      "default": "Inter"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "size_px",
+      "type": "number",
+      "label": "Font size",
+      "default": 76
+    },
+    {
+      "id": "text_color",
+      "type": "color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "padding_px",
+      "type": "number",
+      "label": "Box padding",
+      "default": 32
+    },
+    {
+      "id": "plain",
+      "type": "string",
+      "label": "Title",
+      "default": ""
+    },
+    {
+      "id": "key",
+      "type": "string",
+      "label": "Accented title",
+      "default": ""
+    },
+    {
+      "id": "look",
+      "type": "enum",
+      "label": "Title look",
+      "default": "paper_title",
+      "options": [
+        {
+          "value": "paper_title",
+          "label": "Paper card"
+        },
+        {
+          "value": "quiet_serif",
+          "label": "Quiet title"
+        },
+        {
+          "value": "bold_band",
+          "label": "Bold band"
+        },
+        {
+          "value": "calm_card",
+          "label": "Calm card"
+        },
+        {
+          "value": "lockup",
+          "label": "Lockup"
+        },
+        {
+          "value": "write_on",
+          "label": "Handwritten write-on"
+        },
+        {
+          "value": "headline_slam",
+          "label": "Headline slam"
+        },
+        {
+          "value": "shard_reveal",
+          "label": "Shard reveal"
+        },
+        {
+          "value": "textured",
+          "label": "Textured"
+        },
+        {
+          "value": "shimmer",
+          "label": "Shimmer"
+        },
+        {
+          "value": "stagger",
+          "label": "Stagger"
+        },
+        {
+          "value": "morph",
+          "label": "Morph"
+        },
+        {
+          "value": "typewriter",
+          "label": "Typewriter"
+        },
+        {
+          "value": "kinetic",
+          "label": "Kinetic hook"
+        },
+        {
+          "value": "text_hook",
+          "label": "Text hook"
+        }
+      ]
+    },
+    {
+      "id": "text_hook_color",
+      "type": "enum",
+      "label": "Text hook color",
+      "default": "white",
+      "options": [
+        {"value": "white", "label": "White"},
+        {"value": "black", "label": "Black"},
+        {"value": "accent", "label": "Accent"}
+      ]
+    },
+    {
+      "id": "background_color",
+      "type": "color",
+      "label": "Card color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#D8FF2F"
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Frame rate",
+      "default": 30
+    },
+    {
+      "id": "centered",
+      "type": "boolean",
+      "label": "Centered placement",
+      "default": false
+    },
+    {
+      "id": "anchor_px",
+      "type": "number",
+      "label": "Vertical anchor",
+      "default": 80
+    },
+    {
+      "id": "lines",
+      "type": "string",
+      "label": "Title lines",
+      "default": "[]"
+    },
+    {
+      "id": "word_times",
+      "type": "string",
+      "label": "Word times",
+      "default": "[]"
+    },
+    {
+      "id": "kinetic_lines",
+      "type": "string",
+      "label": "Kinetic display lines",
+      "default": "[]"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Caption ink",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "shadow_opacity",
+      "type": "number",
+      "label": "Shadow opacity",
+      "default": 0.75
+    },
+    {
+      "id": "shadow_blur_px",
+      "type": "number",
+      "label": "Shadow blur",
+      "default": 8
+    },
+    {
+      "id": "shadow_x_px",
+      "type": "number",
+      "label": "Shadow X",
+      "default": 0
+    },
+    {
+      "id": "shadow_y_px",
+      "type": "number",
+      "label": "Shadow Y",
+      "default": 3
+    }
+  ],
+  "box": {
+    "width": {
+      "paper_title": 1080,
+      "quiet_serif": 940,
+      "bold_band": 1160,
+      "calm_card": 960,
+      "lockup": 940,
+      "write_on": 1000,
+      "headline_slam": 1080,
+      "shard_reveal": 1060,
+      "textured": 1000,
+      "shimmer": 1000,
+      "stagger": 1000,
+      "morph": 1000,
+      "typewriter": 1000,
+      "kinetic": 1080,
+      "text_hook": 907
+    },
+    "height": "Wrapped title lines plus look padding, rise, rotation, and shadow",
+    "y": "HOOK_TOP minus padding; center subtracts half the card height"
+  },
+  "derived_from": [
+    {
+      "item": "titlecard-calm",
+      "path": "registry/components/titlecard-calm/titlecard-calm.html"
+    },
+    {
+      "item": "titlecard-lockup",
+      "path": "registry/components/titlecard-lockup/titlecard-lockup.html"
+    },
+    {
+      "item": "hw-write-title",
+      "path": "registry/blocks/hw-write-title/hw-write-title.html"
+    },
+    {
+      "item": "headline-slam",
+      "path": "registry/components/headline-slam/headline-slam.html"
+    },
+    {
+      "item": "glass-shard-title",
+      "path": "registry/blocks/glass-shard-title/glass-shard-title.html"
+    },
+    {
+      "item": "texture-mask-text",
+      "path": "registry/components/texture-mask-text/texture-mask-text.html"
+    },
+    {
+      "item": "text-shimmer",
+      "path": "registry/components/text-shimmer/text-shimmer.html"
+    },
+    {
+      "item": "text-stagger",
+      "path": "registry/components/text-stagger/text-stagger.html"
+    },
+    {
+      "item": "morph-text",
+      "path": "registry/components/morph-text/morph-text.html"
+    },
+    {
+      "item": "typewriter",
+      "path": "registry/components/typewriter/typewriter.html"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <!-- Synthetic sample background for the style preview. Not real footage. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c9c2b6"/>
+      <stop offset="0.55" stop-color="#b3aa9c"/>
+      <stop offset="1" stop-color="#8f8578"/>
+    </linearGradient>
+    <radialGradient id="daylight" cx="0.08" cy="0.36" r="0.9">
+      <stop offset="0" stop-color="#fff8ec" stop-opacity="0.9"/>
+      <stop offset="0.35" stop-color="#f3eadb" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#f3eadb" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lamp" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe7bd" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffe7bd" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.42" r="0.78">
+      <stop offset="0.55" stop-color="#1b1712" stop-opacity="0"/>
+      <stop offset="1" stop-color="#1b1712" stop-opacity="0.42"/>
+    </radialGradient>
+    <filter id="dof" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+  <rect width="1080" height="1920" fill="url(#wall)"/>
+  <g filter="url(#dof)">
+    <!-- window -->
+    <rect x="-80" y="210" width="430" height="1120" rx="6" fill="#f5efe4"/>
+    <rect x="-80" y="210" width="430" height="1120" rx="6" fill="none" stroke="#d8cfc0" stroke-width="26"/>
+    <rect x="128" y="210" width="20" height="1120" fill="#d8cfc0"/>
+    <rect x="-80" y="760" width="430" height="20" fill="#d8cfc0"/>
+    <rect x="-80" y="1330" width="470" height="40" fill="#a4998a"/>
+    <!-- trees outside -->
+    <ellipse cx="40" cy="1080" rx="150" ry="120" fill="#a9b39a" opacity="0.55"/>
+    <ellipse cx="230" cy="1150" rx="120" ry="100" fill="#98a58a" opacity="0.5"/>
+    <!-- shelf with books -->
+    <rect x="700" y="640" width="420" height="24" fill="#7d6a57"/>
+    <rect x="742" y="468" width="34" height="172" fill="#8c5f4a"/>
+    <rect x="780" y="490" width="28" height="150" fill="#c2ae8e"/>
+    <rect x="812" y="456" width="40" height="184" fill="#51606a"/>
+    <rect x="856" y="500" width="26" height="140" fill="#a88b62"/>
+    <rect x="886" y="478" width="36" height="162" fill="#6f7b5d"/>
+    <rect x="930" y="560" width="92" height="80" rx="10" fill="#b69f84"/>
+    <!-- plant on the shelf -->
+    <ellipse cx="978" cy="520" rx="46" ry="58" fill="#5c6c4c"/>
+    <ellipse cx="1030" cy="500" rx="40" ry="66" fill="#4f5f42" transform="rotate(18 1030 500)"/>
+    <ellipse cx="940" cy="505" rx="34" ry="54" fill="#66774f" transform="rotate(-20 940 505)"/>
+    <!-- lower shelf -->
+    <rect x="700" y="1010" width="420" height="24" fill="#7d6a57"/>
+    <rect x="760" y="880" width="120" height="130" rx="12" fill="#d7c9b1"/>
+    <rect x="900" y="846" width="30" height="164" fill="#955f3f"/>
+    <rect x="934" y="866" width="26" height="144" fill="#44525b"/>
+    <!-- lamp -->
+    <circle cx="930" cy="330" r="150" fill="url(#lamp)"/>
+    <rect x="904" y="300" width="52" height="60" rx="10" fill="#f1dcb6"/>
+    <!-- sofa back behind the presenter -->
+    <rect x="80" y="1260" width="960" height="700" rx="80" fill="#6e6558"/>
+  </g>
+  <rect width="1080" height="1920" fill="url(#daylight)"/>
+  <rect width="1080" height="1920" fill="url(#vignette)"/>
+</svg>

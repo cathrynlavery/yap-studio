@@ -1,0 +1,8 @@
+{
+  "schema": "yap-studio/filler-gold@1",
+  "takes": ["t1"],
+  "spans": [
+    {"take": "t1", "start": 1, "end": 2, "label": "must-cut", "note": "um"},
+    {"take": "t1", "start": 2, "end": 3, "label": "must-keep"}
+  ]
+}

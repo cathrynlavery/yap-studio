@@ -1,0 +1,9 @@
+{
+  "code": 200,
+  "data": {
+    "currency": "USD",
+    "model_id": "bytedance/seedream-v4",
+    "unit_price": 0.027
+  },
+  "message": "success"
+}

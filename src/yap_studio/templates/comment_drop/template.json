@@ -1,0 +1,214 @@
+{
+  "id": "comment_drop",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [
+    {
+      "item": "chat-message",
+      "path": "registry/components/chat-message/chat-message.html"
+    },
+    {
+      "item": "spring-pop",
+      "path": "registry/components/spring-pop/spring-pop.html"
+    }
+  ],
+  "slots": {
+    "text": {
+      "type": "string",
+      "required": true,
+      "min_length": 1,
+      "max_length": 80
+    },
+    "name": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 32,
+      "default": ""
+    },
+    "initials": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 2,
+      "default": ""
+    },
+    "avatar": {
+      "type": "image",
+      "required": false,
+      "options": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp"
+      ],
+      "default": ""
+    },
+    "side": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "left",
+        "right"
+      ],
+      "default": "left"
+    },
+    "drop_at": {
+      "type": "number",
+      "required": false,
+      "default": 0.1
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "text",
+      "type": "string",
+      "label": "Text",
+      "default": ""
+    },
+    {
+      "id": "name",
+      "type": "string",
+      "label": "Name",
+      "default": ""
+    },
+    {
+      "id": "initials",
+      "type": "string",
+      "label": "Initials",
+      "default": ""
+    },
+    {
+      "id": "avatar_src",
+      "type": "string",
+      "label": "Avatar src",
+      "default": ""
+    },
+    {
+      "id": "side",
+      "type": "string",
+      "label": "Side",
+      "default": "left"
+    },
+    {
+      "id": "drop_at",
+      "type": "number",
+      "label": "Drop at",
+      "default": 0.1
+    },
+    {
+      "id": "text_px",
+      "type": "number",
+      "label": "Text px",
+      "default": 40
+    },
+    {
+      "id": "lines",
+      "type": "string",
+      "label": "Lines",
+      "default": "[]"
+    },
+    {
+      "id": "bubble_width_px",
+      "type": "number",
+      "label": "Bubble width px",
+      "default": 360
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}

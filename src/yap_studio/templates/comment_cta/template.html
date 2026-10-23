@@ -1,0 +1,140 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "typed-prompt"
+  (registry/components/typed-prompt/typed-prompt.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Adapted planned typing into a fitted comment field with an optional label and a send pulse using creator style tokens.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"keyword","type":"string","label":"Keyword","default":""},{"id":"placeholder","type":"string","label":"Placeholder","default":"Add a comment"},{"id":"label","type":"string","label":"Label","default":""},{"id":"text_px","type":"number","label":"Text px","default":44},{"id":"label_px","type":"number","label":"Label px","default":40},{"id":"schedule","type":"string","label":"Schedule","default":"{\"text\":\"\",\"rows\":[[0,0]],\"type_start\":0.4,\"type_end\":0.41,\"confirm_at\":0.71}"}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  width: var(--card-panel-width); max-height: var(--card-panel-height); padding: 24px;
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); opacity: 0;
+}
+.label {
+  margin-bottom: 16px; white-space: pre; font-size: var(--card-label-size);
+  font-weight: 700; line-height: 1.2;
+}
+.label[hidden] { display: none; }
+.field {
+  height: 96px; border-radius: 48px; border: 2px solid color-mix(in srgb, var(--card-ink) 78%, var(--card-paper));
+  background: color-mix(in srgb, var(--card-paper) 96%, var(--card-ink));
+  display: flex; align-items: center; gap: 16px; padding: 0 28px;
+}
+.line {
+  position: relative; flex: 1; min-width: 0; white-space: pre;
+  font-size: var(--card-text-size); font-weight: 500; line-height: 1.2;
+}
+.placeholder {
+  position: absolute; left: 0; top: 0;
+  color: color-mix(in srgb, var(--card-ink) 55%, var(--card-paper));
+}
+.caret {
+  display: inline-block; width: max(3px, 0.06em); height: 1.1em;
+  background: var(--card-accent); vertical-align: text-bottom;
+}
+.send {
+  position: relative; flex: 0 0 64px; height: 64px; border-radius: 50%;
+  border: 2px solid var(--card-ink); color: var(--card-ink); background: transparent;
+}
+.send svg {
+  position: absolute; width: 48px; height: 48px; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); fill: none; stroke: currentColor; stroke-width: 5;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="comment_cta" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel">
+  <div class="label"></div>
+  <div class="field">
+    <div class="line"><span class="placeholder"></span><span class="typed"></span><span class="caret"></span></div>
+    <div class="send" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 45V20m-12 12 12-12 12 12"></path></svg></div>
+  </div>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const tokens = {
+    "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+    "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+    "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+    "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+    "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+    "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+  };
+  for (const [name, value] of Object.entries(tokens)) {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  }
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  root.style.setProperty("--card-text-size", `${v.text_px}px`, "important");
+  root.style.setProperty("--card-label-size", `${v.label_px}px`, "important");
+  const duration = Number(root.dataset.duration);
+  const OUT = Math.min(0.3, duration * 0.15);
+  const outStart = duration - OUT;
+  const schedule = JSON.parse(v.schedule);
+  if (schedule.text !== v.keyword) {
+    throw new Error("schedule must come from card_layer_plan for the same keyword");
+  }
+  const label = root.querySelector(".label");
+  label.textContent = v.label;
+  label.hidden = !v.label;
+  const text = Array.from(v.keyword);
+  const textNode = document.createTextNode("");
+  root.querySelector(".typed").appendChild(textNode);
+  const placeholder = root.querySelector(".placeholder");
+  placeholder.textContent = v.placeholder;
+  const caret = root.querySelector(".caret");
+  const send = root.querySelector(".send");
+  gsap.set(panel, { opacity: 0, y: 8 });
+  gsap.set(caret, { opacity: 0 });
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo(panel, { opacity: 0, y: 8 },
+    { opacity: 1, y: 0, duration: Math.min(0.3, outStart), ease: "power3.out" }, 0);
+  schedule.rows.forEach(([t, n]) =>
+    tl.set(textNode, { textContent: text.slice(0, n).join("") }, t));
+  tl.set(placeholder, { opacity: 1 }, 0);
+  const firstCharacter = schedule.rows.find(([, n]) => n > 0);
+  if (firstCharacter) tl.set(placeholder, { opacity: 0 }, firstCharacter[0]);
+  const cycles = Math.max(1, Math.round((schedule.type_end - schedule.type_start) / 0.9));
+  for (let phase = 0; phase < cycles * 2; phase += 1) {
+    tl.set(caret, { opacity: phase % 2 === 0 ? 1 : 0 },
+      schedule.type_start + (schedule.type_end - schedule.type_start) * phase / (cycles * 2));
+  }
+  tl.set(caret, { opacity: 1 }, schedule.type_end);
+  tl.set(caret, { opacity: 0 }, schedule.confirm_at);
+  tl.fromTo(send, { backgroundColor: "transparent", borderColor: v.ink_color, color: v.ink_color },
+    { backgroundColor: v.accent_color, borderColor: v.accent_color, color: v.accent_ink_color,
+      duration: 0.12, ease: "none", immediateRender: false }, schedule.confirm_at);
+  tl.fromTo(send, { scale: 1 },
+    { scale: 1.08, duration: 0.2, ease: "power2.out" }, schedule.confirm_at);
+  tl.fromTo(send, { scale: 1.08 },
+    { scale: 1, duration: 0.2, ease: "power2.inOut", immediateRender: false }, schedule.confirm_at + 0.2);
+  tl.fromTo(panel, { opacity: 1 },
+    { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+  tl.seek(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["comment_cta"] = tl;
+})();
+</script>
+</body>
+</html>

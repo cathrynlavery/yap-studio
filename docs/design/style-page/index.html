@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Create your video style · Yap Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="caption-ports.css">
+  <script src="style-data.js" defer></script>
+  <script src="phrases.js" defer></script>
+  <script defer src="learned.js"></script>
+  <script src="looks.js" defer></script>
+  <script src="caption-ports.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+<!--
+THESIS: A video style is four separate choices (caption type, caption style, font, colors), and every option is shown already applied to the buyer's other choices. Refuses the settings form and the pick-one-bundle gallery.
+OWN-WORLD: A quiet neutral page (grey ground, white panels, near-black ink, one system sans) that never borrows a look's color. The previews carry all the color.
+STORY: The buyer optionally starts from a preset, then picks how much text shows, how the spoken word stands out, a font, and colors (a palette, their own hex codes, or colors pulled from their website), watches the big preview replay, and saves a file that matches schema v1.
+FIRST VIEWPORT: Title and one line; the big 9:16 preview pinned left; on the right, preset shortcuts and the words-on-screen choice as four small playing frames.
+FORM: Operate surface, brief-pinned structure. No seed roll.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+  <a class="skip" href="#choices">Skip to choices</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2.5" width="18" height="19" rx="5" fill="currentColor"/><path d="M8.5 9.5h7M8.5 13h4.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Yap Studio</span>
+      </a>
+      <nav class="topnav" aria-label="Main">
+        <a href="#">Videos</a>
+        <a href="#" aria-current="page">Styles</a>
+        <a href="#">Help</a>
+      </nav>
+      <span class="avatar" aria-hidden="true">JR</span>
+    </div>
+  </header>
+
+  <main id="main" class="page">
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="#">Styles</a>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span aria-current="page">New style</span>
+      </nav>
+      <h1>Create your video style</h1>
+      <p class="lede">Make four choices. Every option shows what it will look like with the others.</p>
+    </div>
+
+    <div class="builder">
+      <div class="preview-col">
+        <div class="preview" id="preview">
+          <div class="preview-frame-wrap">
+            <div class="frame-host frame-host--hero" id="hero-frame" role="img" aria-label="Live preview of your style on a sample video"></div>
+          </div>
+          <div class="transport">
+            <button type="button" class="icon-button" id="play" aria-label="Pause preview">
+              <svg class="i-pause" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="4" width="3.4" height="12" rx="1"/><rect x="11.6" y="4" width="3.4" height="12" rx="1"/></svg>
+              <svg class="i-play" viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 4.3v11.4a.8.8 0 0 0 1.2.7l9-5.7a.8.8 0 0 0 0-1.4l-9-5.7a.8.8 0 0 0-1.2.7Z"/></svg>
+            </button>
+            <div class="scrub">
+              <div class="scrub-bands" aria-hidden="true">
+                <span class="band band-title" id="band-title"></span>
+                <span class="band band-graphic" id="band-graphic"></span>
+              </div>
+              <input type="range" id="scrub" min="0" max="8" step="0.01" value="0" aria-label="Preview position">
+            </div>
+            <span class="time" id="time" aria-hidden="true">0:00</span>
+          </div>
+          <div class="moments" role="group" aria-label="Jump to a moment">
+            <button type="button" class="chip" data-moment="title">Opening title</button>
+            <button type="button" class="chip" data-moment="captions">Captions</button>
+            <button type="button" class="chip" data-moment="graphic">Graphic</button>
+          </div>
+          <p class="preview-note">Sample video, no sound. Fonts show as close as this device allows.</p>
+        </div>
+      </div>
+
+      <div class="choices-col" id="choices">
+        <nav class="jump" aria-label="Choices">
+          <a href="#sec-type" class="jump-link">Words on screen</a>
+          <a href="#sec-style" class="jump-link">Highlight</a>
+          <a href="#sec-ground" class="jump-link">Background and placement</a>
+          <a href="#sec-font" class="jump-link">Font</a>
+          <a href="#sec-colors" class="jump-link">Colors</a>
+          <a href="#sec-more" class="jump-link">Title and music</a>
+        </nav>
+        <form class="choices" id="controls" novalidate aria-label="Style choices"></form>
+        <div class="actionbar" id="actionbar">
+          <div class="actionbar-inner">
+            <button type="button" class="mini" id="mini" hidden aria-label="Scroll back to the preview">
+              <span class="frame-host frame-host--mini" id="mini-frame"></span>
+            </button>
+            <p class="change-count" id="change-count" aria-live="polite"></p>
+            <div class="saved" id="saved" hidden>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.4 2.9 2.9 6.1-6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span id="saved-text">Saved</span>
+              <a id="download" class="text-link" download="style.json" href="#">Download a copy</a>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn btn-quiet" id="reset" disabled>Reset to preset</button>
+              <button type="button" class="btn btn-primary" id="save">Save style</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span id="toast-text"></span>
+    <button type="button" id="toast-undo">Undo</button>
+  </div>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "browser-device-stage"
+  (registry/components/browser-device-stage/browser-device-stage.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Replaced the device details with a generic rounded body, fixed inline video window, neutral backdrop and frame-based feed controls.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":618},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"handle","type":"string","label":"Handle","default":""},{"id":"handle_px","type":"number","label":"Handle px","default":34},{"id":"initials","type":"string","label":"Initials","default":""},{"id":"caption_lines","type":"string","label":"Caption lines","default":"[]"},{"id":"caption_px","type":"number","label":"Caption px","default":36},{"id":"views_text","type":"string","label":"Views text","default":""},{"id":"views_px","type":"number","label":"Views px","default":30},{"id":"backdrop","type":"string","label":"Backdrop","default":"paper"},{"id":"progress_color","type":"color","label":"Progress color","default":"#222222"},{"id":"sound_on","type":"boolean","label":"Sound on","default":true},{"id":"windows","type":"string","label":"Windows","default":"[{\"x\": 216, \"y\": 200, \"width\": 648, \"height\": 1152, \"radius\": 28, \"start\": 0, \"frames\": 90, \"fade_in\": 9, \"fade_out\": 0, \"motion\": {\"start\": 72, \"frames\": 18, \"to\": [0, 0, 1080, 1920], \"ease\": \"cubic_in_out\"}, \"rects\": [[216, 200, 648, 1152], [216, 200, 648, 1152], [214, 198, 650, 1158], [212, 196, 658, 1168], [204, 190, 670, 1192], [194, 180, 692, 1230], [178, 164, 724, 1288], [156, 144, 768, 1366], [126, 116, 828, 1472], [90, 84, 900, 1600], [60, 56, 960, 1706], [38, 36, 1004, 1784], [22, 20, 1036, 1842], [12, 10, 1058, 1880], [4, 4, 1070, 1904], [2, 2, 1078, 1914], [0, 0, 1080, 1920], [0, 0, 1080, 1920]]}]"},{"id":"window_fill","type":"enum","label":"Window fill","default":"preview","options":[{"value":"preview","label":"Preview"},{"value":"clear","label":"Clear"}]},{"id":"fps","type":"number","label":"Fps","default":30},{"id":"overlay_ink","type":"color","label":"Caption ink over the scrim","default":"#F4F3EE"},{"id":"ending","type":"enum","label":"Ending","default":"handoff","options":[{"value":"handoff","label":"Hand off to this video"},{"value":"fade","label":"Fade"}]}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; color: var(--card-ink); font-family: var(--card-font); }
+.scene { position: absolute; inset: 0; opacity: 0; }
+.backdrop { position: absolute; inset: 0; width: 100%; height: 100%; }
+.phone { position: absolute; border-radius: 40px; box-shadow: var(--card-shadow); }
+.body { position: absolute; inset: 0; width: 100%; height: 100%; }
+.screen { position: absolute; left: 12px; top: 12px; border-radius: 28px; overflow: hidden; }
+.overlays { position: absolute; inset: 0; }
+.touch { position: absolute; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--card-paper); box-shadow: 0 3px 12px rgb(0 0 0 / 0.3); opacity: 0; }
+.identity { position: absolute; left: 20px; right: 20px; top: 20px; display: flex;
+  align-items: center; gap: 12px; width: max-content; max-width: calc(100% - 40px);
+  padding: 10px 14px; border-radius: 16px; color: var(--card-ink); background: var(--card-paper);
+  font-size: var(--card-handle-size); font-weight: 600; }
+.avatar { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; color: var(--card-paper); background: var(--card-ink);
+  font-size: 30px; }
+.views { position: absolute; left: 20px; top: 110px; display: flex; align-items: center;
+  gap: 10px; padding: 6px 12px; border-radius: 12px; color: var(--card-ink);
+  background: var(--card-paper); font-size: var(--card-views-size); font-weight: 600; }
+.scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 280px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.78)); }
+.caption { position: absolute; left: 24px; right: 24px; bottom: 108px; color: var(--card-overlay-ink);
+  font-size: var(--card-caption-size); font-weight: 600; line-height: 1.2; }
+.controls { position: absolute; left: 20px; right: 20px; bottom: 20px; height: 60px;
+  display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px;
+  color: var(--card-ink); background: var(--card-paper); }
+.controls svg, .views svg { width: 28px; height: 28px; flex: 0 0 28px; }
+.track { height: 6px; flex: 1; background: color-mix(in srgb, var(--card-ink) 20%, transparent); }
+.progress { height: 100%; width: 0; background: var(--card-progress); }
+.elapsed { min-width: 78px; font-size: 30px; font-weight: 600; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="reel_feed" data-start="0" data-width="1080" data-height="1920" data-duration="3">
+<div class="scene"><svg class="backdrop" aria-hidden="true"></svg><div class="phone"><svg class="body" aria-hidden="true"></svg><div class="screen"></div></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root"), scene = root.querySelector(".scene");
+  for (const [name, value] of Object.entries({ paper: v.paper_color, ink: v.ink_color,
+    font: v.font_family, shadow: v.card_shadow, progress: v.progress_color,
+    "overlay-ink": v.overlay_ink,
+    "handle-size": `${v.handle_px}px`, "caption-size": `${v.caption_px}px`,
+    "views-size": `${v.views_px}px` })) root.style.setProperty(`--card-${name}`, value, "important");
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  const w = JSON.parse(v.windows)[0], fps = Number(v.fps);
+  const backdrop = root.querySelector(".backdrop"), phone = root.querySelector(".phone");
+  const body = phone.querySelector(".body"), screen = phone.querySelector(".screen");
+  const namespace = body.namespaceURI;
+  function shape(svg, tag, attrs) {
+    const node = document.createElementNS(namespace, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    svg.appendChild(node);
+    return node;
+  }
+  function rounded(x, y, width, height, r) {
+    return `M${x+r},${y}h${width-2*r}a${r} ${r} 0 0 1 ${r} ${r}v${height-2*r}` +
+      `a${r} ${r} 0 0 1 ${-r} ${r}h${-width+2*r}a${r} ${r} 0 0 1 ${-r} ${-r}` +
+      `v${-height+2*r}a${r} ${r} 0 0 1 ${r} ${-r}Z`;
+  }
+  backdrop.setAttribute("viewBox", "0 0 1080 1920");
+  const backdropShape = shape(backdrop, "path", { d: "M0,0h1080v1920h-1080Z" + rounded(w.x, w.y, w.width, w.height, w.radius),
+    fill: v.backdrop === "dim" ? "black" : v.backdrop === "ink" ? v.ink_color : v.paper_color,
+    opacity: v.backdrop === "dim" ? "0.55" : "1", "fill-rule": "evenodd" });
+  if (v.backdrop !== "dim") shape(backdrop, "path", { d: "M48,72H1032",
+    stroke: v.backdrop === "ink" ? v.paper_color : v.ink_color, opacity: "0.12" });
+  Object.assign(phone.style, { left: `${w.x-12}px`, top: `${w.y-12}px`, width: `${w.width+24}px`, height: `${w.height+24}px` });
+  Object.assign(screen.style, { width: `${w.width}px`, height: `${w.height}px` });
+  body.setAttribute("viewBox", `0 0 ${w.width+24} ${w.height+24}`);
+  shape(body, "path", { d: rounded(0, 0, w.width+24, w.height+24, 40) + rounded(12, 12, w.width, w.height, w.radius), fill: v.paper_color, "fill-rule": "evenodd" });
+  if (v.window_fill === "preview") {
+    const defs = shape(body, "defs", {});
+    const gradient = shape(defs, "linearGradient", { id: "preview" });
+    shape(gradient, "stop", { "stop-color": v.paper_color });
+    shape(gradient, "stop", { offset: "1", "stop-color": `color-mix(in srgb, ${v.ink_color} 12%, ${v.paper_color})` });
+    shape(body, "rect", { x: 12, y: 12, width: w.width, height: w.height, rx: w.radius, fill: "url(#preview)" });
+    const x = 12+w.width/2, y = 12+w.height/2;
+    shape(body, "path", { d: `M${x-16},${y-24}L${x+26},${y}L${x-16},${y+24}Z`, fill: v.ink_color, opacity: "0.6" });
+  }
+  const overlays = node("div", "overlays", screen);
+  function node(tag, className, parent = overlays, text = "") {
+    const element = document.createElement(tag);
+    element.className = className;
+    element.textContent = text;
+    parent.appendChild(element);
+    return element;
+  }
+  function icon(parent, paths) {
+    const svg = document.createElementNS(namespace, "svg");
+    svg.setAttribute("viewBox", "0 0 28 28");
+    parent.appendChild(svg);
+    for (const d of paths) shape(svg, "path", { d, fill: "none", stroke: v.ink_color, "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round" });
+  }
+  if (v.handle) {
+    const identity = node("div", "identity");
+    node("span", "avatar", identity, v.initials);
+    node("span", "handle", identity, v.handle);
+  }
+  if (v.views_text) {
+    const views = node("div", "views");
+    icon(views, ["M2,14Q14,0 26,14Q14,28 2,14Z", "M14,10A4,4 0 1 0 14,18A4,4 0 1 0 14,10"]);
+    node("span", "count", views, v.views_text);
+  }
+  node("div", "scrim");
+  const caption = node("div", "caption");
+  for (const line of JSON.parse(v.caption_lines)) node("div", "line", caption, line);
+  const controls = node("div", "controls");
+  icon(controls, ["M8,4L24,14L8,24Z"]);
+  const progress = node("div", "progress", node("div", "track", controls));
+  const elapsed = node("span", "elapsed", controls, "0:00");
+  icon(controls, ["M3,10H8L15,5V23L8,18H3Z", ...(v.sound_on ? ["M19,9Q25,14 19,19"] : ["M19,10L26,18M26,10L19,18"])]);
+  const touch = v.ending === "handoff" ? node("div", "touch", scene) : null;
+  const clock = { progress: 0 };
+  function drawFrame() {
+    const frame = Math.round(clock.progress * (w.frames-1));
+    const seconds = Math.floor(frame/fps);
+    elapsed.textContent = `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2, "0")}`;
+    progress.style.width = `${100*clock.progress}%`;
+    if (!w.motion || v.ending !== "handoff") return;
+    const expand = w.motion.start, swipeStart = expand-15;
+    const swipe = Math.max(0, Math.min(1, (frame-swipeStart)/14));
+    overlays.style.transform = `translateY(${swipe*w.height/4}px)`;
+    overlays.style.opacity = String(1-swipe);
+    touch.style.left = `${w.x+w.width/2-18}px`;
+    touch.style.top = `${w.y+w.height*(0.6+swipe/4)-18}px`;
+    touch.style.opacity = frame >= swipeStart && frame < expand
+      ? String(Math.min(1, (frame-swipeStart+1)/3, (expand-frame)/3)) : "0";
+    const rect = w.rects[Math.max(0, Math.min(w.rects.length-1, frame-expand))];
+    const [x, y, width, height] = rect;
+    const sx = width/w.width, sy = height/w.height;
+    backdropShape.setAttribute("d", "M0,0h1080v1920h-1080Z" + rounded(x, y, width, height, w.radius*sx));
+    const chrome = Math.max(0, 1-Math.max(0, frame-expand)/5);
+    backdrop.style.opacity = String(chrome);
+    phone.style.opacity = String(chrome);
+    phone.style.left = `${x-12*sx}px`;
+    phone.style.top = `${y-12*sy}px`;
+    phone.style.transformOrigin = "0 0";
+    phone.style.transform = `scale(${sx}, ${sy})`;
+  }
+  gsap.set(scene, { opacity: 0 });
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo(scene, { opacity: 0 }, { opacity: 1, duration: w.fade_in/fps, ease: "none" }, w.start/fps);
+  tl.fromTo(clock, { progress: 0 }, { progress: 1, duration: (w.frames-1)/fps,
+    ease: "none", onUpdate: drawFrame }, w.start/fps);
+  if (v.ending === "fade") tl.fromTo(scene, { opacity: 1 }, { opacity: 0,
+    duration: w.fade_out/fps, ease: "none", immediateRender: false }, (w.start+w.frames-w.fade_out)/fps);
+  drawFrame();
+  tl.seek(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["reel_feed"] = tl;
+})();
+</script>
+</body>
+</html>

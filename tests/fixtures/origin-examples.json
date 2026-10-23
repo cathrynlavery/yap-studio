@@ -1,0 +1,354 @@
+[
+  {
+    "contract": "project",
+    "file": "project.json",
+    "data": {
+      "schema": "yap-studio/project@1",
+      "name": "first-video",
+      "style": "styles/mine.json",
+      "creator": null,
+      "takes": [
+        {
+          "id": "t1",
+          "path": "takes/take-1.mov",
+          "crop_x": 0.5
+        },
+        {
+          "id": "t2",
+          "path": "takes/take-2.mov"
+        }
+      ],
+      "language": "en",
+      "asr": {
+        "engine": "auto",
+        "model": null
+      },
+      "platform": "shorts",
+      "word_fixes": {
+        "tail net": "tailnet"
+      },
+      "music": {
+        "mode": "auto",
+        "file": null,
+        "description": null,
+        "tags": [],
+        "generate": false
+      },
+      "rules": {}
+    }
+  },
+  {
+    "contract": "words",
+    "file": "ingest/t1/words.json",
+    "data": {
+      "schema": "yap-studio/words@1",
+      "take": "t1",
+      "time_base": "source",
+      "audio_offset_s": 0.021,
+      "engine": "parakeet-mlx",
+      "model": "mlx-community/parakeet-tdt-0.6b-v3",
+      "transcript_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "words": [
+        {
+          "id": "t1:0",
+          "text": "So",
+          "start": 0.533,
+          "end": 0.711,
+          "conf": 0.93
+        }
+      ],
+      "take_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  },
+  {
+    "contract": "edit",
+    "file": "edit.json",
+    "data": {
+      "schema": "yap-studio/edit@1",
+      "words_sha256": {
+        "t1": "1111111111111111111111111111111111111111111111111111111111111111",
+        "t2": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "segments": [
+        {
+          "id": "s1",
+          "take": "t1",
+          "from": {
+            "word": "t1:12"
+          },
+          "to": {
+            "word": "t1:40"
+          },
+          "text": "Here's the thing nobody tells you",
+          "note": "opening"
+        },
+        {
+          "id": "s2",
+          "take": "t2",
+          "from": {
+            "time": 31.2
+          },
+          "to": {
+            "time": 38.95
+          }
+        }
+      ],
+      "end_hold_s": null
+    }
+  },
+  {
+    "contract": "removals",
+    "file": "removals.json",
+    "data": {
+      "schema": "yap-studio/removals@1",
+      "removals": [
+        {
+          "id": "r1",
+          "take": "t1",
+          "start": 15.2,
+          "end": 15.48,
+          "kind": "filler",
+          "words": [
+            "t1:19"
+          ],
+          "status": "applied",
+          "by": "fillers",
+          "listen": false,
+          "evidence": {
+            "click_db": -4.1,
+            "words": "pass"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "contract": "timeline",
+    "file": "timeline/agent.json",
+    "data": {
+      "schema": "yap-studio/timeline@1",
+      "words_sha256": {
+        "t1": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "elements": [
+        {
+          "id": "title",
+          "kind": "title",
+          "lines": [
+            "The setting nobody",
+            "turns on"
+          ],
+          "accent": "nobody",
+          "start": {
+            "word": "t1:12"
+          },
+          "hold_s": 3.0
+        },
+        {
+          "id": "g-terminal",
+          "kind": "graphic",
+          "template": "terminal",
+          "lane": "agent",
+          "slots": {
+            "command": "ssh studio",
+            "host": "studio",
+            "steps": [
+              {
+                "kind": "type",
+                "typed": "ssh",
+                "at": {
+                  "word": "t1:251",
+                  "text": "type"
+                }
+              },
+              {
+                "kind": "connected",
+                "at": {
+                  "word": "t1:256",
+                  "text": "in"
+                }
+              }
+            ]
+          },
+          "start": {
+            "word": "t1:245",
+            "text": "terminal",
+            "offset_s": -0.1
+          },
+          "end": {
+            "word": "t1:258",
+            "edge": "end"
+          },
+          "layer": "behind"
+        },
+        {
+          "id": "zoom-1",
+          "kind": "zoom",
+          "peak_scale": 1.08,
+          "center": [
+            0.5,
+            0.42
+          ],
+          "start": {
+            "word": "t1:300"
+          },
+          "end": {
+            "word": "t1:309",
+            "edge": "end"
+          }
+        },
+        {
+          "id": "quiet-1",
+          "kind": "caption_gap",
+          "start": {
+            "word": "t1:400"
+          },
+          "end": {
+            "word": "t1:404",
+            "edge": "end"
+          }
+        },
+        {
+          "id": "lift-1",
+          "kind": "music_level",
+          "level": 0.65,
+          "start": {
+            "word": "t1:400"
+          },
+          "end": {
+            "word": "t1:404",
+            "edge": "end"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "contract": "timeline",
+    "file": "timeline/broll.json",
+    "data": {
+      "schema": "yap-studio/timeline@1",
+      "elements": [
+        {
+          "id": "broll-03",
+          "kind": "insert",
+          "lane": "broll",
+          "start": {
+            "word": "t1:500",
+            "text": "garage"
+          },
+          "end": {
+            "word": "t1:510",
+            "edge": "end"
+          },
+          "media": {
+            "path": "broll/garage-walk.mov",
+            "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+            "in_s": 4.0,
+            "speed": 1.0,
+            "fit": "cover",
+            "crop": null,
+            "blur": [
+              [
+                650,
+                220,
+                430,
+                720
+              ]
+            ],
+            "hdr": "auto"
+          },
+          "audio": "mute",
+          "group": null,
+          "matches": "the words this picture shows",
+          "provenance": {
+            "kind": "own",
+            "source": "phone, 2026-08-18",
+            "license": null,
+            "url": null
+          }
+        }
+      ],
+      "words_sha256": {
+        "t1": "1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    }
+  },
+  {
+    "contract": "timeline-fragment",
+    "file": "fragment.json",
+    "data": {
+      "schema": "yap-studio/timeline@1",
+      "elements": [
+        {
+          "id": "broll-03",
+          "kind": "insert",
+          "lane": "broll",
+          "start": {
+            "word": "t1:500",
+            "text": "garage"
+          },
+          "end": {
+            "word": "t1:510",
+            "edge": "end"
+          },
+          "media": {
+            "path": "broll/garage-walk.mov",
+            "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+            "in_s": 4.0,
+            "speed": 1.0,
+            "fit": "cover",
+            "crop": null,
+            "blur": [
+              [
+                650,
+                220,
+                430,
+                720
+              ]
+            ],
+            "hdr": "auto"
+          },
+          "audio": "mute",
+          "group": null,
+          "matches": "the words this picture shows",
+          "provenance": {
+            "kind": "own",
+            "source": "phone, 2026-08-18",
+            "license": null,
+            "url": null
+          }
+        }
+      ]
+    }
+  },
+  {
+    "contract": "cut-words",
+    "file": "cut/cut-words.json",
+    "data": {
+      "schema": "yap-studio/cut-words@1",
+      "time_base": "output",
+      "words_sha256": {
+        "t1": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "words": [
+        {
+          "id": "t1:12",
+          "segment": "s1",
+          "text": "Here",
+          "start": 0.0,
+          "end": 0.2,
+          "conf": 0.93
+        },
+        {
+          "id": "t1:12",
+          "segment": "s3",
+          "text": "Here",
+          "start": 2.0,
+          "end": 2.2,
+          "conf": 0.93
+        }
+      ]
+    }
+  }
+]

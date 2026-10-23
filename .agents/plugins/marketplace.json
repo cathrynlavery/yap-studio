@@ -1,0 +1,20 @@
+{
+  "name": "yap-studio",
+  "interface": {
+    "displayName": "Yap Studio"
+  },
+  "plugins": [
+    {
+      "name": "yap-studio",
+      "source": {
+        "source": "local",
+        "path": "./plugins/yap-studio"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

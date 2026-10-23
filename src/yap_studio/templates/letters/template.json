@@ -1,0 +1,66 @@
+{
+  "id": "letters",
+  "version": "1.0.1",
+  "variables": [
+    {
+      "id": "lines",
+      "type": "string",
+      "default": "[\"LOOK\"]",
+      "label": "Lines"
+    },
+    {
+      "id": "font_name",
+      "type": "string",
+      "default": "Inter",
+      "label": "Font name"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "default": "\"Yap Studio Inter\", sans-serif",
+      "label": "Font family"
+    },
+    {
+      "id": "size_px",
+      "type": "number",
+      "default": 640,
+      "label": "Size px"
+    },
+    {
+      "id": "color",
+      "type": "color",
+      "default": "#365A58",
+      "label": "Color"
+    },
+    {
+      "id": "center_y",
+      "type": "number",
+      "default": 860,
+      "label": "Center y"
+    },
+    {
+      "id": "hold_frames",
+      "type": "number",
+      "default": 36,
+      "label": "Hold frames"
+    },
+    {
+      "id": "reveal_frames",
+      "type": "number",
+      "default": 12,
+      "label": "Reveal frames"
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "default": 30,
+      "label": "Fps"
+    },
+    {
+      "id": "look",
+      "type": "string",
+      "default": "video_letters",
+      "label": "Look"
+    }
+  ]
+}

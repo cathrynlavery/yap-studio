@@ -1,0 +1,9 @@
+{
+  "slots": {
+    "items": [
+      "Prepare",
+      "Review",
+      "Finish"
+    ]
+  }
+}

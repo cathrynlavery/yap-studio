@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "name": "Editorial",
+  "captions": {
+    "font": "Gelasio",
+    "size_px": 92,
+    "text_color": "#202725",
+    "highlight_color": "#246B63",
+    "highlight_text_color": "#E9E1D2",
+    "highlight_style": "editorial",
+    "position": "bottom",
+    "top_px": 1503,
+    "max_words_per_phrase": 5,
+    "max_characters_per_phrase": 24,
+    "italic_stress": true
+  },
+  "hook": {
+    "style": "paper_title",
+    "font": "Gelasio",
+    "text_color": "#202725",
+    "background_color": "#E9E1D2",
+    "accent_color": "#31776F"
+  },
+  "graphics": {
+    "style": "paper",
+    "font": "Gelasio",
+    "paper_color": "#F8F1E5",
+    "titlebar_color": "#E9E1D2",
+    "ink_color": "#202725",
+    "accent_color": "#8A6549"
+  },
+  "music": {
+    "level": 0.06
+  }
+}

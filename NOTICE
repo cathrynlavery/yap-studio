@@ -1,0 +1,49 @@
+Yap Studio
+Copyright 2026 Cathryn Lavery
+
+Third-party code
+----------------
+HyperFrames registry (https://github.com/heygen-com/hyperframes)
+Copyright 2026 HeyGen, Inc.
+Licensed under the Apache License 2.0 (LICENSES/Apache-2.0.txt).
+Original ports pin commit 0d5e395cd31d0f491e9b26d0da110da6e231c512. The fourteen additional
+caption ports pin commit 6afcb48395632b85663b9b9486e1b47fd175f8bc. The templates under
+src/yap_studio/templates/ that start with a "Derived from HyperFrames registry item" header are
+modified copies of registry items; each file, its upstream path and hash, and what changed are listed
+in src/yap_studio/templates/PROVENANCE.json.
+The generated caption preview effects in docs/design/style-page/caption-ports.js and
+caption-ports.css reuse those modified caption ports under the same license.
+
+Setup downloads the HyperFrames registry items listed in src/yap_studio/hf_registry/catalog.json
+at commit d15a274c198cf18bc1df177cbe20df95392a8947 into the user's cache with the pinned
+HyperFrames CLI. These items are not included in this repository and are licensed under the
+Apache License 2.0 (LICENSES/Apache-2.0.txt). Yap Studio modifies the copies it renders to use
+local scripts and fonts; each modified copy says so at the top.
+
+HyperFrames theme packs at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc also supply the Bold, Editorial and Neutral style presets. Palette mappings, upstream file hashes and bundled font substitutions are recorded in src/yap_studio/style/PROVENANCE.json.
+
+hyperframes-community-skills (https://github.com/heygen-com/hyperframes-community-skills)
+Copyright the hyperframes-community-skills authors
+Licensed under the Apache License 2.0 (LICENSES/Apache-2.0.txt).
+Pinned commit 7cc7c6230c808c5f279628f357f3b80df953c4b1. The modified camera painter
+files and their upstream hashes are listed in src/yap_studio/templates/camera3d/PROVENANCE.json.
+
+GSAP 3.14.2 is not included. Templates derived from the registry load it at render time from the
+renderer installation, which npm fetches from the npm registry at first install. GSAP is licensed
+under the GSAP Standard License (https://gsap.com/standard-license), which is not an open source
+license.
+
+Third-party fonts
+-----------------
+Instrument Serif: SIL Open Font License 1.1 (LICENSES/OFL-instrumentserif.txt)
+Gelasio: SIL Open Font License 1.1 (LICENSES/OFL-gelasio.txt)
+Inter: SIL Open Font License 1.1 (LICENSES/OFL-inter.txt)
+Geist: SIL Open Font License 1.1 (LICENSES/OFL-geist.txt)
+Alata: SIL Open Font License 1.1 (LICENSES/OFL-alata.txt)
+Archivo Black: SIL Open Font License 1.1 (LICENSES/OFL-archivoblack.txt)
+Anton SC: SIL Open Font License 1.1 (LICENSES/OFL-antonsc.txt)
+Titan One: SIL Open Font License 1.1 (LICENSES/OFL-titanone.txt)
+Permanent Marker: Apache License 2.0 (LICENSES/Apache-2.0.txt)
+Copyright (c) 2010 by Font Diner, Inc. All rights reserved.
+Source: https://github.com/google/fonts/tree/main/apache/permanentmarker
+Space Mono: SIL Open Font License 1.1 (LICENSES/OFL-spacemono.txt)

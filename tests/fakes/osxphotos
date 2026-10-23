@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Synthetic album query and export without a Photos library."""
+
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+args = sys.argv[1:]
+if os.environ.get("FAKE_OSXPHOTOS_LOG"):
+    with Path(os.environ["FAKE_OSXPHOTOS_LOG"]).open("a") as log:
+        entry = {"argv": args, "pid": os.getpid(), "pgid": os.getpgrp(),
+                 "tmpdir": os.environ.get("TMPDIR")}
+        if args[0] == "export":
+            entry["uuids"] = Path(args[args.index("--uuid-from-file") + 1]).read_text().splitlines()
+        log.write(json.dumps(entry) + "\n")
+if os.environ.get("FAKE_OSXPHOTOS_HANG") == args[0]:
+    time.sleep(30)
+if "--library" not in args and not os.environ.get("FAKE_OSXPHOTOS_NO_LIBRARY_NOTE"):
+    library = os.environ.get("FAKE_OSXPHOTOS_LIBRARY", "synthetic/Photos Library.photoslibrary")
+    print(f"Using last opened Photos library: {library}", file=sys.stderr)
+if os.environ.get("FAKE_OSXPHOTOS_FAIL") == args[0]:
+    print("Synthetic exporter failure.", file=sys.stderr)
+    raise SystemExit(4)
+if args[0] == "query":
+    print(Path(os.environ["FAKE_OSXPHOTOS_RECORDS"]).read_text())
+elif args[0] == "export":
+    records = json.loads(Path(os.environ["FAKE_OSXPHOTOS_RECORDS"]).read_text())
+    uuids = Path(args[args.index("--uuid-from-file") + 1]).read_text().splitlines()
+    destination = Path(args[1])
+    if os.environ.get("FAKE_OSXPHOTOS_SLOW"):
+        where, seconds = os.environ["FAKE_OSXPHOTOS_SLOW"].split(":")
+        if where == "db":
+            progress = destination / ".osxphotos_export.db"
+        elif where == "tmp":
+            progress = Path(os.environ["TMPDIR"]) / "photoscript_fake/progress"
+        else:
+            library = (args[args.index("--library") + 1] if "--library" in args
+                       else os.environ["FAKE_OSXPHOTOS_LIBRARY"])
+            progress = Path(library) / "resources/cpl/cloudsync.noindex/storage/tmp/progress"
+        progress.parent.mkdir(parents=True, exist_ok=True)
+        until = time.monotonic() + float(seconds)
+        while time.monotonic() < until:
+            with progress.open("ab") as output:
+                output.write(b"x")
+            time.sleep(0.2)
+    download = "--download-missing" in args
+    for record in records:
+        if record["uuid"] not in uuids:
+            continue
+        edited = bool(record.get("hasadjustments") and (
+            record.get("path_edited") or (not record.get("slow_mo") and download)
+        ))
+        versions = [False]
+        if edited and "--skip-edited" not in args:
+            versions = [True] if "--skip-original-if-edited" in args else [False, True]
+        for edited in versions:
+            if (not record.get("path_edited") if edited else record.get("ismissing")) and not download:
+                continue
+            original = Path(record["original_filename"])
+            stem = original.stem + ("_edited" if edited else "")
+            extension = ({"public.jpeg": ".jpeg", "public.heic": ".heic",
+                          "com.apple.quicktime-movie": ".mov"}.get(
+                              record.get("uti_edited"), original.suffix
+                          ) if edited else original.suffix)
+            size = record["original_filesize"] or 8
+            if edited:
+                local = Path(record["path_edited"]) if record.get("path_edited") else None
+                size = local.stat().st_size if local is not None and local.is_file() else 12
+            target = destination / (stem + extension)
+            number = 1
+            while target.exists():
+                target = destination / f"{stem} ({number}){extension}"
+                number += 1
+            target.write_bytes(b"x" * size)
+            if record["live_photo"] and (not edited or record.get("path_edited_live_photo")):
+                target.with_suffix(".mov").write_bytes(b"synthetic motion")

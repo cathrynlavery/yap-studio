@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "Mono",
+  "captions": {
+    "font": "Space Mono",
+    "size_px": 62,
+    "text_color": "#F4F1EA",
+    "highlight_color": "#7CFFB2",
+    "highlight_text_color": "#111111",
+    "highlight_style": "moving_block",
+    "top_px": 1520,
+    "max_words_per_phrase": 5,
+    "max_characters_per_phrase": 26,
+    "shadow_opacity": 0.6,
+    "shadow_blur_px": 8,
+    "shadow_x_px": 0,
+    "shadow_y_px": 3,
+    "letter_spacing_px": -1.5,
+    "italic_stress": false,
+    "entry_rise_px": 0,
+    "entry_ms": 0
+  },
+  "hook": {
+    "style": "paper_title",
+    "font": "Space Mono",
+    "size_px": 72,
+    "text_color": "#F4F1EA",
+    "background_color": "#111111",
+    "accent_color": "#7CFFB2"
+  },
+  "graphics": {
+    "style": "minimal",
+    "paper_color": "#111111",
+    "titlebar_color": "#1F1F1F",
+    "ink_color": "#F4F1EA",
+    "accent_color": "#7CFFB2",
+    "font": "Space Mono"
+  },
+  "music": {
+    "level": 0.07
+  }
+}

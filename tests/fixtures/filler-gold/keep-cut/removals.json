@@ -1,0 +1,6 @@
+{
+  "schema": "yap-studio/removals@1",
+  "removals": [
+    {"id": "r1", "take": "t1", "start": 1, "end": 2.25, "kind": "filler", "status": "applied"}
+  ]
+}

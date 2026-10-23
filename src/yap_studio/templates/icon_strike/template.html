@@ -1,0 +1,144 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "strikethrough-replace"
+  (registry/components/strikethrough-replace/strikethrough-replace.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "spring-pop"
+  (registry/components/spring-pop/spring-pop.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Adapted the spring entrance and strike draw to a neutral icon tile with local images, fitted labels and creator style tokens.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"icon_src","type":"string","label":"Icon src","default":""},{"id":"glyph","type":"string","label":"Glyph","default":"app"},{"id":"label","type":"string","label":"Label","default":""},{"id":"strike_at","type":"number","label":"Strike at","default":0.8},{"id":"strike_color","type":"color","label":"Strike color","default":"#365A58"},{"id":"label_px","type":"number","label":"Label px","default":56},{"id":"content_width_px","type":"number","label":"Content width px","default":208}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  display: flex; align-items: center; gap: 28px; padding: 24px;
+  width: var(--card-content-width); max-width: var(--card-panel-width);
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); opacity: 0;
+}
+.tile {
+  position: relative; flex: 0 0 160px; height: 160px; border-radius: 36px;
+  background: var(--card-titlebar); opacity: 0;
+}
+.tile-content {
+  position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; color: var(--card-bar-ink);
+}
+.tile-content img { width: 100%; height: 100%; object-fit: cover; }
+.glyph { width: 96px; height: 96px; fill: none; stroke: currentColor; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.label[hidden] { display: none; }
+.slash-angle {
+  position: absolute; width: 215px; height: 14px; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.slash {
+  width: 100%; height: 100%; border-radius: 7px;
+  background: var(--card-strike); box-shadow: 0 0 0 4px var(--card-paper);
+  transform: scaleX(0); transform-origin: left center;
+}
+.label { font-size: var(--card-label-size); font-weight: 700; line-height: 1.2; white-space: pre; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="icon_strike" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel">
+  <div class="tile">
+    <div class="tile-content"><svg class="glyph" viewBox="0 0 96 96" aria-hidden="true"></svg></div>
+    <div class="slash-angle"><div class="slash"></div></div>
+  </div>
+  <div class="label"></div>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const tile = root.querySelector(".tile");
+  const tokens = {
+    "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+    "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+    "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+    "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+    "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+    "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+  };
+  for (const [name, value] of Object.entries(tokens)) {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  }
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  root.style.setProperty("--card-label-size", `${v.label_px}px`, "important");
+  root.style.setProperty("--card-content-width", `${v.content_width_px}px`, "important");
+  root.style.setProperty("--card-strike", v.strike_color, "important");
+  const label = root.querySelector(".label");
+  label.textContent = v.label;
+  label.hidden = !v.label;
+  const glyph = root.querySelector(".glyph");
+  glyph.style.display = v.icon_src ? "none" : "block";
+  if (v.icon_src) {
+    if (!/^icon\.(png|jpe?g|webp)$/.test(v.icon_src)) {
+      throw new Error("use a local icon filename");
+    }
+    const image = document.createElement("img");
+    image.setAttribute("src", v.icon_src);
+    image.setAttribute("alt", "");
+    root.querySelector(".tile-content").appendChild(image);
+  } else {
+    const shapes = {
+      app: [["rect", {x: 15, y: 15, width: 66, height: 66, rx: 14}],
+        ...[[36, 36], [60, 36], [36, 60], [60, 60]].map(([cx, cy]) =>
+          ["circle", {cx, cy, r: 3, fill: "currentColor", stroke: "none"}])],
+      bell: [["path", {d: "M26 64h44l-6-10V40c0-11-6-18-16-18S32 29 32 40v14zM40 75q8 9 16 0M48 15v7"}]],
+      chat: [["path", {d: "M20 20h56a8 8 0 0 1 8 8v32a8 8 0 0 1-8 8H43L25 80V68h-5a8 8 0 0 1-8-8V28a8 8 0 0 1 8-8z"}]],
+      mail: [["rect", {x: 12, y: 22, width: 72, height: 52, rx: 8}],
+        ["path", {d: "m15 27 33 25 33-25"}]],
+      cart: [["path", {d: "M12 18h11l9 43h41l10-31H26"}],
+        ["circle", {cx: 37, cy: 77, r: 5}], ["circle", {cx: 69, cy: 77, r: 5}]],
+      clock: [["circle", {cx: 48, cy: 48, r: 34}], ["path", {d: "M48 26v24l16 10"}]],
+    };
+    for (const [tag, attributes] of shapes[v.glyph]) {
+      const shape = document.createElementNS(glyph.namespaceURI, tag);
+      for (const [name, value] of Object.entries(attributes)) shape.setAttribute(name, value);
+      glyph.appendChild(shape);
+    }
+  }
+  const content = root.querySelector(".tile-content");
+  const slash = root.querySelector(".slash");
+  const duration = Number(root.dataset.duration);
+  const OUT = Math.min(0.3, duration * 0.15);
+  const outStart = duration - OUT;
+  gsap.set(panel, { opacity: 0, y: 8 });
+  gsap.set(tile, { scale: 0.9, opacity: 0 });
+  gsap.set(slash, { scaleX: 0 });
+  gsap.set(content, { opacity: 1 });
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo(panel, { opacity: 0, y: 8 },
+    { opacity: 1, y: 0, duration: Math.min(0.3, outStart), ease: "power3.out" }, 0);
+  tl.fromTo(tile, { scale: 0.9, opacity: 0 },
+    { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.7)" }, 0);
+  tl.fromTo(slash, { scaleX: 0 },
+    { scaleX: 1, duration: 0.28, ease: "power2.out" }, v.strike_at);
+  tl.fromTo(content, { opacity: 1 },
+    { opacity: 0.72, duration: 0.2, ease: "power2.out", immediateRender: false }, v.strike_at + 0.1);
+  tl.fromTo(panel, { opacity: 1 },
+    { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+  tl.seek(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["icon_strike"] = tl;
+})();
+</script>
+</body>
+</html>

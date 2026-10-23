@@ -1,0 +1,4 @@
+{
+  "action": "submit prediction to bytedance/seedream-v4",
+  "dry_run": true
+}

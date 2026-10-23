@@ -1,0 +1,59 @@
+{
+  "slots": {
+    "count": 5,
+    "numbers": "show"
+  },
+  "project": {
+    "fps": 30,
+    "start_frame": 720,
+    "total_frames": 1800,
+    "tracks": [],
+    "shots": [
+      {
+        "start_frame": 0,
+        "end_frame": 180,
+        "label": "01"
+      },
+      {
+        "start_frame": 180,
+        "end_frame": 420,
+        "label": "02"
+      },
+      {
+        "start_frame": 420,
+        "end_frame": 660,
+        "label": "03"
+      },
+      {
+        "start_frame": 660,
+        "end_frame": 750,
+        "label": "04"
+      },
+      {
+        "start_frame": 750,
+        "end_frame": 930,
+        "label": "05"
+      },
+      {
+        "start_frame": 930,
+        "end_frame": 1140,
+        "label": "06"
+      },
+      {
+        "start_frame": 1140,
+        "end_frame": 1380,
+        "label": "07"
+      },
+      {
+        "start_frame": 1380,
+        "end_frame": 1590,
+        "label": "08"
+      },
+      {
+        "start_frame": 1590,
+        "end_frame": 1800,
+        "label": "09"
+      }
+    ]
+  }
+}

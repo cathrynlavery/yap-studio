@@ -1,0 +1,42 @@
+{
+  "schema": "yap-studio/provenance@1",
+  "upstream": {
+    "name": "hyperframes-community-skills",
+    "repository": "github.com/heygen-com/hyperframes-community-skills",
+    "commit": "7cc7c6230c808c5f279628f357f3b80df953c4b1",
+    "license": "Apache-2.0",
+    "license_file": "LICENSES/Apache-2.0.txt",
+    "copyright": "Copyright the hyperframes-community-skills authors",
+    "notice_file": null
+  },
+  "files": [
+    {
+      "item": "cam3d",
+      "upstream_path": "skills/camera-3d-captions/assets/kit/cam3d.js",
+      "upstream_sha256": "1a9ad3fb8b15f884622d46aa2ef6822c08e0f9049541bc6b724d9c7deeeea6a7",
+      "yap_path": "src/yap_studio/templates/camera3d/cam3d.js",
+      "changes": "Added a provenance header and neutralized comments naming another video tool."
+    },
+    {
+      "item": "tables",
+      "upstream_path": "skills/camera-3d-captions/assets/kit/tables.js",
+      "upstream_sha256": "0521b70f46307b4b33db62de10c118e9d78ff822692c2a92ee6b0320a319e870",
+      "yap_path": "src/yap_studio/templates/camera3d/tables.js",
+      "changes": "Added a provenance header."
+    },
+    {
+      "item": "finish",
+      "upstream_path": "skills/camera-3d-captions/assets/kit/finish.js",
+      "upstream_sha256": "201e40af1b2c13e559f1566deaabc929855ff89f2d52220621244cef4c9a0dba",
+      "yap_path": "src/yap_studio/templates/camera3d/finish.js",
+      "changes": "Added a provenance header."
+    },
+    {
+      "item": "font-metrics-data",
+      "upstream_path": "skills/camera-3d-captions/scripts/font-metrics.py",
+      "upstream_sha256": "311e2639c5aa47a670ada94f7cd4cab2b2b6a8a6bd47ee8c0adc09e0cd611dac",
+      "yap_path": "src/yap_studio/templates/camera3d/metrics.json",
+      "changes": "Generated committed Inter and Instrument Serif advances from bundled text metrics and baselines from bundled font line boxes; no runtime font tool."
+    }
+  ]
+}

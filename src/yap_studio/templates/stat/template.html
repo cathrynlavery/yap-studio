@@ -1,0 +1,305 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "count-up"
+  (registry/components/count-up/count-up.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "number-wheel"
+  (registry/components/number-wheel/number-wheel.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "slot-machine-roll"
+  (registry/components/slot-machine-roll/slot-machine-roll.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Added count, wheel, and slot reveals, a tokenized panel, optional kicker, fitted pixel typography, and a shared fade-out.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"start","type":"number","label":"Start","default":0},{"id":"end","type":"number","label":"End","default":0},{"id":"prefix","type":"string","label":"Prefix","default":""},{"id":"suffix","type":"string","label":"Suffix","default":""},{"id":"kicker","type":"string","label":"Kicker","default":""},{"id":"reveal","type":"enum","label":"Reveal","default":"count","options":[{"value":"count","label":"Count"},{"value":"wheel","label":"Wheel"},{"value":"slot","label":"Slot"}]},{"id":"value_px","type":"number","label":"Value px","default":160},{"id":"kicker_px","type":"number","label":"Kicker px","default":30},{"id":"slot_digit_em","type":"number","label":"Slot digit em","default":0.75},{"id":"specs_rows","type":"string","label":"Specs list rows","default":"together"},{"id":"cues","type":"string","label":"Row cues","default":"[]"},{"id":"text_color","type":"color","label":"Glow text color","default":"#B9C5C5"},{"id":"glow_color","type":"color","label":"Glow color","default":"#365A58"},{"id":"rows","type":"string","label":"Breakdown rows","default":"[]"},{"id":"row_px","type":"number","label":"Row px","default":32},{"id":"glow_pad_px","type":"number","label":"Effect top padding","default":0}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  width: var(--card-panel-width); max-height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); transform-origin: 50% 60%;
+  padding: 24px; text-align: center;
+}
+.kicker {
+  font-size: var(--card-kicker-size); line-height: 1.2; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 12px;
+  color: color-mix(in srgb, var(--card-ink) 62%, var(--card-paper)); white-space: nowrap;
+}
+.kicker:empty { display: none; }
+.value-stage { will-change: transform;
+  display: flex; align-items: baseline; justify-content: center; white-space: nowrap;
+  font-size: var(--card-value-size); font-weight: 600; line-height: 1;
+  color: var(--card-accent); font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1; transform-origin: 50% 58%;
+}
+.affix { font-size: calc(var(--card-value-size) * 0.55);
+  color: color-mix(in srgb, var(--card-accent) 72%, var(--card-ink)); }
+.prefix { margin-right: 0.14em; }
+.suffix { margin-left: 0.14em; }
+.affix:empty { display: none; }
+.value-wheel { display: inline-flex; align-items: baseline; }
+.wheel-column { display: inline-flex; align-items: flex-start;
+  height: 1em; overflow: hidden; will-change: transform; }
+.wheel-strip { display: grid; will-change: transform; }
+.wheel-strip span { height: 1em; line-height: 1em; }
+.value-slot { display: inline-flex; align-items: baseline; }
+.slot-column { display: inline-flex; align-items: flex-start; flex: 0 0 var(--card-slot-digit-width);
+  width: var(--card-slot-digit-width); height: 1em; overflow: hidden; }
+.slot-strip { display: grid; width: 100%; will-change: transform; }
+.slot-strip span { height: 1em; line-height: 1em; }
+.slot-separator { height: 1em; line-height: 1em; }
+.rows { display: flex; flex-direction: column; gap: 4px; margin-top: 12px;
+  font-size: var(--card-row-size); line-height: 1.2; font-weight: 600; }
+.row { white-space: nowrap; }
+.on-cue .panel { padding: 16px; }
+.on-cue:not(.glow) .panel { padding: 12px; }
+.on-cue:not(.glow) .rows { line-height: 1.15; }
+.on-cue .value-stage, .on-cue .affix, .on-cue .kicker { color: var(--card-ink); }
+.glow .panel { background: transparent; border-radius: 0; box-shadow: none; }
+.on-cue.glow .panel { padding: 0; }
+.glow .value-stage, .glow .affix { color: var(--card-glow-text); }
+.glow .row, .glow .kicker { color: white;
+  text-shadow: var(--card-dark-core), 0 0.03em 0.08em rgb(0 0 0 / 0.6), 0 0 0.35em rgb(0 0 0 / 0.35); }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="stat" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel"><div class="kicker"></div><div class="value-stage">
+<span class="affix prefix"></span><span class="value"></span><span class="affix suffix"></span>
+</div></div>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    function px(name, value) {
+      root.style.setProperty(`--card-${name}`, `${value}px`, "important");
+    }
+    px("value-size", v.value_px);
+    px("kicker-size", v.kicker_px);
+    root.style.setProperty("--card-slot-digit-width", `${v.slot_digit_em}em`, "important");
+    root.querySelector(".kicker").textContent = String(v.kicker);
+    root.querySelector(".prefix").textContent = String(v.prefix);
+    root.querySelector(".suffix").textContent = String(v.suffix);
+    const stage = root.querySelector(".value-stage");
+    const valueElement = root.querySelector(".value");
+    const start = Number(v.start);
+    const end = Number(v.end);
+    const wheel = v.reveal === "wheel";
+    const slot = v.reveal === "slot";
+    const reels = [];
+    const formatted = end.toLocaleString("en-US");
+    const digitCount = formatted.replace(/\D/g, "").length;
+    const wheelEnd = 0.38 + 1.1 + Math.max(0, digitCount - 1) * 0.05;
+    const slotEnd = 0.38 + 0.52 + Math.max(0, digitCount - 1) * 0.06;
+    const revealEnd = wheel ? wheelEnd + 0.33 : slot ? slotEnd + 0.33 : 2.05;
+    const scale = Math.min(1, outStart / revealEnd);
+    const COUNT = 1.72 * scale;
+    const ROLL = 1.1 * scale;
+    const STAGGER = 0.05 * scale;
+    const SLOT_ROLL = 0.52 * scale;
+    const SLOT_STAGGER = 0.06 * scale;
+    const PULSE_HALF = 0.165 * scale;
+    const ARRIVAL = 0.38 * scale;
+    gsap.set(panel, { opacity: 0, y: 8 });
+    gsap.set(stage, { scale: 0.98 });
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(panel, { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: ARRIVAL, ease: "power3.out" }, 0);
+    tl.fromTo(stage, { scale: 0.98 }, { scale: 1, duration: ARRIVAL, ease: "power3.out" }, 0);
+    if (v.specs_rows === "on_cue" || v.specs_rows === "on_cue_glow") root.classList.add("on-cue");
+    if (v.specs_rows === "on_cue_glow") {
+      root.classList.add("glow");
+      root.style.setProperty("--card-glow-text", v.text_color);
+      /* CARD_GLOW_SHADOW */
+      root.style.setProperty("--card-dark-core", cardGlowShadow(v.glow_color, 0));
+      function shadow(level) { return cardGlowShadow(v.glow_color, level); }
+      const glow = { level: 1 };
+      function paintGlow() { stage.style.textShadow = shadow(glow.level); }
+      paintGlow();
+      tl.fromTo(glow, { level: 1 },
+        { level: 0.65, duration: 0.2, onUpdate: paintGlow }, ARRIVAL);
+    }
+    const rowElements = [];
+    if (v.specs_rows === "on_cue" || v.specs_rows === "on_cue_glow") {
+      const rows = JSON.parse(v.rows || "[]");
+      const cues = JSON.parse(v.cues || "[]");
+      if (rows.length) {
+        const list = document.createElement("div"); list.className = "rows";
+        px("row-size", v.row_px);
+        panel.appendChild(list);
+        rows.forEach((text, i) => {
+          const row = document.createElement("div"); row.className = "row";
+          row.textContent = text; list.appendChild(row); rowElements.push(row);
+          tl.fromTo(row, { opacity: 0, x: -12 },
+            { opacity: 1, x: 0, duration: 0.3 }, cues[i]);
+        });
+      }
+    }
+    let landAt = COUNT;
+    if (wheel) {
+      valueElement.classList.add("value-wheel");
+      let digitIndex = 0;
+      for (const char of formatted) {
+        if (!/\d/.test(char)) {
+          valueElement.appendChild(document.createTextNode(char));
+          continue;
+        }
+        const stops = 10 + Number(char);
+        const column = document.createElement("span");
+        column.className = "wheel-column";
+        const strip = document.createElement("span");
+        strip.className = "wheel-strip";
+        for (let i = 0; i <= stops; i += 1) {
+          const step = document.createElement("span");
+          step.textContent = String(i % 10);
+          strip.appendChild(step);
+        }
+        column.appendChild(strip);
+        valueElement.appendChild(column);
+        gsap.set(strip, { y: "0em" });
+        tl.fromTo(strip, { y: "0em" },
+          { y: `${-stops}em`, duration: ROLL, ease: "power3.out" }, ARRIVAL + digitIndex * STAGGER);
+        digitIndex += 1;
+      }
+      landAt = wheelEnd * scale;
+    } else if (slot) {
+      valueElement.classList.add("value-slot");
+      let digitIndex = 0;
+      for (const char of formatted) {
+        if (!/\d/.test(char)) {
+          const separator = document.createElement("span");
+          separator.className = "slot-separator";
+          separator.textContent = char;
+          valueElement.appendChild(separator);
+          continue;
+        }
+        const column = document.createElement("span");
+        column.className = "slot-column";
+        reels.push(column);
+        const strip = document.createElement("span");
+        strip.className = "slot-strip";
+        for (const text of ["0", char]) {
+          const step = document.createElement("span");
+          step.textContent = text;
+          strip.appendChild(step);
+        }
+        column.appendChild(strip);
+        valueElement.appendChild(column);
+        gsap.set(strip, { y: "0em" });
+        tl.fromTo(strip, { y: "0em" },
+          { y: "-1em", duration: SLOT_ROLL, ease: "power3.inOut" },
+          ARRIVAL + digitIndex * SLOT_STAGGER);
+        digitIndex += 1;
+      }
+      landAt = slotEnd * scale;
+    } else {
+      const lastFrame = Math.max(1, Math.round(COUNT * 30));
+      const countEase = gsap.parseEase("sine.inOut");
+      const frameRows = [];
+      for (let frame = 0; frame <= lastFrame; frame += 1) {
+        const eased = countEase(frame / lastFrame);
+        frameRows.push(Math.round(start + (end - start) * eased).toLocaleString("en-US"));
+      }
+      valueElement.textContent = frameRows[0];
+      frameRows.forEach((row, i) => tl.set(valueElement, { textContent: row }, COUNT * i / lastFrame));
+    }
+    tl.fromTo(stage, { scale: 1 },
+      { scale: 1.07, duration: PULSE_HALF, ease: "power3.out" }, landAt);
+    tl.fromTo(stage, { scale: 1.07 },
+      { scale: 1, duration: PULSE_HALF, ease: "power2.out", immediateRender: false }, landAt + PULSE_HALF);
+    tl.fromTo(panel, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    function fitSlotReels() {
+      if (!reels.length) return;
+      // Match the stage's font and tabular numerals, measuring every possible digit.
+      const probe = document.createElement("span");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.width = "max-content";
+      stage.appendChild(probe);
+      let widest = 0;
+      for (const digit of "0123456789") {
+        probe.textContent = digit;
+        widest = Math.max(widest, probe.scrollWidth);
+      }
+      probe.remove();
+      if (widest > reels[0].clientWidth) {
+        root.style.setProperty("--card-slot-digit-width", `${Math.ceil(widest)}px`, "important");
+      }
+    }
+    function growPanel() {
+      if (v.specs_rows !== "on_cue" || rowElements.length < 2) return;
+      const cues = JSON.parse(v.cues || "[]");
+      const box = panel.getBoundingClientRect();
+      const bottom = parseFloat(getComputedStyle(panel).paddingBottom);
+      const heights = rowElements.map((row, i) => i === rowElements.length - 1 ? box.height
+        : row.getBoundingClientRect().bottom - box.top + bottom);
+      // Reserve the final box so the panel top stays fixed.
+      const frame = document.createElement("div");
+      frame.style.width = `${box.width}px`; frame.style.height = `${box.height}px`;
+      frame.style.flex = "0 0 auto";
+      root.insertBefore(frame, panel); frame.appendChild(panel);
+      const overflow = panel.style.overflow;
+      const progress = heights.slice(1).map(() => 0);
+      function paint() {
+        let height = heights[0];
+        progress.forEach((value, i) => { height += (heights[i + 1] - heights[i]) * value; });
+        const complete = progress.every(value => value === 1);
+        panel.style.height = complete ? "" : `${height}px`;
+        panel.style.overflow = complete ? overflow : "hidden";
+        frame.style.display = complete ? "contents" : "";
+      }
+      progress.forEach((_, i) => {
+        // Setters run even when seeking suppresses timeline callbacks.
+        const clock = { get progress() { return progress[i]; },
+          set progress(value) { progress[i] = value; paint(); } };
+        tl.fromTo(clock, { progress: 0 },
+          { progress: 1, duration: 0.18, ease: "power2.out" }, cues[i + 1]);
+      });
+      paint();
+    }
+    function finishTimeline() {
+      fitSlotReels();
+      growPanel();
+      tl.seek(0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["stat"] = tl;
+    }
+    if (document.fonts) {
+      panel.getBoundingClientRect();
+      document.fonts.ready.then(finishTimeline);
+    } else {
+      finishTimeline();
+    }
+})();
+</script>
+</body>
+</html>

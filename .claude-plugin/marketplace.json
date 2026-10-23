@@ -1,0 +1,18 @@
+{
+  "name": "yap-studio",
+  "owner": {
+    "name": "Cathryn Lavery"
+  },
+  "metadata": {
+    "description": "Checks every cut in a finished video: clicks, sync, frames, loudness and platform rules.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "yap-studio",
+      "description": "Checks every cut in a finished video: clicks, sync, frames, loudness and platform rules.",
+      "version": "1.0.0",
+      "source": "./plugins/yap-studio"
+    }
+  ]
+}

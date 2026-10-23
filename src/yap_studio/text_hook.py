@@ -1,0 +1,66 @@
+"""Fixed Inter fitting and spoken-number checks for a creator's Text hook."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from decimal import Decimal
+
+from yap_studio.errors import ValidationError
+from yap_studio.render.text_metrics import text_width_em
+from yap_studio.text_rules import apply_text_rules
+
+TEXT_HOOK_ID = "agent-text-hook"
+MAX_WIDTH = 1080 * .84
+PADDING_X = 26
+PADDING_Y = 8
+TRACKING_EM = -.01
+LINE_HEIGHT = 1.3
+_NUMBER = re.compile(r"(?<!\w)(\$?)(-?[0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)(%?)")
+
+
+@dataclass(frozen=True)
+class TextHookFit:
+    """The exact lines, font size and measured widths used by the title layer."""
+
+    lines: tuple[str, ...]
+    size_px: int
+    widths: tuple[float, ...]
+
+
+def fit_text_hook(text: str) -> TextHookFit:
+    """Use the largest readable size, balancing two lines without lone words."""
+    words = text.split() if isinstance(text, str) else []
+    if words and len(text) <= 1000:
+        candidates = [(" ".join(words),)]
+        candidates.extend((" ".join(words[:at]), " ".join(words[at:]))
+                          for at in range(2, len(words) - 1))
+        measured = [(lines, tuple(text_width_em(line, "Inter", 600, tracking_em=TRACKING_EM)
+                                  for line in lines)) for lines in candidates]
+        for size in range(72, 59, -1):
+            fits = [(lines, tuple(width * size for width in widths))
+                    for lines, widths in measured
+                    if max(widths) * size + 2 * PADDING_X <= MAX_WIDTH
+                    and min(widths) >= .65 * max(widths)]
+            if fits:
+                lines, widths = min(fits, key=lambda item: (
+                    len(item[0]), max(item[1]) - min(item[1]), max(item[1])))
+                return TextHookFit(lines, size, widths)
+    raise ValidationError("text_hook", "Please use shorter text that fits on one line, or two "
+                          "balanced lines with at least two words each.")
+
+
+def unspoken_numbers(text: str, spoken: str) -> bool:
+    """Keep numeric, money and percentage claims grounded in the take."""
+    def claims(value: str) -> set[tuple[Decimal, str, str]]:
+        normalized = apply_text_rules(value, ())
+        # Bare one remains a word in the display rules.
+        normalized = re.sub(r"\bone\b", "1", normalized, flags=re.IGNORECASE)
+        return {(Decimal(number.replace(",", "")), money, percent)
+                for money, number, percent in _NUMBER.findall(normalized)}
+
+    heard = claims(spoken)
+    return any(not any(value == number and (not money or money == currency)
+                       and (not percent or percent == unit)
+                       for number, currency, unit in heard)
+               for value, money, percent in claims(text))

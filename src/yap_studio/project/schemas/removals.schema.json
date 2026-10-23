@@ -1,0 +1,84 @@
+{
+  "$id": "urn:yap-studio:removals:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "removals": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "type": "string"
+          },
+          "end": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "silence",
+              "filler",
+              "stutter",
+              "restart",
+              "manual"
+            ]
+          },
+          "listen": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "applied",
+              "rejected"
+            ]
+          },
+          "take": {
+            "pattern": "^t[1-9][0-9]*$",
+            "type": "string"
+          },
+          "words": {
+            "items": {
+              "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "take",
+          "start",
+          "end",
+          "kind",
+          "status"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "yap-studio/removals@1"
+    }
+  },
+  "required": [
+    "schema",
+    "removals"
+  ],
+  "type": "object"
+}

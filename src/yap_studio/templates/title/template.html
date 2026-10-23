@@ -1,0 +1,541 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "titlecard-calm"
+  (registry/components/titlecard-calm/titlecard-calm.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "titlecard-lockup"
+  (registry/components/titlecard-lockup/titlecard-lockup.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "hw-write-title"
+  (registry/blocks/hw-write-title/hw-write-title.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "headline-slam"
+  (registry/components/headline-slam/headline-slam.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "glass-shard-title"
+  (registry/blocks/glass-shard-title/glass-shard-title.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "texture-mask-text"
+  (registry/components/texture-mask-text/texture-mask-text.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "text-shimmer"
+  (registry/components/text-shimmer/text-shimmer.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "text-stagger"
+  (registry/components/text-stagger/text-stagger.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "morph-text"
+  (registry/components/morph-text/morph-text.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "typewriter"
+  (registry/components/typewriter/typewriter.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Adapted ten distinct title structures to fitted brand text, local effects, and frame-seeked animation.
+-->
+<html data-composition-variables='[{"id":"font_name","type":"string","label":"Font name","default":"Inter"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"size_px","type":"number","label":"Font size","default":76},{"id":"text_color","type":"color","label":"Text color","default":"#FFFFFF"},{"id":"padding_px","type":"number","label":"Box padding","default":32},{"id":"plain","type":"string","label":"Title","default":""},{"id":"key","type":"string","label":"Accented title","default":""},{"id":"look","type":"enum","label":"Title look","default":"paper_title","options":[{"value":"paper_title","label":"Paper card"},{"value":"quiet_serif","label":"Quiet title"},{"value":"bold_band","label":"Bold band"},{"value":"calm_card","label":"Calm card"},{"value":"lockup","label":"Lockup"},{"value":"write_on","label":"Handwritten write-on"},{"value":"headline_slam","label":"Headline slam"},{"value":"shard_reveal","label":"Shard reveal"},{"value":"textured","label":"Textured"},{"value":"shimmer","label":"Shimmer"},{"value":"stagger","label":"Stagger"},{"value":"morph","label":"Morph"},{"value":"typewriter","label":"Typewriter"},{"value":"kinetic","label":"Kinetic hook"},{"value":"text_hook","label":"Text hook"}]},{"id":"text_hook_color","type":"enum","label":"Text hook color","default":"white","options":[{"value":"white","label":"White"},{"value":"black","label":"Black"},{"value":"accent","label":"Accent"}]},{"id":"background_color","type":"color","label":"Card color","default":"#FFFFFF"},{"id":"accent_color","type":"color","label":"Accent color","default":"#D8FF2F"},{"id":"fps","type":"number","label":"Frame rate","default":30},{"id":"centered","type":"boolean","label":"Centered placement","default":false},{"id":"anchor_px","type":"number","label":"Vertical anchor","default":80},{"id":"lines","type":"string","label":"Title lines","default":"[]"},{"id":"word_times","type":"string","label":"Word times","default":"[]"},{"id":"kinetic_lines","type":"string","label":"Kinetic display lines","default":"[]"},{"id":"ink_color","type":"color","label":"Caption ink","default":"#FFFFFF"},{"id":"shadow_opacity","type":"number","label":"Shadow opacity","default":0.75},{"id":"shadow_blur_px","type":"number","label":"Shadow blur","default":8},{"id":"shadow_x_px","type":"number","label":"Shadow X","default":0},{"id":"shadow_y_px","type":"number","label":"Shadow Y","default":3}]'>
+<head><meta charset="utf-8"><style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+.hook { position: absolute; left: 0; right: 0; display: flex; justify-content: center; opacity: 0; }
+.hook-card { text-align: center; }
+.hook-title {
+  margin: 0; font-family: var(--font_family); font-weight: 400; font-size: var(--size);
+  line-height: 1.04; color: var(--text_color); letter-spacing: -0.01em; text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+[data-look="paper_title"] .hook-card {
+  max-width: 900px; padding: 48px 62px 54px; border-radius: 30px;
+  background: var(--background_color);
+  box-shadow: 0 26px 60px rgb(18 12 6 / 0.28), 0 4px 12px rgb(18 12 6 / 0.16);
+}
+[data-look="paper_title"] .hook-key {
+  background: linear-gradient(var(--accent_color), var(--accent_color)) no-repeat 0 100% / 100% 0.16em;
+  padding: 0 0.04em 0.06em;
+}
+[data-look="quiet_serif"] .hook-card {
+  max-width: 780px; padding: 30px 46px 36px; border-radius: 18px;
+  background: color-mix(in srgb, var(--background_color) 94%, transparent);
+  box-shadow: 0 10px 30px rgb(18 12 6 / 0.14);
+}
+[data-look="quiet_serif"] .hook-title { font-size: calc(var(--size) * 0.72); }
+[data-look="quiet_serif"] .hook-key {
+  text-decoration: underline; text-decoration-color: var(--accent_color);
+  text-decoration-thickness: 0.07em; text-underline-offset: 0.16em;
+}
+[data-look="bold_band"] .hook-card {
+  width: 100%; padding: 44px 110px 56px; background: var(--background_color);
+  box-shadow: inset 0 -16px 0 var(--accent_color), 0 20px 50px rgb(0 0 0 / 0.3);
+  transform: rotate(-2.5deg);
+}
+[data-look="bold_band"] .hook-title { text-transform: uppercase; line-height: 0.98; letter-spacing: 0; }
+[data-look="bold_band"] .hook-key { color: var(--accent_color); }
+/* Each registry look stays inside the planner's width and height. */
+.title-frame { position: relative; }
+[data-look="calm_card"] .hook-card { max-width: 880px; padding: 52px 52px 56px;
+  border-radius: 26px; background: var(--background_color); box-shadow: 0 16px 42px rgb(0 0 0 / .18); }
+[data-look="calm_card"] .hook-card::before { content: ""; display: block; width: 78px;
+  height: 4px; margin: 0 auto 20px; background: var(--accent_color); }
+[data-look="calm_card"] .hook-title { font-size: calc(var(--size) * .72); }
+[data-look="calm_card"] .hook-key { color: var(--accent_color); }
+
+[data-look="lockup"] .hook-card { width: 100%; max-width: 840px; padding: 26px 35px 28px;
+  background: color-mix(in srgb, var(--text_color) 94%, transparent);
+  border-block: 3px solid var(--accent_color); box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
+[data-look="lockup"] .lockup-kicker { display: block; margin-bottom: 13px;
+  font: 700 calc(var(--size) * .55)/1.1 var(--font_family);
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--background_color); }
+[data-look="lockup"] .hook-title { font-size: calc(var(--size) * 1.1); font-weight: 700;
+  color: var(--background_color); text-transform: uppercase; letter-spacing: -.025em; }
+[data-look="lockup"] .hook-key { color: var(--accent_color); }
+[data-look="lockup"] .lockup-rule { display: block; width: 74%; height: 5px;
+  margin: 18px auto 0;
+  background: color-mix(in srgb, var(--accent_color) 55%, var(--background_color));
+  transform-origin: left; }
+
+[data-look="write_on"] .hook-card { max-width: 920px; padding: 28px 40px 34px;
+  background: color-mix(in srgb, var(--background_color) 94%, transparent);
+  clip-path: polygon(2% 0, 100% 5%, 98% 100%, 0 95%);
+  box-shadow: 0 10px 28px rgb(0 0 0 / .3); }
+[data-look="write_on"] .hook-title { font-size: calc(var(--size) * 1.1); font-style: italic; }
+[data-look="write_on"] .hook-key { color: var(--accent_color); }
+[data-look="write_on"] .write-ink { position: absolute; inset: 0; color: transparent;
+  -webkit-text-fill-color: transparent; -webkit-text-stroke: 2.2px var(--accent_color);
+  text-shadow: 0 0 5px var(--background_color); }
+[data-look="write_on"] .write-underline { display: block; width: 68%; height: 5px;
+  margin: 10px auto 0; border-radius: 60% 40% 55% 45%;
+  background: color-mix(in srgb, var(--accent_color) 65%, var(--text_color));
+  transform-origin: left; }
+
+[data-look="headline_slam"] .hook-card { width: calc(100% - 140px); padding: 30px 70px 37px;
+  background: color-mix(in srgb, var(--background_color) 86%, transparent);
+  border-block: 4px solid var(--accent_color); box-shadow: 0 12px 30px rgb(0 0 0 / .45); }
+[data-look="headline_slam"] .hook-title { font-size: calc(var(--size) * 1.04);
+  font-weight: 900; text-transform: uppercase; letter-spacing: -.035em; line-height: .93; }
+[data-look="headline_slam"] .hook-key { color: var(--background_color);
+  background: var(--accent_color); padding-inline: .08em; box-decoration-break: clone; }
+
+[data-look="shard_reveal"] .hook-card { position: relative; max-width: 960px; padding: 24px 42px 35px; }
+[data-look="shard_reveal"] .hook-title { font-size: calc(var(--size) * 1.1); font-weight: 800; }
+[data-look="shard_reveal"] .hook-key { color: var(--accent_color); }
+[data-look="shard_reveal"] .shard-backdrop { position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--background_color) 94%, transparent);
+  border-block: 2px solid var(--accent_color); }
+[data-look="shard_reveal"] .shard-piece { position: absolute; inset: -8px -10px;
+  background: color-mix(in srgb, var(--background_color) 94%, transparent);
+  border-block: 2px solid var(--accent_color); }
+[data-look="shard_reveal"] .shard-copy { width: 100%; }
+[data-look="shard_reveal"] .shard-rule { display: block; height: 6px; width: 90%;
+  margin: 10px auto 0; background: var(--accent_color); clip-path: polygon(0 0, 98% 0, 100% 100%, 2% 100%); }
+
+[data-look="textured"] .hook-card, [data-look="shimmer"] .hook-card,
+[data-look="stagger"] .hook-card, [data-look="morph"] .hook-card {
+  max-width: 920px; padding: 26px 36px 38px; }
+[data-look="textured"] .hook-title, [data-look="shimmer"] .hook-title,
+[data-look="stagger"] .hook-title, [data-look="morph"] .hook-title {
+  font-size: calc(var(--size) * 1.1); font-weight: 750; }
+[data-look="textured"] .hook-card { background: color-mix(in srgb, var(--background_color) 94%, transparent);
+  clip-path: polygon(0 8%, 100% 0, 98% 92%, 1% 100%); }
+[data-look="textured"] .hook-title {
+  background: repeating-linear-gradient(122deg, var(--text_color) 0 7px,
+    var(--accent_color) 8px 11px, var(--text_color) 12px 18px,
+    var(--background_color) 19px 21px);
+  background-clip: text; -webkit-background-clip: text; color: transparent;
+  -webkit-text-fill-color: transparent; -webkit-text-stroke: .65px var(--text_color);
+  -webkit-mask-image: repeating-linear-gradient(135deg, #000 0 10px, transparent 10px 16px, #000 16px 30px);
+  mask-image: repeating-linear-gradient(135deg, #000 0 10px, transparent 10px 16px, #000 16px 30px); }
+[data-look="textured"] .hook-card::after { content: ""; display: block; width: 52%; height: 7px;
+  margin: 14px auto 0; background: repeating-linear-gradient(90deg,
+    var(--accent_color) 0 11px, transparent 11px 16px); }
+[data-look="shimmer"] .hook-title { color: var(--background_color); }
+[data-look="shimmer"] .hook-key { color: var(--background_color); }
+[data-look="shimmer"] .shimmer-sweep { position: absolute; inset: 0; width: 100%;
+  color: color-mix(in srgb, var(--accent_color) 55%, var(--background_color));
+  text-shadow: 0 0 14px var(--background_color); }
+[data-look="shimmer"] .shimmer-sweep .hook-key { color: inherit; }
+[data-look="shimmer"] .hook-card { background: color-mix(in srgb, var(--text_color) 94%, transparent);
+  clip-path: polygon(0 0, 100% 0, 96% 100%, 0 100%); }
+[data-look="shimmer"] .hook-card::after { content: ""; display: block; width: 42%; height: 3px;
+  margin: 18px auto 0;
+  background: color-mix(in srgb, var(--accent_color) 55%, var(--background_color)); }
+[data-look="stagger"] .hook-card { border-left: 7px solid var(--accent_color);
+  padding: 20px 20px 28px; }
+[data-look="stagger"] .hook-key { color: var(--accent_color); }
+.hook-word { display: inline-block; }
+[data-look="stagger"] .hook-word { display: inline; overflow-wrap: anywhere;
+  background: var(--background_color); box-decoration-break: clone;
+  padding-block: .04em; box-shadow: 0 5px 12px rgb(0 0 0 / .22); }
+[data-look="morph"] .hook-card { background: color-mix(in srgb, var(--text_color) 94%, transparent);
+  border: 3px solid var(--accent_color); border-radius: 48% / 46%; }
+[data-look="morph"] .hook-title { font-weight: 900; color: var(--background_color);
+  letter-spacing: -.045em; }
+[data-look="morph"] .hook-key {
+  color: color-mix(in srgb, var(--accent_color) 45%, var(--background_color)); }
+[data-look="morph"] .morph-ghost { position: absolute; inset: 0; width: 100%;
+  color: transparent; -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 2px var(--accent_color); text-shadow: none; }
+
+[data-look="typewriter"] .hook-card { max-width: 920px; padding: 25px 34px 28px;
+  text-align: left; border-left: 7px solid var(--accent_color);
+  background: color-mix(in srgb, var(--background_color) 88%, transparent);
+  box-shadow: 0 10px 25px rgb(0 0 0 / .32); }
+[data-look="typewriter"] .hook-title { font-size: calc(var(--size) * .82); }
+[data-look="typewriter"] .hook-key { color: var(--accent_color); }
+.typed-line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.typed-char { visibility: hidden; }
+
+[data-look="kinetic"] .hook-card { width: 960px; max-width: 100%; }
+[data-look="kinetic"] .hook-title { line-height: .98;
+  color: var(--ink_color); text-shadow: var(--shadow_x_px) var(--shadow_y_px)
+    var(--shadow_blur_px) rgb(0 0 0 / var(--shadow_opacity)); }
+[data-look="kinetic"] .kinetic-line { display: flex; align-items: center; justify-content: center; }
+[data-look="kinetic"] .kinetic-text { display: inline-block; flex-shrink: 0; white-space: nowrap; }
+[data-look="kinetic"] .hook-word { vertical-align: top; will-change: transform, opacity, filter; }
+[data-look="kinetic"] .hook-key { color: var(--accent_color); }
+[data-look="text_hook"] .hook-card { position: relative; width: 100%; }
+[data-look="text_hook"] .hook-title { position: relative; font-family: "Yap Studio Inter", sans-serif;
+  font-size: var(--size); font-weight: 600; line-height: 1.3; letter-spacing: -.01em; }
+.text-hook-line { display: block; padding: 8px 26px; white-space: nowrap; }
+.text-hook-ink { display: inline-block; }
+.text-hook-box { display: none; position: absolute; inset: 0; width: 100%; height: 100%; }
+[data-look="text_hook"] .text-hook-box { display: block; }
+</style></head>
+<body><div data-composition-id="title" data-no-timeline
+  data-width="1080" data-height="600" data-duration="3">
+  <div class="hook"><div class="hook-card"><svg class="text-hook-box" aria-hidden="true"><path></path></svg><p class="hook-title"><span data-var-text="plain"></span>
+    <span class="hook-key" data-var-text="key"></span></p></div></div>
+</div><script>
+(() => {
+  'use strict';
+  const v = window.__hyperframes.getVariables();
+  const root = document.querySelector('[data-composition-id]');
+  const hook = root.querySelector('.hook');
+  const duration = Number(root.dataset.duration);
+  hook.dataset.look = v.look;
+  hook.style.top = `${v.centered ? v.anchor_px : v.padding_px}px`;
+  if (v.centered) root.querySelector('.hook-card').style.translate = '0 -50%';
+  for (const [name, value] of Object.entries({
+    font_family: v.font_family, size: `${v.size_px}px`, text_color: v.text_color,
+    background_color: v.background_color, accent_color: v.accent_color,
+    ink_color: v.ink_color, shadow_opacity: v.shadow_opacity,
+    shadow_blur_px: `${v.shadow_blur_px}px`, shadow_x_px: `${v.shadow_x_px}px`,
+    shadow_y_px: `${v.shadow_y_px}px`,
+  })) hook.style.setProperty(`--${name}`, value);
+  const lines = JSON.parse(v.lines);
+  if (lines.length) {
+    const title = root.querySelector('.hook-title');
+    title.replaceChildren();
+    lines.forEach((text, index) => {
+      if (index) title.append(document.createElement('br'));
+      const accentAt = v.key ? text.indexOf(v.key) : -1;
+      if (accentAt < 0) {
+        title.append(document.createTextNode(text));
+      } else {
+        title.append(document.createTextNode(text.slice(0, accentAt)));
+        const accent = document.createElement('span');
+        accent.className = 'hook-key';
+        accent.textContent = v.key;
+        title.append(accent, document.createTextNode(text.slice(accentAt + v.key.length)));
+      }
+    });
+  } else {
+    root.querySelector('[data-var-text="plain"]').textContent = v.plain;
+    root.querySelector('[data-var-text="key"]').textContent = v.key;
+  }
+  const title = root.querySelector('.hook-title');
+  const card = root.querySelector('.hook-card');
+  const exit = Math.min(0.25, duration / 2);
+  const entranceMs = Math.max(1, (duration - exit) * 1000 - 1000 / v.fps - 1);
+  const nominalEnd = {
+    calm_card: 910, lockup: 1000, write_on: 1240, headline_slam: 850,
+    shard_reveal: 1120, textured: 900, shimmer: 700, stagger: 1190, morph: 1120,
+  };
+  const entranceScale = Math.min(1, entranceMs / (nominalEnd[v.look] || entranceMs));
+  const animateIn = (target, frames, delay = 0, length = 850, easing = 'cubic-bezier(.2,.7,.2,1)') => target.animate(frames, {
+    delay: delay * entranceScale, duration: length * entranceScale, fill: 'both', easing,
+  });
+  const stack = () => {
+    const frame = document.createElement('div');
+    frame.className = 'title-frame';
+    title.before(frame);
+    frame.append(title);
+    return frame;
+  };
+  if (v.look === 'text_hook') {
+    const background = {white: '#FFFFFF', black: '#000000', accent: v.accent_color}[v.text_hook_color];
+    const channels = background.slice(1).match(/../g).map((hex) => {
+      const value = parseInt(hex, 16) / 255;
+      return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+    });
+    const luminance = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+    title.style.color = luminance > .179 ? '#000000' : '#FFFFFF';
+    title.replaceChildren();
+    for (const text of lines) {
+      const line = document.createElement('span');
+      line.className = 'text-hook-line';
+      line.style.height = `${Math.ceil(v.size_px * 1.3) + 16}px`;
+      const ink = document.createElement('span');
+      ink.className = 'text-hook-ink';
+      ink.textContent = text;
+      line.append(ink);
+      title.append(line);
+    }
+    const svg = card.querySelector('.text-hook-box');
+    const path = svg.querySelector('path');
+    path.setAttribute('fill', background);
+    const draw = () => {
+      const width = card.clientWidth;
+      const height = title.clientHeight;
+      const boxes = [...title.children].map((line, index) => {
+        const w = line.firstElementChild.getBoundingClientRect().width + 52;
+        if (w > width + .1) throw new Error('Please use shorter text for the Text hook.');
+        return {left: (width - w) / 2, right: (width + w) / 2,
+          top: index * line.offsetHeight, bottom: (index + 1) * line.offsetHeight};
+      });
+      // Round the union's convex and concave corners with one continuous contour.
+      const points = [[boxes[0].left, 0], [boxes[0].right, 0]];
+      boxes.forEach((box, index) => {
+        points.push([box.right, box.bottom]);
+        if (boxes[index + 1]) points.push([boxes[index + 1].right, box.bottom]);
+      });
+      points.push([boxes.at(-1).left, height]);
+      [...boxes].reverse().forEach((box, index) => {
+        if (index === boxes.length - 1) return;
+        points.push([box.left, box.top], [boxes[boxes.length - index - 2].left, box.top]);
+      });
+      const outline = points.filter((point, index) => {
+        const prev = points[(index + points.length - 1) % points.length];
+        const next = points[(index + 1) % points.length];
+        return (point[0] - prev[0]) * (next[1] - point[1])
+          !== (point[1] - prev[1]) * (next[0] - point[0]);
+      });
+      const corners = outline.map((point, index) => {
+        const prev = outline[(index + outline.length - 1) % outline.length];
+        const next = outline[(index + 1) % outline.length];
+        const before = Math.hypot(prev[0] - point[0], prev[1] - point[1]);
+        const after = Math.hypot(next[0] - point[0], next[1] - point[1]);
+        const radius = Math.min(18, before / 2, after / 2);
+        const at = (other, length) => point.map((value, axis) =>
+          value + (other[axis] - value) * radius / length);
+        return {point, entry: at(prev, before), exit: at(next, after)};
+      });
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      path.setAttribute('d', `M ${corners[0].entry.join(' ')} ` + corners.map((corner) =>
+        `L ${corner.entry.join(' ')} Q ${corner.point.join(' ')} ${corner.exit.join(' ')}`).join(' ') + ' Z');
+    };
+    document.fonts.ready.then(draw);
+  } else if (v.look === 'calm_card') {
+    animateIn(title, [{ opacity: 0, transform: 'translateY(22px)' },
+      { opacity: 1, transform: 'translateY(0)' }], 60, 850);
+  } else if (v.look === 'lockup') {
+    const fullText = lines.join(' ');
+    const accentText = v.key.trim();
+    const kickerText = v.plain.trim() || (accentText && fullText.includes(accentText)
+      ? fullText.replace(accentText, '').trim().replace(/\s+/g, ' ') : '');
+    if (kickerText && accentText) {
+      const kicker = document.createElement('span');
+      kicker.className = 'lockup-kicker';
+      kicker.textContent = kickerText;
+      card.prepend(kicker);
+      title.replaceChildren(document.createTextNode(accentText));
+      animateIn(kicker, [{ opacity: 0, transform: 'translateY(16px)' },
+        { opacity: 1, transform: 'translateY(0)' }], 70, 600);
+    }
+    const rule = document.createElement('span');
+    rule.className = 'lockup-rule';
+    card.append(rule);
+    animateIn(title, [{ opacity: 0, transform: 'scale(.85)' },
+      { opacity: 1, transform: 'scale(1)' }], 140, 820);
+    animateIn(rule, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], 300, 700);
+  } else if (v.look === 'write_on') {
+    const frame = stack();
+    const ink = title.cloneNode(true);
+    ink.classList.add('write-ink');
+    frame.append(ink);
+    animateIn(ink, [{ clipPath: 'inset(0 100% 0 0)', opacity: 1 },
+      { offset: .82, clipPath: 'inset(0)', opacity: 1 },
+      { clipPath: 'inset(0)', opacity: 0 }],
+      40, 1000, 'linear');
+    animateIn(title, [{ opacity: 0 }, { offset: .75, opacity: 0 },
+      { opacity: 1 }], 0, 1120, 'linear');
+    const underline = document.createElement('span');
+    underline.className = 'write-underline';
+    card.append(underline);
+    animateIn(underline, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      760, 480, 'linear');
+  } else if (v.look === 'headline_slam') {
+    animateIn(title, [{ opacity: 0, transform: 'scale(1.55)', filter: 'blur(12px)' },
+      { offset: .76, opacity: 1, transform: 'scale(.96)', filter: 'blur(0)' },
+      { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }], 0, 850,
+    'cubic-bezier(.16,1,.3,1)');
+  } else if (v.look === 'shard_reveal') {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'shard-backdrop';
+    card.prepend(backdrop);
+    animateIn(backdrop, [{ opacity: 0 }, { offset: .7, opacity: 0 },
+      { opacity: 1 }], 0, 900, 'linear');
+    const frame = stack();
+    const cuts = [
+      ['polygon(0 0, 29% 0, 15% 100%, 0 100%)', '-65px', '-25px', '-8deg'],
+      ['polygon(33% 0, 55% 0, 39% 100%, 19% 100%)', '35px', '-65px', '6deg'],
+      ['polygon(60% 0, 79% 0, 64% 100%, 43% 100%)', '-25px', '65px', '-6deg'],
+      ['polygon(84% 0, 100% 0, 100% 100%, 69% 100%)', '70px', '30px', '7deg'],
+    ];
+    cuts.forEach(([clip, x, y, angle], index) => {
+      const shard = document.createElement('div');
+      shard.className = 'shard-piece';
+      shard.style.clipPath = clip;
+      const piece = title.cloneNode(true);
+      piece.classList.add('shard-copy');
+      shard.append(piece);
+      frame.append(shard);
+      animateIn(shard, [{ opacity: 0, transform: `translate(${x}, ${y}) rotate(${angle})` },
+        { offset: .75, opacity: 1, transform: 'translate(0, 0) rotate(0)' },
+        { offset: .79, opacity: 1, transform: 'translate(0, 0) rotate(0)' },
+        { opacity: 0, transform: 'translate(0, 0) rotate(0)' }],
+      index * 30, 900);
+    });
+    animateIn(title, [{ opacity: 0 }, { offset: .7, opacity: 0 }, { opacity: 1 }],
+      0, 850, 'linear');
+    const rule = document.createElement('span');
+    rule.className = 'shard-rule';
+    card.append(rule);
+    animateIn(rule, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], 420, 700);
+  } else if (v.look === 'textured') {
+    animateIn(title, [{ opacity: 0, transform: 'translateY(20px)', filter: 'blur(7px)' },
+      { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }], 0, 900);
+    title.animate([{ backgroundPosition: '0 0' }, { backgroundPosition: '55px 0' }],
+      { duration: 1800, iterations: Math.max(2, Math.ceil(duration / 1.8)),
+        fill: 'both', easing: 'linear' });
+  } else if (v.look === 'shimmer') {
+    const frame = stack();
+    const sweep = title.cloneNode(true);
+    sweep.classList.add('shimmer-sweep');
+    frame.append(sweep);
+    animateIn(title, [{ opacity: 0, transform: 'translateY(16px)' },
+      { opacity: 1, transform: 'translateY(0)' }], 0, 700);
+    sweep.animate([
+      { clipPath: 'polygon(-45% 0, -5% 0, 5% 100%, -35% 100%)' },
+      { clipPath: 'polygon(105% 0, 145% 0, 155% 100%, 115% 100%)' },
+    ], { duration: 1650, iterations: Math.max(2, Math.ceil(duration / 1.65)),
+      fill: 'both', easing: 'linear' });
+  } else if (v.look === 'kinetic') {
+    const fragment = document.createDocumentFragment();
+    const source = JSON.parse(v.kinetic_lines);
+    source.forEach(({text, size_px, accent = []}) => {
+      const line = document.createElement('span');
+      line.className = 'kinetic-line';
+      line.style.height = `${Math.ceil(size_px * .98)}px`;
+      const copy = document.createElement('span');
+      copy.className = 'kinetic-text';
+      copy.style.fontSize = `${size_px}px`;
+      text.split(/\s+/).forEach((part, index) => {
+        if (index) copy.append(document.createTextNode(' '));
+        const word = document.createElement('span');
+        word.className = `hook-word${accent[index] ? ' hook-key' : ''}`;
+        word.textContent = part;
+        copy.append(word);
+      });
+      line.append(copy);
+      fragment.append(line);
+    });
+    title.replaceChildren(fragment);
+    const cardWidth = card.getBoundingClientRect().width;
+    document.fonts.ready.then(() => {
+      for (const copy of title.querySelectorAll('.kinetic-text')) {
+        const width = copy.getBoundingClientRect().width;
+        if (width > cardWidth) {
+          const size = parseFloat(copy.style.fontSize);
+          copy.style.fontSize = `${Math.max(110, size * cardWidth / width)}px`;
+        }
+      }
+    });
+    const words = title.querySelectorAll('.hook-word');
+    const times = JSON.parse(v.word_times);
+    const length = times.length ? 260 : Math.min(260, entranceMs * .25);
+    words.forEach((word, index) => {
+      const delay = times.length ? times[index] * 1000
+        : index * (entranceMs * .7 / Math.max(1, words.length - 1));
+      word.animate([
+        { opacity: 0, transform: 'scale(1.5)', filter: 'blur(8px)' },
+        { offset: .6, opacity: 1, transform: 'scale(.93)', filter: 'blur(0)' },
+        { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' },
+      ], { delay: delay - 1, duration: length, fill: 'both',
+        easing: 'cubic-bezier(.16,1,.3,1)' });
+    });
+  } else if (v.look === 'stagger') {
+    const nodes = [...title.childNodes];
+    const fragment = document.createDocumentFragment();
+    for (const node of nodes) {
+      if (node.nodeName === 'BR') { fragment.append(node); continue; }
+      for (const part of node.textContent.split(/(\s+)/)) {
+        if (!part) continue;
+        if (/^\s+$/.test(part)) { fragment.append(document.createTextNode(part)); continue; }
+        const word = document.createElement('span');
+        word.className = `hook-word${node.className === 'hook-key' ? ' hook-key' : ''}`;
+        word.textContent = part;
+        fragment.append(word);
+      }
+    }
+    title.replaceChildren(fragment);
+    const words = title.querySelectorAll('.hook-word');
+    words.forEach((word, index) => {
+      animateIn(word, [{ opacity: 0, transform: 'translateY(45px)', filter: 'blur(12px)' },
+        { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }],
+      50 + index * (730 / Math.max(1, words.length - 1)), 410);
+    });
+  } else if (v.look === 'morph') {
+    const frame = stack();
+    const ghost = title.cloneNode(true);
+    ghost.classList.add('morph-ghost');
+    frame.prepend(ghost);
+    animateIn(ghost, [{ opacity: .9, transform: 'scaleX(.58) scaleY(1.2)', filter: 'blur(9px)' },
+      { offset: .55, opacity: .7, transform: 'scaleX(1.12) scaleY(.9)', filter: 'blur(2px)' },
+      { opacity: .35, transform: 'translate(7px, 6px) scaleX(1.04)', filter: 'blur(0)' }],
+    0, 1120, 'linear');
+    animateIn(title, [{ opacity: 0, transform: 'scaleX(.7) scaleY(1.18)', filter: 'blur(11px)' },
+      { offset: .55, opacity: .7, transform: 'scaleX(1.12) scaleY(.92)', filter: 'blur(3px)' },
+      { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }], 0, 1120, 'linear');
+  } else if (v.look === 'typewriter') {
+    const source = lines.length ? [...lines] : [`${v.plain} ${v.key}`.trim()];
+    title.replaceChildren();
+    const characters = [];
+    source.forEach(lineText => {
+      const line = document.createElement('span');
+      line.className = 'typed-line';
+      const accentAt = v.key ? lineText.indexOf(v.key) : -1;
+      for (let offset = 0; offset < lineText.length; offset++) {
+        const character = document.createElement('span');
+        character.className = 'typed-char';
+        if (accentAt >= 0 && offset >= accentAt && offset < accentAt + v.key.length)
+          character.classList.add('hook-key');
+        character.textContent = lineText[offset];
+        line.append(character);
+        characters.push(character);
+      }
+      title.append(line);
+    });
+    const nominalTotal = 80 + 90 * Math.max(0, source.length - 1)
+      + characters.length * (1000 / 15);
+    const scale = Math.min(1, (entranceMs - 1) / Math.max(1, nominalTotal));
+    let delay = 80 * scale;
+    let characterIndex = 0;
+    source.forEach((lineText, index) => {
+      for (let offset = 0; offset < lineText.length; offset++) {
+        delay += (1000 / 15) * scale;
+        characters[characterIndex++].animate(
+          [{ visibility: 'hidden' }, { visibility: 'visible' }],
+          { delay: Math.max(0, delay - 1), duration: 1, fill: 'both', easing: 'steps(1, end)' });
+      }
+      if (index < source.length - 1) delay += 90 * scale;
+    });
+  }
+  const entry = Math.min(['paper_title', 'quiet_serif', 'bold_band'].includes(v.look)
+    ? 0.4 : 0.22, duration / 2);
+  if (v.look === 'text_hook') {
+    hook.style.opacity = '1';
+  } else if (v.look === 'kinetic') {
+    hook.animate([
+      { opacity: 1 }, { offset: (duration - exit) / duration, opacity: 1 }, { opacity: 0 },
+    ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+  } else hook.animate([
+    { offset: 0, opacity: 0, transform: 'translateY(30px)', easing: 'cubic-bezier(.2,.7,.2,1)' },
+    { offset: entry / duration, opacity: 1, transform: 'translateY(0)' },
+    { offset: (duration - exit) / duration, opacity: 1, transform: 'translateY(0)',
+      easing: 'cubic-bezier(.2,.7,.2,1)' },
+    { offset: 1, opacity: 0, transform: 'translateY(0)' },
+  ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+})();
+</script></body></html>

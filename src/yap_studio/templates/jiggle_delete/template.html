@@ -1,0 +1,118 @@
+<!doctype html>
+<!-- Yap Studio card: jiggle_delete. -->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E2DA"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#F4F3EE"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 0 0 2px color-mix(in srgb, #222222 12%, transparent), 0 8px 18px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"items","type":"string","label":"Items","default":"[]"},{"id":"layouts","type":"string","label":"Layouts","default":"[]"},{"id":"cues","type":"string","label":"Cues","default":"[]"},{"id":"wiggle_at","type":"number","label":"Wiggle at","default":0.3},{"id":"settle_at_s","type":"number","label":"Settle at s","default":1.5},{"id":"label_px","type":"number","label":"Label px","default":54},{"id":"delete_panel_width_px","type":"number","label":"Delete panel width px","default":819},{"id":"panel_height_px","type":"number","label":"Panel height px","default":268},{"id":"motion_duration_s","type":"number","label":"Motion duration s","default":2.5},{"id":"badge_offset_px","type":"number","label":"Badge offset px","default":13},{"id":"badge_stroke_px","type":"number","label":"Badge stroke px","default":3},{"id":"panel_keyframes","type":"string","label":"Panel keyframes","default":"[]"}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font); isolation: isolate; }
+.panel { position: relative; width: var(--card-panel-width); height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius); box-shadow: var(--card-shadow);
+  opacity: 0; }
+.item { position: absolute; }
+.body { position: absolute; border-radius: 999px;
+  background: color-mix(in srgb, var(--card-accent) 18%, var(--card-paper));
+  border: 1px solid color-mix(in srgb, var(--card-ink) 12%, transparent); }
+.body.tile { background: transparent; border: 0; border-radius: 12px; }
+.picture { position: absolute; top: 0; left: 0; width: 100%; border-radius: 12px;
+  overflow: hidden; }
+.picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.label { position: absolute; left: 0; width: 100%; display: grid; place-items: center;
+  font-weight: 600; white-space: nowrap; line-height: 1.2; }
+.badge { position: absolute; top: calc(-1 * var(--card-badge-offset));
+  right: calc(-1 * var(--card-badge-offset)); border-radius: 50%;
+  background: var(--card-ink); }
+.badge::before, .badge::after { content: ""; position: absolute; left: 25%;
+  top: calc(50% - var(--card-badge-stroke) / 2); width: 50%; height: var(--card-badge-stroke);
+  border-radius: 1px; background: var(--card-paper); }
+.badge::before { transform: rotate(45deg); }
+.badge::after { transform: rotate(-45deg); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="jiggle_delete" data-no-timeline data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel"></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const tokens = {
+    "paper": v.paper_color, "ink": v.ink_color, "accent": v.accent_color,
+    "font": v.font_family, "radius": `${v.card_radius_px}px`, "shadow": v.card_shadow,
+    "panel-width": `${v.delete_panel_width_px}px`, "panel-height": `${v.panel_height_px}px`,
+    "pad-x": `${v.pad_x_px}px`, "pad-top": `${v.pad_top_px}px`,
+    "pad-bottom": `${v.pad_bottom_px}px`,
+    "badge-offset": `${v.badge_offset_px}px`, "badge-stroke": `${v.badge_stroke_px}px`,
+  };
+  Object.entries(tokens).forEach(([name, value]) => {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  });
+  const duration = Number(root.dataset.duration);
+  const out = Math.min(0.3, duration * 0.15);
+  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
+  panel.animate([{ opacity: 0, transform: "translateY(8px)" },
+    { opacity: 1, transform: "translateY(0)" }], { duration: 300, fill: "both", easing });
+  root.animate([{ opacity: 1 }, { opacity: 0 }],
+    { delay: (duration - out) * 1000, duration: out * 1000, fill: "both", easing: "linear" });
+  function animate(element, poses, properties) {
+    element.animate(poses.map(frame => ({
+      offset: frame.at_s / v.motion_duration_s, ...properties(frame), easing: "steps(1, end)",
+    })), { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+  }
+  animate(panel, JSON.parse(v.panel_keyframes), frame => ({
+    width: `${frame.width_px}px`, height: `${frame.height_px}px`,
+  }));
+  JSON.parse(v.items).forEach(item => {
+    const holder = document.createElement("div");
+    holder.className = "item";
+    holder.style.width = `${item.width_px}px`;
+    holder.style.height = `${item.height_px}px`;
+    const body = document.createElement("div");
+    body.className = item.src ? "body tile" : "body";
+    if (/^item-[1-6]\.(png|jpe?g|webp)$/.test(item.src)) {
+      const picture = document.createElement("div");
+      picture.className = "picture";
+      const image = document.createElement("img");
+      image.src = item.src;
+      image.alt = "";
+      picture.appendChild(image);
+      body.appendChild(picture);
+      animate(picture, item.keyframes, frame => ({height: `${frame.picture_px}px`}));
+    }
+    const label = document.createElement("div");
+    label.className = "label";
+    label.textContent = item.label;
+    body.appendChild(label);
+    const badge = document.createElement("div");
+    badge.className = "badge";
+    badge.setAttribute("aria-hidden", "true");
+    body.appendChild(badge);
+    holder.appendChild(body);
+    panel.appendChild(holder);
+    animate(holder, item.keyframes, frame => ({left: `${frame.x_px}px`, top: `${frame.y_px}px`}));
+    animate(body, item.keyframes, frame => ({
+      width: `${frame.width_px}px`, height: `${frame.height_px}px`,
+      left: `${frame.inset_x_px}px`, top: `${frame.inset_y_px}px`,
+      fontSize: `${frame.font_px}px`, opacity: frame.opacity,
+      transform: `rotate(${frame.angle}deg)`,
+    }));
+    animate(label, item.keyframes, frame => ({
+      top: `${frame.label_top_px}px`, height: `${frame.label_height_px}px`,
+    }));
+    animate(badge, item.keyframes, frame => ({
+      opacity: frame.badge_opacity, width: `${frame.badge_px}px`, height: `${frame.badge_px}px`,
+      top: `${-v.badge_offset_px + frame.badge_dip_px}px`,
+    }));
+  });
+})();
+</script>
+</body>
+</html>

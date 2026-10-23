@@ -1,0 +1,2605 @@
+[
+  {
+    "name": "twelve words under a four word limit",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "I",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "keep",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "the",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "captions",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "clear",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "and",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "id": "t1:6",
+        "text": "the",
+        "start": 2.4000000000000004,
+        "end": 2.7
+      },
+      {
+        "id": "t1:7",
+        "text": "pauses",
+        "start": 2.8000000000000003,
+        "end": 3.1
+      },
+      {
+        "id": "t1:8",
+        "text": "brief",
+        "start": 3.2,
+        "end": 3.5
+      },
+      {
+        "id": "t1:9",
+        "text": "for",
+        "start": 3.6,
+        "end": 3.9
+      },
+      {
+        "id": "t1:10",
+        "text": "each",
+        "start": 4.0,
+        "end": 4.3
+      },
+      {
+        "id": "t1:11",
+        "text": "sentence.",
+        "start": 4.4,
+        "end": 4.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2",
+          "t1:3"
+        ],
+        "text": "I keep the captions",
+        "start": 0.0,
+        "end": 1.54,
+        "stress": "t1:1"
+      },
+      {
+        "ids": [
+          "t1:4",
+          "t1:5",
+          "t1:6",
+          "t1:7"
+        ],
+        "text": "clear and the pauses",
+        "start": 1.6,
+        "end": 3.14,
+        "stress": "t1:4"
+      },
+      {
+        "ids": [
+          "t1:8",
+          "t1:9",
+          "t1:10",
+          "t1:11"
+        ],
+        "text": "brief for each sentence.",
+        "start": 3.2,
+        "end": 5.8,
+        "stress": "t1:10"
+      }
+    ]
+  },
+  {
+    "name": "forward word stays with following words",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "We",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "put",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "bold",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "words",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "on",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "the",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "id": "t1:6",
+        "text": "bright",
+        "start": 2.4000000000000004,
+        "end": 2.7
+      },
+      {
+        "id": "t1:7",
+        "text": "screen.",
+        "start": 2.8000000000000003,
+        "end": 3.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 5,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2",
+          "t1:3"
+        ],
+        "text": "We put bold words",
+        "start": 0.0,
+        "end": 1.54,
+        "stress": "t1:1"
+      },
+      {
+        "ids": [
+          "t1:4",
+          "t1:5",
+          "t1:6",
+          "t1:7"
+        ],
+        "text": "on the bright screen.",
+        "start": 1.6,
+        "end": 4.2,
+        "stress": "t1:6"
+      }
+    ]
+  },
+  {
+    "name": "comma moves the break",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "these",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "words,",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "then",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "finish",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "this",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "id": "t1:6",
+        "text": "sentence.",
+        "start": 2.4000000000000004,
+        "end": 2.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 5,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "Keep these words,",
+        "start": 0.0,
+        "end": 1.14,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:3",
+          "t1:4",
+          "t1:5",
+          "t1:6"
+        ],
+        "text": "then finish this sentence.",
+        "start": 1.2,
+        "end": 3.8,
+        "stress": "t1:4"
+      }
+    ]
+  },
+  {
+    "name": "twenty one character limit",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "extraordinary",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "possibilities.",
+        "start": 0.4,
+        "end": 0.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 21
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "extraordinary",
+        "start": 0.0,
+        "end": 0.35,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:1"
+        ],
+        "text": "possibilities.",
+        "start": 0.4,
+        "end": 1.8,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "gap over one second",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0,
+        "end": 0.2
+      },
+      {
+        "id": "t1:1",
+        "text": "going",
+        "start": 0.2,
+        "end": 0.5
+      },
+      {
+        "id": "t1:2",
+        "text": "after",
+        "start": 1.501,
+        "end": 1.8
+      },
+      {
+        "id": "t1:3",
+        "text": "silence.",
+        "start": 1.8,
+        "end": 2.2
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Keep going",
+        "start": 0.0,
+        "end": 1.441,
+        "stress": "t1:1"
+      },
+      {
+        "ids": [
+          "t1:2",
+          "t1:3"
+        ],
+        "text": "after silence.",
+        "start": 1.501,
+        "end": 3.2,
+        "stress": "t1:2"
+      }
+    ]
+  },
+  {
+    "name": "slowest content word gets stress",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "The",
+        "start": 0,
+        "end": 0.6
+      },
+      {
+        "id": "t1:1",
+        "text": "bright",
+        "start": 0.6,
+        "end": 0.9
+      },
+      {
+        "id": "t1:2",
+        "text": "signal",
+        "start": 0.9,
+        "end": 1.8
+      },
+      {
+        "id": "t1:3",
+        "text": "travels",
+        "start": 1.8,
+        "end": 2.1
+      },
+      {
+        "id": "t1:4",
+        "text": "slowly.",
+        "start": 2.1,
+        "end": 2.58
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 8,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2",
+          "t1:3",
+          "t1:4"
+        ],
+        "text": "The bright signal travels slowly.",
+        "start": 0.0,
+        "end": 3.5,
+        "stress": "t1:2"
+      }
+    ]
+  },
+  {
+    "name": "tail net fix spans both source words",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Try",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "tail",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "net.",
+        "start": 0.8,
+        "end": 1.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {
+      "word_fixes": {
+        "tail net": "tailnet"
+      }
+    },
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Try tailnet.",
+        "start": 0.0,
+        "end": 1.8,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "kept rejected filler is hidden",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "We",
+        "start": 0,
+        "end": 0.2
+      },
+      {
+        "id": "t1:1",
+        "text": "um",
+        "start": 0.2,
+        "end": 0.5,
+        "hidden": true
+      },
+      {
+        "id": "t1:2",
+        "text": "keep",
+        "start": 0.5,
+        "end": 0.8
+      },
+      {
+        "id": "t1:3",
+        "text": "going.",
+        "start": 0.8,
+        "end": 1.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:2",
+          "t1:3"
+        ],
+        "text": "We keep going.",
+        "start": 0.0,
+        "end": 2.2,
+        "stress": "t1:2"
+      }
+    ]
+  },
+  {
+    "name": "phrases starting a quarter second apart",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Quick",
+        "start": 0,
+        "end": 0.22
+      },
+      {
+        "id": "t1:1",
+        "text": "turn.",
+        "start": 0.25,
+        "end": 0.45
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 1,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "Quick",
+        "start": 0.0,
+        "end": 0.25,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:1"
+        ],
+        "text": "turn.",
+        "start": 0.25,
+        "end": 1.65,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "forced break",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "moving",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "then",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "stop.",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {
+      "forced_breaks": [
+        "t1:2"
+      ]
+    },
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Keep moving",
+        "start": 0.0,
+        "end": 0.74,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:2",
+          "t1:3"
+        ],
+        "text": "then stop.",
+        "start": 0.8,
+        "end": 2.6,
+        "stress": "t1:3"
+      }
+    ]
+  },
+  {
+    "name": "single overlong word",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "extraordinarily.",
+        "start": 0.0,
+        "end": 0.3
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 5
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "extraordinarily.",
+        "start": 0.0,
+        "end": 1.4,
+        "stress": "t1:0"
+      }
+    ]
+  },
+  {
+    "name": "empty input",
+    "words": [],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": []
+  },
+  {
+    "name": "hidden input",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "um",
+        "start": 0,
+        "end": 0.3,
+        "hidden": true
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": []
+  },
+  {
+    "name": "longest case insensitive fix preserves punctuation",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Try",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "“TAIL",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "NET.”",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "tail",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "net",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "work!",
+        "start": 2.0,
+        "end": 2.3
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 8,
+      "max_characters_per_phrase": 80
+    },
+    "options": {
+      "word_fixes": {
+        "tail net": "“tailnet",
+        "tail net work": "network"
+      }
+    },
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Try “tailnet.”",
+        "start": 0.0,
+        "end": 1.14,
+        "stress": "t1:1"
+      },
+      {
+        "ids": [
+          "t1:3"
+        ],
+        "text": "network!",
+        "start": 1.2,
+        "end": 2.6,
+        "stress": "t1:3"
+      }
+    ]
+  },
+  {
+    "name": "manual stress through a merged source id",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Try",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "tail",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "net.",
+        "start": 0.8,
+        "end": 1.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {
+      "word_fixes": {
+        "tail net": "tailnet"
+      },
+      "stress_ids": [
+        "t1:2"
+      ]
+    },
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Try tailnet.",
+        "start": 0.0,
+        "end": 1.8,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "forced break through a merged source id",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Try",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "tail",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "net",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "today.",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {
+      "word_fixes": {
+        "tail net": "tailnet"
+      },
+      "forced_breaks": [
+        "t1:2"
+      ]
+    },
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "Try",
+        "start": 0.0,
+        "end": 0.35,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:1",
+          "t1:3"
+        ],
+        "text": "tailnet today.",
+        "start": 0.4,
+        "end": 2.6,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "first manual pick wins",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Clear",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "bright",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "words.",
+        "start": 0.8,
+        "end": 1.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {
+      "stress_ids": [
+        "t1:2",
+        "t1:0"
+      ]
+    },
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "Clear bright words.",
+        "start": 0.0,
+        "end": 2.2,
+        "stress": "t1:0"
+      }
+    ]
+  },
+  {
+    "name": "no eligible stress",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "I",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "do",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "it.",
+        "start": 0.8,
+        "end": 1.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "I do it.",
+        "start": 0.0,
+        "end": 2.2,
+        "stress": null
+      }
+    ]
+  },
+  {
+    "name": "equal stress scores choose earliest",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "fox",
+        "start": 0,
+        "end": 0.75
+      },
+      {
+        "id": "t1:1",
+        "text": "dog.",
+        "start": 0.75,
+        "end": 1.5
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "fox dog.",
+        "start": 0.0,
+        "end": 2.15,
+        "stress": "t1:0"
+      }
+    ]
+  },
+  {
+    "name": "equal split costs prefer longer first phrase",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Red",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "blue",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "green",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "gold",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "black.",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 3,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "Red blue green",
+        "start": 0.0,
+        "end": 1.14,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:3",
+          "t1:4"
+        ],
+        "text": "gold black.",
+        "start": 1.2,
+        "end": 3.0,
+        "stress": "t1:3"
+      }
+    ]
+  },
+  {
+    "name": "equal split costs prefer longer second phrase",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "One",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "two",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "three",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "four",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "five",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "six",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "id": "t1:6",
+        "text": "seven",
+        "start": 2.4000000000000004,
+        "end": 2.7
+      },
+      {
+        "id": "t1:7",
+        "text": "eight.",
+        "start": 2.8000000000000003,
+        "end": 3.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 3,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "One two three",
+        "start": 0.0,
+        "end": 1.14,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:3",
+          "t1:4",
+          "t1:5"
+        ],
+        "text": "four five six",
+        "start": 1.2,
+        "end": 2.34,
+        "stress": "t1:5"
+      },
+      {
+        "ids": [
+          "t1:6",
+          "t1:7"
+        ],
+        "text": "seven eight.",
+        "start": 2.4,
+        "end": 4.2,
+        "stress": "t1:6"
+      }
+    ]
+  },
+  {
+    "name": "quoted sentence ends",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Say",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "“hello.”",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "Then",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "“go!”",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "Why?",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 8,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Say “hello.”",
+        "start": 0.0,
+        "end": 0.74,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:2",
+          "t1:3"
+        ],
+        "text": "Then “go!”",
+        "start": 0.8,
+        "end": 1.54,
+        "stress": null
+      },
+      {
+        "ids": [
+          "t1:4"
+        ],
+        "text": "Why?",
+        "start": 1.6,
+        "end": 3.0,
+        "stress": "t1:4"
+      }
+    ]
+  },
+  {
+    "name": "internal pause moves the break",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0,
+        "end": 0.2
+      },
+      {
+        "id": "t1:1",
+        "text": "these",
+        "start": 0.2,
+        "end": 0.4
+      },
+      {
+        "id": "t1:2",
+        "text": "words",
+        "start": 0.4,
+        "end": 0.6
+      },
+      {
+        "id": "t1:3",
+        "text": "then",
+        "start": 1.0,
+        "end": 1.2
+      },
+      {
+        "id": "t1:4",
+        "text": "finish",
+        "start": 1.2,
+        "end": 1.4
+      },
+      {
+        "id": "t1:5",
+        "text": "strong.",
+        "start": 1.4,
+        "end": 1.6
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 8,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "Keep these words",
+        "start": 0.0,
+        "end": 0.94,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:3",
+          "t1:4",
+          "t1:5"
+        ],
+        "text": "then finish strong.",
+        "start": 1.0,
+        "end": 2.8,
+        "stress": "t1:5"
+      }
+    ]
+  },
+  {
+    "name": "unicode characters count once",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "🌿",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "calm.",
+        "start": 0.4,
+        "end": 0.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 7
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "🌿 calm.",
+        "start": 0.0,
+        "end": 1.8,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "sorted starts and stable equal starts",
+    "words": [
+      {
+        "id": "t1:2",
+        "text": "finish.",
+        "start": 1,
+        "end": 1.3
+      },
+      {
+        "id": "t1:1",
+        "text": "First",
+        "start": 0.25,
+        "end": 0.5
+      },
+      {
+        "id": "t1:0",
+        "text": "we",
+        "start": 0.25,
+        "end": 0.5
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:1",
+          "t1:0",
+          "t1:2"
+        ],
+        "text": "First we finish.",
+        "start": 0.25,
+        "end": 2.4,
+        "stress": "t1:2"
+      }
+    ]
+  },
+  {
+    "name": "half milliseconds round upward",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Fast",
+        "start": 0.0625,
+        "end": 0.2
+      },
+      {
+        "id": "t1:1",
+        "text": "finish.",
+        "start": 0.8125,
+        "end": 1.1
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 1,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "Fast",
+        "start": 0.063,
+        "end": 0.753,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:1"
+        ],
+        "text": "finish.",
+        "start": 0.813,
+        "end": 2.213,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "phrase duration caps at last word start",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Hold",
+        "start": 0,
+        "end": 2
+      },
+      {
+        "id": "t1:1",
+        "text": "here.",
+        "start": 2.5,
+        "end": 3
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 1,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "Hold",
+        "start": 0.0,
+        "end": 1.4,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:1"
+        ],
+        "text": "here.",
+        "start": 2.5,
+        "end": 3.9,
+        "stress": null
+      }
+    ]
+  },
+  {
+    "name": "zero length phrase at coincident starts",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "First",
+        "start": 0.5,
+        "end": 0.6
+      },
+      {
+        "id": "t1:1",
+        "text": "next.",
+        "start": 0.5,
+        "end": 0.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 1,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "First",
+        "start": 0.5,
+        "end": 0.5,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:1"
+        ],
+        "text": "next.",
+        "start": 0.5,
+        "end": 1.9,
+        "stress": "t1:1"
+      }
+    ]
+  },
+  {
+    "name": "fixes run after hidden words drop",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "tail",
+        "start": 0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "um",
+        "start": 0.3,
+        "end": 0.6,
+        "hidden": true
+      },
+      {
+        "id": "t1:2",
+        "text": "net.",
+        "start": 0.6,
+        "end": 0.9
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {
+      "word_fixes": {
+        "tail net": "tailnet"
+      }
+    },
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "tailnet.",
+        "start": 0.0,
+        "end": 1.4,
+        "stress": "t1:0"
+      }
+    ]
+  },
+  {
+    "name": "semicolon bonus",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "these",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "words;",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "then",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "finish",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "this",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "id": "t1:6",
+        "text": "sentence.",
+        "start": 2.4000000000000004,
+        "end": 2.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 5,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "Keep these words;",
+        "start": 0.0,
+        "end": 1.14,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:3",
+          "t1:4",
+          "t1:5",
+          "t1:6"
+        ],
+        "text": "then finish this sentence.",
+        "start": 1.2,
+        "end": 3.8,
+        "stress": "t1:4"
+      }
+    ]
+  },
+  {
+    "name": "colon bonus",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "these",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "words:",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "then",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "finish",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "this",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "id": "t1:6",
+        "text": "sentence.",
+        "start": 2.4000000000000004,
+        "end": 2.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 5,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "Keep these words:",
+        "start": 0.0,
+        "end": 1.14,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:3",
+          "t1:4",
+          "t1:5",
+          "t1:6"
+        ],
+        "text": "then finish this sentence.",
+        "start": 1.2,
+        "end": 3.8,
+        "stress": "t1:4"
+      }
+    ]
+  },
+  {
+    "name": "dash bonus",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "these",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "words—",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "then",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "finish",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "this",
+        "start": 2.0,
+        "end": 2.3
+      },
+      {
+        "id": "t1:6",
+        "text": "sentence.",
+        "start": 2.4000000000000004,
+        "end": 2.7
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 5,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1",
+          "t1:2"
+        ],
+        "text": "Keep these words—",
+        "start": 0.0,
+        "end": 1.14,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:3",
+          "t1:4",
+          "t1:5",
+          "t1:6"
+        ],
+        "text": "then finish this sentence.",
+        "start": 1.2,
+        "end": 3.8,
+        "stress": "t1:4"
+      }
+    ]
+  },
+  {
+    "name": "clause word prefers a new phrase",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0.0,
+        "end": 0.3
+      },
+      {
+        "id": "t1:1",
+        "text": "calm",
+        "start": 0.4,
+        "end": 0.7
+      },
+      {
+        "id": "t1:2",
+        "text": "and",
+        "start": 0.8,
+        "end": 1.1
+      },
+      {
+        "id": "t1:3",
+        "text": "finish",
+        "start": 1.2000000000000002,
+        "end": 1.5000000000000002
+      },
+      {
+        "id": "t1:4",
+        "text": "this",
+        "start": 1.6,
+        "end": 1.9000000000000001
+      },
+      {
+        "id": "t1:5",
+        "text": "sentence.",
+        "start": 2.0,
+        "end": 2.3
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Keep calm",
+        "start": 0.0,
+        "end": 0.74,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:2",
+          "t1:3",
+          "t1:4",
+          "t1:5"
+        ],
+        "text": "and finish this sentence.",
+        "start": 0.8,
+        "end": 3.4,
+        "stress": "t1:3"
+      }
+    ]
+  },
+  {
+    "name": "page sample at 1 words",
+    "words": [
+      {
+        "id": "w0",
+        "text": "I",
+        "start": 0.45,
+        "end": 0.7188000000000001
+      },
+      {
+        "id": "w1",
+        "text": "do",
+        "start": 0.7188000000000001,
+        "end": 1.0100000000000002
+      },
+      {
+        "id": "w2",
+        "text": "one",
+        "start": 1.0100000000000002,
+        "end": 1.4132000000000002
+      },
+      {
+        "id": "w3",
+        "text": "take.",
+        "start": 1.4132000000000002,
+        "end": 1.9284000000000003
+      },
+      {
+        "id": "w4",
+        "text": "Then",
+        "start": 2.3092000000000006,
+        "end": 2.6452000000000004
+      },
+      {
+        "id": "w5",
+        "text": "I",
+        "start": 2.6452000000000004,
+        "end": 2.8692000000000006
+      },
+      {
+        "id": "w6",
+        "text": "cut",
+        "start": 2.8692000000000006,
+        "end": 3.2052000000000005
+      },
+      {
+        "id": "w7",
+        "text": "all",
+        "start": 3.2052000000000005,
+        "end": 3.4964000000000004
+      },
+      {
+        "id": "w8",
+        "text": "the",
+        "start": 3.4964000000000004,
+        "end": 3.6980000000000004
+      },
+      {
+        "id": "w9",
+        "text": "dead",
+        "start": 3.6980000000000004,
+        "end": 4.0788
+      },
+      {
+        "id": "w10",
+        "text": "air.",
+        "start": 4.0788,
+        "end": 4.6164000000000005
+      },
+      {
+        "id": "w11",
+        "text": "And",
+        "start": 5.042000000000001,
+        "end": 5.288400000000001
+      },
+      {
+        "id": "w12",
+        "text": "that's",
+        "start": 5.288400000000001,
+        "end": 5.624400000000001
+      },
+      {
+        "id": "w13",
+        "text": "the",
+        "start": 5.624400000000001,
+        "end": 5.826000000000001
+      },
+      {
+        "id": "w14",
+        "text": "edit.",
+        "start": 5.826000000000001,
+        "end": 6.453200000000002
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 1,
+      "max_characters_per_phrase": 16
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "w0"
+        ],
+        "text": "I",
+        "start": 0.45,
+        "end": 0.719,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w1"
+        ],
+        "text": "do",
+        "start": 0.719,
+        "end": 1.01,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w2"
+        ],
+        "text": "one",
+        "start": 1.01,
+        "end": 1.36,
+        "stress": "w2"
+      },
+      {
+        "ids": [
+          "w3"
+        ],
+        "text": "take.",
+        "start": 1.413,
+        "end": 2.249,
+        "stress": "w3"
+      },
+      {
+        "ids": [
+          "w4"
+        ],
+        "text": "Then",
+        "start": 2.309,
+        "end": 2.645,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w5"
+        ],
+        "text": "I",
+        "start": 2.645,
+        "end": 2.869,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w6"
+        ],
+        "text": "cut",
+        "start": 2.869,
+        "end": 3.205,
+        "stress": "w6"
+      },
+      {
+        "ids": [
+          "w7"
+        ],
+        "text": "all",
+        "start": 3.205,
+        "end": 3.496,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w8"
+        ],
+        "text": "the",
+        "start": 3.496,
+        "end": 3.698,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w9"
+        ],
+        "text": "dead",
+        "start": 3.698,
+        "end": 4.048,
+        "stress": "w9"
+      },
+      {
+        "ids": [
+          "w10"
+        ],
+        "text": "air.",
+        "start": 4.079,
+        "end": 4.982,
+        "stress": "w10"
+      },
+      {
+        "ids": [
+          "w11"
+        ],
+        "text": "And",
+        "start": 5.042,
+        "end": 5.288,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w12"
+        ],
+        "text": "that's",
+        "start": 5.288,
+        "end": 5.624,
+        "stress": "w12"
+      },
+      {
+        "ids": [
+          "w13"
+        ],
+        "text": "the",
+        "start": 5.624,
+        "end": 5.826,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w14"
+        ],
+        "text": "edit.",
+        "start": 5.826,
+        "end": 7.226,
+        "stress": "w14"
+      }
+    ]
+  },
+  {
+    "name": "page sample at 3 words",
+    "words": [
+      {
+        "id": "w0",
+        "text": "I",
+        "start": 0.45,
+        "end": 0.7188000000000001
+      },
+      {
+        "id": "w1",
+        "text": "do",
+        "start": 0.7188000000000001,
+        "end": 1.0100000000000002
+      },
+      {
+        "id": "w2",
+        "text": "one",
+        "start": 1.0100000000000002,
+        "end": 1.4132000000000002
+      },
+      {
+        "id": "w3",
+        "text": "take.",
+        "start": 1.4132000000000002,
+        "end": 1.9284000000000003
+      },
+      {
+        "id": "w4",
+        "text": "Then",
+        "start": 2.3092000000000006,
+        "end": 2.6452000000000004
+      },
+      {
+        "id": "w5",
+        "text": "I",
+        "start": 2.6452000000000004,
+        "end": 2.8692000000000006
+      },
+      {
+        "id": "w6",
+        "text": "cut",
+        "start": 2.8692000000000006,
+        "end": 3.2052000000000005
+      },
+      {
+        "id": "w7",
+        "text": "all",
+        "start": 3.2052000000000005,
+        "end": 3.4964000000000004
+      },
+      {
+        "id": "w8",
+        "text": "the",
+        "start": 3.4964000000000004,
+        "end": 3.6980000000000004
+      },
+      {
+        "id": "w9",
+        "text": "dead",
+        "start": 3.6980000000000004,
+        "end": 4.0788
+      },
+      {
+        "id": "w10",
+        "text": "air.",
+        "start": 4.0788,
+        "end": 4.6164000000000005
+      },
+      {
+        "id": "w11",
+        "text": "And",
+        "start": 5.042000000000001,
+        "end": 5.288400000000001
+      },
+      {
+        "id": "w12",
+        "text": "that's",
+        "start": 5.288400000000001,
+        "end": 5.624400000000001
+      },
+      {
+        "id": "w13",
+        "text": "the",
+        "start": 5.624400000000001,
+        "end": 5.826000000000001
+      },
+      {
+        "id": "w14",
+        "text": "edit.",
+        "start": 5.826000000000001,
+        "end": 6.453200000000002
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 3,
+      "max_characters_per_phrase": 18
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "w0",
+          "w1"
+        ],
+        "text": "I do",
+        "start": 0.45,
+        "end": 0.95,
+        "stress": null
+      },
+      {
+        "ids": [
+          "w2",
+          "w3"
+        ],
+        "text": "one take.",
+        "start": 1.01,
+        "end": 2.249,
+        "stress": "w2"
+      },
+      {
+        "ids": [
+          "w4",
+          "w5",
+          "w6"
+        ],
+        "text": "Then I cut",
+        "start": 2.309,
+        "end": 3.145,
+        "stress": "w6"
+      },
+      {
+        "ids": [
+          "w7",
+          "w8",
+          "w9"
+        ],
+        "text": "all the dead",
+        "start": 3.205,
+        "end": 4.019,
+        "stress": "w9"
+      },
+      {
+        "ids": [
+          "w10"
+        ],
+        "text": "air.",
+        "start": 4.079,
+        "end": 4.982,
+        "stress": "w10"
+      },
+      {
+        "ids": [
+          "w11",
+          "w12"
+        ],
+        "text": "And that's",
+        "start": 5.042,
+        "end": 5.564,
+        "stress": "w12"
+      },
+      {
+        "ids": [
+          "w13",
+          "w14"
+        ],
+        "text": "the edit.",
+        "start": 5.624,
+        "end": 7.226,
+        "stress": "w14"
+      }
+    ]
+  },
+  {
+    "name": "page sample at 5 words",
+    "words": [
+      {
+        "id": "w0",
+        "text": "I",
+        "start": 0.45,
+        "end": 0.7188000000000001
+      },
+      {
+        "id": "w1",
+        "text": "do",
+        "start": 0.7188000000000001,
+        "end": 1.0100000000000002
+      },
+      {
+        "id": "w2",
+        "text": "one",
+        "start": 1.0100000000000002,
+        "end": 1.4132000000000002
+      },
+      {
+        "id": "w3",
+        "text": "take.",
+        "start": 1.4132000000000002,
+        "end": 1.9284000000000003
+      },
+      {
+        "id": "w4",
+        "text": "Then",
+        "start": 2.3092000000000006,
+        "end": 2.6452000000000004
+      },
+      {
+        "id": "w5",
+        "text": "I",
+        "start": 2.6452000000000004,
+        "end": 2.8692000000000006
+      },
+      {
+        "id": "w6",
+        "text": "cut",
+        "start": 2.8692000000000006,
+        "end": 3.2052000000000005
+      },
+      {
+        "id": "w7",
+        "text": "all",
+        "start": 3.2052000000000005,
+        "end": 3.4964000000000004
+      },
+      {
+        "id": "w8",
+        "text": "the",
+        "start": 3.4964000000000004,
+        "end": 3.6980000000000004
+      },
+      {
+        "id": "w9",
+        "text": "dead",
+        "start": 3.6980000000000004,
+        "end": 4.0788
+      },
+      {
+        "id": "w10",
+        "text": "air.",
+        "start": 4.0788,
+        "end": 4.6164000000000005
+      },
+      {
+        "id": "w11",
+        "text": "And",
+        "start": 5.042000000000001,
+        "end": 5.288400000000001
+      },
+      {
+        "id": "w12",
+        "text": "that's",
+        "start": 5.288400000000001,
+        "end": 5.624400000000001
+      },
+      {
+        "id": "w13",
+        "text": "the",
+        "start": 5.624400000000001,
+        "end": 5.826000000000001
+      },
+      {
+        "id": "w14",
+        "text": "edit.",
+        "start": 5.826000000000001,
+        "end": 6.453200000000002
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 5,
+      "max_characters_per_phrase": 24
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "w0",
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "text": "I do one take.",
+        "start": 0.45,
+        "end": 2.249,
+        "stress": "w2"
+      },
+      {
+        "ids": [
+          "w4",
+          "w5",
+          "w6",
+          "w7"
+        ],
+        "text": "Then I cut all",
+        "start": 2.309,
+        "end": 3.436,
+        "stress": "w6"
+      },
+      {
+        "ids": [
+          "w8",
+          "w9",
+          "w10"
+        ],
+        "text": "the dead air.",
+        "start": 3.496,
+        "end": 4.982,
+        "stress": "w10"
+      },
+      {
+        "ids": [
+          "w11",
+          "w12",
+          "w13",
+          "w14"
+        ],
+        "text": "And that's the edit.",
+        "start": 5.042,
+        "end": 7.226,
+        "stress": "w14"
+      }
+    ]
+  },
+  {
+    "name": "page sample at 8 words",
+    "words": [
+      {
+        "id": "w0",
+        "text": "I",
+        "start": 0.45,
+        "end": 0.7188000000000001
+      },
+      {
+        "id": "w1",
+        "text": "do",
+        "start": 0.7188000000000001,
+        "end": 1.0100000000000002
+      },
+      {
+        "id": "w2",
+        "text": "one",
+        "start": 1.0100000000000002,
+        "end": 1.4132000000000002
+      },
+      {
+        "id": "w3",
+        "text": "take.",
+        "start": 1.4132000000000002,
+        "end": 1.9284000000000003
+      },
+      {
+        "id": "w4",
+        "text": "Then",
+        "start": 2.3092000000000006,
+        "end": 2.6452000000000004
+      },
+      {
+        "id": "w5",
+        "text": "I",
+        "start": 2.6452000000000004,
+        "end": 2.8692000000000006
+      },
+      {
+        "id": "w6",
+        "text": "cut",
+        "start": 2.8692000000000006,
+        "end": 3.2052000000000005
+      },
+      {
+        "id": "w7",
+        "text": "all",
+        "start": 3.2052000000000005,
+        "end": 3.4964000000000004
+      },
+      {
+        "id": "w8",
+        "text": "the",
+        "start": 3.4964000000000004,
+        "end": 3.6980000000000004
+      },
+      {
+        "id": "w9",
+        "text": "dead",
+        "start": 3.6980000000000004,
+        "end": 4.0788
+      },
+      {
+        "id": "w10",
+        "text": "air.",
+        "start": 4.0788,
+        "end": 4.6164000000000005
+      },
+      {
+        "id": "w11",
+        "text": "And",
+        "start": 5.042000000000001,
+        "end": 5.288400000000001
+      },
+      {
+        "id": "w12",
+        "text": "that's",
+        "start": 5.288400000000001,
+        "end": 5.624400000000001
+      },
+      {
+        "id": "w13",
+        "text": "the",
+        "start": 5.624400000000001,
+        "end": 5.826000000000001
+      },
+      {
+        "id": "w14",
+        "text": "edit.",
+        "start": 5.826000000000001,
+        "end": 6.453200000000002
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 8,
+      "max_characters_per_phrase": 40
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "w0",
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "text": "I do one take.",
+        "start": 0.45,
+        "end": 2.249,
+        "stress": "w2"
+      },
+      {
+        "ids": [
+          "w4",
+          "w5",
+          "w6",
+          "w7",
+          "w8",
+          "w9",
+          "w10"
+        ],
+        "text": "Then I cut all the dead air.",
+        "start": 2.309,
+        "end": 4.982,
+        "stress": "w10"
+      },
+      {
+        "ids": [
+          "w11",
+          "w12",
+          "w13",
+          "w14"
+        ],
+        "text": "And that's the edit.",
+        "start": 5.042,
+        "end": 7.226,
+        "stress": "w14"
+      }
+    ]
+  },
+  {
+    "name": "exactly one second gap stays in a segment",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0,
+        "end": 0.25
+      },
+      {
+        "id": "t1:1",
+        "text": "going.",
+        "start": 1.25,
+        "end": 1.5
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0",
+          "t1:1"
+        ],
+        "text": "Keep going.",
+        "start": 0.0,
+        "end": 2.65,
+        "stress": "t1:0"
+      }
+    ]
+  },
+  {
+    "name": "two words separated by over one second",
+    "words": [
+      {
+        "id": "t1:0",
+        "text": "Keep",
+        "start": 0,
+        "end": 0.25
+      },
+      {
+        "id": "t1:1",
+        "text": "going.",
+        "start": 1.251,
+        "end": 1.501
+      }
+    ],
+    "captions": {
+      "max_words_per_phrase": 4,
+      "max_characters_per_phrase": 80
+    },
+    "options": {},
+    "phrases": [
+      {
+        "ids": [
+          "t1:0"
+        ],
+        "text": "Keep",
+        "start": 0.0,
+        "end": 1.191,
+        "stress": "t1:0"
+      },
+      {
+        "ids": [
+          "t1:1"
+        ],
+        "text": "going.",
+        "start": 1.251,
+        "end": 2.651,
+        "stress": "t1:1"
+      }
+    ]
+  }
+]

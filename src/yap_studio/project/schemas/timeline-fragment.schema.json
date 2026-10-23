@@ -1,0 +1,3128 @@
+{
+  "$id": "urn:yap-studio:timeline-fragment:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "elements": {
+      "items": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "end"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "hold_s"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "properties": {
+              "accent": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "title"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "lines": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 3,
+                "minItems": 1,
+                "type": "array"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "lines",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "end"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "hold_s"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "properties": {
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "chapter"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "title": {
+                "maxLength": 48,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "title",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "end"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "hold_s"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "properties": {
+              "box": {
+                "additionalProperties": false,
+                "properties": {
+                  "height": {
+                    "maximum": 1920,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "width": {
+                    "maximum": 1080,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "x": {
+                    "maximum": 1080,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "y": {
+                    "maximum": 1920,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "type": "object"
+              },
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "graphic"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "layer": {
+                "enum": [
+                  "behind",
+                  "front"
+                ]
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "slots": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "template": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "template",
+              "slots",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              }
+            ],
+            "properties": {
+              "audio": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "mute"
+                    ]
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "gain_db": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "gain_db"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "chronology": {
+                "enum": [
+                  "hook",
+                  "before_after"
+                ]
+              },
+              "color_match": {
+                "type": "boolean"
+              },
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "group": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "insert"
+              },
+              "lane": {
+                "enum": [
+                  "agent",
+                  "broll"
+                ]
+              },
+              "letters": {
+                "additionalProperties": false,
+                "properties": {
+                  "background": {
+                    "default": "color",
+                    "enum": [
+                      "color",
+                      "blur"
+                    ]
+                  },
+                  "reveal_frames": {
+                    "maximum": 14,
+                    "minimum": 10,
+                    "type": "integer"
+                  },
+                  "text": {
+                    "maxLength": 40,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "word_hold_s": {
+                    "maximum": 1.5,
+                    "minimum": 1.0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object"
+              },
+              "matches": {
+                "type": "string"
+              },
+              "media": {
+                "additionalProperties": false,
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "fit": {
+                          "const": "crop"
+                        }
+                      },
+                      "required": [
+                        "fit"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "crop": {
+                          "items": false,
+                          "maxItems": 4,
+                          "minItems": 4,
+                          "prefixItems": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "exclusiveMinimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "exclusiveMinimum": 0,
+                              "type": "number"
+                            }
+                          ],
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "crop"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "fit": {
+                          "const": "split"
+                        }
+                      },
+                      "required": [
+                        "fit"
+                      ]
+                    },
+                    "then": {
+                      "not": {
+                        "required": [
+                          "crop"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "properties": {
+                  "blur": {
+                    "items": {
+                      "items": false,
+                      "maxItems": 4,
+                      "minItems": 4,
+                      "prefixItems": [
+                        {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "minimum": 8,
+                          "type": "number"
+                        },
+                        {
+                          "minimum": 8,
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    "type": "array"
+                  },
+                  "crop": {
+                    "anyOf": [
+                      {
+                        "items": false,
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "prefixItems": [
+                          {
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          {
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          {
+                            "exclusiveMinimum": 0,
+                            "type": "number"
+                          },
+                          {
+                            "exclusiveMinimum": 0,
+                            "type": "number"
+                          }
+                        ],
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fit": {
+                    "enum": [
+                      "cover",
+                      "contain",
+                      "crop",
+                      "split"
+                    ]
+                  },
+                  "hdr": {
+                    "enum": [
+                      "auto",
+                      "off"
+                    ]
+                  },
+                  "in_s": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "pattern": "^[^\\u0000]+$",
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "speed": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "number"
+                      },
+                      {
+                        "enum": [
+                          "fit"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "sha256"
+                ],
+                "type": "object"
+              },
+              "motion": {
+                "enum": [
+                  "push",
+                  "still"
+                ]
+              },
+              "provenance": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "own",
+                      "licensed",
+                      "generated"
+                    ]
+                  },
+                  "license": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              "push_scale": {
+                "exclusiveMinimum": 1,
+                "maximum": 1.1,
+                "type": "number"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "media"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "placement": {
+                      "const": "box"
+                    }
+                  },
+                  "required": [
+                    "placement"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "box"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "placement": {
+                      "enum": [
+                        "headroom",
+                        "side_left",
+                        "side_right",
+                        "tall_behind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "placement"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "required": [
+                      "box"
+                    ]
+                  }
+                }
+              }
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              }
+            ],
+            "properties": {
+              "box": {
+                "items": false,
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "chronology": {
+                "enum": [
+                  "hook",
+                  "before_after"
+                ]
+              },
+              "color_match": {
+                "type": "boolean"
+              },
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "fit": {
+                "default": "cover",
+                "enum": [
+                  "cover",
+                  "contain"
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "overlay"
+              },
+              "lane": {
+                "enum": [
+                  "agent",
+                  "broll"
+                ]
+              },
+              "matches": {
+                "type": "string"
+              },
+              "media": {
+                "additionalProperties": false,
+                "properties": {
+                  "hdr": {
+                    "enum": [
+                      "auto",
+                      "off"
+                    ]
+                  },
+                  "in_s": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "pattern": "^[^\\u0000]+$",
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "speed": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "number"
+                      },
+                      {
+                        "enum": [
+                          "fit"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "sha256"
+                ],
+                "type": "object"
+              },
+              "motion": {
+                "default": "none",
+                "enum": [
+                  "none",
+                  "drift",
+                  "scroll"
+                ]
+              },
+              "placement": {
+                "enum": [
+                  "headroom",
+                  "side_left",
+                  "side_right",
+                  "tall_behind",
+                  "box"
+                ]
+              },
+              "provenance": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "own",
+                      "licensed",
+                      "generated"
+                    ]
+                  },
+                  "license": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "media",
+              "placement"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              }
+            ],
+            "properties": {
+              "blend": {
+                "enum": [
+                  "none",
+                  "wrap"
+                ]
+              },
+              "chronology": {
+                "enum": [
+                  "hook",
+                  "before_after"
+                ]
+              },
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "enter": {
+                "enum": [
+                  "cut",
+                  "wipe"
+                ]
+              },
+              "fit": {
+                "default": "cover",
+                "enum": [
+                  "cover",
+                  "contain"
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "background"
+              },
+              "lane": {
+                "enum": [
+                  "agent",
+                  "broll"
+                ]
+              },
+              "layout": {
+                "enum": [
+                  "full",
+                  "bottom",
+                  "corner_left",
+                  "corner_right"
+                ]
+              },
+              "matches": {
+                "type": "string"
+              },
+              "media": {
+                "additionalProperties": false,
+                "properties": {
+                  "hdr": {
+                    "enum": [
+                      "auto",
+                      "off"
+                    ]
+                  },
+                  "in_s": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "pattern": "^[^\\u0000]+$",
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "speed": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "number"
+                      },
+                      {
+                        "enum": [
+                          "fit"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "sha256"
+                ],
+                "type": "object"
+              },
+              "motion": {
+                "enum": [
+                  "none",
+                  "push"
+                ]
+              },
+              "provenance": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "own",
+                      "licensed",
+                      "generated"
+                    ]
+                  },
+                  "license": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "media"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "not": {
+                    "required": [
+                      "move"
+                    ]
+                  }
+                },
+                "then": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "scale"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "ease"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "push_s"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "keys"
+                        ]
+                      }
+                    ]
+                  },
+                  "required": [
+                    "peak_scale",
+                    "center"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "required": [
+                    "move"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "peak_scale"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "move": {
+                      "const": "punch"
+                    }
+                  },
+                  "required": [
+                    "move"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "keys"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "push_s"
+                        ]
+                      }
+                    ]
+                  },
+                  "properties": {
+                    "ease": {
+                      "default": "snap",
+                      "enum": [
+                        "cut",
+                        "snap"
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "move": {
+                      "const": "push"
+                    }
+                  },
+                  "required": [
+                    "move"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "keys"
+                        ]
+                      }
+                    ]
+                  },
+                  "properties": {
+                    "ease": {
+                      "default": "linear",
+                      "enum": [
+                        "linear",
+                        "ease-in-out"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "scale"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "move": {
+                      "const": "opening"
+                    }
+                  },
+                  "required": [
+                    "move"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "end"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "hold_s"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "ease"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "push_s"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "keys"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "peak_scale"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "move": {
+                      "const": "keys"
+                    }
+                  },
+                  "required": [
+                    "move"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "scale"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "ease"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "push_s"
+                        ]
+                      }
+                    ]
+                  },
+                  "required": [
+                    "keys"
+                  ]
+                }
+              }
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "end"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "hold_s"
+                      ]
+                    }
+                  ]
+                },
+                "properties": {
+                  "move": {
+                    "const": "opening"
+                  }
+                },
+                "required": [
+                  "move"
+                ]
+              }
+            ],
+            "properties": {
+              "center": {
+                "items": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "ease": {
+                "enum": [
+                  "cut",
+                  "snap",
+                  "linear",
+                  "ease-in-out"
+                ]
+              },
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "keys": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "at": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "edge": {
+                              "enum": [
+                                "start",
+                                "end"
+                              ]
+                            },
+                            "offset_s": {
+                              "type": "number"
+                            },
+                            "segment": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "snap": {
+                              "enum": [
+                                "nearest"
+                              ]
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "word": {
+                              "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "word"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "time": {
+                              "minimum": 0,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "time"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "center": {
+                      "items": {
+                        "maximum": 1,
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "type": "array"
+                    },
+                    "ease": {
+                      "default": "snap",
+                      "enum": [
+                        "cut",
+                        "snap",
+                        "linear",
+                        "ease-in-out"
+                      ]
+                    },
+                    "scale": {
+                      "minimum": 1,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "at",
+                    "scale"
+                  ],
+                  "type": "object"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              "kind": {
+                "const": "zoom"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "move": {
+                "enum": [
+                  "punch",
+                  "push",
+                  "keys",
+                  "opening"
+                ]
+              },
+              "peak_scale": {
+                "exclusiveMinimum": 1,
+                "type": "number"
+              },
+              "push_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "scale": {
+                "exclusiveMinimum": 1,
+                "type": "number"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "frames": {
+                "default": 12,
+                "enum": [
+                  6,
+                  8,
+                  10,
+                  12,
+                  14,
+                  16,
+                  18,
+                  20,
+                  22,
+                  24
+                ],
+                "type": "integer"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "transition"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "look": {
+                "enum": [
+                  "whip_pan",
+                  "cinematic_zoom",
+                  "light_leak"
+                ]
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "look",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              }
+            ],
+            "properties": {
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "caption_gap"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              }
+            ],
+            "properties": {
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "grade_compare"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              }
+            ],
+            "properties": {
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "music_level"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "level": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "level",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "align": {
+                "enum": [
+                  "start",
+                  "peak"
+                ]
+              },
+              "gain_db": {
+                "maximum": 6,
+                "minimum": -12,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "sound"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "sound": {
+                "enum": [
+                  "typing",
+                  "message-ping",
+                  "camera-shutter",
+                  "applause",
+                  "laugh",
+                  "cheer",
+                  "record-scratch",
+                  "whoosh",
+                  "click",
+                  "tick-roll",
+                  "chime"
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "sound",
+              "lane"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "end"
+                ]
+              },
+              {
+                "required": [
+                  "hold_s"
+                ]
+              }
+            ],
+            "properties": {
+              "end": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "hold_s": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "moment"
+              },
+              "lane": {
+                "const": "agent"
+              },
+              "sfx": {
+                "oneOf": [
+                  {
+                    "const": false
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_s": {
+                        "maximum": 1,
+                        "minimum": -1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "shift_s"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "start": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "edge": {
+                        "enum": [
+                          "start",
+                          "end"
+                        ]
+                      },
+                      "offset_s": {
+                        "type": "number"
+                      },
+                      "segment": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "snap": {
+                        "enum": [
+                          "nearest"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "word": {
+                        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "word"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "time": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "time"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "style": {
+                "enum": [
+                  "color_pop",
+                  "background_blur",
+                  "spotlight",
+                  "sticker_freeze",
+                  "outline",
+                  "clone_flash"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "start",
+              "style",
+              "lane"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "yap-studio/timeline@1"
+    }
+  },
+  "required": [
+    "schema",
+    "elements"
+  ],
+  "type": "object"
+}

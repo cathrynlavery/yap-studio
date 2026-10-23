@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "source": "live"
+  },
+  "results": {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "page": 1,
+      "has_more": true,
+      "items": [
+        {
+          "billing_type": "deduct",
+          "created_at": "2026-10-19T12:00:00Z",
+          "order": {
+            "origin_price": 0.03,
+            "price": 0.027,
+            "state": "done",
+            "status": "",
+            "uuid": "order"
+          },
+          "prediction": {
+            "model_uuid": "bytedance/seedream-v4",
+            "status": "completed",
+            "uuid": "abc123"
+          },
+          "price": 0.027,
+          "updated_at": "2026-10-19T12:00:00Z",
+          "uuid": "billing",
+          "access_key_name": "synthetic",
+          "access_key_uuid": "synthetic"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "$id": "urn:yap-studio:edit:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "end_hold_s": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema": {
+      "const": "yap-studio/edit@1"
+    },
+    "segments": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "edge": {
+                    "enum": [
+                      "start",
+                      "end"
+                    ]
+                  },
+                  "offset_s": {
+                    "type": "number"
+                  },
+                  "segment": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "snap": {
+                    "enum": [
+                      "nearest"
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "word": {
+                    "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "word"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "time": {
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "time"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "take": {
+            "pattern": "^t[1-9][0-9]*$",
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "to": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "edge": {
+                    "enum": [
+                      "start",
+                      "end"
+                    ]
+                  },
+                  "offset_s": {
+                    "type": "number"
+                  },
+                  "segment": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "snap": {
+                    "enum": [
+                      "nearest"
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "word": {
+                    "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "word"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "time": {
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "time"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "take",
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "words_sha256": {
+      "additionalProperties": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^t[1-9][0-9]*$",
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "words_sha256",
+    "segments"
+  ],
+  "type": "object"
+}

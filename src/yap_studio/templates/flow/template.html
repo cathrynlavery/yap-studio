@@ -1,0 +1,326 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "hw-pipeline"
+  (registry/blocks/hw-pipeline/hw-pipeline.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "hw-arrow"
+  (registry/components/hw-arrow/hw-arrow.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Combined seeded box and arrow paths with fitted node slots, resolved cues, style tokens, and a shared fade-out.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"nodes","type":"string","label":"Nodes","default":"[]"},{"id":"cues","type":"string","label":"Cues","default":"[]"},{"id":"text_px","type":"number","label":"Text px","default":40},{"id":"box_width_px","type":"number","label":"Box width px","default":256},{"id":"box_height_px","type":"number","label":"Box height px","default":120},{"id":"arrow_gap_px","type":"number","label":"Arrow gap px","default":72},{"id":"flow_look","type":"string","label":"Flow look","default":"boxes"},{"id":"tag_height_px","type":"number","label":"Tag height px","default":73},{"id":"tag_max_width_px","type":"number","label":"Tag max width px","default":827}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  width: var(--card-panel-width); max-height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); transform-origin: 50% 60%; padding: 24px; opacity: 0;
+}
+.row { display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; }
+.node { position: relative; flex: 0 0 var(--card-box-width); width: var(--card-box-width);
+  height: var(--card-box-height); }
+.node-shape { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.node-stroke { fill: none; stroke: var(--card-ink); stroke-width: 4;
+  stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: safe center;
+  padding: 18px; font-family: var(--card-font); font-size: var(--card-text-size);
+  line-height: 1.2; font-weight: 600; white-space: nowrap; opacity: 0; }
+.connector { flex: 0 0 var(--card-arrow-gap); width: var(--card-arrow-gap); height: 36px;
+  overflow: visible; }
+.arrow-curve, .arrow-head { fill: none; stroke: var(--card-accent); stroke-width: 3.5;
+  stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.box-source, .arrow-source { display: none; }
+.tag-stack { display: flex; flex-direction: column; align-items: center; }
+.flow-tag {
+  flex: none; width: max-content; max-width: var(--card-tag-max-width);
+  height: var(--card-tag-height); padding: 0.23em 0.42em; border-radius: 10px;
+  background: var(--card-paper); color: var(--card-ink);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-ink) 12%, transparent),
+    0 2px 3px rgb(0 0 0 / 0.16);
+  font-size: var(--card-text-size); line-height: 1; font-weight: 600;
+  white-space: nowrap; opacity: 0; transform-origin: 50% 50%;
+}
+.flow-tag-text { display: inline-block; }
+.tag-connector { flex: none; width: 24px; height: var(--card-arrow-gap); overflow: visible; }
+.tag-arrow { fill: none; stroke: var(--card-accent); stroke-width: 3;
+  stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="flow" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel"><div class="row"></div></div>
+<svg class="box-source" aria-hidden="true"><path class="node-stroke"></path></svg>
+<svg class="arrow-source" aria-hidden="true">
+<path class="arrow-curve"></path><path class="arrow-head"></path></svg>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    const PANEL_IN = 0.3;
+    const ARROW_DRAW = 0.24;
+    const BOX_DRAW = 0.45;
+    const LABEL_IN = 0.2;
+    const NODE_REVEAL = BOX_DRAW + LABEL_IN;
+    const REST = 0.6;
+    const STROKE_INSET = 6;
+    function px(name, value) {
+      root.style.setProperty(`--card-${name}`, `${value}px`, "important");
+    }
+    function list(value, coerce) {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.map(coerce) : [];
+      } catch (_) { return []; }
+    }
+    function fitText(element) {
+      const available = element.clientWidth;
+      if (!(element.scrollWidth > available)) return;
+      let size = parseFloat(getComputedStyle(element).fontSize);
+      size = Math.max(1, Math.floor(size * available / element.scrollWidth));
+      element.style.fontSize = `${size}px`;
+      while (element.scrollWidth > available && size > 1) {
+        size -= 1;
+        element.style.fontSize = `${size}px`;
+      }
+    }
+    px("text-size", v.text_px);
+    px("box-width", v.box_width_px);
+    px("box-height", v.box_height_px);
+    px("arrow-gap", v.arrow_gap_px);
+    const nodes = list(v.nodes, String);
+    const cues = list(v.cues, Number);
+    if (v.flow_look === "tags") {
+      panel.remove();
+      const stack = document.createElement("div");
+      stack.className = "tag-stack";
+      root.appendChild(stack);
+      px("tag-height", v.tag_height_px);
+      px("tag-max-width", v.tag_max_width_px);
+      const POP = 5 / 30;
+      const ARROW = 0.2;
+      const CLEAR = 0.1;
+      const first = 0.1;
+      const latest = Math.min(duration - CLEAR - POP - 0.3,
+        Math.max(first + (nodes.length - 1) * (POP + ARROW), duration * 0.6 - POP));
+      const gap = (latest - first) / (nodes.length - 1);
+      for (let i = cues.length; i < nodes.length; i += 1) {
+        cues.push(Math.max(i ? cues[i - 1] : 0, Math.min(latest, first + i * gap)));
+      }
+      const tl = gsap.timeline({ paused: true });
+      const svgNamespace = root.querySelector(".arrow-source").namespaceURI;
+      const tags = [];
+      nodes.forEach(function (text, i) {
+        const tag = document.createElement("div");
+        tag.className = "flow-tag";
+        const label = document.createElement("span");
+        label.className = "flow-tag-text";
+        label.textContent = text;
+        tag.appendChild(label);
+        tags.push({ tag, label });
+        stack.appendChild(tag);
+        gsap.set(tag, { opacity: 0, scale: 0.6, transformOrigin: "50% 50%" });
+        tl.fromTo(tag, { scale: 0.6 },
+          { scale: 1, duration: POP, ease: "back.out(2.2)" }, cues[i]);
+        tl.fromTo(tag, { opacity: 0 },
+          { opacity: 1, duration: 2 / 30, ease: "none" }, cues[i]);
+        if (i < nodes.length - 1) {
+          const svg = document.createElementNS(svgNamespace, "svg");
+          svg.setAttribute("class", "tag-connector");
+          svg.setAttribute("viewBox", "0 0 24 36");
+          const arrow = document.createElementNS(svgNamespace, "path");
+          arrow.setAttribute("class", "tag-arrow");
+          arrow.setAttribute("d", "M 12 2 L 12 34 M 6 28 L 12 34 L 18 28");
+          svg.appendChild(arrow);
+          stack.appendChild(svg);
+          const length = arrow.getTotalLength();
+          gsap.set(arrow, { opacity: 0, strokeDasharray: `${length} ${length}`,
+            strokeDashoffset: length });
+          const at = cues[i] + POP;
+          tl.set(arrow, { opacity: 1 }, at);
+          tl.fromTo(arrow, { strokeDashoffset: length },
+            { strokeDashoffset: 0, duration: ARROW, ease: "none" }, at);
+        }
+      });
+      tl.fromTo(stack, { opacity: 1 },
+        { opacity: 0, duration: CLEAR, ease: "none", immediateRender: false }, duration - CLEAR);
+      function finishTags() {
+        let size = v.text_px;
+        tags.forEach(function ({ label }) {
+          // The planner's max width reserves the spring; leave the tag's side padding.
+          label.style.width = `${v.tag_max_width_px - 2 * Math.ceil(0.42 * v.text_px)}px`;
+          fitText(label);
+          const fitted = parseFloat(getComputedStyle(label).fontSize);
+          size = Math.min(size, fitted);
+        });
+        tags.forEach(function ({ tag, label }) {
+          label.style.width = "";
+          label.style.fontSize = "";
+          if (size < v.text_px) tag.style.fontSize = `${size}px`;
+        });
+        tl.seek(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["flow"] = tl;
+      }
+      if (document.fonts) {
+        stack.getBoundingClientRect();
+        document.fonts.ready.then(finishTags);
+      } else {
+        finishTags();
+      }
+      return;
+    }
+    // Mirror the adapter: first = 0.3 + 0.24, latest = outStart - 0.65 - 0.6,
+    // capped at duration * 0.6 - 0.65 so the preview shows the complete flow.
+    // gap = (latest - first) / (count - 1), cue i = first + i * gap.
+    // Tighten cue spacing while keeping the readable box and label durations.
+    // Following defaults clamp to preceding cues within the 0.3 s explicit rest window.
+    const first = PANEL_IN + ARROW_DRAW;
+    const latest = Math.min(outStart - NODE_REVEAL - REST, duration * 0.6 - NODE_REVEAL);
+    const gap = (latest - first) / (nodes.length - 1);
+    for (let i = cues.length; i < nodes.length; i += 1) {
+      cues.push(Math.max(i ? cues[i - 1] : 0, Math.min(latest, first + i * gap)));
+    }
+    // Seeded geometry is fixed across frames and page loads.
+    function hwHash(n, seed) {
+      const x = Math.sin(n * 127.1 + (seed || 1) * 311.7) * 43758.5453;
+      return (x - Math.floor(x)) * 2 - 1;
+    }
+    function hwWobbleRect(w, h, r, seed) {
+      function wob(n) { return hwHash(n, seed) * 2; }
+      let d = `M ${r + wob(1)} ${wob(2)}`;
+      d += ` L ${w / 2 + wob(3)} ${wob(4)}`;
+      d += ` L ${w - r + wob(5)} ${wob(6)}`;
+      d += ` Q ${w + wob(7)} ${wob(8)} ${w + wob(9)} ${r + wob(10)}`;
+      d += ` L ${w + wob(11)} ${h / 2 + wob(12)}`;
+      d += ` L ${w + wob(13)} ${h - r + wob(14)}`;
+      d += ` Q ${w + wob(15)} ${h + wob(16)} ${w - r + wob(17)} ${h + wob(18)}`;
+      d += ` L ${w / 2 + wob(19)} ${h + wob(20)}`;
+      d += ` L ${r + wob(21)} ${h + wob(22)}`;
+      d += ` Q ${wob(23)} ${h + wob(24)} ${wob(25)} ${h - r + wob(26)}`;
+      d += ` L ${wob(27)} ${h / 2 + wob(28)}`;
+      d += ` L ${wob(29)} ${r + wob(30)}`;
+      d += ` Q ${wob(31)} ${wob(32)} ${r + wob(33)} ${wob(34)} Z`;
+      return d;
+    }
+    function hwArrowPaths(w, h, seed) {
+      function wob(value, n, range) { return value + hwHash(n, seed) * range; }
+      const x0 = wob(8, 1, 2), y0 = wob(h * 0.72, 2, 2);
+      const x1 = wob(w - 9, 3, 2), y1 = wob(h * 0.3, 4, 2);
+      const cx1 = wob(w * 0.35, 5, 4), cy1 = wob(h * (0.72 + 0.28 * 0.5), 6, 2);
+      const cx2 = wob(w * 0.7, 7, 4), cy2 = wob(h * (0.3 + 0.28), 8, 2);
+      const angle = Math.atan2(y1 - cy2, x1 - cx2);
+      function head(spread, n) {
+        const a = angle + Math.PI + spread;
+        const length = wob(14, n, 2);
+        return `M ${x1} ${y1} l ${Math.cos(a) * length} ${Math.sin(a) * length}`;
+      }
+      return {
+        curve: `M ${x0} ${y0} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x1} ${y1}`,
+        head: `${head(0.5, 9)} ${head(-0.5, 10)}`,
+      };
+    }
+    gsap.set(panel, { opacity: 0, y: 8 });
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(panel, { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: Math.min(PANEL_IN, outStart), ease: "power3.out" }, 0);
+    function drawOn(path, at, seconds) {
+      const length = path.getTotalLength();
+      gsap.set(path, { opacity: 0, strokeDasharray: `${length} ${length}`, strokeDashoffset: length });
+      // Hiding the path until its cue removes the initial round cap pixel.
+      tl.set(path, { opacity: 1 }, at);
+      tl.fromTo(path, { strokeDashoffset: length },
+        { strokeDashoffset: 0, duration: seconds, ease: "power2.inOut" }, at);
+    }
+    const row = root.querySelector(".row");
+    const boxSource = root.querySelector(".box-source");
+    const arrowSource = root.querySelector(".arrow-source");
+    const labels = [];
+    nodes.forEach(function (text, i) {
+      const at = cues[i];
+      if (i > 0) {
+        const arrow = arrowSource.cloneNode(true);
+        arrow.setAttribute("class", "connector");
+        arrow.setAttribute("viewBox", `0 0 ${v.arrow_gap_px} 36`);
+        row.appendChild(arrow);
+        const paths = hwArrowPaths(v.arrow_gap_px, 36, 41 + i);
+        const curve = arrow.querySelector(".arrow-curve");
+        const head = arrow.querySelector(".arrow-head");
+        curve.setAttribute("d", paths.curve);
+        head.setAttribute("d", paths.head);
+        // Early explicit cues compress the incoming arrow into the available lead.
+        const arrowAt = Math.max(0, at - ARROW_DRAW);
+        const lead = at - arrowAt;
+        drawOn(curve, arrowAt, lead * 0.75);
+        drawOn(head, arrowAt + lead * 0.75, lead * 0.25);
+      }
+      const node = document.createElement("div");
+      node.className = "node";
+      const shape = boxSource.cloneNode(true);
+      shape.setAttribute("class", "node-shape");
+      shape.setAttribute("viewBox", `0 0 ${v.box_width_px} ${v.box_height_px}`);
+      const path = shape.querySelector(".node-stroke");
+      const w = v.box_width_px - 2 * STROKE_INSET;
+      const h = v.box_height_px - 2 * STROKE_INSET;
+      const radius = Math.min(v.card_radius_px, 18, w / 4, h / 4);
+      path.setAttribute("d", hwWobbleRect(w, h, radius, 11 + i));
+      path.setAttribute("transform", `translate(${STROKE_INSET} ${STROKE_INSET})`);
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = text;
+      labels.push(label);
+      node.appendChild(shape);
+      node.appendChild(label);
+      row.appendChild(node);
+      drawOn(path, at, BOX_DRAW);
+      tl.fromTo(label, { opacity: 0 },
+        { opacity: 1, duration: LABEL_IN, ease: "power2.out" }, at + BOX_DRAW);
+    });
+    tl.fromTo(panel, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    function finishTimeline() {
+      // Covered bundled text already fits; only measured overflow changes its size.
+      labels.forEach(fitText);
+      tl.seek(0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["flow"] = tl;
+    }
+    if (document.fonts) {
+      // Force layout to request the used faces before reading the ready promise.
+      panel.getBoundingClientRect();
+      document.fonts.ready.then(finishTimeline);
+    } else {
+      finishTimeline();
+    }
+})();
+</script>
+</body>
+</html>

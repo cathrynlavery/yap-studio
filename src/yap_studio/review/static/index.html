@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yap Studio review</title>
+  <link rel="stylesheet" href="static/app.css">
+  <script type="module" src="static/app.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2.5" width="18" height="19" rx="5" fill="currentColor"/><path d="M8.5 9.5h7M8.5 13h4.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>Yap Studio</span>
+      <a id="home-link" class="home-link" hidden>Back to Yap Studio</a>
+      <a id="phone-link" class="home-link" hidden></a>
+    </div>
+  </header>
+  <div class="shell">
+    <header class="header">
+      <div class="heading">
+        <h1 id="media-name">Loading review…</h1>
+        <p id="media-facts" class="muted"></p>
+        <p id="version-note" class="version-note" hidden></p>
+      </div>
+      <div class="header-actions">
+        <button id="copy-feedback" type="button" aria-describedby="copy-notes-hint" disabled>Copy notes</button>
+        <p id="copy-notes-hint" class="muted">Add a note to copy.</p>
+      </div>
+    </header>
+
+    <section id="previous-banner" class="previous-banner" hidden aria-label="Earlier review">
+      <div class="previous-head">
+        <p id="previous-message"></p>
+        <div class="previous-actions">
+          <button id="previous-view" type="button" aria-expanded="false">View</button>
+          <button id="previous-copy" type="button">Copy</button>
+        </div>
+      </div>
+      <pre id="previous-text" hidden></pre>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <p id="offline-banner" class="offline-banner" role="status" aria-live="polite" hidden>The review server is not reachable. Your notes are saved; this page reconnects when it is back.</p>
+
+    <nav id="version-bar" class="version-bar" hidden aria-label="Review versions">
+      <strong>Versions</strong>
+      <div id="version-buttons" class="version-buttons"></div>
+      <button id="compare-toggle" type="button" aria-expanded="false" aria-controls="compare-panel">Compare</button>
+    </nav>
+
+    <main class="workspace">
+      <div id="players" class="players">
+      <section class="player-panel" aria-label="Video player">
+        <div class="video-wrap">
+          <video id="video" playsinline preload="metadata" aria-label="Review video"></video>
+          <div id="pin-layer" class="pin-layer" hidden>
+            <button id="pin-marker" class="pin-marker" type="button" aria-label="Pinned spot. Drag or use the arrow keys to move it."></button>
+          </div>
+          <p id="codec-error" class="codec-error" hidden></p>
+        </div>
+
+        <div class="review-axis">
+        <div id="scrubber" class="scrubber" role="slider" tabindex="0" aria-label="Video position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="finding-markers" class="finding-markers"></div>
+          <div id="scrubber-track" class="scrubber-track"></div>
+          <div id="ranges" class="ranges"></div>
+          <div id="selection" class="selection" hidden>
+            <button id="selection-start" class="selection-handle start" type="button" aria-label="Range start"></button>
+            <button id="selection-end" class="selection-handle end" type="button" aria-label="Range end"></button>
+          </div>
+          <div id="markers" class="markers"></div>
+          <div id="playhead" class="playhead"></div>
+        </div>
+        <section id="video-map" class="video-map" data-expanded="false" aria-label="Video map">
+          <button id="video-map-toggle" class="video-map-toggle" type="button" aria-expanded="false" aria-controls="video-map-lanes">Video map loading</button>
+          <div class="video-map-body">
+            <div id="video-map-lanes" class="video-map-lanes"></div>
+            <div id="video-map-playhead" class="video-map-playhead" aria-hidden="true"></div>
+          </div>
+        </section>
+        </div>
+
+        <div class="readouts">
+          <p id="time-readout" class="time-readout">0:00.0 / 0:00.0</p>
+          <div id="selection-readout" class="selection-readout" hidden>
+            <span id="selection-text"></span>
+            <button id="selection-clear" type="button">Clear</button>
+          </div>
+        </div>
+        <div class="playback-controls">
+          <button id="play-pause" type="button">Play</button>
+          <button id="previous-frame" type="button" aria-label="Previous frame">← Frame</button>
+          <button id="next-frame" type="button" aria-label="Next frame">Frame →</button>
+          <button id="new-comment" class="primary" type="button">Comment</button>
+          <button id="fix-caption" type="button" hidden aria-controls="caption-fix">Fix caption</button>
+          <span class="control-gap" aria-hidden="true"></span>
+          <button id="mark-start" type="button" disabled>Mark start</button>
+          <button id="mark-end" type="button" disabled>Mark end</button>
+        </div>
+        <section id="caption-fix" class="caption-fix" role="dialog" aria-labelledby="caption-heading" hidden>
+          <h2 id="caption-heading">Fix a caption word</h2>
+          <p>Choose a word.</p>
+          <div id="caption-words" class="caption-words" role="group" aria-label="Caption words"></div>
+          <label for="caption-to">Right text</label>
+          <input id="caption-to" type="text" maxlength="80" autocomplete="off" disabled>
+          <label id="caption-every-label" class="caption-every" hidden>
+            <input id="caption-every" type="checkbox"> Every time this heard word appears
+          </label>
+          <p id="caption-error" class="form-error" role="alert"></p>
+          <div class="caption-actions">
+            <button id="caption-cancel" type="button">Cancel</button>
+            <button id="caption-save" class="primary" type="button" disabled>Save</button>
+          </div>
+        </section>
+        <section id="range-panel" class="range-panel" hidden aria-label="Selected range">
+          <div class="range-head">
+            <p id="range-length" class="timestamp"></p>
+            <button id="range-play" class="link-button" type="button">Play it</button>
+          </div>
+          <p id="range-words"></p>
+          <label class="sr-only" for="range-note">Note about this part</label>
+          <textarea id="range-note" rows="2" maxlength="5000" placeholder="Add a note for Claude. Needed for Change this; optional for Cut and Keep."></textarea>
+          <div class="range-actions">
+            <button id="range-cut" class="primary" type="button" hidden>Cut this</button>
+            <button id="range-change" type="button">Change this</button>
+            <button id="range-keep" type="button">Keep this</button>
+          </div>
+          <p id="range-error" class="form-error" role="alert" hidden></p>
+        </section>
+        <p id="shortcut-hint" class="shortcut-hint">Space play/pause · C comment · I/O mark range · X clear · ← → step one frame · click the paused picture to pin a spot</p>
+        <div id="version-actions" class="version-actions" hidden>
+          <button id="make-final" type="button" hidden>Make the final video</button>
+          <button id="approve-version" type="button">Approve this version</button>
+          <a id="download-video" class="button-link" hidden>Download video</a>
+          <p id="approve-hint" class="approve-hint">Happy with it? Approving unlocks the download.</p>
+          <button id="rollback-version" type="button">Make this version current</button>
+          <a id="download-report" class="button-link" hidden>Download check report</a>
+        </div>
+      </section>
+
+      <section id="compare-panel" class="player-panel compare-panel" hidden aria-label="Compare version">
+        <label for="compare-version">Compare with</label>
+        <select id="compare-version" aria-label="Compare version"></select>
+        <div class="video-wrap">
+          <video id="compare-video" controls playsinline preload="metadata" aria-label="Compare video"></video>
+        </div>
+        <div class="compare-controls">
+          <button id="match-moment" type="button">Match moment</button>
+          <button id="match-reverse" type="button">Match the other way</button>
+        </div>
+        <p id="map-status" class="map-status" role="status" aria-live="polite"></p>
+        <div id="map-candidates" class="map-candidates"></div>
+      </section>
+      </div>
+
+      <aside class="comments-panel" aria-label="Comments">
+        <section id="text-hook-panel" class="text-hook-panel" hidden aria-labelledby="text-hook-heading"></section>
+        <section id="taste-section" class="taste-section" hidden aria-labelledby="taste-heading">
+          <div class="panel-heading"><h2 id="taste-heading">Rules for future videos</h2>
+            <span id="taste-count" class="count">0</span></div>
+          <p class="muted">Proposed from your notes. Approved rules apply to every future video.</p>
+          <p id="taste-error" class="form-error" role="alert" hidden></p>
+          <ol id="taste-list" class="taste-list"></ol>
+          <p id="taste-empty" class="muted" hidden>No rules waiting for you.</p>
+          <details id="taste-decided" class="taste-decided" hidden>
+            <summary>Decided rules <span id="taste-decided-count" class="count">0</span></summary>
+            <ol id="taste-decided-list" class="taste-list"></ol>
+          </details>
+        </section>
+        <p id="findings-status" class="findings-status" role="status" hidden></p>
+        <details id="findings-section" class="findings-section" hidden>
+          <summary>Flagged by the checks <span id="findings-count" class="count">0</span></summary>
+          <p class="removed-intro">Moments the automatic checks want you to look at. While this is open, they show as dashed bars above the timeline.</p>
+          <ol id="findings-list" class="findings-list"></ol>
+        </details>
+        <details id="removed-section" class="removed-section" hidden>
+          <summary>Removed in this version <span id="removed-count" class="count">0</span></summary>
+          <p class="removed-intro">Words and pauses cut from your take. Ask for any of them back.</p>
+          <label class="pause-toggle" for="show-pauses">
+            <input id="show-pauses" type="checkbox"> Show pauses
+          </label>
+          <p id="removed-empty" class="muted" hidden>No removed parts to show.</p>
+          <ol id="removed-list" class="removed-list"></ol>
+        </details>
+        <section id="earlier-threads" class="earlier-threads" hidden aria-label="From earlier versions">
+          <h2>From earlier versions</h2>
+          <ol id="thread-list" class="thread-list"></ol>
+        </section>
+        <div class="panel-heading">
+          <h2>Comments</h2>
+          <span id="comment-count" class="count">0</span>
+        </div>
+
+        <section id="compose" class="compose" hidden aria-label="New comment">
+          <div class="compose-head">
+            <strong>New comment</strong>
+            <span id="compose-time" class="timestamp"></span>
+          </div>
+          <button id="compose-clear-range" class="clear-range" type="button" hidden>Clear range</button>
+          <div class="kind-choice" role="group" aria-label="Comment kind">
+            <button id="compose-fix" type="button" class="kind-button fix" aria-pressed="true">Fix</button>
+            <button id="compose-keep" type="button" class="kind-button keep" aria-pressed="false">Keep</button>
+          </div>
+          <p id="compose-target-label" class="target-label">About (optional)</p>
+          <div id="compose-targets" class="target-choice" role="group" aria-labelledby="compose-target-label">
+            <button id="compose-target-story" type="button" data-target="story" aria-pressed="false">Story</button>
+            <button id="compose-target-speech" type="button" data-target="speech" aria-pressed="false">Speech</button>
+            <button id="compose-target-caption" type="button" data-target="caption" aria-pressed="false">Caption</button>
+            <button id="compose-target-element" type="button" data-target="element" aria-pressed="false">Graphic</button>
+            <button id="compose-target-video" type="button" data-target="video" aria-pressed="false">Whole video</button>
+          </div>
+          <fieldset id="compose-spelling" class="spelling-fields" hidden>
+            <legend>Correct spelling</legend>
+            <label for="compose-spelling-from">Shown as</label>
+            <input id="compose-spelling-from" type="text" maxlength="80" autocomplete="off">
+            <label for="compose-spelling-to">Should be</label>
+            <input id="compose-spelling-to" type="text" maxlength="80" autocomplete="off">
+          </fieldset>
+          <label class="sr-only" for="compose-text">Comment text</label>
+          <div class="compose-pin">
+            <p id="compose-pin-text" class="pin-line">Tap the picture to pin a spot (optional).</p>
+            <button id="compose-pin-remove" type="button" hidden>Remove pin</button>
+          </div>
+          <textarea id="compose-text" rows="4" maxlength="5000" placeholder="What should the editor know?"></textarea>
+          <p class="compose-hint">Enter saves · Shift-Enter new line · Option-I/O move range edges · Option-L switch Fix/Keep · Esc cancels</p>
+          <p id="compose-error" class="form-error" role="alert"></p>
+          <div class="form-actions">
+            <button id="compose-cancel" type="button">Cancel</button>
+            <button id="compose-submit" class="primary" type="button" disabled>Save comment</button>
+          </div>
+        </section>
+
+        <section id="send-bar" class="send-bar" hidden aria-label="Send notes">
+          <div class="send-actions">
+            <span id="draft-count"></span>
+            <button id="send-notes" class="primary" type="button" disabled>Send notes</button>
+          </div>
+          <div id="round-list" class="round-list" role="status" aria-live="polite"></div>
+          <p id="send-next" class="send-next" hidden></p>
+        </section>
+
+        <p id="empty-state" class="empty-state">Pause on a moment and press Comment, or tap the paused picture to pin a note to a spot. To note a stretch, press Mark start and Mark end first.</p>
+        <ol id="comment-list" class="comment-list"></ol>
+      </aside>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="copy-fallback" aria-labelledby="copy-fallback-title">
+    <h2 id="copy-fallback-title">Copy notes</h2>
+    <p>Press Cmd-C to copy.</p>
+    <textarea id="copy-fallback-text" readonly rows="12" aria-label="Feedback text"></textarea>
+    <div class="form-actions"><button id="copy-fallback-close" type="button">Close</button></div>
+  </dialog>
+</body>
+</html>

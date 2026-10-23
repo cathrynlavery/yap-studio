@@ -1,0 +1,18 @@
+{
+  "slots": {
+    "drops": [
+      {
+        "text": "Tokens",
+        "at": 0.3
+      },
+      {
+        "text": "are",
+        "at": 0.8
+      },
+      {
+        "text": "words",
+        "at": 1.3
+      }
+    ]
+  }
+}

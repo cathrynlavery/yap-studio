@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "name": "Neutral",
+  "captions": {
+    "font": "Inter",
+    "size_px": 76,
+    "text_color": "#111318",
+    "highlight_color": "#1D4ED8",
+    "highlight_text_color": "#111318",
+    "highlight_style": "none",
+    "position": "bottom",
+    "top_px": 1503,
+    "max_words_per_phrase": 6,
+    "max_characters_per_phrase": 21,
+    "italic_stress": false
+  },
+  "hook": {
+    "style": "quiet_serif",
+    "font": "Inter",
+    "text_color": "#111318",
+    "background_color": "#F3F4F6",
+    "accent_color": "#0284C7"
+  },
+  "graphics": {
+    "style": "minimal",
+    "font": "Inter",
+    "paper_color": "#FCFCFD",
+    "titlebar_color": "#F3F4F6",
+    "ink_color": "#111318",
+    "accent_color": "#60A5FA"
+  },
+  "music": {
+    "level": 0.06
+  }
+}

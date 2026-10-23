@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "name": "One Word",
+  "captions": {
+    "font": "Archivo Black",
+    "size_px": 110,
+    "text_color": "#FFFFFF",
+    "highlight_color": "#FF4A1C",
+    "highlight_text_color": "#FFFFFF",
+    "highlight_style": "none",
+    "position": "bottom",
+    "top_px": 1503,
+    "max_words_per_phrase": 1,
+    "max_characters_per_phrase": 16,
+    "shadow_opacity": 0.55,
+    "shadow_blur_px": 14,
+    "shadow_x_px": 0,
+    "shadow_y_px": 6,
+    "letter_spacing_px": -3,
+    "italic_stress": false,
+    "entry_rise_px": 48,
+    "entry_ms": 160
+  },
+  "hook": {
+    "style": "bold_band",
+    "font": "Archivo Black",
+    "size_px": 104,
+    "text_color": "#FFFFFF",
+    "background_color": "#FF4A1C",
+    "accent_color": "#FFE14D"
+  },
+  "graphics": {
+    "style": "bright",
+    "paper_color": "#FF4A1C",
+    "titlebar_color": "#E23A0E",
+    "ink_color": "#FFFFFF",
+    "accent_color": "#FFE14D",
+    "font": "Archivo Black"
+  },
+  "music": {
+    "level": 0.2,
+    "duck_ratio": 8
+  }
+}

@@ -1,0 +1,107 @@
+<!doctype html>
+<!-- Yap Studio card: storyboard. -->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E2DA"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#F4F3EE"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 0 0 2px color-mix(in srgb, #222222 12%, transparent), 0 8px 18px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"numbers","type":"string","label":"Numbers","default":"show"},{"id":"number_px","type":"number","label":"Number px","default":30},{"id":"panel_height_px","type":"number","label":"Panel height px","default":272},{"id":"thumb_width_px","type":"number","label":"Thumb width px","default":99},{"id":"thumb_height_px","type":"number","label":"Thumb height px","default":176},{"id":"thumb_top_px","type":"number","label":"Thumb top px","default":29},{"id":"thumbnails","type":"string","label":"Thumbnails","default":"[]"},{"id":"changes","type":"string","label":"Changes","default":"[]"},{"id":"ring_keyframes","type":"string","label":"Ring keyframes","default":"[]"},{"id":"motion_duration_s","type":"number","label":"Motion duration s","default":3.0},{"id":"storyboard_width_px","type":"number","label":"Storyboard width px","default":659}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font); isolation: isolate; }
+.panel { position: relative; width: var(--card-panel-width); height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius); box-shadow: var(--card-shadow);
+  opacity: 0; }
+.thumbnail { position: absolute; top: var(--card-thumb-top); width: var(--card-thumb-width);
+  margin: 0; }
+.picture { position: absolute; left: 0; top: 0;
+  width: var(--card-thumb-width); height: var(--card-thumb-height);
+  background: color-mix(in srgb, var(--card-ink) 15%, var(--card-paper)); border-radius: 6px;
+  overflow: hidden; }
+.picture img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.number { position: absolute; top: var(--card-thumb-height); left: 0; width: 100%;
+  display: block; padding-top: 8px; font-family: var(--card-mono);
+  font-size: var(--card-number-size); line-height: 30px; text-align: center; }
+.ring { position: absolute; top: calc(var(--card-thumb-top) - 4px); left: 0;
+  width: calc(var(--card-thumb-width) + 8px); height: calc(var(--card-thumb-height) + 8px);
+  border: 4px solid var(--card-accent); border-radius: 10px; pointer-events: none; z-index: 1;
+  transform: scale(1.06); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="storyboard" data-no-timeline data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel"><div class="ring"></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const tokens = {
+    "paper": v.paper_color, "ink": v.ink_color, "accent": v.accent_color,
+    "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+    "shadow": v.card_shadow, "panel-width": `${v.storyboard_width_px}px`,
+    "panel-height": `${v.panel_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+    "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    "thumb-width": `${v.thumb_width_px}px`, "thumb-height": `${v.thumb_height_px}px`,
+    "thumb-top": `${v.thumb_top_px}px`, "number-size": `${v.number_px}px`,
+  };
+  Object.entries(tokens).forEach(([name, value]) => {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  });
+  const duration = Number(root.dataset.duration);
+  const out = Math.min(0.3, duration * 0.15);
+  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
+  panel.animate([{ opacity: 0, transform: "translateY(8px)" },
+    { opacity: 1, transform: "translateY(0)" }], { duration: 300, fill: "both", easing });
+  root.animate([{ opacity: 1 }, { opacity: 0 }],
+    { delay: (duration - out) * 1000, duration: out * 1000, fill: "both", easing: "linear" });
+  const thumbnails = JSON.parse(v.thumbnails);
+  thumbnails.forEach((thumbnail, index) => {
+    const figure = document.createElement("figure");
+    figure.className = "thumbnail";
+    figure.style.left = `${thumbnail.x_px}px`;
+    const picture = document.createElement("div");
+    picture.className = "picture";
+    if (/^shot-0[1-7]\.jpg$/.test(thumbnail.src)) {
+      const image = document.createElement("img");
+      image.src = thumbnail.src;
+      image.alt = "";
+      picture.appendChild(image);
+    }
+    figure.appendChild(picture);
+    if (v.numbers === "show") {
+      const number = document.createElement("figcaption");
+      number.className = "number";
+      number.textContent = thumbnail.label;
+      number.animate(thumbnail.scale_keyframes.map(frame => ({
+        offset: frame.at_s / v.motion_duration_s,
+        color: frame.active ? v.accent_color : v.ink_color, easing: "steps(1, end)",
+      })), { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+      figure.appendChild(number);
+    }
+    panel.appendChild(figure);
+    figure.animate([{ opacity: 0, transform: "translateY(8px)" },
+      { opacity: 1, transform: "translateY(0)" }],
+      { delay: 100 + index * 50, duration: 300, fill: "both", easing });
+    picture.animate(thumbnail.scale_keyframes.map(frame => ({
+      offset: frame.at_s / v.motion_duration_s, width: `${frame.width_px}px`,
+      height: `${frame.height_px}px`, left: `${frame.left_px}px`, top: `${frame.top_px}px`,
+      borderRadius: `${frame.radius_px}px`,
+      easing: "steps(1, end)",
+    })), { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+  });
+  const ring = root.querySelector(".ring");
+  ring.animate(JSON.parse(v.ring_keyframes).map(frame => ({
+    offset: frame.at_s / v.motion_duration_s, left: `${frame.x_px}px`,
+    easing: "steps(1, end)",
+  })), { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+  ring.animate([{ opacity: 0 }, { opacity: 1 }],
+    { delay: 100, duration: 200, fill: "both", easing: "linear" });
+})();
+</script>
+</body>
+</html>

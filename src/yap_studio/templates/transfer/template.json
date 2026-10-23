@@ -1,0 +1,347 @@
+{
+  "id": "transfer",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [
+    {
+      "item": "offset-path-traveler",
+      "path": "registry/components/offset-path-traveler/offset-path-traveler.html"
+    }
+  ],
+  "slots": {
+    "left_label": {
+      "type": "string",
+      "required": true,
+      "min_length": 1,
+      "max_length": 20
+    },
+    "right_label": {
+      "type": "string",
+      "required": true,
+      "min_length": 1,
+      "max_length": 20
+    },
+    "left_device": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "laptop",
+        "desktop"
+      ],
+      "default": "laptop"
+    },
+    "right_device": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "laptop",
+        "desktop"
+      ],
+      "default": "desktop"
+    },
+    "payload": {
+      "type": "string",
+      "required": true,
+      "min_length": 1,
+      "max_length": 16
+    },
+    "payload_icon": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "doc",
+        "code"
+      ],
+      "default": "doc"
+    },
+    "travel_at": {
+      "type": "number",
+      "required": false,
+      "default": 0.6
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "left_label",
+      "type": "string",
+      "label": "Left label",
+      "default": ""
+    },
+    {
+      "id": "right_label",
+      "type": "string",
+      "label": "Right label",
+      "default": ""
+    },
+    {
+      "id": "left_device",
+      "type": "enum",
+      "label": "Left device",
+      "default": "laptop",
+      "options": [
+        {
+          "value": "laptop",
+          "label": "Laptop"
+        },
+        {
+          "value": "desktop",
+          "label": "Desktop"
+        }
+      ]
+    },
+    {
+      "id": "right_device",
+      "type": "enum",
+      "label": "Right device",
+      "default": "desktop",
+      "options": [
+        {
+          "value": "laptop",
+          "label": "Laptop"
+        },
+        {
+          "value": "desktop",
+          "label": "Desktop"
+        }
+      ]
+    },
+    {
+      "id": "payload",
+      "type": "string",
+      "label": "Payload",
+      "default": ""
+    },
+    {
+      "id": "payload_icon",
+      "type": "enum",
+      "label": "Payload icon",
+      "default": "doc",
+      "options": [
+        {
+          "value": "doc",
+          "label": "Doc"
+        },
+        {
+          "value": "code",
+          "label": "Code"
+        }
+      ]
+    },
+    {
+      "id": "travel_at",
+      "type": "number",
+      "label": "Travel at",
+      "default": 0.6
+    },
+    {
+      "id": "label_px",
+      "type": "number",
+      "label": "Label px",
+      "default": 36
+    },
+    {
+      "id": "chip_px",
+      "type": "number",
+      "label": "Chip px",
+      "default": 40
+    },
+    {
+      "id": "device_column_width_px",
+      "type": "number",
+      "label": "Device column width px",
+      "default": 342
+    },
+    {
+      "id": "chip_max_width_px",
+      "type": "number",
+      "label": "Chip max width px",
+      "default": 342
+    },
+    {
+      "id": "travel_s",
+      "type": "number",
+      "label": "Travel s",
+      "default": 1.0
+    },
+    {
+      "id": "land_s",
+      "type": "number",
+      "label": "Land s",
+      "default": 0.3
+    },
+    {
+      "id": "panel_inner_pad_px",
+      "type": "number",
+      "label": "Panel inner pad px",
+      "default": 24
+    },
+    {
+      "id": "device_width_px",
+      "type": "number",
+      "label": "Device width px",
+      "default": 150
+    },
+    {
+      "id": "device_height_px",
+      "type": "number",
+      "label": "Device height px",
+      "default": 110
+    },
+    {
+      "id": "device_label_gap_px",
+      "type": "number",
+      "label": "Device label gap px",
+      "default": 10
+    },
+    {
+      "id": "screen_height_px",
+      "type": "number",
+      "label": "Screen height px",
+      "default": 76
+    },
+    {
+      "id": "laptop_screen_width_px",
+      "type": "number",
+      "label": "Laptop screen width px",
+      "default": 120
+    },
+    {
+      "id": "laptop_screen_top_px",
+      "type": "number",
+      "label": "Laptop screen top px",
+      "default": 14
+    },
+    {
+      "id": "desktop_screen_width_px",
+      "type": "number",
+      "label": "Desktop screen width px",
+      "default": 136
+    },
+    {
+      "id": "desktop_screen_top_px",
+      "type": "number",
+      "label": "Desktop screen top px",
+      "default": 7
+    },
+    {
+      "id": "chip_icon_px",
+      "type": "number",
+      "label": "Chip icon px",
+      "default": 30
+    },
+    {
+      "id": "chip_gap_px",
+      "type": "number",
+      "label": "Chip gap px",
+      "default": 8
+    },
+    {
+      "id": "chip_pad_x_px",
+      "type": "number",
+      "label": "Chip pad x px",
+      "default": 8
+    },
+    {
+      "id": "chip_pad_y_px",
+      "type": "number",
+      "label": "Chip pad y px",
+      "default": 12
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}

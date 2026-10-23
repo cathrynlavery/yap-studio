@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "name": "Warm Editorial",
+  "captions": {
+    "font": "Gelasio",
+    "size_px": 82,
+    "text_color": "#FFF4DD",
+    "highlight_color": "#9B462D",
+    "highlight_style": "underline",
+    "max_words_per_phrase": 5
+  },
+  "hook": {
+    "style": "quiet_serif",
+    "font": "Gelasio",
+    "background_color": "#E9DDC8",
+    "accent_color": "#9B462D"
+  },
+  "graphics": {
+    "style": "paper",
+    "paper_color": "#E9DDC8",
+    "titlebar_color": "#D6C7AC",
+    "accent_color": "#9B462D"
+  },
+  "music": {
+    "level": 0.08,
+    "dry_open_s": 1.2
+  }
+}

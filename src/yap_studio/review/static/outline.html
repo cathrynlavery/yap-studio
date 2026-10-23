@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Story outline</title>
+  <link rel="stylesheet" href="static/app.css">
+  <script type="module" src="static/outline.mjs"></script>
+</head>
+<body class="outline-page">
+  <main class="shell outline-shell">
+    <header class="outline-header">
+      <p class="eyebrow">Story outline</p>
+      <h1 id="project-name">Your story</h1>
+      <p id="outline-status" class="outline-banner" role="status">Loading the story.</p>
+    </header>
+    <p id="outline-offline" class="offline-banner" role="alert" hidden>The outline server is not reachable. Your notes are saved.</p>
+    <p id="outline-error" class="status" role="alert"></p>
+    <p id="outline-summary" class="outline-summary" hidden></p>
+    <p id="older-notes" class="muted" hidden></p>
+    <section id="whole-story" class="outline-card" aria-labelledby="whole-heading">
+      <h2 id="whole-heading">Whole story</h2>
+      <div id="whole-notes"></div>
+    </section>
+    <section class="outline-beats" aria-label="Story beats" id="outline-beats"></section>
+    <details id="left-out" class="outline-left-out" hidden>
+      <summary>Left out</summary>
+      <p class="muted">These words are outside the story. Leave a note to bring them in.</p>
+      <p id="left-out-truncated" class="muted" hidden>Some left-out words are not shown.</p>
+      <div id="left-out-list"></div>
+    </details>
+    <footer class="outline-bar" aria-label="Story decisions">
+      <div class="outline-decisions">
+        <button id="outline-send" class="primary" type="button" data-write disabled>Send 0 notes</button>
+        <button id="outline-approve" type="button" data-write disabled>Approve the story</button>
+      </div>
+      <label class="outline-wait" for="outline-wait">Start rendering after
+        <select id="outline-wait" data-write disabled></select>
+      </label>
+      <p id="wait-deadline" class="muted" aria-live="polite" hidden></p>
+    </footer>
+  </main>
+  <dialog id="approve-dialog" aria-labelledby="approve-heading">
+    <h2 id="approve-heading">Approve this story?</h2>
+    <p>Rendering can start when you approve. Any draft notes stay here until you send them.</p>
+    <div class="form-actions">
+      <button id="approve-cancel" type="button">Keep reviewing</button>
+      <button id="approve-confirm" class="primary" type="button" data-write>Approve the story</button>
+    </div>
+  </dialog>
+</body>
+</html>

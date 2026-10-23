@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "Marker",
+  "captions": {
+    "font": "Permanent Marker",
+    "size_px": 86,
+    "text_color": "#FFFFFF",
+    "highlight_color": "#FFD23F",
+    "highlight_text_color": "#1D1D1D",
+    "highlight_style": "underline",
+    "top_px": 1490,
+    "max_words_per_phrase": 4,
+    "max_characters_per_phrase": 21,
+    "shadow_opacity": 0.5,
+    "shadow_blur_px": 5,
+    "shadow_x_px": 2,
+    "shadow_y_px": 3,
+    "letter_spacing_px": 0.5,
+    "italic_stress": false,
+    "entry_rise_px": 10,
+    "entry_ms": 140
+  },
+  "hook": {
+    "style": "paper_title",
+    "font": "Permanent Marker",
+    "size_px": 90,
+    "text_color": "#1D1D1D",
+    "background_color": "#FFF6DC",
+    "accent_color": "#FF2E88"
+  },
+  "graphics": {
+    "style": "paper",
+    "paper_color": "#FFFDF4",
+    "titlebar_color": "#F1EAD6",
+    "ink_color": "#1D1D1D",
+    "accent_color": "#FF2E88",
+    "font": "Permanent Marker"
+  },
+  "music": {
+    "level": 0.12
+  }
+}

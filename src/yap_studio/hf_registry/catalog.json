@@ -1,0 +1,122 @@
+{
+  "schema": "yap-studio/hf-registry-catalog@1",
+  "hyperframes_version": "0.8.184",
+  "registry": {
+    "repository": "github.com/heygen-com/hyperframes",
+    "tag": "v0.8.184",
+    "commit": "d15a274c198cf18bc1df177cbe20df95392a8947",
+    "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/d15a274c198cf18bc1df177cbe20df95392a8947/registry",
+    "license": "Apache-2.0",
+    "license_file": "LICENSES/Apache-2.0.txt",
+    "copyright": "Copyright 2026 HeyGen, Inc."
+  },
+  "items": {
+    "char-slam-explode": {
+      "type": "component",
+      "upstream_path": "registry/components/char-slam-explode/char-slam-explode.html",
+      "main": "compositions/components/char-slam-explode.html",
+      "files": {
+        "compositions/components/char-slam-explode.html": "41aae5bb4032ac37f058b46d58def69acf417ee03e4d38073f75c2fd2f84082f"
+      },
+      "status": "on",
+      "readability": "halo",
+      "mount": "fill",
+      "tokens": {
+        "--brand": "accent",
+        "--accent": "accent",
+        "--accent-2": "accent",
+        "--cse-accent": "accent",
+        "--fg": "paper"
+      },
+      "min_s": 1.5,
+      "kind": {
+        "category": "Words",
+        "role": "titles",
+        "label": "Slam headline",
+        "use": "one to three words to land hard"
+      },
+      "min_panel": [
+        640,
+        200
+      ],
+      "slots": {
+        "text": {
+          "type": "string",
+          "required": true,
+          "min_length": 1,
+          "max_length": 12
+        }
+      },
+      "preview": {"text": "Ship it now"},
+      "measured": {
+        "min_text_px": 31,
+        "at": {
+          "panel": [640, 200],
+          "slots": {"text": "Ship it now!"}
+        }
+      },
+      "variables": {
+        "text": "{text}",
+        "spread": "tight",
+        "accent": "green"
+      }
+    },
+    "conic-progress-ring": {
+      "type": "component",
+      "upstream_path": "registry/components/conic-progress-ring/conic-progress-ring.html",
+      "main": "compositions/components/conic-progress-ring.html",
+      "files": {
+        "compositions/components/conic-progress-ring.html": "a01beeb774006a3317d123983b85586adb3bc81b94e435e3f65116ba9dabb93a"
+      },
+      "status": "on",
+      "readability": "halo",
+      "mount": "fill",
+      "tokens": {
+        "--brand": "accent",
+        "--accent": "accent",
+        "--surface": "accent_tint",
+        "--fg": "paper"
+      },
+      "min_s": 1.5,
+      "kind": {
+        "category": "Numbers",
+        "role": "cards",
+        "label": "Progress ring",
+        "use": "a percent from 0 to 100"
+      },
+      "min_panel": [
+        400,
+        220
+      ],
+      "slots": {
+        "percent": {
+          "type": "integer",
+          "required": true,
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "preview": {"percent": 72},
+      "measured": {
+        "min_text_px": 49,
+        "at": {
+          "panel": [400, 220],
+          "slots": {"percent": 100}
+        }
+      },
+      "variables": {
+        "progress": "{percent}",
+        "label": "{percent}%"
+      }
+    },
+    "echo-smear": {
+      "type": "component",
+      "upstream_path": "registry/components/echo-smear/echo-smear.html",
+      "main": "compositions/components/echo-smear.html",
+      "files": {
+        "compositions/components/echo-smear.html": "39c896ab1a3d52fb247af88f2213ea114f9bda35cc30a6b95dc0f7311f71e0d4"
+      },
+      "status": "helper"
+    }
+  }
+}

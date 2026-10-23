@@ -1,0 +1,67 @@
+{
+  "id": "chapter",
+  "version": 1,
+  "reads": "chapters",
+  "variables": [
+    {
+      "id": "number",
+      "type": "string",
+      "label": "Chapter number",
+      "default": "02"
+    },
+    {
+      "id": "title",
+      "type": "string",
+      "label": "Chapter title",
+      "default": "Sample chapter"
+    },
+    {
+      "id": "timecode",
+      "type": "string",
+      "label": "Start time",
+      "default": "01:24"
+    },
+    {
+      "id": "font_name",
+      "type": "string",
+      "label": "Font name",
+      "default": "Inter"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "size_px",
+      "type": "number",
+      "label": "Title size",
+      "default": 96
+    },
+    {
+      "id": "background_color",
+      "type": "color",
+      "label": "Wash color",
+      "default": "#111111"
+    },
+    {
+      "id": "text_color",
+      "type": "color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#D8FF2F"
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Frame rate",
+      "default": 30
+    }
+  ]
+}

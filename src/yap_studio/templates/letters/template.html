@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><style>
+/* BUNDLED_FONT_FACES */
+html, body { margin: 0; background: transparent; overflow: hidden; }
+svg { display: block; width: 1080px; height: 1920px; }
+#letter-ink { transform-origin: 0 0; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="letters" data-no-timeline data-start="0" data-width="1080" data-height="1920" data-duration="1.599">
+  <svg id="plate" viewBox="0 0 1080 1920">
+    <defs>
+      <mask id="letter-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1080" height="1920" style="mask-type: luminance">
+        <rect width="1080" height="1920" fill="white" />
+        <g id="letter-ink" fill="black" text-anchor="middle" font-weight="900"></g>
+      </mask>
+    </defs>
+    <rect id="plate-color" width="1080" height="1920" mask="url(#letter-mask)" />
+  </svg>
+</div>
+<script>
+(() => {
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const plate = document.getElementById("plate");
+  const ink = document.getElementById("letter-ink");
+  const lines = typeof v.lines === "string" ? JSON.parse(v.lines) : v.lines;
+  const family = v.font_family;
+  const centerY = Number(v.center_y);
+  const fps = Number(v.fps);
+  const hold = Number(v.hold_frames);
+  const reveal = Number(v.reveal_frames);
+  const duration = Number(root.dataset.duration);
+  let size = Number(v.size_px);
+  document.getElementById("plate-color").setAttribute("fill", v.color);
+  ink.style.fontFamily = family;
+  ink.style.fontSize = `${size}px`;
+  for (const line of lines) {
+    const text = document.createElementNS(ink.namespaceURI, "text");
+    text.textContent = line;
+    text.setAttribute("x", "540");
+    ink.appendChild(text);
+  }
+  document.fonts.load(`900 ${size}px ${family}`);
+  document.fonts.ready.then(() => {
+    const texts = [...ink.children];
+    const widest = Math.max(...texts.map(text => text.getComputedTextLength()));
+    if (widest > 960) size *= 960 / widest;
+    ink.style.fontSize = `${size}px`;
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const context = canvas.getContext("2d", {willReadFrequently: true});
+    context.font = `900 ${size}px ${family}`;
+    context.textAlign = "center";
+    context.fillStyle = "white";
+    const metrics = lines.map(line => context.measureText(line));
+    const ascent = Math.max(...metrics.map(metric => metric.actualBoundingBoxAscent));
+    const descent = Math.max(...metrics.map(metric => metric.actualBoundingBoxDescent));
+    const firstY = centerY - (ascent + descent + (lines.length - 1) * size * .9) / 2 + ascent;
+    texts.forEach((text, index) => {
+      const y = firstY + index * size * .9;
+      text.setAttribute("y", String(y));
+      context.fillText(lines[index], 540, y);
+    });
+    const alpha = context.getImageData(0, 0, 1080, 1920).data;
+    const depth = new Float32Array(1080 * 1920);
+    const diagonal = Math.SQRT2;
+    for (let y = 0; y < 1920; y += 1) {
+      for (let x = 0; x < 1080; x += 1) {
+        const i = y * 1080 + x;
+        if (alpha[i * 4 + 3] < 128) continue;
+        depth[i] = Math.min(x ? depth[i - 1] + 1 : 1,
+          y ? depth[i - 1080] + 1 : 1,
+          x && y ? depth[i - 1081] + diagonal : 1,
+          x < 1079 && y ? depth[i - 1079] + diagonal : 1);
+      }
+    }
+    let maxDepth = 0;
+    for (let y = 1919; y >= 0; y -= 1) {
+      for (let x = 1079; x >= 0; x -= 1) {
+        const i = y * 1080 + x;
+        if (!depth[i]) continue;
+        depth[i] = Math.min(depth[i], x < 1079 ? depth[i + 1] + 1 : 1,
+          y < 1919 ? depth[i + 1080] + 1 : 1,
+          x < 1079 && y < 1919 ? depth[i + 1081] + diagonal : 1,
+          x && y < 1919 ? depth[i + 1079] + diagonal : 1);
+        maxDepth = Math.max(maxDepth, depth[i]);
+      }
+    }
+    let originX = 540, originY = centerY, originDepth = 1, nearest = Infinity;
+    for (let y = 0; y < 1920; y += 1) {
+      for (let x = 0; x < 1080; x += 1) {
+        const d = depth[y * 1080 + x];
+        if (!d || d < .6 * maxDepth) continue;
+        const distance = (x - 540) ** 2 + (y - centerY) ** 2;
+        // Row order breaks equal distances by smaller y, then smaller x.
+        if (distance < nearest) {
+          nearest = distance;
+          originX = x; originY = y; originDepth = d;
+        }
+      }
+    }
+    const farthest = Math.max(...[[0, 0], [1080, 0], [0, 1920], [1080, 1920]]
+      .map(([x, y]) => Math.hypot(x - originX, y - originY)));
+    const finalScale = Math.max(8, Math.min(400, Math.ceil(farthest / (.8 * originDepth))));
+    Object.assign(root.dataset, {originX, originY, originDepth, maxDepth, finalScale});
+    const transform = scale => `translate(${originX}px, ${originY}px) scale(${scale}) translate(${-originX}px, ${-originY}px)`;
+    const zoom = [{transform: transform(1), offset: 0}];
+    const fade = [{opacity: 1, offset: 0}];
+    for (let frame = 0; frame < reveal; frame += 1) {
+      const p = frame / (reveal - 1);
+      const offset = (hold + frame) / fps / duration;
+      zoom.push({transform: transform(finalScale ** (p * p)), offset});
+      fade.push({opacity: Math.min(1, (reveal - 1 - frame) / 2), offset});
+    }
+    zoom.push({...zoom[zoom.length - 1], offset: 1});
+    fade.push({opacity: 0, offset: 1});
+    const timing = {duration: duration * 1000, fill: 'both', easing: 'linear'};
+    ink.animate(zoom, timing);
+    plate.animate(fade, timing);
+    root.dataset.ready = "true";
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+{
+  "id": "captions",
+  "version": 4,
+  "reads": "captions",
+  "derived_from": [
+    {
+      "item": "caption-kinetic-slam",
+      "path": "registry/components/caption-kinetic-slam/caption-kinetic-slam.html"
+    },
+    {
+      "item": "caption-weight-shift",
+      "path": "registry/components/caption-weight-shift/caption-weight-shift.html"
+    },
+    {
+      "item": "caption-clip-wipe",
+      "path": "registry/components/caption-clip-wipe/caption-clip-wipe.html"
+    },
+    {
+      "item": "caption-blend-difference",
+      "path": "registry/components/caption-blend-difference/caption-blend-difference.html"
+    },
+    {
+      "item": "caption-camera-follow",
+      "path": "registry/components/caption-camera-follow/caption-camera-follow.html"
+    },
+    {
+      "item": "caption-editorial-emphasis",
+      "path": "registry/components/caption-editorial-emphasis/caption-editorial-emphasis.html"
+    },
+    {
+      "item": "caption-emoji-pop",
+      "path": "registry/components/caption-emoji-pop/caption-emoji-pop.html"
+    },
+    {
+      "item": "caption-glitch-rgb",
+      "path": "registry/components/caption-glitch-rgb/caption-glitch-rgb.html"
+    },
+    {
+      "item": "caption-gradient-fill",
+      "path": "registry/components/caption-gradient-fill/caption-gradient-fill.html"
+    },
+    {
+      "item": "caption-highlight",
+      "path": "registry/components/caption-highlight/caption-highlight.html"
+    },
+    {
+      "item": "caption-matrix-decode",
+      "path": "registry/components/caption-matrix-decode/caption-matrix-decode.html"
+    },
+    {
+      "item": "caption-neon-accent",
+      "path": "registry/components/caption-neon-accent/caption-neon-accent.html"
+    },
+    {
+      "item": "caption-neon-glow",
+      "path": "registry/components/caption-neon-glow/caption-neon-glow.html"
+    },
+    {
+      "item": "caption-parallax-layers",
+      "path": "registry/components/caption-parallax-layers/caption-parallax-layers.html"
+    },
+    {
+      "item": "caption-particle-burst",
+      "path": "registry/components/caption-particle-burst/caption-particle-burst.html"
+    },
+    {
+      "item": "caption-pill-karaoke",
+      "path": "registry/components/caption-pill-karaoke/caption-pill-karaoke.html"
+    },
+    {
+      "item": "caption-texture",
+      "path": "registry/components/caption-texture/caption-texture.html"
+    }
+  ],
+  "variables": [
+    {
+      "id": "font_name",
+      "type": "string",
+      "label": "Font name",
+      "default": "Inter"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "size_px",
+      "type": "number",
+      "label": "Font size",
+      "default": 76
+    },
+    {
+      "id": "text_color",
+      "type": "color",
+      "label": "Text color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "background_mode",
+      "type": "enum",
+      "label": "Caption ground",
+      "default": "none",
+      "options": [
+        {
+          "value": "none",
+          "label": "None"
+        },
+        {
+          "value": "box",
+          "label": "Fitted box"
+        },
+        {
+          "value": "band",
+          "label": "Full-width band"
+        }
+      ]
+    },
+    {
+      "id": "background_color",
+      "type": "color",
+      "label": "Ground color",
+      "default": "#000000"
+    },
+    {
+      "id": "background_opacity",
+      "type": "number",
+      "label": "Ground opacity",
+      "default": 0.85
+    },
+    {
+      "id": "background_padding_px",
+      "type": "number",
+      "label": "Ground padding",
+      "default": 18
+    },
+    {
+      "id": "background_radius_px",
+      "type": "number",
+      "label": "Ground radius",
+      "default": 12
+    },
+    {
+      "id": "padding_px",
+      "type": "number",
+      "label": "Box padding",
+      "default": 32
+    },
+    {
+      "id": "position",
+      "type": "enum",
+      "label": "Position",
+      "default": "bottom",
+      "options": [
+        {
+          "value": "bottom",
+          "label": "Bottom"
+        },
+        {
+          "value": "middle",
+          "label": "Middle"
+        }
+      ]
+    },
+    {
+      "id": "bottom_padding_px",
+      "type": "number",
+      "label": "Bottom inset",
+      "default": 44
+    },
+    {
+      "id": "phrases",
+      "type": "string",
+      "label": "Timed phrases",
+      "default": "[]"
+    },
+    {
+      "id": "highlight_style",
+      "type": "enum",
+      "label": "Highlight",
+      "default": "none",
+      "options": [
+        {
+          "value": "moving_block",
+          "label": "Sliding block"
+        },
+        {
+          "value": "underline",
+          "label": "Underline"
+        },
+        {
+          "value": "color",
+          "label": "Colored word"
+        },
+        {
+          "value": "pill",
+          "label": "Pill karaoke"
+        },
+        {
+          "value": "gradient",
+          "label": "Gradient sweep"
+        },
+        {
+          "value": "editorial",
+          "label": "Editorial emphasis"
+        },
+        {
+          "value": "slam",
+          "label": "Kinetic slam"
+        },
+        {
+          "value": "weight_shift",
+          "label": "Weight shift"
+        },
+        {
+          "value": "clip_wipe",
+          "label": "Clip wipe"
+        },
+        {
+          "value": "blend_difference",
+          "label": "Difference blend"
+        },
+        {
+          "value": "camera_follow",
+          "label": "Camera follow"
+        },
+        {
+          "value": "editorial_emphasis",
+          "label": "Large key word"
+        },
+        {
+          "value": "emoji_pop",
+          "label": "Emoji pop"
+        },
+        {
+          "value": "glitch_rgb",
+          "label": "RGB glitch"
+        },
+        {
+          "value": "gradient_fill",
+          "label": "Gradient fill"
+        },
+        {
+          "value": "highlight",
+          "label": "Word background"
+        },
+        {
+          "value": "matrix_decode",
+          "label": "Matrix decode"
+        },
+        {
+          "value": "neon_accent",
+          "label": "Neon accent"
+        },
+        {
+          "value": "neon_glow",
+          "label": "Neon glow"
+        },
+        {
+          "value": "parallax_layers",
+          "label": "Parallax layers"
+        },
+        {
+          "value": "particle_burst",
+          "label": "Particle burst"
+        },
+        {
+          "value": "pill_karaoke",
+          "label": "Rounded karaoke"
+        },
+        {
+          "value": "texture",
+          "label": "Text texture"
+        },
+        {
+          "value": "giant",
+          "label": "Giant captions"
+        },
+        {
+          "value": "none",
+          "label": "No highlight"
+        }
+      ]
+    },
+    {
+      "id": "highlight_color",
+      "type": "color",
+      "label": "Highlight color",
+      "default": "#D8FF2F"
+    },
+    {
+      "id": "highlight_text_color",
+      "type": "color",
+      "label": "Highlight text color",
+      "default": "#111111"
+    },
+    {
+      "id": "italic_stress",
+      "type": "boolean",
+      "label": "Italic stress",
+      "default": true
+    },
+    {
+      "id": "shadow_opacity",
+      "type": "number",
+      "label": "shadow opacity",
+      "default": 0.25
+    },
+    {
+      "id": "shadow_blur_px",
+      "type": "number",
+      "label": "shadow blur px",
+      "default": 5
+    },
+    {
+      "id": "shadow_x_px",
+      "type": "number",
+      "label": "shadow x px",
+      "default": 3
+    },
+    {
+      "id": "shadow_y_px",
+      "type": "number",
+      "label": "shadow y px",
+      "default": 4
+    },
+    {
+      "id": "letter_spacing_px",
+      "type": "number",
+      "label": "letter spacing px",
+      "default": 0
+    },
+    {
+      "id": "width_scale",
+      "type": "number",
+      "label": "Width scale",
+      "default": 1
+    },
+    {
+      "id": "entry_rise_px",
+      "type": "number",
+      "label": "entry rise px",
+      "default": 12
+    },
+    {
+      "id": "entry_ms",
+      "type": "number",
+      "label": "entry ms",
+      "default": 100
+    },
+    {
+      "id": "entrance",
+      "type": "enum",
+      "label": "Entrance",
+      "default": "slide",
+      "options": [
+        {
+          "value": "slide",
+          "label": "Slide"
+        },
+        {
+          "value": "rise",
+          "label": "Rise"
+        },
+        {
+          "value": "spoken",
+          "label": "Word by word"
+        }
+      ]
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Frame rate",
+      "default": 30
+    },
+    {
+      "id": "band_top_px",
+      "type": "number",
+      "label": "Band top",
+      "default": 0
+    },
+    {
+      "id": "band_height_px",
+      "type": "number",
+      "label": "Band height",
+      "default": 0
+    }
+  ],
+  "box": {
+    "width": 1080,
+    "height": "Two lines at size_px * 1.12 plus entry_rise_px and twice the padding; includes background_padding_px on both sides when a ground is enabled",
+    "y": "Bottom: band's last line starts at top_px and wraps upward; bottom is top_px + size_px * 1.12 + entry_rise_px + padding, clamped to caption_safe_bottom_px with a plan warning. Middle: band centered on top_px with the existing safe clamp."
+  }
+}

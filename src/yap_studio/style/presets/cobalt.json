@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "Cobalt",
+  "captions": {
+    "font": "Alata",
+    "size_px": 80,
+    "text_color": "#FFFFFF",
+    "highlight_color": "#2F3BFF",
+    "highlight_text_color": "#FFFFFF",
+    "highlight_style": "moving_block",
+    "top_px": 1500,
+    "max_words_per_phrase": 5,
+    "max_characters_per_phrase": 24,
+    "shadow_opacity": 0.4,
+    "shadow_blur_px": 8,
+    "shadow_x_px": 0,
+    "shadow_y_px": 3,
+    "letter_spacing_px": -0.5,
+    "italic_stress": false,
+    "entry_rise_px": 10,
+    "entry_ms": 120
+  },
+  "hook": {
+    "style": "quiet_serif",
+    "font": "Alata",
+    "size_px": 84,
+    "text_color": "#0E1230",
+    "background_color": "#FFFFFF",
+    "accent_color": "#2F3BFF"
+  },
+  "graphics": {
+    "style": "minimal",
+    "paper_color": "#FFFFFF",
+    "titlebar_color": "#EEF0FF",
+    "ink_color": "#0E1230",
+    "accent_color": "#2F3BFF",
+    "font": "Alata"
+  },
+  "music": {
+    "level": 0.08
+  }
+}

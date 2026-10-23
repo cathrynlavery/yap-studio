@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Synthetic ElevenLabs command for offline tests."""
+
+import json
+import math
+import os
+import shutil
+import struct
+import sys
+import wave
+from pathlib import Path
+
+
+def main():
+    args = sys.argv[1:]
+    body_text = sys.stdin.read()
+    log = os.environ.get("FAKE_ELEVENLABS_LOG")
+    if log:
+        with open(log, "a", encoding="utf-8") as stream:
+            stream.write(json.dumps({"argv": args, "stdin": body_text}) + "\n")
+    if args[:2] == ["auth", "status"]:
+        code = int(os.environ.get("FAKE_ELEVENLABS_AUTH_EXIT", "0"))
+        if code == 0:
+            print('{"authenticated": true}')
+        return code
+    if args[:2] == ["user", "get-subscription-info"]:
+        tier = os.environ.get("FAKE_ELEVENLABS_TIER", "creator")
+        if tier == "missing_permissions":
+            print("HTTP 401 missing_permissions", file=sys.stderr)
+            return 4
+        print(json.dumps({"tier": tier}))
+        return 0
+    if args[:2] == ["music", "compose-plan"]:
+        body = json.loads(body_text)
+        if "--dry-run" in args:
+            print("POST https://api.elevenlabs.io/v1/music/compose-plan", file=sys.stderr)
+            print(f"Body: {json.dumps(body)}", file=sys.stderr)
+            print("  xi-api-key: ****abcd", file=sys.stderr)
+            print(json.dumps({"action": "post", "data": {"dry_run": True},
+                              "dry_run": True, "success": True}))
+        else:
+            print(json.dumps({"sections": [{"duration_ms": body["music_length_ms"],
+                                             "prompt": body["prompt"]}]}))
+        return 0
+    if args[:2] == ["music", "generate"]:
+        body = json.loads(body_text)
+        deliver = next(value.removeprefix("file:") for flag, value in zip(args, args[1:],
+                                                                           strict=False)
+                       if flag == "--deliver")
+        target = Path(deliver)
+        if "--dry-run" in args:
+            print("POST https://api.elevenlabs.io/v1/music", file=sys.stderr)
+            print(f"Body: {json.dumps(body)}", file=sys.stderr)
+            print("  xi-api-key: ****abcd", file=sys.stderr)
+            print(json.dumps({"dry_run": True}))
+            return 0
+        code = int(os.environ.get("FAKE_ELEVENLABS_GENERATE_EXIT", "0"))
+        if code:
+            print(os.environ.get("FAKE_ELEVENLABS_GENERATE_STDERR", "synthetic failure"),
+                  file=sys.stderr)
+            print("  xi-api-key: ****abcd", file=sys.stderr)
+            return code
+        milliseconds = sum(item["duration_ms"] for item in
+                           body["composition_plan"]["sections"])
+        rate = 44_100
+        with wave.open(str(target), "wb") as output:
+            output.setnchannels(2)
+            output.setsampwidth(2)
+            output.setframerate(rate)
+            chunk = 4096
+            for first in range(0, round(milliseconds * rate / 1000), chunk):
+                count = min(chunk, round(milliseconds * rate / 1000) - first)
+                samples = bytearray()
+                for index in range(first, first + count):
+                    sample = round(4000 * math.sin(2 * math.pi * 220 * index / rate))
+                    samples.extend(struct.pack("<hh", sample, sample))
+                output.writeframesraw(samples)
+        with target.open("rb") as audio:
+            shutil.copyfileobj(audio, sys.stdout.buffer)
+        return 0
+    if args[:1] == ["sound-generation"]:
+        options = dict(zip(args[1::2], args[2::2]))
+        if "--dry-run" in args:
+            print("POST https://api.elevenlabs.io/v1/sound-generation", file=sys.stderr)
+            print(f"Body: {json.dumps({'text': options['--text']})}", file=sys.stderr)
+            print("  xi-api-key: ****abcd", file=sys.stderr)
+            print(json.dumps({"dry_run": True}))
+            return 0
+        code = int(os.environ.get("FAKE_ELEVENLABS_GENERATE_EXIT", "0"))
+        if code:
+            print(os.environ.get("FAKE_ELEVENLABS_GENERATE_STDERR", "synthetic failure"),
+                  file=sys.stderr)
+            print("  xi-api-key: ****abcd", file=sys.stderr)
+            return code
+        target = Path(options["--deliver"].removeprefix("file:"))
+        rate = 44_100
+        count = round(float(options["--duration-seconds"]) * rate)
+        frequency = 330 + sum(map(ord, options["--text"])) % 300
+        with wave.open(str(target), "wb") as output:
+            output.setnchannels(2)
+            output.setsampwidth(2)
+            output.setframerate(rate)
+            for first in range(0, count, 4096):
+                samples = bytearray()
+                for index in range(first, min(first + 4096, count)):
+                    envelope = (1 - index / count) ** 2
+                    sample = round(4000 * envelope * math.sin(
+                        2 * math.pi * frequency * index / rate))
+                    samples.extend(struct.pack("<hh", sample, sample))
+                output.writeframesraw(samples)
+        with target.open("rb") as audio:
+            shutil.copyfileobj(audio, sys.stdout.buffer)
+        return 0
+    print("unknown synthetic command", file=sys.stderr)
+    return 2
+
+
+sys.exit(main())

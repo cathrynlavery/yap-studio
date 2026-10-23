@@ -1,0 +1,43 @@
+{
+  "schema": "yap-studio/sfx-kit@1",
+  "name": "soft",
+  "description": "Calm, clean cues beneath a talking voice.",
+  "sounds": [
+    {
+      "name": "whoosh",
+      "prompt": "A short soft airy non-musical UI whoosh, smooth and clean, quiet tail, suitable under calm speech.",
+      "duration_s": 0.8,
+      "prompt_influence": 0.5,
+      "gain_db": 0,
+      "priority": 3,
+      "rule": "transition"
+    },
+    {
+      "name": "click",
+      "prompt": "A tiny soft dry non-musical UI click, clean transient and no echo, suitable under calm speech.",
+      "duration_s": 0.5,
+      "prompt_influence": 0.5,
+      "gain_db": 0,
+      "priority": 1,
+      "rule": "item"
+    },
+    {
+      "name": "tick-roll",
+      "prompt": "A short gentle non-musical ticking roll for a number beginning to count, clean and restrained under speech.",
+      "duration_s": 1,
+      "prompt_influence": 0.5,
+      "gain_db": 0,
+      "priority": 2,
+      "rule": "count_start"
+    },
+    {
+      "name": "chime",
+      "prompt": "A brief soft clean non-musical UI confirmation chime, subtle rounded tone with a short tail under calm speech.",
+      "duration_s": 0.8,
+      "prompt_influence": 0.5,
+      "gain_db": 0,
+      "priority": 4,
+      "rule": "settle"
+    }
+  ]
+}

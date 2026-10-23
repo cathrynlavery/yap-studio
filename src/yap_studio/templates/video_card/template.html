@@ -1,0 +1,101 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "browser-device-stage"
+  (registry/components/browser-device-stage/browser-device-stage.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Replaced the device screen with a fixed transparent video window, paper mat, fitted caption and frame-based linear fades.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":618},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"label","type":"string","label":"Label","default":""},{"id":"label_px","type":"number","label":"Label px","default":40},{"id":"rule_color","type":"string","label":"Label rule color","default":""},{"id":"fps","type":"number","label":"Frames per second","default":30},{"id":"windows","type":"string","label":"Windows","default":"[{\"x\": 56, \"y\": 40, \"width\": 928, \"height\": 522, \"radius\": 14, \"start\": 0, \"frames\": 90, \"fade_in\": 9, \"fade_out\": 9}]"},{"id":"window_fill","type":"enum","label":"Window fill","default":"preview","options":[{"value":"preview","label":"Preview"},{"value":"clear","label":"Clear"}]}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; color: var(--card-ink); font-family: var(--card-font); }
+.panel { position: absolute; opacity: 0; border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); }
+.panel svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.label { position: absolute; display: flex; align-items: center; gap: 12px;
+  font-size: var(--card-label-size); font-weight: 600; line-height: 1.2; opacity: 0; }
+.rule { width: 4px; height: 24px; background: var(--card-rule); flex: 0 0 4px; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="video_card" data-start="0" data-width="1040" data-height="706" data-duration="3">
+<div class="panel"><svg aria-hidden="true"></svg><div class="label"><span class="rule"></span><span class="text"></span></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const tokens = {
+    "paper": v.paper_color, "ink": v.ink_color, "accent": v.accent_color, "rule": v.rule_color,
+    "font": v.font_family, "radius": `${v.card_radius_px}px`, "shadow": v.card_shadow,
+    "label-size": `${v.label_px}px`,
+  };
+  for (const [name, value] of Object.entries(tokens)) {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  }
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  const width = Number(v.panel_width_px);
+  const height = Number(v.panel_max_height_px);
+  const left = Number(v.pad_x_px), top = Number(v.pad_top_px);
+  Object.assign(panel.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+  const svg = panel.querySelector("svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const windows = JSON.parse(v.windows);
+  const r = Number(v.card_radius_px);
+  let outline = `M${r},0H${width-r}Q${width},0 ${width},${r}V${height-r}Q${width},${height} ${width-r},${height}H${r}Q0,${height} 0,${height-r}V${r}Q0,0 ${r},0Z`;
+  for (const w of windows) {
+    const x = w.x-left, y = w.y-top;
+    const radius = Number(w.radius);
+    outline += `M${x+radius},${y}h${w.width-2*radius}` +
+      `a${radius} ${radius} 0 0 1 ${radius} ${radius}v${w.height-2*radius}` +
+      `a${radius} ${radius} 0 0 1 ${-radius} ${radius}h${-w.width+2*radius}` +
+      `a${radius} ${radius} 0 0 1 ${-radius} ${-radius}v${-w.height+2*radius}` +
+      `a${radius} ${radius} 0 0 1 ${radius} ${-radius}Z`;
+  }
+  function shape(tag, attrs, parent = svg) {
+    const node = document.createElementNS(svg.namespaceURI, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    parent.appendChild(node);
+    return node;
+  }
+  const defs = shape("defs", {});
+  const gradient = shape("linearGradient", { id: "preview" }, defs);
+  shape("stop", { "stop-color": v.paper_color }, gradient);
+  shape("stop", { offset: "1", "stop-color": `color-mix(in srgb, ${v.ink_color} 12%, ${v.paper_color})` }, gradient);
+  shape("path", { fill: v.paper_color, "fill-rule": "evenodd", d: outline });
+  if (v.window_fill === "preview") {
+    for (const w of windows) {
+      const x = w.x-left, y = w.y-top, cx = x+w.width/2, cy = y+w.height/2;
+      shape("rect", { x, y, width: w.width, height: w.height, rx: w.radius, fill: "url(#preview)" });
+      shape("path", { d: `M${cx-12},${cy-18}L${cx+20},${cy}L${cx-12},${cy+18}Z`, fill: v.ink_color, opacity: "0.6" });
+    }
+  }
+  const label = panel.querySelector(".label");
+  const w = windows[0];
+  label.style.left = `${w.x-left}px`;
+  label.style.top = `${w.y-top+w.height+16}px`;
+  label.querySelector(".text").textContent = v.label;
+  label.querySelector(".rule").hidden = !v.rule_color;
+  label.hidden = !v.label;
+  gsap.set(panel, { opacity: 0 });
+  gsap.set(label, { opacity: 0, y: 8 });
+  const tl = gsap.timeline({ paused: true });
+  const fps = Number(v.fps);
+  tl.fromTo(panel, { opacity: 0 }, { opacity: 1, duration: w.fade_in/fps, ease: "none" }, w.start/fps);
+  tl.fromTo(label, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 6/fps, ease: "none" }, (w.start+w.fade_in)/fps);
+  tl.fromTo(panel, { opacity: 1 }, { opacity: 0, duration: w.fade_out/fps, ease: "none", immediateRender: false }, (w.start+w.frames-w.fade_out)/fps);
+  tl.seek(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["video_card"] = tl;
+})();
+</script>
+</body>
+</html>

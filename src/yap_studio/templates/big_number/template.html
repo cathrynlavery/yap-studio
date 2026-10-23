@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" data-composition-variables='[{"id":"start","type":"number","label":"Start","default":0},{"id":"end","type":"number","label":"End","default":10000},{"id":"value_px","type":"number","label":"Value px","default":300},{"id":"label_px","type":"number","label":"Label px","default":48},{"id":"fps","type":"number","label":"Fps","default":30},{"id":"count_s","type":"number","label":"Count s","default":1},{"id":"fade_in_s","type":"number","label":"Fade in s","default":0.15},{"id":"fade_out_s","type":"number","label":"Fade out s","default":0.3},{"id":"decimals","type":"number","label":"Decimals","default":0},{"id":"weight","type":"number","label":"Weight","default":700},{"id":"cap_height_em","type":"number","label":"Cap height em","default":0.75},{"id":"shadow_pad_px","type":"number","label":"Shadow pad px","default":24},{"id":"shadow_blur_px","type":"number","label":"Shadow blur px","default":6},{"id":"shadow_y_px","type":"number","label":"Shadow y px","default":4},{"id":"shadow_alpha","type":"number","label":"Shadow alpha","default":0.7},{"id":"label_gap_px","type":"number","label":"Label gap px","default":12},{"id":"widest_em","type":"number","label":"Widest em","default":1},{"id":"label_em","type":"number","label":"Label em","default":0},{"id":"card_radius_px","type":"number","label":"Card radius px","default":0},{"id":"panel_width_px","type":"number","label":"Panel width px","default":0},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":0},{"id":"pad_x_px","type":"number","label":"Pad x px","default":0},{"id":"pad_top_px","type":"number","label":"Pad top px","default":0},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":0},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"label_color","type":"color","label":"Label color","default":"#FFFFFF"},{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"prefix","type":"string","label":"Prefix","default":""},{"id":"suffix","type":"string","label":"Suffix","default":""},{"id":"label","type":"string","label":"Label","default":""},{"id":"font_name","type":"string","label":"Font name","default":"Inter"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"advances","type":"string","label":"Advances","default":"{}"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_shadow","type":"string","label":"Card shadow","default":""},{"id":"digit_descent_em","type":"number","label":"Digit descent em","default":0.2}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; background: transparent; pointer-events: none; overflow: hidden; }
+svg { display: block; overflow: visible; }
+text { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+       font-kerning: none; white-space: pre; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="big_number" data-no-timeline data-start="0" data-width="1000"
+     data-height="320" data-duration="2.5"><div class="number-strip"><svg></svg></div></div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const MS_PER_S = 1000; // Web Animations use milliseconds while card times use seconds.
+    const SEEK_LEAD_FRAMES = 0.5; // Centre frame seeks inside each strip step.
+    const root = document.getElementById("root");
+    const width = Number(root.dataset.width);
+    const height = Number(root.dataset.height);
+    const strip = root.querySelector(".number-strip");
+    const frameSvg = strip.querySelector("svg");
+    strip.replaceChildren();
+    const advances = JSON.parse(v.advances);
+    root.style.width = `${width}px`;
+    root.style.height = `${height}px`;
+    function numberString(v, frame) {
+      const progress = Math.max(0, Math.min(1, frame / v.fps / v.count_s));
+      const value = v.start + (v.end - v.start) * (1 - (1 - progress) ** 3);
+      const factor = 10 ** v.decimals;
+      const rounded = Math.floor(value * factor + 0.5);
+      const whole = Math.floor(rounded / factor);
+      const fraction = rounded % factor;
+      let text = whole.toLocaleString("en-US");
+      if (v.decimals) text += "." + String(fraction).padStart(v.decimals, "0");
+      return v.prefix + text + v.suffix;
+    }
+    function draw(group, text, size, top, color) {
+      group.replaceChildren();
+      const widths = Array.from(text, char => advances[char] * size);
+      let x = (width - widths.reduce((a, b) => a + b, 0)) / 2;
+      Array.from(text).forEach((char, i) => {
+        const glyph = document.createElementNS(group.namespaceURI, "text");
+        glyph.textContent = char;
+        glyph.setAttribute("x", x);
+        glyph.setAttribute("y", top + v.cap_height_em * size);
+        glyph.setAttribute("font-size", size);
+        glyph.setAttribute("fill", color);
+        group.appendChild(glyph);
+        x += widths[i];
+      });
+    }
+    const duration = Number(root.dataset.duration);
+    const frames = Math.round(duration * v.fps);
+    const valueFrames = Math.min(frames, Math.ceil(v.count_s * v.fps) + 1);
+    // Each strip row is a complete frame, including shadow room and the optional label.
+    for (let frame = 0; frame < valueFrames; frame += 1) {
+      const svg = frameSvg.cloneNode(false);
+      svg.setAttribute("width", width);
+      svg.setAttribute("height", height);
+      svg.style.fontFamily = v.font_family;
+      svg.style.fontWeight = v.weight;
+      svg.style.filter = `drop-shadow(0 ${v.shadow_y_px}px ${v.shadow_blur_px}px ` +
+                        `rgba(0,0,0,${v.shadow_alpha}))`;
+      const digits = document.createElementNS(svg.namespaceURI, "g");
+      digits.setAttribute("class", "digits");
+      draw(digits, numberString(v, frame), v.value_px, v.shadow_pad_px, v.accent_color);
+      const label = document.createElementNS(svg.namespaceURI, "g");
+      label.setAttribute("class", "label");
+      draw(label, v.label, v.label_px,
+           v.shadow_pad_px + (v.cap_height_em + v.digit_descent_em) * v.value_px + v.label_gap_px,
+           v.label_color);
+      svg.appendChild(digits);
+      svg.appendChild(label);
+      strip.appendChild(svg);
+    }
+    // Stop on the landed value so its held pixels do not move between strip rows.
+    const countSteps = valueFrames - 1;
+    strip.animate([{ transform: "translateY(0)" },
+      { transform: `translateY(${-countSteps * height}px)` }],
+      { delay: -SEEK_LEAD_FRAMES / v.fps * MS_PER_S, duration: countSteps / v.fps * MS_PER_S,
+        fill: "both", easing: `steps(${countSteps}, end)` });
+    strip.animate([{ opacity: 0 }, { opacity: 1 }],
+      { duration: v.fade_in_s * MS_PER_S, fill: "both", easing: "linear" });
+    root.animate([{ opacity: 1 }, { opacity: 0 }],
+      { delay: (duration - v.fade_out_s) * MS_PER_S,
+        duration: v.fade_out_s * MS_PER_S, fill: "both", easing: "linear" });
+})();
+</script>
+</body>
+</html>

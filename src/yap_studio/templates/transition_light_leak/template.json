@@ -1,0 +1,29 @@
+{
+  "id": "transition_light_leak",
+  "version": 1,
+  "reads": "transitions",
+  "derived_from": [
+    {
+      "item": "light-leak",
+      "path": "registry/blocks/light-leak/light-leak.html"
+    }
+  ],
+  "variables": [
+    {
+      "id": "frames",
+      "type": "number",
+      "label": "Frame count",
+      "default": 12
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Frame rate",
+      "default": 30
+    }
+  ],
+  "box": {
+    "width": 1080,
+    "height": 1920
+  }
+}

@@ -1,0 +1,271 @@
+{
+  "id": "reel_feed",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [
+    {
+      "item": "browser-device-stage",
+      "path": "registry/components/browser-device-stage/browser-device-stage.html"
+    }
+  ],
+  "slots": {
+    "post": {
+      "type": "video",
+      "required": false,
+      "sources": [
+        "media",
+        "self"
+      ],
+      "default": "self"
+    },
+    "handle": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 30,
+      "default": ""
+    },
+    "caption": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 80,
+      "default": ""
+    },
+    "views": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 12,
+      "default": ""
+    },
+    "backdrop": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "auto",
+        "paper",
+        "ink",
+        "dim"
+      ],
+      "default": "auto"
+    },
+    "ending": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "handoff",
+        "fade"
+      ],
+      "default": "handoff"
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 618
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "handle",
+      "type": "string",
+      "label": "Handle",
+      "default": ""
+    },
+    {
+      "id": "handle_px",
+      "type": "number",
+      "label": "Handle px",
+      "default": 34
+    },
+    {
+      "id": "initials",
+      "type": "string",
+      "label": "Initials",
+      "default": ""
+    },
+    {
+      "id": "caption_lines",
+      "type": "string",
+      "label": "Caption lines",
+      "default": "[]"
+    },
+    {
+      "id": "caption_px",
+      "type": "number",
+      "label": "Caption px",
+      "default": 36
+    },
+    {
+      "id": "views_text",
+      "type": "string",
+      "label": "Views text",
+      "default": ""
+    },
+    {
+      "id": "views_px",
+      "type": "number",
+      "label": "Views px",
+      "default": 30
+    },
+    {
+      "id": "backdrop",
+      "type": "string",
+      "label": "Backdrop",
+      "default": "paper"
+    },
+    {
+      "id": "progress_color",
+      "type": "color",
+      "label": "Progress color",
+      "default": "#222222"
+    },
+    {
+      "id": "sound_on",
+      "type": "boolean",
+      "label": "Sound on",
+      "default": true
+    },
+    {
+      "id": "windows",
+      "type": "string",
+      "label": "Windows",
+      "default": "[{\"x\": 216, \"y\": 200, \"width\": 648, \"height\": 1152, \"radius\": 28, \"start\": 0, \"frames\": 90, \"fade_in\": 9, \"fade_out\": 0, \"motion\": {\"start\": 72, \"frames\": 18, \"to\": [0, 0, 1080, 1920], \"ease\": \"cubic_in_out\"}, \"rects\": [[216, 200, 648, 1152], [216, 200, 648, 1152], [214, 198, 650, 1158], [212, 196, 658, 1168], [204, 190, 670, 1192], [194, 180, 692, 1230], [178, 164, 724, 1288], [156, 144, 768, 1366], [126, 116, 828, 1472], [90, 84, 900, 1600], [60, 56, 960, 1706], [38, 36, 1004, 1784], [22, 20, 1036, 1842], [12, 10, 1058, 1880], [4, 4, 1070, 1904], [2, 2, 1078, 1914], [0, 0, 1080, 1920], [0, 0, 1080, 1920]]}]"
+    },
+    {
+      "id": "window_fill",
+      "type": "enum",
+      "label": "Window fill",
+      "default": "preview",
+      "options": [
+        {
+          "value": "preview",
+          "label": "Preview"
+        },
+        {
+          "value": "clear",
+          "label": "Clear"
+        }
+      ]
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Fps",
+      "default": 30
+    },
+    {
+      "id": "overlay_ink",
+      "type": "color",
+      "label": "Caption ink over the scrim",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "ending",
+      "type": "enum",
+      "label": "Ending",
+      "default": "handoff",
+      "options": [
+        {
+          "value": "handoff",
+          "label": "Hand off to this video"
+        },
+        {
+          "value": "fade",
+          "label": "Fade"
+        }
+      ]
+    }
+  ],
+  "box": {
+    "width": 1080,
+    "height": 1920,
+    "x": 0,
+    "y": 0
+  }
+}

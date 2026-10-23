@@ -1,0 +1,9 @@
+{
+  "schema": "yap-studio/removals@1",
+  "removals": [
+    {"id": "r1", "take": "t1", "start": 1, "end": 2, "kind": "filler", "status": "applied"},
+    {"id": "r2", "take": "t1", "start": 3, "end": 4, "kind": "restart", "status": "proposed"},
+    {"id": "r3", "take": "t1", "start": 6, "end": 7, "kind": "stutter", "status": "applied"},
+    {"id": "r4", "take": "t2", "start": 4, "end": 5, "kind": "filler", "status": "applied"}
+  ]
+}

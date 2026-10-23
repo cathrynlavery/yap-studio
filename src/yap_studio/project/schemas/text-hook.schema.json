@@ -1,0 +1,72 @@
+{
+  "$id": "urn:yap-studio:text-hook:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "chosen": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "ideas": {
+            "minItems": 3
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "chosen": {
+      "anyOf": [
+        {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ideas": {
+      "anyOf": [
+        {
+          "maxItems": 0
+        },
+        {
+          "minItems": 3
+        }
+      ],
+      "items": {
+        "maxLength": 1000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 3,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema": {
+      "const": "yap-studio/text-hook@1"
+    },
+    "source": {
+      "enum": [
+        "typed",
+        "idea",
+        "note"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "ideas",
+    "chosen",
+    "source"
+  ],
+  "type": "object"
+}

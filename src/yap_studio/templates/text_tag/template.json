@@ -1,0 +1,229 @@
+{
+  "id": "text_tag",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [
+    {
+      "item": "lt-clean-bar",
+      "path": "registry/blocks/lt-clean-bar/lt-clean-bar.html"
+    },
+    {
+      "item": "lt-dark-card",
+      "path": "registry/blocks/lt-dark-card/lt-dark-card.html"
+    },
+    {
+      "item": "lt-color-block",
+      "path": "registry/blocks/lt-color-block/lt-color-block.html"
+    },
+    {
+      "item": "lt-soft-pill",
+      "path": "registry/blocks/lt-soft-pill/lt-soft-pill.html"
+    },
+    {
+      "item": "lt-accent-underline",
+      "path": "registry/blocks/lt-accent-underline/lt-accent-underline.html"
+    },
+    {
+      "item": "lt-side-rule",
+      "path": "registry/blocks/lt-side-rule/lt-side-rule.html"
+    },
+    {
+      "item": "titlecard-calm",
+      "path": "registry/components/titlecard-calm/titlecard-calm.html"
+    }
+  ],
+  "slots": {
+    "text": {
+      "type": "string",
+      "required": true,
+      "min_length": 1,
+      "max_length": 48
+    },
+    "subtext": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 60,
+      "default": ""
+    },
+    "variant": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "sign",
+        "tag",
+        "plain",
+        "bar",
+        "card",
+        "block",
+        "rule",
+        "title"
+      ],
+      "default": "sign"
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "plain_ink_color",
+      "type": "color",
+      "label": "Plain ink color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "text",
+      "type": "string",
+      "label": "Text",
+      "default": ""
+    },
+    {
+      "id": "subtext",
+      "type": "string",
+      "label": "Subtext",
+      "default": ""
+    },
+    {
+      "id": "text_px",
+      "type": "number",
+      "label": "Text px",
+      "default": 64
+    },
+    {
+      "id": "subtext_px",
+      "type": "number",
+      "label": "Subtext px",
+      "default": 36
+    },
+    {
+      "id": "look",
+      "type": "enum",
+      "label": "Look",
+      "default": "bar",
+      "options": [
+        {
+          "value": "bar",
+          "label": "Bar"
+        },
+        {
+          "value": "card",
+          "label": "Card"
+        },
+        {
+          "value": "block",
+          "label": "Block"
+        },
+        {
+          "value": "pill",
+          "label": "Pill"
+        },
+        {
+          "value": "underline",
+          "label": "Underline"
+        },
+        {
+          "value": "rule",
+          "label": "Rule"
+        },
+        {
+          "value": "title",
+          "label": "Title"
+        }
+      ]
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}

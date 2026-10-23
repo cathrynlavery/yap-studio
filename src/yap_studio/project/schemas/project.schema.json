@@ -1,0 +1,480 @@
+{
+  "$id": "urn:yap-studio:project:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "asr": {
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "enum": [
+            "auto",
+            "parakeet-mlx",
+            "parakeet-onnx",
+            "faster-whisper",
+            "none"
+          ]
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "audio": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "match_takes": {
+              "type": "boolean"
+            },
+            "mode": {
+              "const": "preserve"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "integrated_lufs": {
+              "maximum": -5,
+              "minimum": -70,
+              "type": "number"
+            },
+            "lra_lu": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "number"
+            },
+            "match_takes": {
+              "type": "boolean"
+            },
+            "mode": {
+              "const": "loudnorm"
+            },
+            "true_peak_dbtp": {
+              "maximum": 0,
+              "minimum": -9,
+              "type": "number"
+            }
+          },
+          "required": [
+            "mode",
+            "integrated_lufs",
+            "true_peak_dbtp",
+            "lra_lu"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "broll_sources": {
+      "items": {
+        "enum": [
+          "folder",
+          "album",
+          "stock"
+        ]
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "caption_backing": {
+      "additionalProperties": {
+        "enum": [
+          "shadow",
+          "box",
+          "none"
+        ]
+      },
+      "propertyNames": {
+        "pattern": "^caption:",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "creator": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "^[^\\u0000]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "grade": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "look": {
+                "const": "eyedropper"
+              }
+            },
+            "required": [
+              "look"
+            ]
+          },
+          "then": {
+            "oneOf": [
+              {
+                "not": {
+                  "required": [
+                    "sample"
+                  ]
+                },
+                "required": [
+                  "color"
+                ]
+              },
+              {
+                "not": {
+                  "required": [
+                    "color"
+                  ]
+                },
+                "required": [
+                  "sample"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "sample"
+            ]
+          },
+          "then": {
+            "properties": {
+              "look": {
+                "const": "eyedropper"
+              }
+            },
+            "required": [
+              "look"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "color": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "type": "string"
+        },
+        "look": {
+          "enum": [
+            "none",
+            "film",
+            "eyedropper"
+          ]
+        },
+        "sample": {
+          "additionalProperties": false,
+          "properties": {
+            "time_s": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "x": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "y": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "time_s",
+            "x",
+            "y"
+          ],
+          "type": "object"
+        },
+        "strength": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "language": {
+      "default": "en",
+      "minLength": 1,
+      "type": "string"
+    },
+    "music": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "file": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "^[^\\u0000]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generate": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "auto",
+            "elevenlabs",
+            "file",
+            "none"
+          ]
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+      "type": "string"
+    },
+    "platform": {
+      "enum": [
+        "none",
+        "youtube",
+        "shorts",
+        "tiktok",
+        "reels"
+      ]
+    },
+    "rules": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_breath_s": {
+          "default": 0.4,
+          "minimum": 0,
+          "type": "number"
+        },
+        "elements_at_once_max": {
+          "default": 1,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphic_hold_max_s": {
+          "default": 3.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "graphic_hold_min_s": {
+          "default": 2.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "graphic_hold_violation_s": {
+          "default": 8.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "insert_max_s": {
+          "default": 4.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "insert_min_s": {
+          "default": 1.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "max_pause_s": {
+          "default": 0.3,
+          "minimum": 0,
+          "type": "number"
+        },
+        "montage_part_max_s": {
+          "default": 1.3,
+          "minimum": 0,
+          "type": "number"
+        },
+        "montage_part_min_s": {
+          "default": 0.7,
+          "minimum": 0,
+          "type": "number"
+        },
+        "overlay_max_s": {
+          "default": 6.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "overlay_min_s": {
+          "default": 1.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "zoom_hold_min_s": {
+          "default": 0.6,
+          "minimum": 0,
+          "type": "number"
+        },
+        "zoom_max_per_video": {
+          "default": 8,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "zoom_max_s": {
+          "default": 4.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "zoom_min_s": {
+          "default": 2.5,
+          "minimum": 0,
+          "type": "number"
+        },
+        "zoom_peak_max": {
+          "default": 1.1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "zoom_rate_min": {
+          "default": 0.03,
+          "minimum": 0,
+          "type": "number"
+        },
+        "zoom_scale_max": {
+          "default": 2.0,
+          "minimum": 0,
+          "type": "number"
+        },
+        "zoom_step_min": {
+          "default": 0.15,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "schema": {
+      "const": "yap-studio/project@1"
+    },
+    "style": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "^[^\\u0000]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "takes": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "audio_stream": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "crop_x": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "id": {
+            "pattern": "^t[1-9][0-9]*$",
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$",
+            "type": "string"
+          },
+          "voiceover": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "video_type": {
+      "enum": [
+        "talking_head",
+        "voiceover",
+        "green_screen",
+        "screen_recording"
+      ]
+    },
+    "word_fixes": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "word_text_fixes": {
+      "additionalProperties": {
+        "minLength": 1,
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "takes"
+  ],
+  "type": "object"
+}

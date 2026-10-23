@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "Candy",
+  "captions": {
+    "font": "Titan One",
+    "size_px": 90,
+    "text_color": "#FFFFFF",
+    "highlight_color": "#FF8AC6",
+    "highlight_text_color": "#2B0F2E",
+    "highlight_style": "moving_block",
+    "top_px": 1490,
+    "max_words_per_phrase": 4,
+    "max_characters_per_phrase": 20,
+    "shadow_opacity": 0.35,
+    "shadow_blur_px": 10,
+    "shadow_x_px": 0,
+    "shadow_y_px": 5,
+    "letter_spacing_px": 0,
+    "italic_stress": false,
+    "entry_rise_px": 18,
+    "entry_ms": 180
+  },
+  "hook": {
+    "style": "paper_title",
+    "font": "Titan One",
+    "size_px": 88,
+    "text_color": "#2B0F2E",
+    "background_color": "#FFE3F1",
+    "accent_color": "#FF8AC6"
+  },
+  "graphics": {
+    "style": "bright",
+    "paper_color": "#FFE3F1",
+    "titlebar_color": "#FFC4E1",
+    "ink_color": "#2B0F2E",
+    "accent_color": "#7B5CFF",
+    "font": "Titan One"
+  },
+  "music": {
+    "level": 0.14
+  }
+}

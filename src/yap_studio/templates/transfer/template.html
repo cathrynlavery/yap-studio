@@ -1,0 +1,244 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "offset-path-traveler"
+  (registry/components/offset-path-traveler/offset-path-traveler.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Added fitted device and payload slots, a measured route, cue timing, landing feedback, style tokens, and a shared fade-out.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"left_label","type":"string","label":"Left label","default":""},{"id":"right_label","type":"string","label":"Right label","default":""},{"id":"left_device","type":"enum","label":"Left device","default":"laptop","options":[{"value":"laptop","label":"Laptop"},{"value":"desktop","label":"Desktop"}]},{"id":"right_device","type":"enum","label":"Right device","default":"desktop","options":[{"value":"laptop","label":"Laptop"},{"value":"desktop","label":"Desktop"}]},{"id":"payload","type":"string","label":"Payload","default":""},{"id":"payload_icon","type":"enum","label":"Payload icon","default":"doc","options":[{"value":"doc","label":"Doc"},{"value":"code","label":"Code"}]},{"id":"travel_at","type":"number","label":"Travel at","default":0.6},{"id":"label_px","type":"number","label":"Label px","default":36},{"id":"chip_px","type":"number","label":"Chip px","default":40},{"id":"device_column_width_px","type":"number","label":"Device column width px","default":342},{"id":"chip_max_width_px","type":"number","label":"Chip max width px","default":342},{"id":"travel_s","type":"number","label":"Travel s","default":1.0},{"id":"land_s","type":"number","label":"Land s","default":0.3},{"id":"panel_inner_pad_px","type":"number","label":"Panel inner pad px","default":24},{"id":"device_width_px","type":"number","label":"Device width px","default":150},{"id":"device_height_px","type":"number","label":"Device height px","default":110},{"id":"device_label_gap_px","type":"number","label":"Device label gap px","default":10},{"id":"screen_height_px","type":"number","label":"Screen height px","default":76},{"id":"laptop_screen_width_px","type":"number","label":"Laptop screen width px","default":120},{"id":"laptop_screen_top_px","type":"number","label":"Laptop screen top px","default":14},{"id":"desktop_screen_width_px","type":"number","label":"Desktop screen width px","default":136},{"id":"desktop_screen_top_px","type":"number","label":"Desktop screen top px","default":7},{"id":"chip_icon_px","type":"number","label":"Chip icon px","default":30},{"id":"chip_gap_px","type":"number","label":"Chip gap px","default":8},{"id":"chip_pad_x_px","type":"number","label":"Chip pad x px","default":8},{"id":"chip_pad_y_px","type":"number","label":"Chip pad y px","default":12}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  position: relative; width: var(--card-panel-width); height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); transform-origin: 50% 60%; opacity: 0;
+  overflow: hidden;
+}
+.device-column {
+  position: absolute; bottom: var(--card-inner-pad);
+  width: var(--card-column-width); text-align: center;
+}
+.left-device { left: var(--card-inner-pad); }
+.right-device { right: var(--card-inner-pad); }
+.diagram { display: block; width: var(--card-device-width);
+  height: var(--card-device-height); margin: 0 auto; }
+.device-variant { display: none; }
+.screen { fill: var(--card-titlebar); stroke: var(--card-ink); stroke-width: 3; }
+.base { fill: var(--card-titlebar); stroke: var(--card-ink); stroke-width: 3;
+  stroke-linejoin: round; }
+.landing-outline { fill: none; stroke: var(--card-accent); stroke-width: 5; opacity: 0; }
+.landing-tint { fill: color-mix(in srgb, var(--card-accent) 32%, var(--card-titlebar)); opacity: 0; }
+.landing-tick { fill: none; stroke: var(--card-bar-ink); stroke-width: 5;
+  stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.device-label {
+  margin-top: var(--card-label-gap); font-size: var(--card-label-size); line-height: 1.2;
+  font-weight: 600; white-space: nowrap; color: var(--card-ink);
+}
+.route { position: absolute; inset: 0; }
+.route svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.guide { fill: none; stroke: color-mix(in srgb, var(--card-ink) 34%, var(--card-paper));
+  stroke-width: 3; stroke-linecap: round; stroke-dasharray: 7 10; }
+.route-progress { fill: none; stroke: var(--card-accent); stroke-width: 4;
+  stroke-linecap: round; }
+.traveler { position: absolute; left: 0; top: 0; transform-origin: 50% 50%;
+  will-change: transform; opacity: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: var(--card-chip-gap);
+  padding: var(--card-chip-pad-y) var(--card-chip-pad-x);
+  max-width: var(--card-chip-width); border-radius: 999px;
+  background: var(--card-accent); color: var(--card-accent-ink);
+  font-size: var(--card-chip-size); font-weight: 600; line-height: 1.2; white-space: nowrap;
+}
+.chip svg { position: static; width: var(--card-chip-icon); height: var(--card-chip-icon);
+  flex: 0 0 var(--card-chip-icon);
+  fill: none; stroke: var(--card-accent-ink); stroke-width: 2.4;
+  stroke-linecap: round; stroke-linejoin: round; }
+.payload-icon { display: none; }
+.device-source { display: none; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="transfer" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel">
+  <div class="device-column left-device"><div class="device-label"></div></div>
+  <div class="device-column right-device"><div class="device-label"></div></div>
+  <div class="route"><svg aria-hidden="true"><path class="guide"></path>
+    <path class="route-progress"></path></svg>
+    <div class="traveler"><div class="chip"><svg viewBox="0 0 32 32" aria-hidden="true">
+      <g class="payload-icon icon-doc"><path d="M8 3h11l6 6v20H8Z M19 3v7h6 M12 16h9 M12 21h9"></path></g>
+      <g class="payload-icon icon-code"><path d="m11 9-7 7 7 7 M21 9l7 7-7 7 M18 6l-4 20"></path></g>
+    </svg><span class="payload-text"></span></div></div>
+  </div>
+</div>
+<svg class="device-source" viewBox="0 0 150 110" aria-hidden="true">
+  <g class="device-variant device-laptop">
+    <rect class="screen" x="15" y="14" width="120" height="76" rx="8"></rect>
+    <path class="base" d="M7 96h136l-6 8H13Z"></path>
+    <rect class="landing-tint" x="15" y="14" width="120" height="76" rx="8"></rect>
+    <rect class="landing-outline" x="15" y="14" width="120" height="76" rx="8"></rect>
+    <path class="landing-tick" d="m100 35 8 8 16-18"></path>
+  </g>
+  <g class="device-variant device-desktop">
+    <path class="base" d="M68 83h14v17H68Z M49 100h52v6H49Z"></path>
+    <rect class="screen" x="7" y="7" width="136" height="76" rx="8"></rect>
+    <rect class="landing-tint" x="7" y="7" width="136" height="76" rx="8"></rect>
+    <rect class="landing-outline" x="7" y="7" width="136" height="76" rx="8"></rect>
+    <path class="landing-tick" d="m100 28 8 8 16-18"></path>
+  </g>
+</svg>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+      "label-size": `${v.label_px}px`, "chip-size": `${v.chip_px}px`,
+      "column-width": `${v.device_column_width_px}px`, "chip-width": `${v.chip_max_width_px}px`,
+      "inner-pad": `${v.panel_inner_pad_px}px`, "device-width": `${v.device_width_px}px`,
+      "device-height": `${v.device_height_px}px`, "label-gap": `${v.device_label_gap_px}px`,
+      "chip-icon": `${v.chip_icon_px}px`, "chip-gap": `${v.chip_gap_px}px`,
+      "chip-pad-x": `${v.chip_pad_x_px}px`, "chip-pad-y": `${v.chip_pad_y_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    const prototype = root.querySelector(".device-source");
+    function device(side) {
+      const column = root.querySelector(`.${side}-device`);
+      const diagram = prototype.cloneNode(true);
+      diagram.setAttribute("class", "diagram");
+      diagram.setAttribute("viewBox", `0 0 ${v.device_width_px} ${v.device_height_px}`);
+      const kind = v[`${side}_device`] === "laptop" ? "laptop" : "desktop";
+      const shape = diagram.querySelector(`.device-${kind}`);
+      shape.style.display = "inline";
+      const screenWidth = Number(v[`${kind}_screen_width_px`]);
+      const bounds = { x: (Number(v.device_width_px) - screenWidth) / 2,
+        y: Number(v[`${kind}_screen_top_px`]), width: screenWidth, height: Number(v.screen_height_px) };
+      for (const selector of [".screen", ".landing-tint", ".landing-outline"]) {
+        const rect = shape.querySelector(selector);
+        for (const [name, value] of Object.entries(bounds)) rect.setAttribute(name, String(value));
+      }
+      column.insertBefore(diagram, column.querySelector(".device-label"));
+      column.querySelector(".device-label").textContent = String(v[`${side}_label`]);
+      return shape;
+    }
+    const left = device("left");
+    const right = device("right");
+    root.querySelector(".payload-text").textContent = String(v.payload);
+    const icon = v.payload_icon === "code" ? "code" : "doc";
+    root.querySelector(`.icon-${icon}`).style.display = "inline";
+    const route = root.querySelector(".route");
+    const guide = root.querySelector(".guide");
+    const drawn = root.querySelector(".route-progress");
+    const traveler = root.querySelector(".traveler");
+    const panelBox = panel.getBoundingClientRect();
+    function screenPoint(shape) {
+      const box = shape.querySelector(".screen").getBoundingClientRect();
+      return { x: box.left + box.width / 2 - panelBox.left,
+        y: box.top + box.height / 2 - panelBox.top };
+    }
+    const start = screenPoint(left);
+    const end = screenPoint(right);
+    const VIEWBOX_WIDTH = route.clientWidth;
+    const VIEWBOX_HEIGHT = route.clientHeight;
+    route.querySelector("svg").setAttribute("viewBox", `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`);
+    const bend = (end.x - start.x) * 0.28;
+    const lift = Math.min(110, Math.max(0, Math.min(start.y, end.y) - 44));
+    const pathData = `M ${start.x} ${start.y} C ${start.x + bend} ${start.y - lift}` +
+      ` ${end.x - bend} ${end.y - lift} ${end.x} ${end.y}`;
+    guide.setAttribute("d", pathData);
+    drawn.setAttribute("d", pathData);
+    const totalLength = guide.getTotalLength();
+    drawn.style.strokeDasharray = String(totalLength);
+    const travel = { progress: 0 };
+    function renderTraveler() {
+      const progress = Math.max(0, Math.min(1, travel.progress));
+      const distance = progress * totalLength;
+      const tangentStep = Math.max(0.5, totalLength * 0.002);
+      const before = guide.getPointAtLength(Math.max(0, distance - tangentStep));
+      const after = guide.getPointAtLength(Math.min(totalLength, distance + tangentStep));
+      const scaleX = route.clientWidth / VIEWBOX_WIDTH;
+      const scaleY = route.clientHeight / VIEWBOX_HEIGHT;
+      const point = guide.getPointAtLength(distance);
+      const angle = Math.atan2((after.y - before.y) * scaleY,
+        (after.x - before.x) * scaleX) * 180 / Math.PI;
+      gsap.set(traveler, { x: point.x * scaleX, y: point.y * scaleY,
+        xPercent: -50, yPercent: -50,
+        rotation: Math.max(-12, Math.min(12, angle)) * (1 - progress) });
+      drawn.style.strokeDashoffset = String((1 - progress) * totalLength);
+    }
+    const travelStart = Math.max(0, Math.min(Number(v.travel_at), outStart));
+    const scale = Math.min(1, Math.max(0, outStart - travelStart) /
+      (Number(v.travel_s) + Number(v.land_s)));
+    const TRAVEL = Number(v.travel_s) * scale;
+    const LAND = Number(v.land_s) * scale;
+    const landAt = travelStart + TRAVEL;
+    const ABSORB = LAND / 2;
+    const receivedAt = landAt + ABSORB;
+    const SIGNAL = LAND - ABSORB;
+    const appearAt = Math.max(0, travelStart - 0.15 * scale);
+    const outline = right.querySelector(".landing-outline");
+    const tint = right.querySelector(".landing-tint");
+    const tick = right.querySelector(".landing-tick");
+    const tickLength = tick.getTotalLength();
+    tick.style.strokeDasharray = String(tickLength);
+    gsap.set(panel, { opacity: 0, y: 8 });
+    gsap.set(traveler, { opacity: 0, scale: 0.4 });
+    gsap.set(outline, { opacity: 0 });
+    gsap.set(tint, { opacity: 0 });
+    gsap.set(tick, { opacity: 0, strokeDashoffset: tickLength });
+    renderTraveler();
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(panel, { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: Math.min(0.38, outStart), ease: "power3.out" }, 0);
+    tl.fromTo(traveler, { opacity: 0, scale: 0.4 },
+      { opacity: 1, scale: 1, duration: 0.15 * scale, ease: "power2.out" }, appearAt);
+    tl.fromTo(travel, { progress: 0 },
+      { progress: 1, duration: TRAVEL, ease: "power2.inOut", onUpdate: renderTraveler }, travelStart);
+    tl.fromTo(traveler, { opacity: 1, scale: 1 },
+      { opacity: 0, scale: 0.4, duration: ABSORB, ease: "power2.inOut", immediateRender: false }, landAt);
+    tl.fromTo(outline, { opacity: 0 },
+      { opacity: 1, duration: SIGNAL / 2, ease: "power2.out" }, receivedAt);
+    tl.fromTo(outline, { opacity: 1 },
+      { opacity: 0, duration: SIGNAL / 2, ease: "power2.in", immediateRender: false },
+      receivedAt + SIGNAL / 2);
+    tl.fromTo(tint, { opacity: 0 },
+      { opacity: 1, duration: SIGNAL / 2, ease: "power2.out" }, receivedAt);
+    tl.fromTo(tint, { opacity: 1 },
+      { opacity: 0, duration: SIGNAL / 2, ease: "power2.in", immediateRender: false },
+      receivedAt + SIGNAL / 2);
+    tl.fromTo(tick, { opacity: 0, strokeDashoffset: tickLength },
+      { opacity: 1, strokeDashoffset: 0, duration: SIGNAL, ease: "power2.out" }, receivedAt);
+    tl.fromTo(panel, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    tl.seek(0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["transfer"] = tl;
+})();
+</script>
+</body>
+</html>

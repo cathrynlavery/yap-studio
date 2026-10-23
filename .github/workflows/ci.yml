@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: macos-15
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      # Test temp stays outside the checkout and home: the engine refuses config folders inside a
+      # repository, and the owner-folder guard treats anything under home as the owner's.
+      - name: Use the runner temp folder
+        run: |
+          mkdir -p /private/tmp/yap-ci
+          echo "TMPDIR=/private/tmp/yap-ci" >> "$GITHUB_ENV"
+          echo "PYTEST_ADDOPTS=--basetemp=/private/tmp/yap-ci/pytest -o tmp_path_retention_policy=failed" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: node --test tests/js/*.mjs
+      - run: uv build
+
+  tests:
+    runs-on: macos-15
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    env:
+      YAP_STUDIO_TEST_SHARD: ${{ matrix.shard }}/10
+      # A hung test fails with its traceback instead of stalling the shard.
+      YAP_STUDIO_TEST_TIMEOUT: "300"
+    steps:
+      - uses: actions/checkout@v7
+      # Test temp stays outside the checkout and home: the engine refuses config folders inside a
+      # repository, and the owner-folder guard treats anything under home as the owner's.
+      - name: Use the runner temp folder
+        run: |
+          mkdir -p /private/tmp/yap-ci
+          echo "TMPDIR=/private/tmp/yap-ci" >> "$GITHUB_ENV"
+          echo "PYTEST_ADDOPTS=--basetemp=/private/tmp/yap-ci/pytest -o tmp_path_retention_policy=failed" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Install pin test browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pin-browser" --no-save puppeteer@25.12.0
+          echo "YAP_STUDIO_PUPPETEER=$RUNNER_TEMP/pin-browser/node_modules/puppeteer" >> "$GITHUB_ENV"
+          node -e 'Promise.resolve(require(process.argv[1]).executablePath()).then((path) => console.log("YAP_STUDIO_CHROME=" + path))' "$RUNNER_TEMP/pin-browser/node_modules/puppeteer" >> "$GITHUB_ENV"
+      - name: Install media and speech tools
+        # Retry once: bottle downloads occasionally fail on hosted runners.
+        run: brew install ffmpeg espeak-ng || { sleep 20; brew install ffmpeg espeak-ng; }
+      - run: ffmpeg -version
+      - run: uv sync --locked --extra mcp
+      - name: Install shared renderer
+        run: uv run yap-studio renderer install
+      - run: uv cache prune --ci
+      # Idle workers take queued tests from busy ones: test_assemble.py alone takes over 30 minutes on one.
+      - run: uv run pytest -v -n 3 --dist=worksteal -m "not render and not asr and not helpers" --durations=20 -o faulthandler_timeout=600
+      - name: Keep logs from failed tests
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: failed-tests-shard-${{ matrix.shard }}
+          path: /private/tmp/yap-ci/pytest/**/detached/*
+          if-no-files-found: ignore
+          retention-days: 7

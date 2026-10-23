@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Synthetic WaveSpeed CLI for offline tests."""
+import json
+import os
+import struct
+import sys
+import time
+import uuid
+import zlib
+from pathlib import Path
+from urllib.parse import urlsplit
+
+args = sys.argv[1:]
+log = Path(os.environ["FAKE_WAVESPEED_LOG"])
+with log.open("a", encoding="utf-8") as stream:
+    stream.write(json.dumps({"argv": args}) + "\n")
+root = Path(__file__).parents[1] / "fixtures/pictures"
+extension = Path(os.environ.get("FAKE_WAVESPEED_IMAGE", "image.png")).suffix.lstrip(".")
+
+
+def fixture(name):
+    return json.loads((root / f"{name}.json").read_text())
+
+
+def chunk(kind, data):
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+
+def image(target, identifier):
+    if source := os.environ.get("FAKE_WAVESPEED_IMAGE"):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(Path(source).read_bytes())
+        return
+    color = bytes.fromhex(identifier[:6])
+    pixels = zlib.compress((b"\0" + color * 1080) * 1920)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1080, 1920,
+                                                                              8, 2, 0, 0, 0))
+                       + chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
+
+
+def option(name):
+    return next((a.split("=", 1)[1] for a in args if a.startswith(name + "=")), None)
+
+
+if args[:2] == ["auth", "status"]:
+    code = int(os.environ.get("FAKE_WAVESPEED_AUTH_EXIT", "0"))
+    data = fixture("auth")
+    data["results"]["authenticated"] = code == 0
+    print(json.dumps(data["results"] if os.environ.get("FAKE_WAVESPEED_BARE") else data))
+    sys.exit(code)
+if args[0] == "price":
+    code = int(os.environ.get("FAKE_WAVESPEED_PRICE_EXIT", "0"))
+    if code:
+        print(os.environ.get("FAKE_WAVESPEED_PRICE_STDERR", "synthetic price failure"), file=sys.stderr)
+    data = fixture("price")
+    data["data"]["unit_price"] = float(os.environ.get("FAKE_WAVESPEED_PRICE", "0.027"))
+    if os.environ.get("FAKE_WAVESPEED_WRAPPED"):
+        data = {"meta": {"source": "live"}, "results": data}
+    print(json.dumps(data))
+    sys.exit(code)
+if args[0] == "run" and "--dry-run" in args:
+    print(json.dumps(fixture("dry-run")))
+    print("POST https://api.wavespeed.ai/api/v3/" + args[args.index("--model-id") + 1], file=sys.stderr)
+    print("  Body:\n" + json.dumps({"prompt": option("--prompt"), "size": "1080*1920"}), file=sys.stderr)
+    print("Authorization: Bearer ****synthetic\n(dry run - no request sent)", file=sys.stderr)
+    sys.exit(0)
+state = log.with_suffix(".ids.json")
+ids = json.loads(state.read_text()) if state.exists() else []
+saved = log.with_suffix(".predictions.json")
+predictions = json.loads(saved.read_text()) if saved.exists() else {}
+if args[0] == "prediction-results":
+    identifier = args[1]
+    if identifier not in predictions:
+        sys.exit(3)
+    prediction = predictions[identifier]
+    prediction["status"] = os.environ.get("FAKE_WAVESPEED_RECOVERY_STATUS", prediction["status"])
+    if prediction["status"] in {"failed", "error"}:
+        prediction["error"] = "synthetic earlier prediction failed"
+    data = {"code": 200, "message": "success", "data": prediction}
+    print(json.dumps({"meta": {"source": "live"}, "results": data}))
+    sys.exit(int(os.environ.get("FAKE_WAVESPEED_RESULTS_EXIT", "0")))
+if args[0] == "download":
+    if code := int(os.environ.get("FAKE_WAVESPEED_DOWNLOAD_EXIT", "0")):
+        print("synthetic recovery download failed", file=sys.stderr)
+        sys.exit(code)
+    identifier = Path(urlsplit(args[1]).path).stem
+    if identifier not in predictions:
+        sys.exit(3)
+    target = Path(option("--output").replace("{ext}", extension))
+    image(target, identifier)
+    print(json.dumps({"downloads": [{"url": args[1], "path": str(target)}]}))
+    sys.exit(0)
+if args[0] == "billings":
+    code = int(os.environ.get("FAKE_WAVESPEED_BILLINGS_EXIT", "0"))
+    data = fixture("billings")
+    item = data["results"]["data"]["items"][0]
+    data["results"]["data"]["items"] = [
+        {**item, "prediction": {**item["prediction"], "uuid": identifier},
+         "price": float(os.environ.get("FAKE_WAVESPEED_CHARGED", "0.027"))}
+        for identifier in ids if not os.environ.get("FAKE_WAVESPEED_NO_MATCH")
+    ]
+    print(json.dumps(data))
+    sys.exit(code)
+if args[0] != "run":
+    sys.exit(2)
+if code := int(os.environ.get("FAKE_WAVESPEED_RUN_EXIT", "0")):
+    print("{}")
+    print(os.environ.get("FAKE_WAVESPEED_RUN_STDERR", "synthetic submission refused"),
+          file=sys.stderr)
+    sys.exit(code)
+identifier = uuid.uuid4().hex
+ids.append(identifier)
+state.write_text(json.dumps(ids))
+data = fixture("run")
+prediction = data["prediction"]["data"]
+prediction["id"] = identifier
+prediction["outputs"] = [f"https://cdn.example.test/{identifier}.{extension}"]
+prediction["urls"]["get"] = f"https://api.wavespeed.ai/api/v3/predictions/{identifier}/result"
+data["pricing"]["data"]["unit_price"] = float(os.environ.get("FAKE_WAVESPEED_RUN_PRICE", "0.027"))
+target = Path(option("--download").replace("{ext}", extension))
+data["downloads"] = [{"url": prediction["outputs"][0], "path": str(target)}]
+if os.environ.get("FAKE_WAVESPEED_FAILED"):
+    prediction.update(status="failed", error="synthetic prediction failed")
+predictions[identifier] = prediction
+saved.write_text(json.dumps(predictions))
+if os.environ.get("FAKE_WAVESPEED_TIMEOUT"):
+    print(f"prediction {identifier} was submitted", file=sys.stderr, flush=True)
+    time.sleep(5)
+if os.environ.get("FAKE_WAVESPEED_LOST_ID"):
+    print("{}")
+    print("synthetic submission response lost", file=sys.stderr)
+    sys.exit(5)
+if os.environ.get("FAKE_WAVESPEED_LOST"):
+    print(json.dumps(data))
+    print(f"prediction {identifier} was submitted but its result could not be retrieved: "
+          f"synthetic loss (recover it with: wavespeed-pp-cli prediction-results {identifier})",
+          file=sys.stderr)
+    sys.exit(5)
+code = 5 if prediction["status"] == "failed" else 0
+print(json.dumps(data), flush=True)
+if not code and not os.environ.get("FAKE_WAVESPEED_SKIP_DOWNLOAD"):
+    image(target, identifier)
+else:
+    print(os.environ.get("FAKE_WAVESPEED_RUN_STDERR", "warning: download failed: synthetic failure"),
+          file=sys.stderr)
+sys.exit(code)

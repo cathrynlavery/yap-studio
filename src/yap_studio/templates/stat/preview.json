@@ -1,0 +1,8 @@
+{
+  "slots": {
+    "end": 240,
+    "suffix": "%",
+    "kicker": "Progress",
+    "reveal": "count"
+  }
+}

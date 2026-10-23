@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"drops","type":"string","label":"Drops","default":"[]"},{"id":"text_px","type":"number","label":"Text size","default":64},{"id":"text_shadow","type":"string","label":"Text shadow","default":"0px 3px 5px rgb(0 0 0 / 0.4)"}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; overflow: hidden; background: transparent; }
+.drop { position: absolute; display: flex; align-items: center; justify-content: center;
+  transform-origin: center bottom; }
+.word { display: block; white-space: pre; line-height: 1.4; font-weight: 400; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="gravity_drop" data-start="0" data-width="1040" data-height="360" data-duration="3" data-no-timeline></div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  root.style.color = v.ink_color;
+  root.style.textShadow = v.text_shadow;
+  const duration = Number(root.dataset.duration);
+  const OUT = Math.min(0.3, duration * 0.15);
+  const outStart = duration - OUT;
+  for (const drop of JSON.parse(v.drops)) {
+    const box = document.createElement("div");
+    box.className = "drop";
+    Object.assign(box.style, {
+      left: `${drop.x}px`, top: `${drop.y}px`, width: `${drop.width}px`,
+      height: `${drop.height}px`, fontFamily: drop.font_family,
+      fontStyle: drop.font_style, fontSize: `${v.text_px}px`,
+    });
+    const word = document.createElement("span");
+    word.className = "word";
+    word.textContent = drop.text;
+    word.style.transform = `rotate(${drop.rotation}deg)`;
+    box.appendChild(word);
+    root.appendChild(box);
+    const at = drop.at;
+    const fall = drop.fall_s;
+    const fallStart = at - fall;
+    const span = fall + 0.3;
+    const above = fall < 1 / 15 ? 0 : (fall < 0.26 ? -drop.y
+      : -drop.y - drop.height - Number(root.dataset.height));
+    box.animate([
+      { offset: 0, transform: `translateY(${above}px) scaleX(1) scaleY(1)`, easing: "ease-in" },
+      { offset: fall / span, transform: "translateY(0) scaleX(1.08) scaleY(.86)", easing: "ease-out" },
+      { offset: (fall + 0.14) / span, transform: `translateY(${-drop.height * 0.08}px) scaleX(.98) scaleY(1.03)`, easing: "ease-in-out" },
+      { offset: 1, transform: "translateY(0) scaleX(1) scaleY(1)" },
+    ], { duration: span * 1000, delay: fallStart * 1000, fill: 'both' });
+    box.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: OUT * 1000, delay: outStart * 1000, fill: 'both', easing: "ease-in",
+    });
+  }
+})();
+</script>
+</body>
+</html>

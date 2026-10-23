@@ -1,0 +1,11 @@
+{
+  "schema": "yap-studio/filler-gold@1",
+  "takes": ["t1"],
+  "spans": [
+    {"take": "t1", "start": 1, "end": 2, "label": "must-cut", "note": "um"},
+    {"take": "t1", "start": 3, "end": 4, "label": "must-cut", "note": "restart"},
+    {"take": "t1", "start": 5, "end": 6, "label": "must-cut"},
+    {"take": "t1", "start": 7, "end": 8, "label": "must-keep"},
+    {"take": "t1", "start": 9, "end": 10, "label": "optional-cut"}
+  ]
+}

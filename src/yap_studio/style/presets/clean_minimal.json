@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "name": "Clean Minimal",
+  "captions": {
+    "font": "Inter",
+    "size_px": 76,
+    "highlight_style": "none",
+    "text_color": "#FFFFFF",
+    "shadow_opacity": 0.25,
+    "max_words_per_phrase": 6
+  },
+  "hook": {
+    "style": "quiet_serif",
+    "font": "Gelasio",
+    "background_color": "#F4F3EE",
+    "accent_color": "#365A58"
+  },
+  "graphics": {
+    "style": "minimal",
+    "paper_color": "#F4F3EE",
+    "accent_color": "#365A58"
+  },
+  "music": {
+    "level": 0.06
+  }
+}

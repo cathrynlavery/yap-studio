@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yap-studio"
+version = "1.0.0"
+description = "Edits vertical videos from raw takes and verifies finished renders."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "LICENSES/*"]
+authors = [{ name = "Cathryn Lavery" }]
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+asr = [
+  "onnx-asr[cpu,hub]>=0.12",
+  "parakeet-mlx>=0.5.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+whisper = ["faster-whisper>=1.1"]
+mcp = ["mcp>=1.27,<2"]
+
+[project.scripts]
+yap-studio = "yap_studio.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-xdist", "ruff", "jsonschema>=4"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yap_studio"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--dist=loadscope"
+markers = [
+  "asr: needs a speech engine and YAP_STUDIO_ASR_TESTS=1",
+  "e2e: end-to-end through the console entry point",
+  "helpers: builds or runs real macOS Swift, Vision, VideoToolbox or Metal helpers",
+  "render: needs the pinned renderer and YAP_STUDIO_RENDER_TESTS=1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*.py" = ["E402", "UP036"]

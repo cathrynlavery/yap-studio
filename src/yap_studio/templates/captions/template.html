@@ -1,0 +1,1077 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "caption-kinetic-slam"
+  (registry/components/caption-kinetic-slam/caption-kinetic-slam.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "caption-weight-shift"
+  (registry/components/caption-weight-shift/caption-weight-shift.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "caption-clip-wipe"
+  (registry/components/caption-clip-wipe/caption-clip-wipe.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "caption-blend-difference"
+  (registry/components/caption-blend-difference/caption-blend-difference.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-camera-follow"
+  (registry/components/caption-camera-follow/caption-camera-follow.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-editorial-emphasis"
+  (registry/components/caption-editorial-emphasis/caption-editorial-emphasis.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-emoji-pop"
+  (registry/components/caption-emoji-pop/caption-emoji-pop.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-glitch-rgb"
+  (registry/components/caption-glitch-rgb/caption-glitch-rgb.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-gradient-fill"
+  (registry/components/caption-gradient-fill/caption-gradient-fill.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-highlight"
+  (registry/components/caption-highlight/caption-highlight.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-matrix-decode"
+  (registry/components/caption-matrix-decode/caption-matrix-decode.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-neon-accent"
+  (registry/components/caption-neon-accent/caption-neon-accent.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-neon-glow"
+  (registry/components/caption-neon-glow/caption-neon-glow.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-parallax-layers"
+  (registry/components/caption-parallax-layers/caption-parallax-layers.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-particle-burst"
+  (registry/components/caption-particle-burst/caption-particle-burst.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-pill-karaoke"
+  (registry/components/caption-pill-karaoke/caption-pill-karaoke.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Derived from HyperFrames registry item "caption-texture"
+  (registry/components/caption-texture/caption-texture.html at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Added phrase timing, stress, bundled fonts, fitted caption bands, frame-seeked motion, phrase shrink to fit, and face-clear phrase placement.
+-->
+<html data-composition-variables='[{"id":"font_name","type":"string","label":"Font name","default":"Inter"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"size_px","type":"number","label":"Font size","default":76},{"id":"text_color","type":"color","label":"Text color","default":"#FFFFFF"},{"id":"background_mode","type":"enum","label":"Caption ground","default":"none","options":[{"value":"none","label":"None"},{"value":"box","label":"Fitted box"},{"value":"band","label":"Full-width band"}]},{"id":"background_color","type":"color","label":"Ground color","default":"#000000"},{"id":"background_opacity","type":"number","label":"Ground opacity","default":0.85},{"id":"background_padding_px","type":"number","label":"Ground padding","default":18},{"id":"background_radius_px","type":"number","label":"Ground radius","default":12},{"id":"padding_px","type":"number","label":"Box padding","default":32},{"id":"position","type":"enum","label":"Position","default":"bottom","options":[{"value":"bottom","label":"Bottom"},{"value":"middle","label":"Middle"}]},{"id":"bottom_padding_px","type":"number","label":"Bottom inset","default":44},{"id":"phrases","type":"string","label":"Timed phrases","default":"[]"},{"id":"highlight_style","type":"enum","label":"Highlight","default":"none","options":[{"value":"moving_block","label":"Sliding block"},{"value":"underline","label":"Underline"},{"value":"color","label":"Colored word"},{"value":"pill","label":"Pill karaoke"},{"value":"gradient","label":"Gradient sweep"},{"value":"editorial","label":"Editorial emphasis"},{"value":"slam","label":"Kinetic slam"},{"value":"weight_shift","label":"Weight shift"},{"value":"clip_wipe","label":"Clip wipe"},{"value":"blend_difference","label":"Difference blend"},{"value":"camera_follow","label":"Camera follow"},{"value":"editorial_emphasis","label":"Large key word"},{"value":"emoji_pop","label":"Emoji pop"},{"value":"glitch_rgb","label":"RGB glitch"},{"value":"gradient_fill","label":"Gradient fill"},{"value":"highlight","label":"Word background"},{"value":"matrix_decode","label":"Matrix decode"},{"value":"neon_accent","label":"Neon accent"},{"value":"neon_glow","label":"Neon glow"},{"value":"parallax_layers","label":"Parallax layers"},{"value":"particle_burst","label":"Particle burst"},{"value":"pill_karaoke","label":"Rounded karaoke"},{"value":"texture","label":"Text texture"},{"value":"giant","label":"Giant captions"},{"value":"none","label":"No highlight"}]},{"id":"highlight_color","type":"color","label":"Highlight color","default":"#D8FF2F"},{"id":"highlight_text_color","type":"color","label":"Highlight text color","default":"#111111"},{"id":"italic_stress","type":"boolean","label":"Italic stress","default":true},{"id":"shadow_opacity","type":"number","label":"shadow opacity","default":0.25},{"id":"shadow_blur_px","type":"number","label":"shadow blur px","default":5},{"id":"shadow_x_px","type":"number","label":"shadow x px","default":3},{"id":"shadow_y_px","type":"number","label":"shadow y px","default":4},{"id":"letter_spacing_px","type":"number","label":"letter spacing px","default":0},{"id":"width_scale","type":"number","label":"Width scale","default":1},{"id":"entry_rise_px","type":"number","label":"entry rise px","default":12},{"id":"entry_ms","type":"number","label":"entry ms","default":100},{"id":"entrance","type":"enum","label":"Entrance","default":"slide","options":[{"value":"slide","label":"Slide"},{"value":"rise","label":"Rise"},{"value":"spoken","label":"Word by word"}]},{"id":"fps","type":"number","label":"Frame rate","default":30},{"id":"band_top_px","type":"number","label":"Band top","default":0},{"id":"band_height_px","type":"number","label":"Band height","default":0}]'>
+<head><meta charset="utf-8"><style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+.cap { position: absolute; left: 70px; right: 70px; text-align: center; }
+.cap-bottom { display: flex; justify-content: center; }
+.cap-line {
+  position: relative; display: inline-block; max-width: 940px;
+  font-family: var(--font_family); font-weight: 400; font-size: var(--size);
+  line-height: 1.12; color: var(--text_color); letter-spacing: var(--spacing);
+  text-shadow: var(--shadow); opacity: 0;
+}
+.cap-words { position: relative; z-index: 1; display: block; }
+.cap-ground {
+  position: absolute; z-index: -1; pointer-events: none;
+}
+.cap-mark {
+  position: absolute; z-index: 0; background: var(--highlight_color);
+  border-radius: 0.07em; opacity: 0;
+}
+.cap-line.cap-pill { text-shadow: none; }
+.cap-line.cap-pill .cap-words { text-wrap: balance; }
+.cap-line.cap-pill .cap-mark { opacity: 1; box-shadow: var(--shadow); }
+.cap-line.cap-gradient .cap-words { filter: var(--gradient_shadow); }
+.cap-line.cap-gradient .w {
+  color: transparent; text-shadow: none;
+  /* One sliced background carries the sweep across a word's line fragments. */
+  background-image: linear-gradient(to right, var(--highlight_color),
+    var(--gradient_tint) 50%, transparent calc(50% + 0.08em)),
+    linear-gradient(var(--text_color), var(--text_color));
+  background-size: 200% 100%, 100% 100%; background-repeat: no-repeat;
+  background-position: calc(100% - 0.08em) 0, 0 0;
+  background-clip: text; -webkit-background-clip: text;
+}
+.cap-slam .cap-words { display: grid; text-transform: uppercase; font-weight: 800; }
+.cap-slam .w { grid-area: 1 / 1; white-space: nowrap; opacity: 0; transform-origin: center; }
+.cap-weight-shift .cap-words { text-transform: lowercase; }
+.cap-row { display: block; white-space: nowrap; }
+.cap-line.cap-clip-wipe { text-shadow: none; }
+.cap-clip-wipe .cap-words {
+  text-transform: uppercase; font-weight: 800; filter: var(--clip_shadow);
+}
+.cap-clip-wipe .w { display: inline-grid; vertical-align: bottom; }
+.cap-clip-wipe .cap-dim, .cap-clip-wipe .cap-reveal { grid-area: 1 / 1; }
+.cap-rise-clip, .cap-rise-mover { display: contents; max-width: 100%; }
+.cap-rise-mover { position: relative; }
+.cap-slam .cap-rise-clip { grid-area: 1 / 1; }
+.cap-clip-wipe .cap-rise-clip, .cap-clip-wipe .cap-rise-mover { vertical-align: bottom; }
+.cap-slam.cap-spoken .cap-words { display: block; }
+.cap-slam.cap-spoken .w { display: inline-block; opacity: 1; }
+/* Registry ports keep a solid outlined copy of every spoken word. */
+.cap-slam .w, .cap-weight-shift .w, .cap-clip-wipe .w {
+  -webkit-text-stroke: 0.035em var(--legibility_ink); paint-order: stroke fill;
+  filter: drop-shadow(1px 0 0 var(--legibility_halo))
+    drop-shadow(-1px 0 0 var(--legibility_halo))
+    drop-shadow(0 1px 0 var(--legibility_halo))
+    drop-shadow(0 -1px 0 var(--legibility_halo));
+}
+.cap-slam .w.is-key, .cap-clip-wipe .w.is-key {
+  --legibility_ink: var(--accent_ink); --legibility_halo: var(--accent_halo);
+}
+.cap-weight-shift .w { display: inline-block; }
+.cap-port .w {
+  display: inline-block; position: relative; isolation: isolate;
+  vertical-align: baseline; transform-origin: center;
+  -webkit-text-stroke: 0.035em var(--legibility_ink); paint-order: stroke fill;
+}
+.cap-port .cap-ink {
+  position: relative; z-index: 1;
+  filter: drop-shadow(1px 0 0 var(--legibility_halo))
+    drop-shadow(-1px 0 0 var(--legibility_halo))
+    drop-shadow(0 1px 0 var(--legibility_halo))
+    drop-shadow(0 -1px 0 var(--legibility_halo));
+}
+.cap-port .cap-tile {
+  position: absolute; z-index: 0; inset: -0.04em -0.08em;
+  border-radius: 0.12em; opacity: 0;
+  background: var(--highlight_color); transform-origin: left;
+}
+.cap-camera-follow .cap-words, .cap-glitch-rgb .cap-words,
+.cap-highlight .cap-words, .cap-neon-glow .cap-words,
+.cap-particle-burst .cap-words { font-weight: 800; text-transform: uppercase; }
+.cap-blend-difference .cap-tile { border-radius: 0; }
+.cap-difference {
+  position: absolute; inset: 0; z-index: 0; opacity: 0;
+  color: var(--text_color); mix-blend-mode: difference;
+  transform: translate(0.04em, 0.04em); pointer-events: none;
+}
+.cap-highlight .cap-tile {
+  background: linear-gradient(135deg, var(--highlight_color),
+    color-mix(in srgb, var(--highlight_color) 85%, var(--text_color)));
+}
+:is(.cap-neon-glow, .cap-neon-accent, .cap-gradient-fill,
+  .cap-glitch-rgb, .cap-particle-burst, .cap-texture) .cap-ink {
+  display: inline-block; opacity: 1; filter: none; text-shadow: none;
+  -webkit-text-stroke-width: max(4px, 0.1em); paint-order: stroke fill;
+}
+/* A stroke extends half its width outside the fill. Keep at least two phone
+   pixels of opaque edge above the patterned rear rim at 1080 -> 360 size. */
+.cap-gradient-fill .cap-ink, .cap-texture .cap-ink {
+  -webkit-text-stroke-width: max(12px, 0.18em);
+}
+/* Effects are separate rear copies; neither blur nor tint paints over the core. */
+.cap-effect {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  color: var(--highlight_color); -webkit-text-stroke: 0; text-shadow: none;
+}
+.cap-gradient-fill .cap-effect, .cap-texture .cap-effect {
+  color: transparent; text-shadow: none;
+  transform: scale(1.06, 1.3); transform-origin: center;
+  background-clip: text; -webkit-background-clip: text;
+  background-image: linear-gradient(90deg, var(--highlight_color), var(--core_edge) 30%,
+    var(--highlight_color) 50%, var(--core_edge) 50.5%, var(--core_edge));
+  background-size: 350% 100%; background-position: 100% 0;
+}
+.cap-texture .cap-effect {
+  background-image: repeating-linear-gradient(115deg, var(--core_edge) 0 0.035em,
+    var(--highlight_color) 0.045em 0.08em, var(--core_edge) 0.1em 0.14em);
+  background-size: 200% 200%;
+}
+.cap-decode, .cap-layer {
+  position: absolute; inset: 0; pointer-events: none;
+  color: var(--highlight_color); opacity: 0;
+}
+.cap-decode { overflow: hidden; font-size: 0.5em; text-align: center; }
+.cap-layer { z-index: 0; font-weight: 800; transform-origin: center; }
+.cap-emoji {
+  display: inline-block; position: relative; vertical-align: 0.02em;
+  width: 0.65em; height: 0.65em; margin-left: 0.12em;
+  border: 0.025em solid var(--accent_ink); border-radius: 50%;
+  background: var(--highlight_color);
+}
+.cap-emoji::before {
+  content: ''; position: absolute; width: 0.07em; height: 0.07em;
+  top: 0.17em; left: 0.15em; border-radius: 50%;
+  background: var(--accent_ink); box-shadow: 0.22em 0 var(--accent_ink);
+}
+.cap-emoji::after {
+  content: ''; position: absolute; left: 0.14em; top: 0.28em;
+  width: 0.32em; height: 0.19em; border-bottom: 0.035em solid var(--accent_ink);
+  border-radius: 0 0 50% 50%;
+}
+.cap-particle {
+  position: absolute; left: 50%; top: 50%; z-index: 0;
+  width: 0.06em; height: 0.06em; border-radius: 50%;
+  background: var(--highlight_color); opacity: 0; pointer-events: none;
+}
+.cap-pill-karaoke .cap-words {
+  padding: 0.12em 0.3em; border-radius: 0.3em;
+  background: var(--highlight_color); text-transform: lowercase;
+  text-wrap: balance; font-weight: 700;
+}
+</style></head>
+<body><div data-composition-id="captions" data-no-timeline
+  data-width="1080" data-height="300" data-duration="3"></div>
+<script>
+(() => {
+  'use strict';
+  const MIN_SIZE_PX = 32;
+  // Eight frames read as motion and finish before most spoken words.
+  const RISE_FRAMES = 8;
+  // Two frames separate consecutive words without slowing the phrase.
+  const RISE_STAGGER_FRAMES = 2;
+  // Travel uses the fitted line box so the distance follows the font size.
+  const RISE_DISTANCE = 0.6;
+  // Three frames soften the glyphs and ground as they first appear.
+  const RISE_FADE_FRAMES = 3;
+  // Even a subframe phrase needs a finite animation to seek.
+  const RISE_MIN_FRAMES = 1;
+  const SHRINK_PREFIX = 'yap-studio caption-shrink ';
+  const v = window.__hyperframes.getVariables();
+  const root = document.querySelector('[data-composition-id]');
+  const duration = Number(root.dataset.duration);
+  const bandTop = Number(v.band_top_px ?? 0);
+  const bandHeight = Number(v.band_height_px) || Number(root.dataset.height);
+  const offset = (time) => Math.max(0, Math.min(1, time / duration));
+  const wordWindow = (phrase, index) => {
+    const start = Math.min(phrase.end, Math.max(phrase.start, phrase.words[index].start));
+    const next = index + 1 < phrase.words.length ? phrase.words[index + 1].start : phrase.end;
+    return { start, next: Math.min(phrase.end, Math.max(start, next)) };
+  };
+  // Use the existing phrase curve for the individual word moves too.
+  const ease = 'cubic-bezier(.2,.7,.2,1)';
+  const wordRise = v.entrance === 'rise';
+  const spoken = v.entrance === 'spoken';
+  const wordEntrance = wordRise || spoken;
+  const riseWindow = (phrase, index) => {
+    const first = phrase.start * v.fps;
+    const frames = Math.max(RISE_MIN_FRAMES, (phrase.end - phrase.start) * v.fps);
+    let length = Math.min(RISE_FRAMES, frames);
+    const stagger = Math.min(RISE_STAGGER_FRAMES,
+      (frames - length) / Math.max(1, phrase.words.length - 1));
+    let start = first + index * stagger;
+    if (v.highlight_style === 'slam') {
+      const window = wordWindow(phrase, index);
+      start = window.start * v.fps;
+      length = Math.max(RISE_MIN_FRAMES, Math.min(length, window.next * v.fps - start));
+    }
+    return { start: start / v.fps, end: (start + length) / v.fps };
+  };
+  const animateRise = (node, keys, timing = {}) => {
+    const animation = node.animate(keys,
+      { duration: duration * 1000, fill: 'both', easing: 'linear', ...timing });
+    // Give every entrance effect the same origin before the renderer seeks.
+    animation.pause();
+    animation.currentTime = 0;
+  };
+  const fadeRise = (node, phrase) => {
+    const finish = Math.min(phrase.end, phrase.start + RISE_FADE_FRAMES / v.fps);
+    // Release the fade at rest so its opacity layer cannot change the original pixels.
+    animateRise(node, [{ opacity: 0, offset: 0 }, { opacity: 1, offset: 1 }], {
+      delay: phrase.start * 1000, duration: (finish - phrase.start) * 1000, fill: 'backwards',
+    });
+  };
+  const shadow = `${v.shadow_x_px}px ${v.shadow_y_px}px ${v.shadow_blur_px}px ` +
+    `rgb(0 0 0 / ${v.shadow_opacity})`;
+  const phrases = JSON.parse(v.phrases);
+  const registryLook = ['slam', 'weight_shift', 'clip_wipe'].includes(v.highlight_style);
+  const portedLook = ['blend_difference', 'camera_follow', 'editorial_emphasis', 'emoji_pop',
+    'glitch_rgb', 'gradient_fill', 'highlight', 'matrix_decode', 'neon_accent', 'neon_glow',
+    'parallax_layers', 'particle_burst', 'pill_karaoke', 'texture'].includes(v.highlight_style);
+  const effectPadding = portedLook ? Math.ceil(v.size_px * 0.25) : 0;
+  // BEGIN_CAPTION_PORTS: sync_data.py copies these effects into the style preview.
+  // Alpha layers cannot sample the footage. A solid fill plus opposite ink outline
+  // keeps the letters readable on bright, dark and changing video backgrounds.
+  const inkLuminance = (color) => {
+    const channels = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16) / 255);
+    return channels.reduce((sum, c, i) => sum +
+      (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) *
+      [0.2126, 0.7152, 0.0722][i], 0);
+  };
+  const inkContrast = (a, b) => {
+    const first = inkLuminance(a), second = inkLuminance(b);
+    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+  };
+  const readableInk = (color) => {
+    const luminance = inkLuminance(color);
+    // Use the exact luminance of #111111 at the 4.5:1 decision boundary.
+    const dark = (luminance + 0.05) / 0.05560539162420272;
+    const light = 1.05 / (luminance + 0.05);
+    return Math.max(dark, light) < 4.5 ? '#000000' : dark >= light ? '#111111' : '#FFFFFF';
+  };
+  const solidCoreLook = ['neon_glow', 'neon_accent', 'gradient_fill', 'glitch_rgb',
+    'particle_burst', 'texture'].includes(v.highlight_style);
+  // BEGIN_CAPTION_CASE
+  const caseTransforms = {pill_karaoke: 'lowercase', weight_shift: 'lowercase',
+    clip_wipe: 'uppercase', camera_follow: 'uppercase', glitch_rgb: 'uppercase',
+    highlight: 'uppercase', neon_glow: 'uppercase', particle_burst: 'uppercase', slam: 'uppercase'};
+  const preserveWordCase = (word) => {
+    const token = word.text.replace(/^[.,!?;:"'()[\]{}<>…“”‘’«»—–-]+|[.,!?;:"'()[\]{}<>…“”‘’«»—–-]+$/gu, '');
+    return word.preserve_case || /\p{Lu}/u.test(token.slice(1)) || token === 'I' ||
+      /^I['’]/u.test(token) || word.text.startsWith('.');
+  };
+  const captionWordCase = (word, mode) => {
+    if (mode !== 'slam' && preserveWordCase(word)) return word.text;
+    const transform = caseTransforms[mode];
+    return transform === 'lowercase' ? word.text.toLowerCase() :
+      transform === 'uppercase' ? word.text.toUpperCase() : word.text;
+  };
+  const applyWordCase = (span, word, mode) => {
+    if (mode !== 'slam' && caseTransforms[mode] && preserveWordCase(word)) {
+      span.style.textTransform = 'none';
+    }
+  };
+  // END_CAPTION_CASE
+  // All ports use finite Web Animations; the renderer can seek in either direction.
+  const animateWord = (node, start, end, idle, active, settle = idle, ramp = 0.08) => {
+    if (end <= start) return;
+    const arrive = Math.min(start + ramp, end);
+    node.animate([
+      { ...idle, offset: 0 }, { ...idle, offset: offset(start), easing: ease },
+      { ...active, offset: offset(arrive) }, { ...active, offset: offset(end) },
+      { ...settle, offset: offset(end) }, { ...settle, offset: 1 },
+    ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+  };
+  const decorateWord = (span, word, index, phrase) => {
+    const mode = v.highlight_style;
+    applyWordCase(span, word, mode);
+    const start = Math.max(phrase.start, word.start);
+    const next = index + 1 < phrase.words.length ? phrase.words[index + 1].start : phrase.end;
+    const end = Math.min(phrase.end, Math.max(start, next));
+    const spokenEnd = Math.min(end, Math.max(start, word.end));
+    const key = index === (phrase.stress ?? 0);
+    const ink = document.createElement('span');
+    ink.className = 'cap-ink';
+    ink.textContent = word.text;
+    span.replaceChildren(ink);
+    if (solidCoreLook) {
+      // Keep requested ink when it contrasts with the accent. Otherwise choose
+      // a safe fallback once. The opposite edge isolates it from the footage.
+      const core = inkContrast(v.text_color, v.highlight_color) >= 4.5
+        ? v.text_color : readableInk(v.highlight_color);
+      const edge = readableInk(core);
+      ink.style.color = core;
+      ink.style.webkitTextStrokeColor = edge;
+      ink.style.opacity = '1';
+      ink.style.textShadow = 'none';
+      ink.style.filter = 'none';
+      ink.style.backgroundImage = 'none';
+      span.style.setProperty('--core_edge', edge);
+    }
+    const effectCopy = () => {
+      const effect = document.createElement('span');
+      effect.className = 'cap-effect';
+      effect.textContent = word.text;
+      effect.style.color = v.highlight_color;
+      // CSS owns the transparent patterned fill on these rear copies.
+      if (mode === 'gradient_fill' || mode === 'texture') effect.style.color = 'transparent';
+      span.append(effect);
+      return effect;
+    };
+    if (key) {
+      if (mode === 'editorial_emphasis' || mode === 'neon_accent') {
+        span.style.fontSize = mode === 'editorial_emphasis' ? '1.45em' : '1.2em';
+        span.style.fontWeight = '800';
+      }
+      if (mode === 'editorial_emphasis' && v.italic_stress) span.style.fontStyle = 'italic';
+    }
+    const accent = { color: v.highlight_color, webkitTextStrokeColor: readableInk(v.highlight_color) };
+    const ordinary = { color: v.text_color, webkitTextStrokeColor: readableInk(v.text_color) };
+    if (['highlight', 'blend_difference'].includes(mode)) {
+      const tile = document.createElement('span');
+      tile.className = 'cap-tile';
+      span.append(tile);
+      animateWord(tile, start, end, { opacity: 0, transform: 'scaleX(0.05)' },
+        { opacity: 1, transform: 'scaleX(1)' });
+      if (mode === 'blend_difference') {
+        // Difference can lose all contrast on middle gray. Keep the outlined
+        // foreground solid and blend only this offset decorative copy.
+        const difference = document.createElement('span');
+        difference.className = 'cap-difference';
+        difference.textContent = word.text;
+        span.append(difference);
+        animateWord(difference, start, end, { opacity: 0 }, { opacity: 1 });
+      }
+      const active = mode === 'highlight' ? v.highlight_text_color : v.text_color;
+      animateWord(ink, start, end, ordinary,
+        { color: active, webkitTextStrokeColor: readableInk(active) }, ordinary, 0);
+    } else if (mode === 'gradient_fill') {
+      animateWord(effectCopy(), start, spokenEnd, { backgroundPosition: '100% 0' },
+        { backgroundPosition: '0% 0' }, { backgroundPosition: '100% 0' }, spokenEnd - start);
+      animateWord(span, start, end, { transform: 'scale(1)' }, { transform: 'scale(0.97)' });
+    } else if (mode === 'texture') {
+      animateWord(effectCopy(), start, end, { backgroundPosition: '0% 50%' },
+        { backgroundPosition: '100% 50%' }, { backgroundPosition: '100% 50%' }, end - start);
+    } else if (mode === 'pill_karaoke') {
+      const muted = `color-mix(in srgb, ${v.highlight_text_color} 80%, ${v.highlight_color})`;
+      const active = { color: v.highlight_text_color,
+        webkitTextStrokeColor: readableInk(v.highlight_text_color) };
+      animateWord(ink, start, end,
+        { color: muted, webkitTextStrokeColor: readableInk(v.highlight_text_color) }, active, active);
+    } else if (mode === 'glitch_rgb') {
+      for (const direction of [-1, 1]) {
+        const effect = effectCopy();
+        effect.style.color = direction > 0 ? v.highlight_color : ink.style.webkitTextStrokeColor;
+        animateWord(effect, start, Math.min(start + 0.16, end),
+          { opacity: 0, transform: 'translateX(0)' },
+          { opacity: 1, transform: `translateX(${direction * 0.12}em)` });
+      }
+    } else if (mode === 'matrix_decode') {
+      // Scrambled glyphs are decoration; the actual spoken text is never replaced.
+      for (let layer = 0; layer < 2; layer++) {
+        const decode = document.createElement('span');
+        decode.className = 'cap-decode';
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        decode.textContent = Array.from(word.text, (_, i) =>
+          alphabet[(index * 17 + i * 13 + layer * 7) % alphabet.length]).join('');
+        span.append(decode);
+        const at = Math.min(start + layer * 0.05, end);
+        animateWord(decode, at, Math.min(at + 0.05, end), { opacity: 0 },
+          { opacity: 0.5, transform: `translateY(${layer ? -0.12 : 0.12}em)` }, { opacity: 0 }, 0);
+      }
+      animateWord(ink, start, end, ordinary, accent, accent);
+    } else if (mode === 'parallax_layers') {
+      const layer = document.createElement('span');
+      layer.className = 'cap-layer';
+      layer.textContent = word.text;
+      span.append(layer);
+      animateWord(layer, start, end,
+        { opacity: 0, transform: 'translate(-0.12em, -0.1em) scaleY(1.12)' },
+        { opacity: 0.65, transform: 'translate(0.12em, 0.1em) scaleY(1.12)' },
+        { opacity: 0.35, transform: 'translate(0, 0.1em) scaleY(1.12)' }, end - start);
+    } else if (mode === 'emoji_pop') {
+      if (key) {
+        // A CSS smiley is stable across platforms and needs no emoji font or images.
+        const badge = document.createElement('span');
+        badge.className = 'cap-emoji';
+        span.append(badge);
+        animateWord(badge, start, end, { transform: 'scale(0.8) rotate(-12deg)' },
+          { transform: 'scale(1) rotate(0deg)' }, { transform: 'scale(1) rotate(0deg)' });
+      }
+      animateWord(span, start, end, { transform: 'scaleX(0.9)' }, { transform: 'scaleX(1)' },
+        { transform: 'scaleX(1)' });
+      animateWord(ink, start, end, ordinary, accent, ordinary, 0);
+    } else if (mode === 'neon_glow' || mode === 'neon_accent') {
+      const glow = `0 0 0.03em ${v.highlight_color}, 0 0 0.1em ${v.highlight_color}, ` +
+        `0 0 0.2em ${v.highlight_color}, ${shadow}`;
+      const effect = effectCopy();
+      effect.style.textShadow = glow;
+      animateWord(effect, start, end, { opacity: 0 }, { opacity: 1 });
+      if (mode === 'neon_accent') animateWord(span, start, end,
+        { transform: 'scale(0.94) rotate(-2deg)' }, { transform: 'scale(1) rotate(2deg)' });
+    } else if (mode === 'particle_burst') {
+      if (key) for (let p = 0; p < 10; p++) {
+        const dot = document.createElement('span');
+        dot.className = 'cap-particle';
+        dot.style.background = p % 2 ? v.highlight_color : ink.style.webkitTextStrokeColor;
+        const angle = (p / 10 + index * 0.07) * Math.PI * 2;
+        const travel = `translate(${(Math.cos(angle) * 0.4).toFixed(3)}em, ` +
+          `${(Math.sin(angle) * 0.4).toFixed(3)}em)`;
+        span.append(dot);
+        animateWord(dot, start, Math.min(start + 0.3, end),
+          { opacity: 0, transform: 'translate(0, 0) scale(1)' },
+          { opacity: 1, transform: travel }, { opacity: 0, transform: travel }, 0.12);
+      }
+    } else if (mode === 'editorial_emphasis') {
+      animateWord(span, start, end, { transform: 'translateX(-0.08em) scale(0.94)' },
+        { transform: 'translateX(0) scale(1)' }, { transform: 'translateX(0) scale(1)' });
+      if (key) animateWord(ink, start, end, ordinary, accent, accent, 0);
+    } else if (mode === 'camera_follow') {
+      animateWord(ink, start, end, ordinary, accent, ordinary, 0);
+    }
+  };
+  const animateCamera = (words, phrase) => {
+    const poses = phrase.words.map((word, i) => ({
+      transform: `translateX(${(0.12 - i / Math.max(1, phrase.words.length - 1) * 0.24).toFixed(3)}em) ` +
+        `scale(${(1 - i / Math.max(1, phrase.words.length - 1) * 0.06).toFixed(3)})`,
+      offset: offset(Math.max(phrase.start, Math.min(phrase.end, word.start))), easing: ease,
+    }));
+    if (poses.length) words.animate([{ ...poses[0], offset: 0 }, ...poses,
+      { ...poses[poses.length - 1], offset: 1 }],
+    { duration: duration * 1000, fill: 'both', easing: 'linear' });
+  };
+  // END_CAPTION_PORTS
+  const hasGround = v.background_mode !== 'none' && Number(v.background_opacity) > 0;
+  // Ground padding stays in display pixels even when only the words are condensed.
+  const groundBounds = (width, height, scale, punch, highlightPad, groundPadding, mode) => {
+    const fittedWidth = Math.min(940, width * scale * punch + 2 * (groundPadding + highlightPad));
+    const fittedHeight = height * punch + 2 * (groundPadding + effectPadding);
+    return {
+      top: (height - fittedHeight) / 2,
+      width: mode === 'band' ? 1080 : fittedWidth,
+      height: fittedHeight,
+      radius: mode === 'band' ? 0 :
+        Math.min(v.background_radius_px, fittedWidth / 2, fittedHeight / 2),
+    };
+  };
+  const measurements = [];
+  for (const phrase of phrases) {
+    const phraseBandTop = bandTop + (phrase.band?.top_px ?? 0);
+    const phraseBandHeight = phrase.band?.height_px ?? bandHeight;
+    const padding = phrase.band?.padding_px ?? v.padding_px;
+    const bottomPadding = phrase.band?.bottom_padding_px ?? v.bottom_padding_px;
+    const phraseGround = hasGround || phrase.backing === 'box';
+    const groundPadding = phraseGround ? Number(v.background_padding_px) : 0;
+    const groundMode = v.background_mode === 'band' ? 'band' : 'box';
+    const groundOpacity = phrase.backing === 'box'
+      ? Math.max(0.85, Number(v.background_opacity)) : Number(v.background_opacity);
+    const groundColor = phrase.backing === 'box' &&
+      inkContrast(v.background_color, v.text_color) < 4.5
+      ? readableInk(v.text_color) : v.background_color;
+    const cap = document.createElement('div');
+    cap.className = v.position === 'bottom' ? 'cap cap-bottom' : 'cap';
+    if (v.position === 'bottom') {
+      const inset = Number(root.dataset.height) - phraseBandTop - phraseBandHeight + bottomPadding;
+      cap.style.bottom = `${inset}px`;
+    } else cap.style.top = `${phraseBandTop + padding}px`;
+    if (phrase.offset_px) cap.style.translate = `0 ${phrase.offset_px}px`;
+    for (const [name, value] of Object.entries({
+      font_family: v.font_family, size: `${v.size_px}px`, spacing: `${v.letter_spacing_px}px`,
+      text_color: v.text_color, highlight_color: v.highlight_color,
+      shadow: v.shadow_opacity > 0 ? shadow : 'none',
+    })) cap.style.setProperty(`--${name}`, value);
+    const line = document.createElement('div');
+    line.className = 'cap-line';
+    if (spoken) line.className += ' cap-spoken';
+    if (registryLook) line.className += ` cap-${v.highlight_style.replace('_', '-')}`;
+    if (registryLook || portedLook) {
+      line.style.setProperty('--legibility_ink', readableInk(v.text_color));
+      line.style.setProperty('--legibility_halo', readableInk(readableInk(v.text_color)));
+    }
+    if (portedLook) {
+      line.className += ` cap-port cap-${v.highlight_style.replaceAll('_', '-')}`;
+      line.style.setProperty('--accent_ink', readableInk(v.highlight_color));
+      const width = (940 - 2 * (groundPadding + effectPadding)) / v.width_scale;
+      line.style.maxWidth = `${width}px`;
+      cap.style.left = `${(1080 - width) / 2}px`;
+      cap.style.right = `${(1080 - width) / 2}px`;
+    }
+    if (v.highlight_style === 'clip_wipe') {
+      // Apply the shadow after clipping so the wipe does not cut off its blur.
+      line.style.setProperty('--clip_shadow',
+        v.shadow_opacity > 0 ? `drop-shadow(${shadow})` : 'none');
+    }
+    if (v.highlight_style === 'pill') line.className += ' cap-pill';
+    if (v.highlight_style === 'gradient') {
+      line.className += ' cap-gradient';
+      line.style.setProperty('--gradient_tint',
+        `color-mix(in srgb, ${v.highlight_color} 65%, ${v.text_color})`);
+      line.style.setProperty('--gradient_shadow',
+        v.shadow_opacity > 0 ? `drop-shadow(${shadow})` : 'none');
+    }
+    const mark = document.createElement('div');
+    mark.className = 'cap-mark';
+    const words = document.createElement('div');
+    words.className = 'cap-words';
+    if (phraseGround && groundOpacity < 1) {
+      // Translucent grounds cannot guarantee contrast against unknown video pixels.
+      // Paint a solid contrasting outline before the fill, even with shadows disabled.
+      const channels = [1, 3, 5].map((i) => parseInt(v.text_color.slice(i, i + 2), 16));
+      const light = channels.reduce((sum, value) => sum + value, 0) > 384;
+      words.style.webkitTextStroke = `2px ${light ? '#111111' : '#FFFFFF'}`;
+      words.style.paintOrder = 'stroke fill';
+    }
+    if (v.width_scale < 1) {
+      // Keep the wider layout centered before condensing the words.
+      const width = 940 / v.width_scale;
+      const inset = `${(1080 - width) / 2}px`;
+      cap.style.left = inset;
+      cap.style.right = inset;
+      line.style.maxWidth = `${width}px`;
+      words.style.scale = `${v.width_scale} 1`;
+      words.style.transformOrigin = 'center';
+    }
+    if (portedLook && v.width_scale < 1) {
+      const width = (940 - 2 * (groundPadding + effectPadding)) / v.width_scale;
+      line.style.maxWidth = `${width}px`;
+      cap.style.left = `${(1080 - width) / 2}px`;
+      cap.style.right = `${(1080 - width) / 2}px`;
+    }
+    if (v.highlight_style === 'pill') {
+      const shadowPad = v.shadow_opacity > 0 ?
+        v.shadow_blur_px * 3 + Math.abs(v.shadow_x_px) : 0;
+      const width = Math.min(940, 1080 - v.size_px * 0.8 - shadowPad * 2) / v.width_scale;
+      const inset = `${(1080 - width) / 2}px`;
+      cap.style.left = inset;
+      cap.style.right = inset;
+      line.style.maxWidth = `${width}px`;
+    }
+    if (phraseGround) {
+      const highlightPad = v.size_px * (v.highlight_style === 'pill' ? 0.4 :
+        v.highlight_style === 'moving_block' ? 0.08 : 0);
+      const width = Math.min(parseFloat(line.style.maxWidth || '940'),
+        (940 - 2 * (groundPadding + highlightPad)) / v.width_scale);
+      const inset = `${(1080 - width) / 2}px`;
+      cap.style.left = inset;
+      cap.style.right = inset;
+      line.style.maxWidth = `${width}px`;
+      line.style.isolation = 'isolate';
+      const ground = document.createElement('div');
+      ground.className = 'cap-ground';
+      const channels = [1, 3, 5].map((i) => parseInt(groundColor.slice(i, i + 2), 16));
+      ground.style.background = `rgb(${channels.join(' ')} / ${groundOpacity})`;
+      line.append(ground);
+    }
+    const spans = phrase.words.map((word, index) => {
+      if (index && v.highlight_style !== 'slam') words.append(document.createTextNode(' '));
+      const span = document.createElement('span');
+      span.className = 'w';
+      span.textContent = word.text;
+      if (index === phrase.stress && ['slam', 'clip_wipe'].includes(v.highlight_style)) {
+        span.style.setProperty('--legibility_ink', readableInk(v.highlight_color));
+        span.style.setProperty('--legibility_halo', readableInk(readableInk(v.highlight_color)));
+      }
+      if (!portedLook) applyWordCase(span, word, v.highlight_style);
+      if (v.italic_stress && index === phrase.stress) span.style.fontStyle = 'italic';
+      if (v.highlight_style === 'editorial' && index === phrase.stress) {
+        span.style.fontWeight = '700';
+      }
+      words.append(span);
+      if (portedLook) decorateWord(span, word, index, phrase);
+      if (v.highlight_style === 'slam') {
+        if (index === phrase.stress) span.style.color = v.highlight_color;
+        const { start, next: end } = wordWindow(phrase, index);
+        if (end > start && !spoken) {
+          const punch = Math.min(start + 0.12, end);
+          span.animate([
+            { opacity: 0, transform: 'scale(1.3)', offset: 0 },
+            { opacity: 0, transform: 'scale(1.3)', offset: offset(start), easing: ease },
+            { opacity: 1, transform: 'scale(1)', offset: offset(punch) },
+            { opacity: 1, transform: 'scale(1)', offset: offset(end) },
+            { opacity: 0, transform: 'scale(1)', offset: offset(end) },
+            { opacity: 0, transform: 'scale(1)', offset: 1 },
+          ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+        }
+      }
+      if (v.highlight_style === 'clip_wipe') {
+        const dim = document.createElement('span');
+        dim.className = 'cap-dim';
+        dim.textContent = word.text;
+        dim.style.opacity = '0.35';
+        const reveal = document.createElement('span');
+        reveal.className = 'cap-reveal';
+        reveal.textContent = word.text;
+        reveal.style.clipPath = 'inset(0 100% 0 0)';
+        if (index === phrase.stress) span.style.color = v.highlight_color;
+        span.replaceChildren(dim, reveal);
+        const { start } = wordWindow(phrase, index);
+        const end = start + Math.max(0.08, word.end - start);
+        reveal.animate([
+          { clipPath: 'inset(0 100% 0 0)', offset: 0 },
+          { clipPath: 'inset(0 100% 0 0)', offset: offset(start) },
+          { clipPath: 'inset(0 0% 0 0)', offset: offset(end) },
+          { clipPath: 'inset(0 0% 0 0)', offset: 1 },
+        ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+      }
+      if (v.highlight_style === 'color' || v.highlight_style === 'moving_block') {
+        const { start, next: end } = wordWindow(phrase, index);
+        const active = v.highlight_style === 'color' ? v.highlight_color : v.highlight_text_color;
+        const state = (color, textShadow, time) => ({ color, textShadow, offset: offset(time) });
+        const activeShadow = v.highlight_style === 'moving_block' ? 'none' : shadow;
+        span.animate([
+          state(v.text_color, shadow, 0), state(v.text_color, shadow, start),
+          state(active, activeShadow, start), state(active, activeShadow, end),
+          state(v.text_color, shadow, end), state(v.text_color, shadow, duration),
+        ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+      }
+      if (v.highlight_style === 'pill') {
+        const { start } = wordWindow(phrase, index);
+        const muted = `color-mix(in srgb, ${v.highlight_text_color} 45%, ${v.highlight_color})`;
+        span.animate([
+          { color: muted, offset: 0 }, { color: muted, offset: offset(start) },
+          { color: v.highlight_text_color, offset: offset(start) },
+          { color: v.highlight_text_color, offset: 1 },
+        ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+      }
+      if (v.highlight_style === 'gradient') {
+        const { start } = wordWindow(phrase, index);
+        const end = Math.max(start + 1 / v.fps, Math.min(word.end, phrase.end));
+        const empty = 'calc(100% - 0.08em) 0, 0 0';
+        const full = '0% 0, 0 0';
+        span.animate([
+          { backgroundPosition: empty, offset: 0 },
+          { backgroundPosition: empty, offset: offset(start) },
+          { backgroundPosition: full, offset: offset(end) },
+          { backgroundPosition: full, offset: 1 },
+        ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+      }
+      if (v.highlight_style === 'editorial' && index === phrase.stress) {
+        const { start } = wordWindow(phrase, index);
+        span.animate([
+          { color: v.text_color, offset: 0 }, { color: v.text_color, offset: offset(start) },
+          { color: v.highlight_color, offset: offset(start) },
+          { color: v.highlight_color, offset: 1 },
+        ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+      }
+      return span;
+    });
+    if (!registryLook && phrase.breaks?.length) {
+      words.replaceChildren();
+      const edges = [0, ...phrase.breaks, spans.length];
+      for (let rowIndex = 0; rowIndex < edges.length - 1; rowIndex++) {
+        const row = document.createElement('div');
+        row.className = 'cap-row';
+        for (let i = edges[rowIndex]; i < edges[rowIndex + 1]; i++) {
+          if (i > edges[rowIndex]) row.append(document.createTextNode(' '));
+          row.append(spans[i]);
+        }
+        words.append(row);
+      }
+    }
+    line.append(mark, words);
+    cap.append(line);
+    root.append(cap);
+    const start = offset(phrase.start);
+    const entry = offset(Math.min(phrase.end,
+      phrase.start + (wordRise || spoken ? 0 : v.entry_ms) / 1000));
+    const end = offset(phrase.end);
+    const rise = `translateY(${wordRise || spoken ? 0 : v.entry_rise_px}px)`;
+    line.animate([
+      { offset: 0, opacity: 0, transform: rise },
+      // A translucent phrase would also wash out its inactive words. These six
+      // looks enter at full opacity while retaining their existing rise motion.
+      ...(solidCoreLook ? [{ offset: start, opacity: 0, transform: rise }] : []),
+      { offset: start, opacity: solidCoreLook ? 1 : 0, transform: rise, easing: ease },
+      { offset: entry, opacity: 1, transform: 'translateY(0)' },
+      { offset: end, opacity: 1, transform: 'translateY(0)' },
+      { offset: end, opacity: 0, transform: 'translateY(0)' },
+      { offset: 1, opacity: 0, transform: 'translateY(0)' },
+    ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+    measurements.push({ phrase, spans, mark, line, words, cap, phraseGround, spoken,
+      groundPadding, groundMode, bandTop: phraseBandTop, bandHeight: phraseBandHeight,
+      padding, size: v.size_px, fits: true });
+  }
+  document.fonts.ready.then(() => {
+    const floor_px = Math.min(MIN_SIZE_PX, v.size_px);
+    if (!registryLook) {
+      for (const item of measurements) {
+        const { line, words, phraseGround, bandHeight, padding } = item;
+        let width = words.scrollWidth;
+        let available = words.clientWidth;
+        const availableHeight = bandHeight - 2 * padding - v.entry_rise_px;
+        const heightFits = () => !(phraseGround || portedLook) ||
+          words.scrollHeight <= availableHeight + 0.01;
+        if (width <= available && heightFits()) continue;
+        let size = v.size_px;
+        let fits = false;
+        const measure = (next) => {
+          line.style.fontSize = `${next}px`;
+          width = words.scrollWidth;
+          available = words.clientWidth;
+          return width <= available && heightFits();
+        };
+        // Re-measure because fixed tracking and integer scroll widths do not scale exactly.
+        for (let i = 0; i < 7 && size > floor_px && !fits; i++) {
+          const ratio = Math.min((available - 1) / width,
+            phraseGround || portedLook ? availableHeight / words.scrollHeight : 1);
+          size = Math.max(floor_px, Math.floor(size * ratio * 100) / 100);
+          fits = measure(size);
+        }
+        if (!fits && size > floor_px) {
+          let overflow = size;
+          size = floor_px;
+          fits = measure(size);
+          // Keep a fitting lower bound and bisect to 0.01 px, with at most 23 measurements.
+          if (fits) {
+            for (let i = 0; i < 14 && overflow - size > 0.01; i++) {
+              const trial = Math.floor((size + overflow) * 50) / 100;
+              if (trial <= size) break;
+              if (measure(trial)) size = trial;
+              else overflow = trial;
+            }
+            line.style.fontSize = `${size}px`;
+          }
+        }
+        item.size = size;
+        item.fits = fits;
+      }
+    }
+    if (registryLook) {
+      // FontFace.weight is the range emitted by render/fonts.py for bundled faces.
+      const family = v.font_family.split(',')[0].trim().replace(/^"|"$/g, '');
+      const face = Array.from(document.fonts).find((face) =>
+        face.family.replace(/^"|"$/g, '') === family && face.style === 'normal');
+      const range = face ? face.weight.split(/\s+/).map(Number) : [];
+      const variable = range.length === 2;
+      const bold = variable ? Math.min(800, range[1]) : 700;
+      const light = variable ? Math.max(300, range[0]) : 400;
+      // Fixed-weight faces use regular/bold contrast, with synthesized bold if needed.
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      for (const item of measurements) {
+        const { phrase, spans, line, words, cap, phraseGround, groundPadding,
+          bandTop, bandHeight, padding } = item;
+        if (!spans.length) continue;
+        const slam = v.highlight_style === 'slam' && !item.spoken;
+        const weightShift = v.highlight_style === 'weight_shift';
+        const scale = v.width_scale * (slam ? 0.8 : 1);
+        const width = Number(root.dataset.width);
+        const inset = Math.max(70, padding);
+        const available = (width - inset * 2 - 2 * groundPadding) / scale;
+        const height = bandHeight - 2 * padding -
+          (slam ? 2 : 1) * v.entry_rise_px;
+        let size = Math.min(v.size_px, height / (1.12 * (slam ? 1.3 : 2)));
+        const heightSize = size;
+        const measure = (copy, italic = false) => {
+          context.font = `${italic ? 'italic ' : ''}${weightShift ? bold : 800} ${size}px ${v.font_family}`;
+          return Math.max(0, context.measureText(copy).width + copy.length * v.letter_spacing_px);
+        };
+        const copies = phrase.words.map((word) => captionWordCase(word, v.highlight_style));
+        const widths = copies.map((copy, i) => measure(copy,
+          v.italic_stress && i === phrase.stress));
+        const space = measure(' ');
+        const lineWidth = (start, end) => widths.slice(start, end).reduce((a, b) => a + b, 0) +
+          Math.max(0, end - start - 1) * space;
+        let split = spans.length;
+        if (!slam && spans.length > 1 && (weightShift ||
+          lineWidth(0, spans.length) > available)) {
+          let best = Infinity;
+          for (let i = 1; i <= (spans.length === 2 ? 1 : spans.length - 2); i++) {
+            const difference = Math.abs(lineWidth(0, i) - lineWidth(i, spans.length));
+            if (difference < best) { best = difference; split = i; }
+          }
+        }
+        // Fit at the heaviest weight and largest punch so seeking cannot change line breaks.
+        const fitGroups = slam ? spans.map((_, i) => [i, i + 1]) :
+          [[0, split], ...(split < spans.length ? [[split, spans.length]] : [])];
+        size *= Math.min(1, ...fitGroups.map(([start, end]) => {
+          const copy = copies.slice(start, end).join(' ');
+          const tracking = copy.length * v.letter_spacing_px;
+          const glyphs = lineWidth(start, end) - tracking;
+          return Math.max(0.01, (available / (slam ? 1.3 : 1) - tracking) / Math.max(1, glyphs));
+        }));
+        item.fits = size >= floor_px;
+        size = Math.min(heightSize, Math.max(floor_px, size));
+        item.size = size;
+        line.style.fontSize = `${size}px`;
+        line.style.maxWidth = `${available}px`;
+        cap.style.left = `${(width - available) / 2}px`;
+        cap.style.right = `${(width - available) / 2}px`;
+        words.style.scale = `${scale} 1`;
+        words.style.transformOrigin = 'center';
+        if (slam) {
+          cap.style.top = `${bandTop + bandHeight / 2}px`;
+          cap.style.bottom = 'auto';
+          cap.style.transform = 'translateY(-50%)';
+          continue;
+        }
+        words.replaceChildren();
+        const rows = split < spans.length ? [[0, split], [split, spans.length]] : [[0, split]];
+        if (phraseGround && weightShift) {
+          // Reserve the heaviest row's width so emphasis cannot resize the phrase ground.
+          words.style.width = `${Math.min(available, Math.max(...rows.map(([start, end]) =>
+            measure(phrase.words.slice(start, end).map((word) => word.text).join(' ')))))}px`;
+        }
+        rows.forEach(([start, end], rowIndex) => {
+          const row = document.createElement('div');
+          row.className = 'cap-row';
+          for (let i = start; i < end; i++) {
+            if (i > start) row.append(document.createTextNode(' '));
+            row.append(spans[i]);
+          }
+          words.append(row);
+          if (!weightShift) return;
+          row.style.fontWeight = `${rowIndex === 0 ? bold : light}`;
+          row.style.opacity = rowIndex === 0 ? '1' : '0.75';
+          if (rows.length === 1) return;
+          const switchAt = Math.min(phrase.end, Math.max(phrase.start, phrase.words[split].start));
+          const switchEnd = Math.min(switchAt + 0.1, phrase.end);
+          const initial = { fontWeight: `${rowIndex === 0 ? bold : light}`,
+            opacity: rowIndex === 0 ? 1 : 0.75 };
+          const active = { fontWeight: `${rowIndex === 0 ? light : bold}`,
+            opacity: rowIndex === 0 ? 0.75 : 1 };
+          row.animate([
+            { ...initial, offset: 0 }, { ...initial, offset: offset(switchAt), easing: ease },
+            { ...active, offset: offset(switchEnd) }, { ...active, offset: 1 },
+          ], { duration: duration * 1000, fill: 'both', easing: 'linear' });
+        });
+      }
+    }
+    if (v.highlight_style === 'camera_follow') {
+      for (const { phrase, words } of measurements) {
+        animateCamera(words, phrase);
+      }
+    }
+    for (const { phrase, line, words } of measurements) {
+      if (phrase.backing !== 'shadow') continue;
+      const size = parseFloat(line.style.fontSize || v.size_px);
+      const channels = [1, 3, 5].map((i) => parseInt(readableInk(v.text_color).slice(i, i + 2), 16));
+      const ink = `rgb(${channels.join(' ')} / 0.9)`;
+      const filter = getComputedStyle(words).filter;
+      words.style.filter = (filter && filter !== 'none' ? `${filter} ` : '') +
+        `drop-shadow(0 0 ${0.04 * size}px ${ink}) drop-shadow(0 0 ${0.12 * size}px ${ink})`;
+    }
+    for (const { line, words, phraseGround, groundPadding, groundMode, spoken } of measurements) {
+      if (phraseGround) {
+        const slam = v.highlight_style === 'slam' && !spoken;
+        const scale = v.width_scale * (slam ? 0.8 : 1);
+        const size = parseFloat(line.style.fontSize || v.size_px);
+        const highlightPad = size * (v.highlight_style === 'pill' ? 0.4 :
+          v.highlight_style === 'moving_block' ? 0.08 : 0);
+        const bounds = groundBounds(line.offsetWidth, words.offsetHeight, scale,
+          slam ? 1.3 : 1, highlightPad + effectPadding, groundPadding, groundMode);
+        const ground = line.children[0];
+        Object.assign(ground.style, {
+          left: '50%', transform: 'translateX(-50%)',
+          top: `${bounds.top}px`, width: `${bounds.width}px`,
+          height: `${bounds.height}px`, borderRadius: `${bounds.radius}px`,
+        });
+      }
+    }
+    const finishLayout = () => {
+      for (const { phrase, spans, spoken } of measurements) {
+        if (!spoken) continue;
+        spans.forEach((span, index) => {
+          // Opacity keeps unseen words in the fitted flow, including their spaces.
+          const wrapper = document.createElement('span');
+          wrapper.className = 'cap-spoken-word';
+          span.replaceWith(wrapper);
+          wrapper.append(span);
+          const { start } = wordWindow(phrase, index);
+          const end = Math.min(phrase.end, start + 2 / v.fps);
+          // Show ink on the spoken frame, then reach full opacity over three frames.
+          animateRise(wrapper, [
+            { opacity: 0, offset: 0 }, { opacity: 0, offset: offset(start) },
+            { opacity: 1 / 3, offset: offset(start) },
+            { opacity: 1, offset: offset(end) }, { opacity: 1, offset: 1 },
+          ]);
+        });
+      }
+      if (wordRise) {
+        for (const { phrase, spans, line, words, mark, phraseGround } of measurements) {
+          spans.forEach((span, i) => {
+            // Fit the original word flow before adding the entrance wrappers.
+            const clip = document.createElement('span');
+            clip.className = 'cap-rise-clip';
+            const mover = document.createElement('span');
+            mover.className = 'cap-rise-mover';
+            span.replaceWith(clip);
+            mover.append(span);
+            clip.append(mover);
+            const { start, end } = riseWindow(phrase, i);
+            const display = v.highlight_style === 'slam' ? 'grid' : 'inline-block';
+            const distance = parseFloat(getComputedStyle(span).lineHeight) * RISE_DISTANCE;
+            // Backwards fill clips the entrance and releases every effect once the word is up.
+            const timing = { delay: start * 1000, duration: (end - start) * 1000,
+              fill: 'backwards' };
+            // Move in layout pixels so parent highlight transforms keep the original glyph paint.
+            animateRise(mover, [
+              { top: `${distance}px`, display, offset: 0, easing: ease },
+              { top: '0px', display, offset: 1 },
+            ], timing);
+            fadeRise(mover, { start, end });
+            // Leave the top and sides open; the bottom edge is the resting line box.
+            const clipped = { display: 'inline-block', clipPath: 'inset(-100vmax -100vmax 0)' };
+            animateRise(clip, [
+              { ...clipped, offset: 0 }, { ...clipped, offset: 1 },
+            ], timing);
+          });
+          if (phraseGround) fadeRise(line.children[0], phrase);
+          if (v.highlight_style === 'pill') fadeRise(mark, phrase);
+          if (v.highlight_style === 'pill_karaoke') fadeRise(words, phrase);
+        }
+      }
+      const layout = measurements.map(({ phrase, spans, cap }, slot) => {
+        const animations = cap.getAnimations({ subtree: true });
+        const previous = animations.map((animation) => animation.currentTime);
+        const envelopes = spans.map(() => null);
+        try {
+          for (let f = Math.max(0, Math.floor(phrase.start * v.fps));
+            f <= Math.ceil(phrase.end * v.fps); f++) {
+            animations.forEach((animation) => { animation.currentTime = f / v.fps * 1000; });
+            spans.forEach((span, i) => {
+              let opacity = 1;
+              for (let el = span; el; el = el.parentElement) {
+                opacity *= parseFloat(getComputedStyle(el).opacity);
+                if (el === cap) break;
+              }
+              if (!(opacity > 0)) return;
+              const rect = span.getBoundingClientRect();
+              if (rect.width === 0 || rect.height === 0) return;
+              let drawn = rect;
+              const wrapper = wordRise ? span.parentElement.parentElement : null;
+              if (wrapper && getComputedStyle(wrapper).display !== 'contents') {
+                const clip = wrapper.getBoundingClientRect();
+                drawn = { left: Math.max(rect.left, clip.left), top: Math.max(rect.top, clip.top),
+                  right: Math.min(rect.right, clip.right), bottom: Math.min(rect.bottom, clip.bottom) };
+                if (drawn.right <= drawn.left || drawn.bottom <= drawn.top) return;
+              }
+              const box = envelopes[i];
+              envelopes[i] = box ? {
+                left: Math.min(box.left, drawn.left), top: Math.min(box.top, drawn.top),
+                right: Math.max(box.right, drawn.right), bottom: Math.max(box.bottom, drawn.bottom),
+              } : { left: drawn.left, top: drawn.top, right: drawn.right, bottom: drawn.bottom };
+            });
+          }
+        } finally {
+          animations.forEach((animation, index) => { animation.currentTime = previous[index]; });
+        }
+        const boxes = envelopes.flatMap((box) => {
+          if (!box) return [];
+          const round = (value) => Math.round(value * 100) / 100;
+          return [{ x: round(box.left), y: round(box.top),
+            w: round(box.right - box.left), h: round(box.bottom - box.top) }];
+        });
+        return { slot, boxes };
+      });
+      console.warn(SHRINK_PREFIX + JSON.stringify({ floor_px, phrases: measurements.flatMap(
+        ({ size, fits }, slot) => size < v.size_px || !fits ?
+          [{ slot, size_px: Math.round(size * 100) / 100, fits }] : []), layout }));
+    };
+    if (!wordEntrance) finishLayout();
+    if (registryLook) {
+      if (wordEntrance) finishLayout();
+      return;
+    }
+    if (v.highlight_style === 'pill') {
+      for (const { spans, mark, line, size, bandHeight, padding } of measurements) {
+        if (!spans.length) continue;
+        const lineRect = line.getBoundingClientRect();
+        const boxes = spans.map((span) => span.getBoundingClientRect());
+        const padX = size * 0.4;
+        const padY = size * 0.04;
+        const shadowPad = v.shadow_opacity > 0 ?
+          v.shadow_blur_px * 3 + Math.abs(v.shadow_x_px) : 0;
+        const left = Math.max(shadowPad - lineRect.left,
+          Math.min(...boxes.map((r) => r.left)) - lineRect.left - padX);
+        const right = Math.min(1080 - shadowPad - lineRect.left,
+          Math.max(...boxes.map((r) => r.right)) - lineRect.left + padX);
+        const top = Math.max(-padding,
+          Math.min(...boxes.map((r) => r.top)) - lineRect.top - padY);
+        const bottom = Math.min(bandHeight - padding - v.entry_rise_px,
+          Math.max(...boxes.map((r) => r.bottom)) - lineRect.top + padY);
+        const height = bottom - top;
+        const twoLines = Math.max(...boxes.map((r) => r.top)) -
+          Math.min(...boxes.map((r) => r.top)) > size * 0.5;
+        Object.assign(mark.style, {
+          left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${height}px`,
+          borderRadius: `${twoLines ? Math.min(height / 2, size * 0.6) : height / 2}px`,
+        });
+      }
+      if (wordEntrance) finishLayout();
+      return;
+    }
+    if (!['moving_block', 'underline'].includes(v.highlight_style)) {
+      if (wordEntrance) finishLayout();
+      return;
+    }
+    for (const { phrase, spans, mark, line, size } of measurements) {
+      const lineRect = v.width_scale < 1 ? line.getBoundingClientRect() : null;
+      const boxes = spans.map((span) => {
+        const rect = lineRect ? span.getBoundingClientRect() : null;
+        const r = rect ? {
+          x: rect.left - lineRect.left, y: rect.top - lineRect.top, w: rect.width, h: rect.height,
+        } : { x: span.offsetLeft, y: span.offsetTop, w: span.offsetWidth, h: span.offsetHeight };
+        const pad = size * 0.08;
+        const thickness = Math.max(6, size * 0.075);
+        return v.highlight_style === 'moving_block' ? {
+          left: `${r.x - pad}px`, top: `${r.y + r.h * 0.08}px`,
+          width: `${r.w + pad * 2}px`, height: `${r.h * 0.86}px`,
+        } : {
+          left: `${r.x}px`, top: `${r.y + r.h * 0.9 - thickness / 2}px`,
+          width: `${r.w}px`, height: `${thickness}px`,
+        };
+      });
+      if (!boxes.length) continue;
+      const keys = [{ ...boxes[0], offset: 0, opacity: 1 }];
+      for (let i = 1; i < boxes.length; i++) {
+        const { start, next } = wordWindow(phrase, i);
+        keys.push({ ...boxes[i - 1], offset: offset(start), opacity: 1, easing: ease });
+        keys.push({ ...boxes[i], offset: offset(Math.min(start + 0.16, next)), opacity: 1 });
+      }
+      keys.push({ ...boxes[boxes.length - 1], offset: 1, opacity: 1 });
+      if (wordRise) {
+        // One opacity track keeps the entrance and placement from competing.
+        keys.forEach((key) => { delete key.opacity; });
+        keys.push({ offset: 0, opacity: 0 }, { offset: offset(phrase.start), opacity: 0 },
+          { offset: offset(Math.min(phrase.end, phrase.start + RISE_FADE_FRAMES / v.fps)), opacity: 1 },
+          { offset: 1, opacity: 1 });
+        keys.sort((a, b) => a.offset - b.offset);
+      }
+      mark.animate(keys, { duration: duration * 1000, fill: 'both', easing: 'linear' });
+    }
+    if (wordEntrance) finishLayout();
+  });
+})();
+</script></body></html>

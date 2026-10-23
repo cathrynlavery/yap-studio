@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""Synthetic Pexels command for offline tests."""
+import json
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+if log := os.environ.get("FAKE_PEXELS_LOG"):
+    with open(log, "a", encoding="utf-8") as stream:
+        stream.write(json.dumps({"argv": args}) + "\n")
+if args[:2] == ["auth", "status"]:
+    print('{"authenticated": true}')
+    sys.exit(int(os.environ.get("FAKE_PEXELS_AUTH_EXIT", "0")))
+if args[:2] == ["videos", "search"]:
+    if code := int(os.environ.get("FAKE_PEXELS_SEARCH_EXIT", "0")):
+        print(os.environ.get("FAKE_PEXELS_SEARCH_STDERR", "synthetic failure"), file=sys.stderr)
+        sys.exit(code)
+    name = "portrait" if "portrait" in args else "large"
+elif args[:2] == ["videos", "get"]:
+    name = args[2]
+else:
+    sys.exit(2)
+root = Path(os.environ.get("FAKE_PEXELS_FIXTURES", Path(__file__).parents[1] / "fixtures/stock"))
+print((root / f"{name}.json").read_text())

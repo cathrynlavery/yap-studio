@@ -1,0 +1,47 @@
+{
+  "manifest_version": "0.4",
+  "name": "yap-studio",
+  "display_name": "Yap Studio",
+  "version": "1.0.0",
+  "description": "Checks every cut in a finished video: clicks, sync, frames, loudness and platform rules.",
+  "author": {
+    "name": "Cathryn Lavery"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "src/yap_studio/mcp_server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "--extra",
+        "mcp",
+        "--extra",
+        "asr",
+        "yap-studio",
+        "mcp"
+      ],
+      "env": {
+        "YAP_STUDIO_FFMPEG": "${user_config.ffmpeg_path}"
+      }
+    }
+  },
+  "user_config": {
+    "ffmpeg_path": {
+      "type": "file",
+      "title": "ffmpeg (optional)",
+      "description": "Path to ffmpeg if it is not on your PATH.",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "python": ">=3.11"
+    }
+  },
+  "license": "Apache-2.0",
+  "keywords": ["video", "verify", "cuts", "sync"]
+}

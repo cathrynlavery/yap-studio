@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "name": "Electric",
+  "captions": {
+    "font": "Archivo Black",
+    "size_px": 88,
+    "text_color": "#FFFFFF",
+    "highlight_color": "#D8FF2F",
+    "highlight_text_color": "#111111",
+    "highlight_style": "color"
+  },
+  "hook": {
+    "style": "bold_band",
+    "font": "Archivo Black",
+    "background_color": "#101522",
+    "accent_color": "#D8FF2F",
+    "text_color": "#FFFFFF"
+  },
+  "graphics": {
+    "style": "dark",
+    "paper_color": "#101522",
+    "ink_color": "#FFFFFF",
+    "accent_color": "#D8FF2F"
+  },
+  "music": {
+    "level": 0.18,
+    "duck_ratio": 8
+  }
+}

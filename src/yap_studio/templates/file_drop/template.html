@@ -1,0 +1,124 @@
+<!doctype html>
+<!-- Yap Studio card: file_drop. -->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E2DA"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#F4F3EE"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 0 0 2px color-mix(in srgb, #222222 12%, transparent), 0 8px 18px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"name","type":"string","label":"Name","default":"synthetic.mp4"},{"id":"badge","type":"string","label":"Badge","default":"RAW"},{"id":"duration_text","type":"string","label":"Duration text","default":"0:02"},{"id":"name_px","type":"number","label":"Name px","default":48},{"id":"duration_px","type":"number","label":"Duration px","default":30},{"id":"badge_px","type":"number","label":"Badge px","default":30},{"id":"file_panel_width_px","type":"number","label":"File panel width px","default":800},{"id":"panel_height_px","type":"number","label":"Panel height px","default":272},{"id":"poster_width_px","type":"number","label":"Poster width px","default":358},{"id":"poster_height_px","type":"number","label":"Poster height px","default":224},{"id":"poster_src","type":"string","label":"Poster src","default":"poster.jpg"},{"id":"text_left_px","type":"number","label":"Text left px","default":410},{"id":"text_width_px","type":"number","label":"Text width px","default":320},{"id":"drop_at","type":"number","label":"Drop at","default":0.15},{"id":"land_at_s","type":"number","label":"Land at s","default":0.53},{"id":"motion_duration_s","type":"number","label":"Motion duration s","default":3.0},{"id":"motion","type":"string","label":"Motion","default":"[]"},{"id":"motion_bounds","type":"string","label":"Motion bounds","default":"[]"},{"id":"play_window","type":"string","label":"Play window","default":"{}"}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font); isolation: isolate; }
+.rest { position: relative; width: var(--card-panel-width); height: var(--card-panel-height); }
+.fall { position: absolute; inset: 0; opacity: 0; transform-origin: center; }
+.shadow { position: absolute; inset: 0; border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); }
+.panel { position: absolute; inset: 0; background: var(--card-paper);
+  border-radius: var(--card-radius); overflow: hidden; }
+.poster { position: absolute; left: 24px; top: 50%; transform: translateY(-50%);
+  width: var(--card-poster-width); height: var(--card-poster-height);
+  border-radius: 8px; object-fit: contain; display: block; }
+.details { position: absolute; left: var(--card-text-left); top: 50%;
+  transform: translateY(-50%); width: var(--card-text-width); }
+.name { font-size: var(--card-name-size); font-weight: 600; line-height: 1.2;
+  white-space: nowrap; }
+.duration { margin-top: 12px; font-family: var(--card-mono);
+  font-size: var(--card-duration-size); line-height: 36px; white-space: nowrap; }
+.badge { display: table; margin-top: 14px; padding: 4px 12px; border-radius: 100px;
+  font-size: var(--card-badge-size); font-weight: 600; line-height: 36px;
+  background: var(--card-accent); color: var(--card-accent-ink); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="file_drop" data-no-timeline data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="rest"><div class="fall"><div class="shadow"></div><div class="panel">
+<img class="poster" src="poster.jpg" alt=""><div class="details"><div class="name"></div>
+<div class="duration"></div><div class="badge"></div></div>
+</div></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const tokens = {
+    "paper": v.paper_color, "ink": v.ink_color, "accent": v.accent_color,
+    "accent-ink": v.accent_ink_color, "font": v.font_family, "mono": v.mono_family,
+    "radius": `${v.card_radius_px}px`, "shadow": v.card_shadow,
+    "panel-width": `${v.file_panel_width_px}px`, "panel-height": `${v.panel_height_px}px`,
+    "pad-x": `${v.pad_x_px}px`, "pad-top": `${v.pad_top_px}px`,
+    "pad-bottom": `${v.pad_bottom_px}px`, "poster-width": `${v.poster_width_px}px`,
+    "poster-height": `${v.poster_height_px}px`, "text-left": `${v.text_left_px}px`,
+    "text-width": `${v.text_width_px}px`, "name-size": `${v.name_px}px`,
+    "duration-size": `${v.duration_px}px`, "badge-size": `${v.badge_px}px`,
+  };
+  Object.entries(tokens).forEach(([name, value]) => {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  });
+  const duration = Number(root.dataset.duration);
+  const play = JSON.parse(v.play_window || "{}");
+  const out = play.fade_out_s || Math.min(0.3, duration * 0.15);
+  const fadeEnd = play.fade_out_s ? v.motion_duration_s : duration;
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  root.querySelector(".name").textContent = v.name;
+  root.querySelector(".duration").textContent = v.duration_text;
+  const poster = root.querySelector(".poster");
+  if (/^poster\.(jpg|png)$/.test(v.poster_src)) poster.src = v.poster_src;
+  const motion = JSON.parse(v.motion);
+  root.querySelector(".fall").animate(motion.map(frame => ({
+    offset: frame.at_s / v.motion_duration_s, left: `${frame.left_px}px`,
+    top: `${frame.top_px}px`, width: `${frame.width_px}px`, height: `${frame.height_px}px`,
+    transform: `rotate(${frame.angle}deg)`, opacity: frame.opacity, easing: "steps(1, end)",
+  })), { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+  root.querySelector(".shadow").animate(motion.map(frame => ({
+    offset: frame.at_s / v.motion_duration_s, opacity: frame.shadow,
+    width: `${frame.shadow_width_px}px`, height: `${frame.shadow_height_px}px`,
+    left: `${frame.shadow_left_px}px`, top: `${frame.shadow_top_px}px`, easing: "steps(1, end)",
+  })), { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+  function animatePixels(selector, fields) {
+    root.querySelector(selector).animate(motion.map(frame => ({
+      offset: frame.at_s / v.motion_duration_s,
+      ...Object.fromEntries(Object.entries(fields).map(([property, name]) =>
+        [property, `${frame[name]}px`])), easing: "steps(1, end)",
+    })), { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+  }
+  animatePixels(".poster", { left: "poster_left_px", width: "poster_width_px",
+    height: "poster_height_px" });
+  if (play.clear_at_s !== undefined) {
+    Object.assign(root.querySelector(".rest").style, { position: "absolute",
+      left: `${play.panel_left_px}px`, top: `${play.panel_top_px}px` });
+    const { x, y, width, height, radius: r } = play;
+    const outline = `M0,0H${v.file_panel_width_px}V${v.panel_height_px}H0Z` +
+      `M${x+r},${y}h${width-2*r}a${r} ${r} 0 0 1 ${r} ${r}v${height-2*r}` +
+      `a${r} ${r} 0 0 1 ${-r} ${r}h${-width+2*r}a${r} ${r} 0 0 1 ${-r} ${-r}` +
+      `v${-height+2*r}a${r} ${r} 0 0 1 ${r} ${-r}Z`;
+    const hole = `path(evenodd, "${outline}")`;
+    root.querySelector(".panel").animate([
+      { offset: 0, clipPath: "none", easing: "steps(1, end)" },
+      { offset: play.clear_at_s / v.motion_duration_s, clipPath: hole },
+      { offset: 1, clipPath: hole },
+    ], { duration: v.motion_duration_s * 1000, fill: "both", easing: "linear" });
+  }
+  animatePixels(".details", { left: "text_left_px", width: "text_width_px" });
+  animatePixels(".name", { fontSize: "name_px", lineHeight: "name_line_px" });
+  animatePixels(".duration", { fontSize: "duration_px", lineHeight: "duration_line_px",
+    marginTop: "duration_gap_px" });
+  animatePixels(".badge", { fontSize: "badge_px", lineHeight: "badge_line_px",
+    marginTop: "badge_gap_px", paddingTop: "badge_pad_y_px", paddingBottom: "badge_pad_y_px",
+    paddingLeft: "badge_pad_x_px", paddingRight: "badge_pad_x_px" });
+  const badge = root.querySelector(".badge");
+  badge.textContent = v.badge;
+  if (!v.badge) badge.style.display = "none";
+  badge.animate([{ opacity: 0, transform: "translateY(6px)" },
+    { opacity: 1, transform: "translateY(0)" }],
+    { delay: (v.land_at_s + 0.04) * 1000, duration: 180, fill: "both",
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+  root.animate([{ opacity: 1 }, { opacity: 0 }],
+    { delay: (fadeEnd - out) * 1000, duration: out * 1000, fill: "both", easing: "linear" });
+})();
+</script>
+</body>
+</html>

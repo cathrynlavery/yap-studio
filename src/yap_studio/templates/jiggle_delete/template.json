@@ -1,0 +1,217 @@
+{
+  "id": "jiggle_delete",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [],
+  "slots": {
+    "items": {
+      "type": "string_list",
+      "required": true,
+      "min_items": 2,
+      "max_items": 6,
+      "min_length": 1,
+      "max_length": 24
+    },
+    "images": {
+      "type": "image_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 6,
+      "options": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp"
+      ],
+      "default": []
+    },
+    "remove": {
+      "type": "number_list",
+      "required": true,
+      "min_items": 1,
+      "max_items": 5
+    },
+    "wiggle_at": {
+      "type": "number",
+      "required": false,
+      "default": 0.3
+    },
+    "cues": {
+      "type": "number_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 5,
+      "default": []
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E2DA"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 0 0 2px color-mix(in srgb, #222222 12%, transparent), 0 8px 18px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "items",
+      "type": "string",
+      "label": "Items",
+      "default": "[]"
+    },
+    {
+      "id": "layouts",
+      "type": "string",
+      "label": "Layouts",
+      "default": "[]"
+    },
+    {
+      "id": "cues",
+      "type": "string",
+      "label": "Cues",
+      "default": "[]"
+    },
+    {
+      "id": "wiggle_at",
+      "type": "number",
+      "label": "Wiggle at",
+      "default": 0.3
+    },
+    {
+      "id": "settle_at_s",
+      "type": "number",
+      "label": "Settle at s",
+      "default": 1.5
+    },
+    {
+      "id": "label_px",
+      "type": "number",
+      "label": "Label px",
+      "default": 54
+    },
+    {
+      "id": "delete_panel_width_px",
+      "type": "number",
+      "label": "Delete panel width px",
+      "default": 819
+    },
+    {
+      "id": "panel_height_px",
+      "type": "number",
+      "label": "Panel height px",
+      "default": 268
+    },
+    {
+      "id": "motion_duration_s",
+      "type": "number",
+      "label": "Motion duration s",
+      "default": 2.5
+    },
+    {
+      "id": "badge_offset_px",
+      "type": "number",
+      "label": "Badge offset px",
+      "default": 13
+    },
+    {
+      "id": "badge_stroke_px",
+      "type": "number",
+      "label": "Badge stroke px",
+      "default": 3
+    },
+    {
+      "id": "panel_keyframes",
+      "type": "string",
+      "label": "Panel keyframes",
+      "default": "[]"
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}

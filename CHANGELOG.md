@@ -1,0 +1,206 @@
+# Changelog
+
+## Unreleased
+
+## 1.0.0 (2026-10-23)
+
+- Home lets you send a stalled request again or cancel it after ten quiet minutes, keeping the previous project and progress so the agent can continue.
+- Add a read-only video map below the review scrubber. Tap a block to jump and comment on it. On phones, tap the summary to open the lanes.
+- Say which files go to Claude and optional services, and label phone links as encrypted over Tailscale or not encrypted on the same Wi-Fi.
+- Run fast CI on macOS with lint, JavaScript tests, builds and ten Python shards. Run render, speech and helper suites on demand with Release checks. Require both workflows green on the tagged commit and a clean workspace install before release.
+- Setup waits up to 120 seconds for home to read the inbox before checking that it is ready.
+- Setup falls back to a local home link when the phone link fails. It allows 150 seconds for home to start and stops it if the launch times out.
+- Setup opens Yap Studio home, checks that its page answers, and prints the link before saying it is complete.
+- Tap a paused caption to fix a word, save it once or every time, and undo it from the notes.
+- Add Text hook: plain text in White, Black or Accent boxes for the whole video, with per-video text and three ideas to choose from on the review page.
+- Proofread before the story and fix misheard caption words with `words fix`, by word id or across a project. Fixes keep timing and swear masking, update captions and spoken titles, and can be listed or removed.
+- Add Word by word captions. Words appear as you say them and stay until the phrase ends, with fixed lines and a full size background from the start.
+- The review header has one Copy notes button that copies all draft and sent notes for the current version in one click.
+- `edit check` and `cut` warn when the kept story repeats a phrase or point. The story step reads the whole script and keeps each point once, with any repeats left out named in the version note.
+- Add opt-in Motion streak for cards, with face-safe horizontal moves, fading trails and a Card motion choice in the style page.
+- Error messages have new wording for bad values, unreadable inputs, failed media commands and refused output paths.
+- The style page shows Clone flash as unavailable on green or blue screen takes, with the reason, so you cannot pick a moment the engine refuses there. It checks your cutout choice, the newest take in the inbox, or your saved video type. A Clone flash already in your style can still be turned off.
+- Generated pictures: with generated pictures on in the style, the agent first asks "Do you want me to create imagery for this video?" once per video. Only a yes leads to the cost sheet with prompts for lines your footage does not cover, each cost and the total. It makes up to three approved pictures on your WaveSpeed account under a spend ceiling, with provenance and video approval records.
+- A card behind the speaker no longer draws over her head on a smooth jump cut. Assembly stops and says to move the card off the join or put it in front. Clone flash is refused on green or blue screen takes, where the copies would carry a fringe of the screen colour, and the message says to pick another Moment.
+- Captions and cards render without the browser GPU, so two renders of the same caption layer or card match even when the machine is busy.
+- The Cards screen lists the HyperFrames registry cards that setup installed (Slam headline and Progress ring so far). They start off, use your font and colours, and get a dark edge and soft shadow so they stay readable on light and busy backgrounds.
+- HyperFrames registry items can be turned on as card kinds (`hf:` kinds in `graphics.card_kinds_on`). They are placed, timed and checked like the built-in cards, in the brand font and accent. None are on unless a style lists them.
+- A HyperFrames bump also moves the registry catalog to the new release: it re-adds each listed item at the release commit and updates the file hashes, and lists the items whose files changed.
+- Setup can install HyperFrames registry items into the cache at the pinned release and make their scripts and fonts local for offline renders.
+- Add Tall, behind your head and Scroll to the B-roll box choices. A long page sits in a tall box behind the speaker and steps up in eased flicks. Framing behind the tall box keeps your framing when there is room behind your head, and otherwise shrinks you in front of the page. Both start off.
+- The README is rewritten for the first release. A 24-second animation of a run on a sample
+  presenter's take opens it, the quick start begins with the release download, and building from
+  a checkout moves under For developers. The install docs use the repository's current address.
+- Add the opt-in clone flash Moment: copies of the speaker from later in the same take
+  appear beside her, sized to the room on each side. Moments now follow the active colour grade.
+- Review notes can pin a spot on the picture. Tap the paused picture on a phone, or click it on a computer, to drop a pin and open a note. The note keeps the spot and its exact frame. The feedback batch gives the agent a still of that frame with the pin drawn, the spot in canvas pixels, and the caption, card, insert, moment or face under it.
+- A repeated two- or three-word phrase counts as a restart only when it comes back within two seconds. Both restart shapes are now tested with synthesized speech through the join test.
+- The style learner still reads a caption block as a moving block when encoding leaves a thin fringe of its colour beside the block.
+- Setup and the engine find tools in Homebrew's folder even when Homebrew is not on PATH yet, so setup stops asking for ffmpeg or uv that are already installed. Reopening the style page keeps a saved Sound level when the setup answer was No music. Updating a style in place keeps other workspaces' copies valid, and if the workspace copy cannot be written the style stays as it was.
+- Changing a project's platform now reruns the cut and final checks. Each face rule is judged on its own layer, and the captions rule says "not measured" when the captions were not measured. The title check catches a question or exclamation mark the speaker did not say anywhere in the title, and tells dollars from percent. A video link follows two renames made by different requests. A word spoken after the picture ends can no longer anchor a cut.
+- Setup and rendering find a working Node 22 or newer even when the first Node on PATH is broken, without relinking your global Node.
+- A last word that runs past the end of the picture now ends with the picture, so the cut keeps it instead of stopping early. The edit skill shows the title format, with the `lane` every timeline element needs.
+- The style page shows your own hex fields as soon as you open More, and asks before saving over a style with the same name. Setup answers no longer save a "My style" before you pick a look; the style page and new videos still use them.
+- The home page's link to a video follows a project rename. Until the agent reports the new name, it shows the request's progress instead of saying the video is gone.
+- Captions no longer drop a spoken word when the speech engine times it into the pause after it and that pause is cut. The final also transcribes its own voice and warns, with the time, about any word heard with no caption or captioned but not heard.
+- Final checks match what the creator chose: platform checks use the project's platform at the cut and the final, face rules from the setup answers show as checked, card holds are timed in frames, caption contrast counts the automatic halo and names a weak highlight colour, the style page keeps No music when that was the answer, and every option on the page has a plain name.
+- Setup works on a Mac without Homebrew: it installs uv without it and offers Homebrew first when ffmpeg or Node need it. Setup says how review links reach your phone, `Start here.html` says to install Claude Code and sign in once first, the edit skill shows the cards file format, and `timeline check` warns when a title is not the speaker's own words.
+- Session and module fixtures no longer write the owner's real cache, config or data folders; a test that writes there itself fails, and changes from other processes are listed once at the end of the run.
+- Takes recorded in full range (some phones, screen recorders and photo-to-video apps) now cut to standard range instead of failing the cut's picture check. Phone photos and full-range clips used as B-roll keep their colours, and still frames saved as JPEG show true colours.
+- The final keeps the removals used in the reviewed cut. Run never applies new removals, joins that could not be verified stay proposed, and a words check stops the run if a word disappears without approval.
+- Internal planning notes left the public tree. The style page guide is now `docs/style-page.md`, the README lists the version 1 limits, and the workspace zip is built from the Git index with `LICENSE`, `NOTICE` and `LICENSES/` at its root.
+- Add Yap Studio home (`yap-studio home`), a guided page for creators: what you're making, footage (drag in from Finder or choose files), your look, Make my video, progress from the project's receipts, review and the approved file. Buttons that need the agent write a request that `yap-studio home wait` delivers, and `yap-studio home ack` reports back. The workspace zip gains `Start here.html`. The review page moves to the same light design, fits a vertical video to the screen, folds export into Share notes, puts Approve under the player and says what happens after Send notes. The style page links back to home, and its sample still and B-roll stand-in are now photos instead of drawings.
+- Backgrounds can sit you at the bottom or in a corner over a screenshot, photo or silent clip, wipe in from the top, and blend you in with light wrap and a small colour pull. Styles opt in with `green_screen` for photos and screenshots and `broll.green_screen_layout`; captions and cards avoid your face in its new place.
+- Stock downloads send the installed version in their User-Agent and no longer run git for each file, and the download tests no longer depend on a 1 s wall-clock deadline.
+- Key takes shot on a green or blue screen, clean screen spill at the person edge, and show the cached cutout in status. Set `broll.cutout` to auto, screen or person to choose the method.
+- Style page: Customize opens on Font, Captions and Colors, then a More choices list for Grade, Opening, Cards, B-roll, Moments and Sound. Fine-tuning sits in closed folds. B-roll placement, stock clips, Video in letters, music level, sound effects and voice clean-up are now choices on the page. The page also keeps a person cutout of its preview still.
+- Add split B-roll with the shot above the creator, captions below the seam, and timeline warnings for insert pacing, screen coverage and late named shots.
+- B-roll inserts and overlays now match the colour of the take around them by default. It is a colour correction, so it is on for every style, and the speaker's picture never changes. `"broll": {"color_match": "off"}` in the style turns it off. `color_match` on one shot overrides the style. Screens keep their own colours.
+- Add an opt-in `big_number` card: a bare number that counts up behind the speaker's hair for a number she says. It moves up, sideways or smaller to stay 90% readable, sits beside her head when it cannot, and the final checks the rendered digits.
+- Each video records what you are making (talking head, voiceover, green screen or screen recording) and where the agent may get B-roll. The agent asks once, remembers the answer as the default, and follows the matching recipe; `yap-studio status` shows both.
+- Add `moves.transitions`, the transition looks the agent may use at a story join. All three stay allowed by default and an empty list turns transitions off. The edit skill uses only the listed looks, and `timeline check` warns about any other look without refusing it, so older projects still build.
+- Person cut-outs have cleaner edges. Smoothing stops at every join and averages only where the picture is still. The edge keeps the person mask's own detail with no blur. Edge pixels lose the old background's colour over a card or a new background.
+- Add opt-in moments for a key line: colour pop, background blur, spotlight, sticker freeze and an accent outline. Each style stays off until the style lists it, a moment is 0.8 to 3 s on word anchors, and captions and cards stay on top.
+- Stock clips: with stock clips on in the style, the agent can search Pexels for moments your footage does not cover, shows a pick sheet, and downloads only the clips you approve, with a credits list.
+- Background run tests wait for a killed run's process group to exit, so a busy machine no longer fails their leftover check.
+- Add the optional Rise caption entrance. Each word rises from behind its line box, with a short stagger between words, in phrase and one-word modes.
+- Add opt-in Video in letters for opening titles and B-roll inserts. Spoken words open onto the speaker's take, a clip or a photo, with a brand color or blurred background.
+- Verify no longer warns `plan.holds` when the encoder redraws a held picture at a keyframe inside the hold. The picture must be still on both sides of the keyframe, and the step must be small and spread across the frame.
+- Write caption numbers as digits, balance wrapped lines, and break at sentence starts. `yap-studio brand words` stores creator spellings for captions and titles. Caption receipts report close spellings that do not match.
+- The final checks captions against the picture behind them and adds a dark halo to weak phrases automatically. When a word stays weak, it warns with the time and a fix. `yap-studio captions DIR --back box|none|shadow` saves a choice per phrase.
+- The style page's Font step can keep one font for everything or give titles and cards their own font, with Instrument Serif captions and Geist titles and cards one tap away. Geist ships with the other bundled fonts under the SIL Open Font License, and styles that use one font save and render as before.
+- Add punch, push and keyframed zoom moves. A punch moves in over two frames on a word, holds, and moves out over four frames at the end of its phrase, at the style's `moves.punch_scale` of 1.5 or 2; `moves.zoom_mode` (none by default, punches, or punches and a slow push) sets which zooms the agent uses. Scale changes by the same ratio each frame, and moves zoom around the speaker's head while keeping the face in frame and the chin above the captions. `timeline check` warns about a move under 15 percent or slower than 0.03 scale per second, including the older slow swells, which still render as before, and refuses a move that pushes the face out of frame or onto the captions, or changes scale between two frames without a cut or snap. B-roll overlays no longer drift by default.
+- Select a range on the phone with Mark start and Mark end, play it, and tap Cut this to save one Fix note with the exact words to cut; `feedback apply` removes them with the join test.
+- A final with many phone photos renders from the original HEIC files. Assemble decodes each HEIC or HEIF photo once into `.yap/cache/stills/` in the project and checks it against a direct decode, so the final opens one simple input per photo and its frames stay the same. An ffmpeg failure at assemble names the element it failed on and a fix.
+- When a cut joins more than one take, such as a voiceover memo and its pickup, it evens out their speech loudness with one gain per take and records the levels in `cut/receipt.json`. Set `"match_takes": false` under `"audio"` in `project.json` to keep recorded levels. A loudness jump that remains says what to do.
+- `style pick --detach` and `run --detach` return at once while the style page or the render keeps going, so an agent's command time limit no longer stops them. A repeated `style pick --detach` gives the same link, and the page stops on its own two minutes after a save once it is closed. `status` shows a background run's stage, progress and result, `status --wait` waits for it to end, and `--stop` stops either one. The workspace guide and the edit and voiceover skills use them, and the voiceover skill asks early whether other people may appear, never reuses a shot for the closing frames, and puts a graphic where the script clearly calls for it.
+- `media album` exports the edited version of anything edited in Photos and the original of the rest, downloads items that are not on this Mac by default (`--no-download` skips them) after telling the creator that macOS may ask for permission, records each file's version in `album-report.json`, and waits 30 minutes without progress before it stops, counting its export database, temp files and the library's download folder as progress. The voiceover recipe and skill link ElevenLabs where an account is needed.
+- The README and the edit skill link ElevenLabs where an ElevenLabs account is needed, and the edit skill offers a composed music bed once the creator approves the cost.
+- Make voiceover videos from the workspace: audio memos in `inbox/` start voiceover projects (`new_project.py --add DIR` joins a later pickup), `media album` exports a Photos album through the optional osxphotos with a report of capture dates, the new `voiceover-video` skill carries the recipe from album to approved video, and `status`, `timeline check` and `assemble` name the frames B-roll still has to cover.
+- Captions no longer lose their last phrases when a very short word starts after its phrase ends. The word highlight stays inside its phrase, so the browser keeps drawing.
+- Rewrite the README for the open-source release: what it does, a quick start, how it works and a docs index. The reference material moves unchanged into docs/ (install, editing, commands, captions and cards, audio, styles, verify, edit lists, review, limits), and the limits page now says music generation needs your own ElevenLabs account instead of saying it is unavailable.
+- Render HEIC and HEIF stills at full size, accept source crops in B-roll requests, allow muted inserts up to 20x for timelapses, warn about B-roll chronology, near duplicates, and repeated sources, and find loud moments and saved speech with `media sound`.
+- Final verify measures join clicks on the voice without the music bed, so a beat in the bed no longer fails a clean join, and the cut warns when a trim leaves a short piece with no word in it.
+- The renderer restores captions after seeking backward, retains frames of animated cards in exports, and keeps playback stable when the root composition has no animation.
+- Keep replaced source words, rebase edit, removal and timeline anchors while keeping recorded cut edges, and replace a whole timeline lane.
+- After a new cut, `assemble` alone re-runs stale captions, graphics and music (when music is none or a file) and publishes a fresh final. A failed assemble moves the old final to `final/<name>.stale.mp4` so it cannot pass for the new one, a stopped assemble no longer blocks the next run, and failed checks print their expected and actual values.
+- Push still image inserts by default, allow gentler pushes for labelled graphics, and accept declared still inserts during freeze verification.
+- Add sound effects. Each creator generates a small kit once with their own ElevenLabs account (`sfx kit --yes`); cues land on transitions, list items, count-ups and results, sit under the voice, and stay out of the silent end hold. Only the recipes ship; the audio stays in your user cache.
+- A voiceover pilot that reaches into the end hold no longer crashes. The hold counts as covered when the last content frame is.
+- Keep audible words and their captions when trimming pauses, and measure silence before proposing pause removals.
+- Explain safe filler edits, allow saved review versions to be appended from newer files, print review errors as JSON with `--json`, and keep serving synced media when its content is unchanged.
+- Copied feedback holds only the version under review. Earlier notes collapse to one line, with a box to include them. Notes replied to before this version drop out, and `status` names unreplied notes.
+- Add a proximity voice repair (`voice.repair_proximity`: gentle or strong) for the boomy bass of a phone held close to the mouth; it uses a 100 Hz highpass in place of the 80 Hz one.
+- Music composed with ElevenLabs now reaches the final video and its beats snap entrances. Two approvals at once, even from two computers, cannot both pay; a cached bed still works after you sign out; dry runs preview the request a real run would send; and `run` shows the setup steps.
+- Add `yap-studio cover DIR`: a 1080x1920 PNG cover from a finished video in four looks (photo, number, hook, before-after), using the saved style, a sharp open-eyed face frame and the person matte, refused when text would leave the 3:4 profile-grid crop or read poorly.
+- Compose music with ElevenLabs once you approve it (`music --yes`): the free composition plan is saved in `music/plan.json` for editing, recuts within its length reuse the paid bed, and a paid request that fails needs your confirmation before another try. Setup messages and `doctor` show the ElevenLabs sign-up link, labelled as an affiliate link.
+- A daily workflow opens a draft PR when HyperFrames releases a new version. `scripts/bump_hyperframes.py` moves every pin, regenerates the renderer lock with npm 11 and checks its integrity against npm; the PR lists the upstream notes and what to check before it is marked ready.
+- Start voiceover projects from audio memos and pickups, generate internal vertical stand-ins, and require complete authored picture before final assembly.
+- With beat snap on, a new renderer pin makes the music stage detect beats again, so existing projects do not keep snapping to beats from the old tracker.
+- Open the style page on saved looks and presets under your video, with Save style and optional Customize steps; show every bundled font in a grid of names rendered in their own fonts, keep letter width above it, and reserve space for the bottom bar.
+- Verify holds captions to the same rule the caption builder uses, so trailing silence after a sentence's last word no longer refuses assembly.
+- Preserve approved card boxes, enforce caption gaps for every card placement, keep unchecked cards in front, and honor the requested face sampling during clearance checks.
+- Install the engine, speech model, renderer and browser in one setup round, clarify style answers, and report inbox takes when ready.
+- Complete the source and workspace setup guides, document the edit pipeline, remove private development plans and brand screenshots, and repair community, attribution and repository hygiene files.
+- Align face-aware gallery captions with the selected still, ignore transparent grounds in layout, preserve text on faint grounds, bound enlarged caption effects for face clearance, and avoid rebuilding previews for music volume edits.
+- Add `yap-studio style pick`, the style page: one choice per screen (start, words on screen, highlight, font, colors, title and music, cards), real captions, titles and cards playing over a still from your newest take, colors pulled from your website, and Save style makes it your default.
+- Add 14 selectable HyperFrames caption styles with matching style editor previews and readable ink on caption grounds and highlights.
+- Add fitted caption boxes and full-width bands with color, opacity, padding and corner controls, plus fixed or face-avoiding placement in the engine and style editor.
+- Install the bundled engine with its speech extra and download the model in one setup step, including Parakeet MLX on Apple Silicon Macs.
+- Add `--frames A-B` to `assemble` and `run`: a pilot render of one range with every layer, frame for frame the same as the full render, refused when a caption or graphic runs past the end.
+- License the project under Apache-2.0 and drop the `yap` console alias, which collides with another macOS command; use `yap-studio`.
+- Stage receipts record wall-clock seconds for each phase and the total.
+- Start a restart removal at the first copy's voice when the word before it is timed over it, so the abandoned words do not stay at the join.
+- Add seven card kinds adapted from the HyperFrames registry, with attribution: chart, quote, progress stat, specs list, callout circle, name tag and success check.
+- Add ten opening title looks adapted from the HyperFrames registry, with attribution.
+- Add `review --detach` and `review --stop`: the review page keeps serving in the background and the command returns, so an agent is not left waiting on it.
+- After a verified cut, `status` points at the creator's review instead of a stale fillers pass, and editing a segment's note or text no longer marks fillers stale.
+- Save setup brand fonts and accent in the style brand block, and suggest an accent from a public website's colors.
+- Ship two presets: Editorial Serif (Instrument Serif) and One Word at the bottom of the frame.
+- Ingest re-transcribes speech the first pass dropped and warns, in its output, receipt and `status`, about any speech still without words.
+- Rework the 3D camera caption pilot to read the creator's brand, keep behind words at least 90 percent visible, check caption contrast, and bleep masked profanity.
+- Offer optional Tailscale setup for phone review links beyond the local Wi-Fi.
+- Setup reinstalls the bundled engine when the installed build differs from the wheel, even at the same version.
+- Ask first-run style questions, save answers, and apply project defaults and approved taste rules.
+- Copy unused inbox takes into fresh projects, name them from the transcript, and record their use so later edits pick the right take.
+- Pick a still with the creator's face, eyes open and the caption band clear, and the first sentence, from the newest inbox take.
+- Add a brand block (fonts for captions, titles and cards, an accent color, an optional logo) that every caption, title and card reads, with creator font files from `brand/fonts/` or `brand fonts add`.
+- Save a picked style to the library as the default in one step, with a new revision each time and a readable copy in the workspace, and let a style switch card kinds off.
+- Check synced folders, disk, speech models, cutout tools and workspace versions during setup, with guided install steps.
+- Add `review --phone`: one link for your phone, over Tailscale when it is connected, otherwise on the local Wi-Fi with a private token.
+- Add `taste learn --save`: save the learned style as "Learned from your videos" without making it the default, and queue its rules for approval, in one step.
+- Pilot: 3D camera captions around the speaker for vertical takes, rendered by scripts/camera3d_pilot.py; not a caption style yet.
+- Add `yap-studio run DIR`: runs fillers, cut, music, captions, graphics, assemble, the platform check and versions save in order, stops at the first failed check with the reason and the fix, and resumes there.
+- The workspace edit skill walks the whole v1 system: media, B-roll, cards, backgrounds, faces, taste, the feedback loop, a saved final version and approval. `timeline add` takes the `cards plan` lane file, and `status` asks for a saved cut version before review.
+- Fail a final in verify when a card, title or overlay comes within the style's caption gap (default 100 px) of the caption glyphs.
+- CI no longer requires a version bump in every pull request. The version is set once, at release.
+- Save final versions with an end hold, while refusing renders that are a frame short or long.
+- Keep the cut plan's frame count when the verified cut is saved explicitly, adding the end hold only for final renders.
+- Document the editing workflow and v1 limits, add release contribution and security files, enable Apple Silicon CI, and create named style files from shipped presets.
+- Package a creator workspace with the bundled engine wheel, setup, and edit instructions.
+- Add `doctor --edit`, which also fails without Node, the renderer and its browser, or speech; plain `doctor` still passes when verify can run.
+- Prepare the downloadable workspace zip and local setup flow.
+- Show a page, screenshot or clip behind the speaker for a word-anchored span.
+- Pin the renderer to HyperFrames 0.8.184 (keeps the right edge of 1080-wide MP4 renders on newer FFmpeg; stuck checks stop instead of hanging; screen recordings no longer freeze on FFmpeg 8; renders under WSL use the GPU again; `check` no longer fails on a busy Windows machine; a render's first frame shows each scene's starting state; the first render on Windows waits for newly installed files). Caption bands render in parallel again (about twice as fast) and stay frame-exact; cards, titles and transitions keep one capture worker; every layer keeps screenshot capture and its colours; renders and checks keep HyperFrames history out of the user's home folder. Checks set CI so HyperFrames does not leave a background check process behind. Registry cards keep a clear backdrop when an item's --bg fallback would paint one.
+- Add `yap-studio edit schema`: prints the `edit.json` format and an example; `--json` prints the JSON Schema.
+- Scripts in `scripts/` stop with a one-line `uv run python` hint on Python older than 3.11, and the docs call them with `uv run`.
+- Newer card kinds start off for every style until the creator turns them on in the style page, so a saved style never gains a card kind it did not pick.
+- `run --stop` no longer reports a failure when the background run already finished and macOS refuses the signal for its exited process group.
+- The brand words changelog test finds its note by content, so a newer note above it no longer fails it.
+- The cover frame tests match frame file names exactly, so a temporary folder name can no longer make them fail.
+- The style page replacement test waits briefly for the earlier page's exited process to be cleaned up, so a busy machine no longer fails it.
+- Tests run against temporary data, config and cache folders, and tests outside the render and speech suites fail if they write to their home folder, so a test run never touches the creator's own Yap Studio folders.
+- A test that leaves a detached style page, review page or background run running now fails and the process is stopped. The style page tests wait for their background pages to stop.
+- Tests keep npm and browser downloads in temporary folders and publish each linked renderer in one step. A worker rechecks an unavailable shared install before each test, so a completed browser repair can be reused.
+- Four editor cards a creator can turn on: `edit_timeline` draws the video's own tracks with the output timecode and a playhead that moves in real time, `storyboard` shows thumbnails of the edit's segments with the one on screen ringed, `jiggle_delete` wiggles chips or image tiles and removes the chosen ones, and `file_drop` drops a clip in as a file card with a still, its name, its length and a RAW badge. They start off in every style and sit in a new Editor group on the style page.
+- Add colour grades as a style choice, None by default: Film look and Eyedropper (pull the video toward a colour picked from it), each with a live preview on the style page and an optional per-project override, plus an optional before/after Grade slider timeline element. Final verification checks the grade.
+- Layer and 3D camera pilot renders retry once on IPv6 loopback port collisions (`net::ERR_INVALID_HTTP_RESPONSE`, `net::ERR_CONNECTION_RESET`, `net::ERR_EMPTY_RESPONSE`); layer checks record the retry.
+- Add video windows inside cards and the styled `video_card` kind with optional clip audio.
+- Add the `prompt_bar` chat card with fitted request and placeholder text, deterministic typing, word and confirmation cues, a drawn check and a matching settle sound. Add `comment_cta` with a fitted reply keyword, placeholder and optional label, shared typing cues, a send pulse and a matching settle sound. Add `comment_drop` with fitted comment text, avatar images or initials, left or right arrival and a matching settle sound. Add `icon_strike` with local images or neutral glyphs, fitted labels, a contrasting slash and a matching settle sound. These four kinds start off until the creator turns them on in the style page or lists them in `graphics.card_kinds_on`.
+- A stock clip used in a card, played in a video card or shown as a file drop's poster, needs the same approval as a stock insert, and `stock credits` lists it.
+- Let `file_drop` play its clip muted after it settles with `playback: play`, starting at the poster frame.
+- Add `moves.jump_cuts`, a style choice for jump cuts: `hard` (the default), `punch`, or `smooth`. Smooth replaces the 6 frames around a join with frames from Apple's frame rate conversion (macOS 15.4 or later), so the picture glides across the cut while the sound stays a hard cut. It runs only when the face and the picture move little and falls back to a punch on big moves, even with zooms off. The final receipt says what happened to each join and why. `punch` covers jump cuts with punch zooms the agent adds. `yap-studio joins DIR` lists every join and what happens to it. The style page has a Jump cuts choice under Moves in More.
+- Add Step in to Jump cuts in Moves. The engine walks to closer framing on cuts, keeps faces clear of captions and returns wide at a take change, a pause of at least 0.5 seconds, a transition or after three steps. Titles and front cards may sit over steps. Timeline checks report how many cuts changed framing.
+- Transcribe each take once on this computer and reuse the words in the style page, ingest and watch packs. The style page transcribes the whole newest take in the background, and `status` lists takes whose words are already cached.
+- Add Push in on the first line, a Moves choice that starts off. It ends at the first sentence end or real cut between 0.8 and 4 seconds after the first word. If the line runs longer, it uses the first clause end in that window. Longer lines push more slowly and reach 1.3x at their end. Shorter lines stop below 1.3x. If no boundary fits, the push is skipped with a warning. It never cuts wide in the middle of a clause. It may sit under the opening title, which moves up or shrinks if the zoomed face reaches it.
+- Add opt-in Choices cards with word-cued options, accent glow and a stack beside the head.
+- Add an opt-in Flow Tags look with cued label pops, accent arrows and face clearance.
+- Add the `playing_grid` and full-frame `reel_feed` video cards, pixel crops for card clips, caption-aware feed backdrops, and a swipe hand-off from the feed into the same video.
+- Kinetic hook opening title look: giant words punch in over the picture on their spoken frames, each short line fitted to the frame width, centred clear above the head, in the caption ink and shadow.
+- Gravity drop card: emphasis words fall into frame and land with weight on the moments they are spoken, in a mix of the creator's fonts with her caption ink and shadow. It is off until the creator turns it on.
+- Giant captions draw the line oversized in a solid block using the brand accent, else the caption ground colour.
+- Chapter title card: optional chapter numbers, titles and start times sit over the live picture. A translucent wash and soft text band keep the speaker visible. Captions stay on top and avoid her face. Chapters do not cover voiceover picture gaps. The timeline `chapter` element is a style choice whose default is None.
+- Add opt-in Rows on cue for Specs list and Stat breakdowns, with spoken row timing, an accent glow look and holds across cuts up to 8 s.
+- 3D camera captions are a caption look: `captions.camera_3d` draws words in depth around you with a moving camera. It is off unless you pick it.
+- Add Made by Yap Studio, a sound kit made on your computer from small recipes, with no account. Its nine sounds (whoosh, swoosh-in, swoosh-out, click, pop, hit, riser, tick-roll, chime) land with their loudest point on the cut or card moment. The Sound screen offers it next to ElevenLabs, with a switch to use it until an ElevenLabs kit is ready. The join checks in the final's verify listen to the mix without sound effects, so a sound on a cut no longer fails a correct join.
+- Add seven ElevenLabs sounds: typing, message ping and camera shutter play on their card moments once turned on under More sounds, and applause, laugh, cheer and record scratch play only where the agent is asked to put them. Made by Yap Studio now plays by default until an ElevenLabs kit is ready; styles with sound effects off stay off.
+- Add Bleep swear words under Sound > More, off by default. A tone made on your computer covers each listed swear word and mutes the speech under it, and captions, titles and cards show it as f***. A style can add or remove words, and the final fails if a listed word is still heard or shown.
+- Propose filler, stutter, restart and pause removals with `fillers`, and apply only removals whose join test passes.
+- Find restarts the whole-take transcript hid by re-transcribing short clips around swallowed speech.
+- Fail a join in verify when a segment loses its planned first or last word, from `first_word` and `last_word` in yap span JSON.
+- Assemble a finished vertical video from the cut with `music`, `captions`, `graphics`, `timeline` and `assemble`, and verify it.
+- Keep final delivery loudness as one measured gain plus true-peak limiting, so the final's edit-list audio check stays valid on real takes.
+- Check the cut's words with the project's speech engine, so a doubled or clipped word is flagged before assembly.
+- Render cards from the template library at the words they name, with caption looks including pill, gradient, word fill, kinetic slam, weight shift and clip wipe.
+- Put a card behind the speaker with a person cutout, and flag a card the speaker hides in review.
+- Add shader transitions at sentence-end story joins.
+- Add beat hints from the music bed, voice clean-up presets and word-timed music ducking.
+- Measure faces for caption and card clearance, with room for hair above the face box.
+- Catalog your own clips and images for B-roll, offline.
+- Review the story outline before rendering, keep or fix comments across versions under one link, and turn notes into the next version's edit.
+- Keep a private taste file: approve proposed rules on the review page and apply them in every render.
+- Verify flash frames, re-listen at each join, and check every rendered layer.
+- Open a project in HyperFrames Studio for agent and debugging work.
+- Detect beats on macOS, where temporary folders resolve through `/private`.
+- Start a project from raw takes with `init`, `ingest`, `words` and `status`.
+- Cut the agent's story from `edit.json` with exact frames and samples, and verify it, with `cut` and `edit check`.
+- Verify variable-frame-rate phone takes on the frame grid the cut used, and report a cut's loudness as a note with `verify --loudness note`.
+- Keep each segment's planned words in `cut-words.json` when word clocks drift, and pass inaudible clicks at near-silent joins.
+- Serve review behind a trusted reverse proxy with `--allow-host` and `--public-base`.
+- Hold several videos in one review server, each with its own link and comments, and list them on one page.
+- Show the source commit with `--version` and warn in `doctor` when the installed tool is older than the checkout.
+- Read constant-rate files with B-frames correctly during review.
+- Verify cuts, sound, sync, frames, loudness, and delivery rules in a finished video.
+- Review a render in the browser with comments pinned to frames and ranges.
+- Add the buyer style page with previews of captions and titles.
+- Use saved styles in the engine to render captions and titles.

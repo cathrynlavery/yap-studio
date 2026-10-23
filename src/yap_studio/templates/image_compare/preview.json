@@ -1,0 +1,8 @@
+{
+  "slots": {
+    "before_label": "Before",
+    "after_label": "After",
+    "split": 50,
+    "wipe_at": 0.4
+  }
+}

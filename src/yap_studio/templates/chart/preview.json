@@ -1,0 +1,20 @@
+{
+  "slots": {
+    "title": "Monthly growth",
+    "bars": [
+      {
+        "label": "Jan",
+        "value": 42
+      },
+      {
+        "label": "Feb",
+        "value": 68
+      },
+      {
+        "label": "Mar",
+        "value": 91
+      }
+    ],
+    "unit": "%"
+  }
+}

@@ -1,0 +1,519 @@
+{
+  "schema": "yap-studio/provenance@1",
+  "upstream": {
+    "name": "HyperFrames registry",
+    "repository": "github.com/heygen-com/hyperframes",
+    "commit": "0d5e395cd31d0f491e9b26d0da110da6e231c512",
+    "license": "Apache-2.0",
+    "license_file": "LICENSES/Apache-2.0.txt",
+    "license_sha256": "4259155fb06f127687ee7b0a8a3682d45132db0f2da26cbc0b7a2d1e796436b8",
+    "copyright": "Copyright 2026 HeyGen, Inc.",
+    "notice_file": null
+  },
+  "files": [
+    {
+      "item": "code-terminal-run",
+      "upstream_path": "registry/components/code-terminal-run/code-terminal-run.html",
+      "upstream_sha256": "f00d6259050d2c5cb3a12fd4a43b96159263f7d38462cd6d0f845b2f83ad43b5",
+      "yap_path": "src/yap_studio/templates/terminal/template.html",
+      "changes": "Added typed slots with fixed word cues, a title and host bar, style tokens, and bounded pixel typography."
+    },
+    {
+      "item": "count-up",
+      "upstream_path": "registry/components/count-up/count-up.html",
+      "upstream_sha256": "6b34b9873a243fedb060d23f4eb5cef1b61a5b169ec1ae064030b70b48beea66",
+      "yap_path": "src/yap_studio/templates/stat/template.html",
+      "changes": "Added count, wheel, and slot reveals, a tokenized panel, optional kicker, fitted pixel typography, and a shared fade-out."
+    },
+    {
+      "item": "mk-specs-list",
+      "upstream_path": "registry/blocks/mk-specs-list/mk-specs-list.html",
+      "upstream_sha256": "5bff5b3726cb6041c8419d3b157ad27db76bb8b64f4bd975498d5049ea3bd699",
+      "yap_path": "src/yap_studio/templates/checklist/template.html",
+      "changes": "Combined fitted slot rows with drawn accent ticks, tokenized panels, and timed underline sweeps."
+    },
+    {
+      "item": "success-check",
+      "upstream_path": "registry/components/success-check/success-check.html",
+      "upstream_sha256": "49f306892b85ecdbe9510593b8dc8d76b2e3c7becfff06726d967407ff01c393",
+      "yap_path": "src/yap_studio/templates/checklist/template.html",
+      "changes": "Combined fitted slot rows with drawn accent ticks, tokenized panels, and timed underline sweeps."
+    },
+    {
+      "item": "lt-clean-bar",
+      "upstream_path": "registry/blocks/lt-clean-bar/lt-clean-bar.html",
+      "upstream_sha256": "6648b428ea74128368545a5cdf8d83a82e75dc468e9d3bbbac933e1463df5a67",
+      "yap_path": "src/yap_studio/templates/text_tag/template.html",
+      "changes": "Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out."
+    },
+    {
+      "item": "lt-dark-card",
+      "upstream_path": "registry/blocks/lt-dark-card/lt-dark-card.html",
+      "upstream_sha256": "b0386837dd6eccb06613a18b06d2ac9b17b3db755b80874d0e6c0d1aaa084bb7",
+      "yap_path": "src/yap_studio/templates/text_tag/template.html",
+      "changes": "Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out."
+    },
+    {
+      "item": "lt-color-block",
+      "upstream_path": "registry/blocks/lt-color-block/lt-color-block.html",
+      "upstream_sha256": "6fd10042c2bfb1998566f5626d1f301d0d87244d19c793ca4c30d7b8562fa640",
+      "yap_path": "src/yap_studio/templates/text_tag/template.html",
+      "changes": "Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out."
+    },
+    {
+      "item": "lt-soft-pill",
+      "upstream_path": "registry/blocks/lt-soft-pill/lt-soft-pill.html",
+      "upstream_sha256": "e1f14e3b482622e6005beec80678bc70ad661e15f3db3e3461fae414a81d5c83",
+      "yap_path": "src/yap_studio/templates/text_tag/template.html",
+      "changes": "Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out."
+    },
+    {
+      "item": "lt-accent-underline",
+      "upstream_path": "registry/blocks/lt-accent-underline/lt-accent-underline.html",
+      "upstream_sha256": "08e62fd35e14b99dd35e658b941f2b33781ff1cadb428d7b9626d69cfe3c4fe7",
+      "yap_path": "src/yap_studio/templates/text_tag/template.html",
+      "changes": "Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out."
+    },
+    {
+      "item": "lt-side-rule",
+      "upstream_path": "registry/blocks/lt-side-rule/lt-side-rule.html",
+      "upstream_sha256": "faa20504273f478a470bb1fa99fc5ea81fb5709b279a9acee8b15b4996917527",
+      "yap_path": "src/yap_studio/templates/text_tag/template.html",
+      "changes": "Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out."
+    },
+    {
+      "item": "titlecard-calm",
+      "upstream_path": "registry/components/titlecard-calm/titlecard-calm.html",
+      "upstream_sha256": "5d6833d8bf512352e67d39a7b1f4133fe1bd84a9d0c76f528c6f40eea9e950ae",
+      "yap_path": "src/yap_studio/templates/text_tag/template.html",
+      "changes": "Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out."
+    },
+    {
+      "item": "browser-device-stage",
+      "upstream_path": "registry/components/browser-device-stage/browser-device-stage.html",
+      "upstream_sha256": "59b20814d38bf58ec1c6c7727ed954e89e9f38a7392eddf6d266ce586bad6764",
+      "yap_path": "src/yap_studio/templates/image_card/template.html",
+      "changes": "Replaced screen slots with one local image, fitted chrome text, style tokens, an optional seeded paper collage reveal, and a shared fade-out."
+    },
+    {
+      "item": "paper-collage-reveal",
+      "upstream_path": "registry/components/paper-collage-reveal/paper-collage-reveal.html",
+      "upstream_sha256": "e7d138d73785cda61179b1c821d3b2590f90e61b8ac9e22e3bccb245eec9fafa",
+      "yap_path": "src/yap_studio/templates/image_card/template.html",
+      "changes": "Replaced screen slots with one local image, fitted chrome text, style tokens, an optional seeded paper collage reveal, and a shared fade-out."
+    },
+    {
+      "item": "offset-path-traveler",
+      "upstream_path": "registry/components/offset-path-traveler/offset-path-traveler.html",
+      "upstream_sha256": "32b5f69340d66e5ec69f2eddf7f5dd4d2fe3fc7cb780e1c956831f8ab4df5e45",
+      "yap_path": "src/yap_studio/templates/transfer/template.html",
+      "changes": "Added fitted device and payload slots, a measured route, cue timing, landing feedback, style tokens, and a shared fade-out."
+    },
+    {
+      "item": "before-after-wipe",
+      "upstream_path": "registry/components/before-after-wipe/before-after-wipe.html",
+      "upstream_sha256": "c04e8bf1bfbcec71d0921a03a786cc09e660732428aa04bf79036a30b7755e09",
+      "yap_path": "src/yap_studio/templates/image_compare/template.html",
+      "changes": "Added two local images, fitted label chips, cue timing, a paper mat, style tokens, and a shared fade-out."
+    },
+    {
+      "item": "typed-prompt",
+      "upstream_path": "registry/components/typed-prompt/typed-prompt.html",
+      "upstream_sha256": "ea5562adebc554cd363b4b4bf5b91dcf7b1fc2c73c634cb727e8a7dc149f3723",
+      "yap_path": "src/yap_studio/templates/terminal/template.html",
+      "changes": "Added typed slots with fixed word cues, a title and host bar, style tokens, and bounded pixel typography."
+    },
+    {
+      "item": "number-wheel",
+      "upstream_path": "registry/components/number-wheel/number-wheel.html",
+      "upstream_sha256": "04e3b1d13a044f9e8ad88b701b27315fc69eded6e951ab99b046ab760dc91110",
+      "yap_path": "src/yap_studio/templates/stat/template.html",
+      "changes": "Added count, wheel, and slot reveals, a tokenized panel, optional kicker, fitted pixel typography, and a shared fade-out."
+    },
+    {
+      "item": "slot-machine-roll",
+      "upstream_path": "registry/components/slot-machine-roll/slot-machine-roll.html",
+      "upstream_sha256": "09cea60604866f23c303bc35f2b5e13620a44689122fd52e30f3aaaf72b0fab6",
+      "yap_path": "src/yap_studio/templates/stat/template.html",
+      "changes": "Added count, wheel, and slot reveals, a tokenized panel, optional kicker, fitted pixel typography, and a shared fade-out."
+    },
+    {
+      "item": "state-chip-rail",
+      "upstream_path": "registry/components/state-chip-rail/state-chip-rail.html",
+      "upstream_sha256": "a6f986a78fb892751bfd8811102eea7b135db325dc8c52bafb7d61f870d4f04f",
+      "yap_path": "src/yap_studio/templates/steps/template.html",
+      "changes": "Added fitted step slots, resolved cue snaps, a tokenized paper panel, staggered entrances, and a shared fade-out."
+    },
+    {
+      "item": "caption-kinetic-slam",
+      "upstream_path": "registry/components/caption-kinetic-slam/caption-kinetic-slam.html",
+      "upstream_sha256": "86b7a54e045f626d1375636a2f1cde19c2f3cbdad1df1d7d0204fe6b4452044a",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "changes": "Ported single-word punch motion to phrase timing with stress color, bundled fonts, fitted caption bands, and frame seeking. Added contrasting outlines and an outer edge so words remain readable when the configurable shadow is off."
+    },
+    {
+      "item": "caption-weight-shift",
+      "upstream_path": "registry/components/caption-weight-shift/caption-weight-shift.html",
+      "upstream_sha256": "8a5294debec3eadeb7ca0a8688c31a6e8c517ebb1c55ff410aa81df3807daa55",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "changes": "Ported balanced lowercase lines and timed weight contrast to phrase timing with bundled font ranges, fitted caption bands, and frame seeking. Added contrasting outlines and an outer edge so words remain readable when the configurable shadow is off."
+    },
+    {
+      "item": "caption-clip-wipe",
+      "upstream_path": "registry/components/caption-clip-wipe/caption-clip-wipe.html",
+      "upstream_sha256": "8b9e06353df3ea3bc0113a9c7ef3e480293a6ed75bee46744b053bf5e02dc5f6",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "changes": "Ported word clip reveals over dim upcoming text to phrase timing with stress color, bundled fonts, fitted caption bands, and frame seeking. Added contrasting outlines and an outer edge so words remain readable when the configurable shadow is off."
+    },
+    {
+      "item": "whip-pan",
+      "upstream_path": "registry/blocks/whip-pan/whip-pan.html",
+      "upstream_sha256": "97a690de11f6dcebd6356bea84cba1af6ae61bfe03b9b7cc75a81368c93a12c9",
+      "yap_path": "src/yap_studio/templates/transition_whip_pan/template.html",
+      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks."
+    },
+    {
+      "item": "cinematic-zoom",
+      "upstream_path": "registry/blocks/cinematic-zoom/cinematic-zoom.html",
+      "upstream_sha256": "72b3a83d5de6a56fd389044aa15e785dbb40d5402cea6b95684b6b9cec0e4aba",
+      "yap_path": "src/yap_studio/templates/transition_cinematic_zoom/template.html",
+      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks."
+    },
+    {
+      "item": "light-leak",
+      "upstream_path": "registry/blocks/light-leak/light-leak.html",
+      "upstream_sha256": "018575074693864c3f0f71380f85f089c172f73717b80787640b2da3615345be",
+      "yap_path": "src/yap_studio/templates/transition_light_leak/template.html",
+      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks."
+    },
+    {
+      "item": "hw-pipeline",
+      "upstream_path": "registry/blocks/hw-pipeline/hw-pipeline.html",
+      "upstream_sha256": "5f2d91c91d37dd6b57a015a02361c67c9a62ca33849b901b3bebad8157fb7dbb",
+      "yap_path": "src/yap_studio/templates/flow/template.html",
+      "changes": "Combined seeded box and arrow paths with fitted node slots, resolved cues, style tokens, and a shared fade-out."
+    },
+    {
+      "item": "hw-arrow",
+      "upstream_path": "registry/components/hw-arrow/hw-arrow.html",
+      "upstream_sha256": "73585adc010db9ec60568eabeb1afb544601e6deef19ac22e2db3a1a380f0dad",
+      "yap_path": "src/yap_studio/templates/flow/template.html",
+      "changes": "Combined seeded box and arrow paths with fitted node slots, resolved cues, style tokens, and a shared fade-out."
+    },
+    {
+      "item": "caption-blend-difference",
+      "upstream_path": "registry/components/caption-blend-difference/caption-blend-difference.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "82dddc30094cfe03195485f0bf5bad686855732fdadc5a975e4da33eb6447e26",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "blend_difference",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Local difference echo on a timed accent tile behind solid readable foreground text; alpha caption layers cannot invert separately composited footage."
+    },
+    {
+      "item": "caption-camera-follow",
+      "upstream_path": "registry/components/caption-camera-follow/caption-camera-follow.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "4a0da1ba065882e95274468c8f3e36f1094fc598c3c93be1fc63182e9e42953c",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "camera_follow",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Bounded phrase camera pan and pullback instead of geometric full-screen word growth; omitted radial blur and vignette."
+    },
+    {
+      "item": "caption-editorial-emphasis",
+      "upstream_path": "registry/components/caption-editorial-emphasis/caption-editorial-emphasis.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "6144571b6c73dbdec282284fe2277d3c958e15cddaf362295ba9cca02e705d1c",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "editorial_emphasis",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Larger stress word in the creator font with a bounded slide; omitted the second remote font and full-screen slide."
+    },
+    {
+      "item": "caption-emoji-pop",
+      "upstream_path": "registry/components/caption-emoji-pop/caption-emoji-pop.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "79e7cad5cf54dec70e7af59c8d0583531017bacca6bc9ee057bfad386904eb9b",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "emoji_pop",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. CSS smiley badge and word squash; replaced keyword emoji mapping and system emoji fonts with one self-contained badge."
+    },
+    {
+      "item": "caption-glitch-rgb",
+      "upstream_path": "registry/components/caption-glitch-rgb/caption-glitch-rgb.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "65e588d27515cde0e361cddd6034a3dad647a86f50c02847c6cc453619d58648",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "glitch_rgb",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Deterministic bounded jitter and split shadows in style colors; omitted full-screen scanlines and repeated aftershocks."
+    },
+    {
+      "item": "caption-gradient-fill",
+      "upstream_path": "registry/components/caption-gradient-fill/caption-gradient-fill.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "6d08dc0a9f54d25b25590721ec579a3521a0079c70f32b292bd93697384c60ff",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "gradient_fill",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Transient gradient fill and small pulse in style colors; replaced the fixed multicolor palette and retained phrase wrapping."
+    },
+    {
+      "item": "caption-highlight",
+      "upstream_path": "registry/components/caption-highlight/caption-highlight.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "77f877ddcef85e787453daa6724cec5e85a0678fcb098fe94f9b86ce0ef5f2f4",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "highlight",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Per-word gradient-backed highlight with scale reveal and contrasting ink; distinct from colored word and sliding block."
+    },
+    {
+      "item": "caption-matrix-decode",
+      "upstream_path": "registry/components/caption-matrix-decode/caption-matrix-decode.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "c8f703cbe6e8dd547107f2e6298f27c287a9d08b133ceab128e874ce88d36e78",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "matrix_decode",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Two deterministic decorative scramble layers behind permanent readable text; no replacement or delayed reveal of spoken words."
+    },
+    {
+      "item": "caption-neon-accent",
+      "upstream_path": "registry/components/caption-neon-accent/caption-neon-accent.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "1c4af30ab35c6e3f754157cce2c364c75386f37059d47fa52446bca19200339d",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "neon_accent",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Larger stress word, bounded tilt and timed glow; replaced random keyword palettes and unbounded group wiggle."
+    },
+    {
+      "item": "caption-neon-glow",
+      "upstream_path": "registry/components/caption-neon-glow/caption-neon-glow.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "dc9d43d58879e1422837c213aa7f8921ca43b58f4e9c77f8463232585e05034c",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "neon_glow",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Timed compact glow with solid inactive text; replaced translucent inactive text and fixed cyan/pink colors."
+    },
+    {
+      "item": "caption-parallax-layers",
+      "upstream_path": "registry/components/caption-parallax-layers/caption-parallax-layers.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "e1c14eb380fa7d7b8c84798e40530e946ed140547c61d2e6f5111d712cb72d78",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "parallax_layers",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Local stretched text echoes behind readable phrase text; omitted full-screen behind/front planes and subject compositing."
+    },
+    {
+      "item": "caption-particle-burst",
+      "upstream_path": "registry/components/caption-particle-burst/caption-particle-burst.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "48ec0a000e9c40cff891c2ca0e66ed4cf33c358bbeb2ca76fb3bdc8288bf5936",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "particle_burst",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Ten deterministic CSS particles around the stress word; reduced travel to the caption band and removed the fixed rainbow palette."
+    },
+    {
+      "item": "caption-pill-karaoke",
+      "upstream_path": "registry/components/caption-pill-karaoke/caption-pill-karaoke.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "cdbbc72af7fbac440c0bf5750cf9e3d4ded20f26588b00ac79399342ca60b3e3",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "pill_karaoke",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Lowercase rounded rectangle with gradual cumulative karaoke and contrast-safe text; distinct from the capsule pill and instant color changes."
+    },
+    {
+      "item": "caption-texture",
+      "upstream_path": "registry/components/caption-texture/caption-texture.html",
+      "upstream_commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+      "upstream_sha256": "dcd2c9c9ba068507c559171264748c129981253fd61ce933c5d0f461431b0d7f",
+      "yap_path": "src/yap_studio/templates/captions/template.html",
+      "highlight_style": "texture",
+      "changes": "Shared phrase/word timing, bundled creator font, style colors, safe-area fitting, background modes and solid readability outlines. Animated CSS stripe texture; omitted PNG material masks, material selector and full-screen single-word layout."
+    },
+    {
+      "item": "animated-bar-chart",
+      "upstream_path": "registry/components/animated-bar-chart/animated-bar-chart.html",
+      "upstream_sha256": "ceae5ee442ace07edfc115ed509982805c311e0c57a07517d3c95e1d60c898f2",
+      "yap_path": "src/yap_studio/templates/chart/template.html",
+      "changes": "Adapted animated bars into proportional horizontal tracks with fitted labels, local tokens, and staggered reveals."
+    },
+    {
+      "item": "testimonial-card",
+      "upstream_path": "registry/components/testimonial-card/testimonial-card.html",
+      "upstream_sha256": "e93c5f8ffaffcaedb209326d526eefdda6c98d7e7b9e7344649717683a507e73",
+      "yap_path": "src/yap_studio/templates/quote/template.html",
+      "changes": "Adapted the testimonial layout to a larger fitted quote, accent quote mark, and distinct named attribution with local tokens."
+    },
+    {
+      "item": "mk-progress-stat",
+      "upstream_path": "registry/blocks/mk-progress-stat/mk-progress-stat.html",
+      "upstream_sha256": "2c6d9e0dedf250a8e25b53c87057b511ae20545f30e7c1b1ec27b366bec74178",
+      "yap_path": "src/yap_studio/templates/progress_stat/template.html",
+      "changes": "Adapted the progress number and filling rule with typed percent, fitted label, and local tokens."
+    },
+    {
+      "item": "mk-specs-list",
+      "upstream_path": "registry/blocks/mk-specs-list/mk-specs-list.html",
+      "upstream_sha256": "5bff5b3726cb6041c8419d3b157ad27db76bb8b64f4bd975498d5049ea3bd699",
+      "yap_path": "src/yap_studio/templates/specs_list/template.html",
+      "changes": "Adapted the staggered specification rows into typed name and value pairs with fitted text."
+    },
+    {
+      "item": "hw-callout-circle",
+      "upstream_path": "registry/components/hw-callout-circle/hw-callout-circle.html",
+      "upstream_sha256": "598205b4750217c4009854d1beb6f7118d013ec507d45cad1bfe2e4eacecc106",
+      "yap_path": "src/yap_studio/templates/callout_circle/template.html",
+      "changes": "Adapted the drawn target circle to a local still with normalized coordinates and a fitted label."
+    },
+    {
+      "item": "lt-clean-bar",
+      "upstream_path": "registry/blocks/lt-clean-bar/lt-clean-bar.html",
+      "upstream_sha256": "6648b428ea74128368545a5cdf8d83a82e75dc468e9d3bbbac933e1463df5a67",
+      "yap_path": "src/yap_studio/templates/name_tag/template.html",
+      "changes": "Adapted the lower third tab and two-line identity to fitted name and role slots."
+    },
+    {
+      "item": "success-check",
+      "upstream_path": "registry/components/success-check/success-check.html",
+      "upstream_sha256": "49f306892b85ecdbe9510593b8dc8d76b2e3c7becfff06726d967407ff01c393",
+      "yap_path": "src/yap_studio/templates/success_check/template.html",
+      "changes": "Adapted the drawn check into a tokenized success card with a fitted label."
+    },
+    {
+      "item": "titlecard-calm",
+      "upstream_path": "registry/components/titlecard-calm/titlecard-calm.html",
+      "upstream_sha256": "5d6833d8bf512352e67d39a7b1f4133fe1bd84a9d0c76f528c6f40eea9e950ae",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Kept the restrained card and short accent rule; fitted brand text rises over a longer, gentle entrance."
+    },
+    {
+      "item": "titlecard-lockup",
+      "upstream_path": "registry/components/titlecard-lockup/titlecard-lockup.html",
+      "upstream_sha256": "6a5e54b3819357bd264337cf16240b6a4e65e1059c08ccd82554611a60cdb072",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Separated plain text as a kicker from the larger uppercase key, drawing a lower accent rule after the lockup settles over video."
+    },
+    {
+      "item": "hw-write-title",
+      "upstream_path": "registry/blocks/hw-write-title/hw-write-title.html",
+      "upstream_sha256": "da7375c1acedf86f3cf5839f6bc75ef3817d674752aaf462a9e0d0e471ac7e90",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Replaced fixed handwriting with bundled italic brand text; an accent outline traces on before the filled letters and underline appear."
+    },
+    {
+      "item": "headline-slam",
+      "upstream_path": "registry/components/headline-slam/headline-slam.html",
+      "upstream_sha256": "b16ac28b01bf7f352d6a3f267838253de85794cd9bedd8065b48d7675e9295cd",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Scaled and blurred the uppercase headline into a full-width contrast band with an accent slab and overshoot landing."
+    },
+    {
+      "item": "glass-shard-title",
+      "upstream_path": "registry/blocks/glass-shard-title/glass-shard-title.html",
+      "upstream_sha256": "bd971d8346f7a4e23e1a89a5fb6abb76c81eb97e663778660dceb34bf6ff1751",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Replaced 3D glass tiles with four clipped angular copies that fly together over the video, then resolve into fitted brand text and an accent edge."
+    },
+    {
+      "item": "texture-mask-text",
+      "upstream_path": "registry/components/texture-mask-text/texture-mask-text.html",
+      "upstream_sha256": "c0e8cde773a2a7240f4e18d9b9a78d0089085d1c87ac9467cf26fc08ed0e6e0b",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Replaced external masks with a moving, visible accent-and-ink texture clipped inside the title letters, plus a broken accent rule."
+    },
+    {
+      "item": "text-shimmer",
+      "upstream_path": "registry/components/text-shimmer/text-shimmer.html",
+      "upstream_sha256": "a96775b95265720efc23311566d17d574768cd60383743fa2dd71c9fd3241153",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Built a repeating accent and light sweep across fitted transparent letterforms during the title hold, using only local CSS."
+    },
+    {
+      "item": "text-stagger",
+      "upstream_path": "registry/components/text-stagger/text-stagger.html",
+      "upstream_sha256": "00b5f9203d219b8a451db70c10c0518013914cdf715714047367183bd3c69128",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Split variable title lines into words that rise and sharpen in sequence across about one second, beside an accent edge."
+    },
+    {
+      "item": "morph-text",
+      "upstream_path": "registry/components/morph-text/morph-text.html",
+      "upstream_sha256": "6f45f88236057eba72cce53e5067937ea35b0a7f3bbf441fe5b9dc8c2b8f9588",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Crossed a blurred, narrow accent outline through a stretched intermediate shape into solid fitted type with an offset outline echo."
+    },
+    {
+      "item": "typewriter",
+      "upstream_path": "registry/components/typewriter/typewriter.html",
+      "upstream_sha256": "98b1a2780a8ce480309af4ff9773b50742a2ce6fc05f0f7307aa3f5434436379",
+      "yap_path": "src/yap_studio/templates/title/template.html",
+      "changes": "Types fitted title lines at about fifteen characters per second in discrete steps, with a moving accent cursor and a narrow contrast panel."
+    },
+    {
+      "item": "typed-prompt",
+      "upstream_path": "registry/components/typed-prompt/typed-prompt.html",
+      "upstream_sha256": "ea5562adebc554cd363b4b4bf5b91dcf7b1fc2c73c634cb727e8a7dc149f3723",
+      "yap_path": "src/yap_studio/templates/prompt_bar/template.html",
+      "changes": "Reused deterministic chunked typing and caret timing in a fitted prompt bar with creator colors and font."
+    },
+    {
+      "item": "success-check",
+      "upstream_path": "registry/components/success-check/success-check.html",
+      "upstream_sha256": "49f306892b85ecdbe9510593b8dc8d76b2e3c7becfff06726d967407ff01c393",
+      "yap_path": "src/yap_studio/templates/prompt_bar/template.html",
+      "changes": "Drew the confirmation check inside a circular send button over 0.4 seconds with one small scale pulse."
+    },
+    {
+      "item": "typed-prompt",
+      "upstream_path": "registry/components/typed-prompt/typed-prompt.html",
+      "upstream_sha256": "ea5562adebc554cd363b4b4bf5b91dcf7b1fc2c73c634cb727e8a7dc149f3723",
+      "yap_path": "src/yap_studio/templates/comment_cta/template.html",
+      "changes": "Reused deterministic typing and caret timing in a fitted comment field with an optional label and a send pulse in creator colors."
+    },
+    {
+      "item": "chat-message",
+      "upstream_path": "registry/components/chat-message/chat-message.html",
+      "upstream_sha256": "fe9b9e0dd4c886843713116811688565c6fea3995cbb52f8c2e044106072715a",
+      "yap_path": "src/yap_studio/templates/comment_drop/template.html",
+      "changes": "Adapted the corner arrival and spring easing to a fitted comment bubble with local avatars, creator style tokens and a shared fade-out."
+    },
+    {
+      "item": "spring-pop",
+      "upstream_path": "registry/components/spring-pop/spring-pop.html",
+      "upstream_sha256": "528a81454e7d4dc939c132627ceaa106f4fec093a433942bc93821db41d8e3bb",
+      "yap_path": "src/yap_studio/templates/comment_drop/template.html",
+      "changes": "Adapted the corner arrival and spring easing to a fitted comment bubble with local avatars, creator style tokens and a shared fade-out."
+    },
+    {
+      "item": "strikethrough-replace",
+      "upstream_path": "registry/components/strikethrough-replace/strikethrough-replace.html",
+      "upstream_sha256": "8ef7447fe6e1f122cec5f601b3388b8cb4c18eb0c7341dd7e5af3dac53e65e10",
+      "yap_path": "src/yap_studio/templates/icon_strike/template.html",
+      "changes": "Adapted the spring entrance and strike draw to a neutral icon tile with local images, fitted labels, a readable slash, creator style tokens and a shared fade-out."
+    },
+    {
+      "item": "spring-pop",
+      "upstream_path": "registry/components/spring-pop/spring-pop.html",
+      "upstream_sha256": "528a81454e7d4dc939c132627ceaa106f4fec093a433942bc93821db41d8e3bb",
+      "yap_path": "src/yap_studio/templates/icon_strike/template.html",
+      "changes": "Adapted the spring entrance and strike draw to a neutral icon tile with local images, fitted labels, a readable slash, creator style tokens and a shared fade-out."
+    },
+    {
+      "item": "browser-device-stage",
+      "upstream_path": "registry/components/browser-device-stage/browser-device-stage.html",
+      "upstream_sha256": "59b20814d38bf58ec1c6c7727ed954e89e9f38a7392eddf6d266ce586bad6764",
+      "yap_path": "src/yap_studio/templates/video_card/template.html",
+      "changes": "Replaced the device screen with a fixed transparent video window, paper mat, fitted caption and frame-based linear fades."
+    },
+    {
+      "item": "mk-placeholder-grid",
+      "upstream_path": "registry/blocks/mk-placeholder-grid/mk-placeholder-grid.html",
+      "upstream_sha256": "52dfb41de653657021a21a1039fcdd0a0a9439acc10b850dc767cef02b7dedc9",
+      "yap_path": "src/yap_studio/templates/playing_grid/template.html",
+      "changes": "Replaced moving cells with fixed rounded video windows, paper rings, fitted chips and frame-based linear fades around the speaker."
+    },
+    {
+      "item": "browser-device-stage",
+      "upstream_path": "registry/components/browser-device-stage/browser-device-stage.html",
+      "upstream_sha256": "59b20814d38bf58ec1c6c7727ed954e89e9f38a7392eddf6d266ce586bad6764",
+      "yap_path": "src/yap_studio/templates/reel_feed/template.html",
+      "changes": "Replaced the device details with a generic rounded body, fixed inline video window, neutral backdrop and frame-based feed controls."
+    }
+  ]
+}

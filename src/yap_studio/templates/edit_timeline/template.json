@@ -1,0 +1,242 @@
+{
+  "id": "edit_timeline",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [],
+  "slots": {
+    "view": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "near",
+        "whole"
+      ],
+      "default": "near"
+    },
+    "title": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 28,
+      "default": ""
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E2DA"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 0 0 2px color-mix(in srgb, #222222 12%, transparent), 0 8px 18px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "title",
+      "type": "string",
+      "label": "Title",
+      "default": ""
+    },
+    {
+      "id": "title_px",
+      "type": "number",
+      "label": "Title px",
+      "default": 30
+    },
+    {
+      "id": "text_px",
+      "type": "number",
+      "label": "Text px",
+      "default": 30
+    },
+    {
+      "id": "timecode_px",
+      "type": "number",
+      "label": "Timecode px",
+      "default": 40
+    },
+    {
+      "id": "timecode_width_px",
+      "type": "number",
+      "label": "Timecode width px",
+      "default": 245
+    },
+    {
+      "id": "label_width_px",
+      "type": "number",
+      "label": "Label width px",
+      "default": 85
+    },
+    {
+      "id": "lane_left_px",
+      "type": "number",
+      "label": "Lane left px",
+      "default": 129
+    },
+    {
+      "id": "lane_width_px",
+      "type": "number",
+      "label": "Lane width px",
+      "default": 807
+    },
+    {
+      "id": "window_start_frame",
+      "type": "number",
+      "label": "Window start frame",
+      "default": 630.0
+    },
+    {
+      "id": "window_end_frame",
+      "type": "number",
+      "label": "Window end frame",
+      "default": 900.0
+    },
+    {
+      "id": "playhead",
+      "type": "string",
+      "label": "Playhead",
+      "default": "{\"start_px\":0,\"end_px\":0}"
+    },
+    {
+      "id": "playhead_height_px",
+      "type": "number",
+      "label": "Playhead height px",
+      "default": 172
+    },
+    {
+      "id": "timecode_row_px",
+      "type": "number",
+      "label": "Timecode row px",
+      "default": 48
+    },
+    {
+      "id": "timecodes",
+      "type": "string",
+      "label": "Timecodes",
+      "default": "[]"
+    },
+    {
+      "id": "tracks",
+      "type": "string",
+      "label": "Tracks",
+      "default": "[]"
+    },
+    {
+      "id": "ticks",
+      "type": "string",
+      "label": "Ticks",
+      "default": "[]"
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Fps",
+      "default": 30
+    },
+    {
+      "id": "panel_height_px",
+      "type": "number",
+      "label": "Panel height px",
+      "default": 272
+    },
+    {
+      "id": "ruler_top_px",
+      "type": "number",
+      "label": "Ruler top px",
+      "default": 78
+    },
+    {
+      "id": "playhead_top_px",
+      "type": "number",
+      "label": "Playhead top px",
+      "default": 76
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}

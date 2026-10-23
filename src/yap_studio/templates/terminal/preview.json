@@ -1,0 +1,12 @@
+{
+  "slots": {
+    "command": "run task",
+    "output": [
+      "Ready",
+      "Complete"
+    ],
+    "title": "Console",
+    "host": "local",
+    "word_cues": []
+  }
+}

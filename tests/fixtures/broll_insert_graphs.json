@@ -1,0 +1,31 @@
+{
+  "cover": [
+    "[0:0]setpts=PTS-STARTPTS,trim=start=0.000000000000,setpts=(PTS-STARTPTS)/1.000000000000,fps=30:start_time=0:round=near,trim=end_frame=30,tpad=stop_mode=clone:stop=1,trim=end_frame=30,setsar=1[p0]",
+    "[p0]scale=1080:1920:force_original_aspect_ratio=increase:force_divisible_by=2,crop=1080:1920[p1]",
+    "[p1]format=yuv444p[p2]",
+    "[p2]setsar=1,settb=1/30,setpts=N+10[p3]"
+  ],
+  "contain": [
+    "[0:0]setpts=PTS-STARTPTS,trim=start=0.000000000000,setpts=(PTS-STARTPTS)/1.000000000000,fps=30:start_time=0:round=near,trim=end_frame=30,tpad=stop_mode=clone:stop=1,trim=end_frame=30,setsar=1[p0]",
+    "[p0]split=2[b1][f1]",
+    "[b1]scale=1080:1920:force_original_aspect_ratio=increase:force_divisible_by=2,crop=1080:1920,boxblur=24:2[p2]",
+    "[f1]scale=1080:1920:force_original_aspect_ratio=decrease:force_divisible_by=2[p3]",
+    "[p2][p3]overlay=x=(W-w)/2:y=(H-h)/2:format=auto:shortest=1[p4]",
+    "[p4]format=yuv444p[p5]",
+    "[p5]setsar=1,settb=1/30,setpts=N+10[p6]"
+  ],
+  "crop": [
+    "[0:0]setpts=PTS-STARTPTS,trim=start=0.000000000000,setpts=(PTS-STARTPTS)/1.000000000000,fps=30:start_time=0:round=near,trim=end_frame=30,tpad=stop_mode=clone:stop=1,trim=end_frame=30,setsar=1[p0]",
+    "[p0]crop=300:160:8:6:exact=1,scale=1080:1920:force_original_aspect_ratio=increase:force_divisible_by=2,crop=1080:1920[p1]",
+    "[p1]format=yuv444p[p2]",
+    "[p2]setsar=1,settb=1/30,setpts=N+10[p3]"
+  ],
+  "push": [
+    "[0:0]setpts=PTS-STARTPTS,trim=start=0.000000000000,setpts=(PTS-STARTPTS)/1.000000000000,fps=30:start_time=0:round=near,trim=end_frame=30,tpad=stop_mode=clone:stop=1,trim=end_frame=30,setsar=1[p0]",
+    "[p0]scale=1080:1920:force_original_aspect_ratio=increase:force_divisible_by=2,crop=1080:1920[p1]",
+    "[p1]format=yuv444p[p2]",
+    "[p2]scale=4320:7680:flags=bicubic[p3]",
+    "[p3]scale=w='trunc(4320*(1+0.080000000000*n/29)/2)*2':h='trunc(7680*(1+0.080000000000*n/29)/2)*2':eval=frame,crop=4320:7680:x='(trunc(4320*(1+0.080000000000*n/29)/2)*2-4320)/2':y='(trunc(7680*(1+0.080000000000*n/29)/2)*2-7680)/2':exact=1,scale=1080:1920:flags=bicubic:out_range=tv[p4]",
+    "[p4]setsar=1,settb=1/30,setpts=N+10[p5]"
+  ]
+}

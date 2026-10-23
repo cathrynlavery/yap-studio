@@ -1,0 +1,130 @@
+{
+  "schema": "yap-studio/platforms@1",
+  "platforms": {
+    "youtube": {
+      "label": "YouTube",
+      "checked": "2026-09-28",
+      "shape": {
+        "accept": ["horizontal"],
+        "warn": ["square"],
+        "fail": ["vertical"],
+        "rule": "YouTube's standard shape is 16:9 horizontal, and square or vertical videos up to 3 minutes count as Shorts.",
+        "source_url": "https://support.google.com/youtube/answer/1722171",
+        "additional_source_url": "https://support.google.com/youtube/answer/15424877",
+        "checked": "2026-09-28"
+      },
+      "duration": {
+        "max_s": 43200,
+        "warn_over_s": 900,
+        "rule": "The maximum upload is 12 hours or 256 GB, whichever is less.",
+        "warn_rule": "By default, uploads can be up to 15 minutes; verified accounts can upload longer videos.",
+        "source_url": "https://support.google.com/youtube/answer/71673",
+        "checked": "2026-09-28"
+      },
+      "resolution": {
+        "min_short_side": 720,
+        "rule": "YouTube's recommended resolution list includes 720p HD at 1280x720.",
+        "note": "lowest HD resolution in YouTube's recommended list",
+        "source_url": "https://support.google.com/youtube/answer/6375112",
+        "checked": "2026-09-28"
+      },
+      "fps": {
+        "common": [24, 25, 30, 48, 50, 60],
+        "min": null,
+        "rule": "Common frame rates are 24, 25, 30, 48, 50, and 60 fps; other frame rates are also acceptable.",
+        "source_url": "https://support.google.com/youtube/answer/1722171",
+        "checked": "2026-09-28"
+      },
+      "loudness": null
+    },
+    "shorts": {
+      "label": "YouTube Shorts",
+      "checked": "2026-09-28",
+      "shape": {
+        "accept": ["vertical", "square"],
+        "warn": [],
+        "fail": ["horizontal"],
+        "rule": "Square or vertical videos up to 3 minutes are categorized as Shorts.",
+        "source_url": "https://support.google.com/youtube/answer/15424877",
+        "checked": "2026-09-28"
+      },
+      "duration": {
+        "max_s": 180,
+        "rule": "A square or vertical video must be 3 minutes or less to be categorized as a Short.",
+        "source_url": "https://support.google.com/youtube/answer/15424877",
+        "checked": "2026-09-28"
+      },
+      "resolution": {
+        "min_short_side": null,
+        "max_short_side": 1080,
+        "rule": "Short videos can be uploaded with a maximum resolution of 1080p.",
+        "source_url": "https://support.google.com/youtube/answer/10059070",
+        "checked": "2026-09-28"
+      },
+      "fps": null,
+      "loudness": null
+    },
+    "tiktok": {
+      "label": "TikTok",
+      "checked": "2026-09-28",
+      "shape": {
+        "accept": ["vertical"],
+        "warn": ["square"],
+        "fail": ["horizontal"],
+        "rule": "TikTok web uploads must be 720x1280 or higher; this preset reads that portrait size as vertical.",
+        "note": "the shape rule is read from the published portrait resolution",
+        "source_url": "https://support.tiktok.com/en/using-tiktok/creating-videos/creator-tools-on-tiktok",
+        "checked": "2026-09-28"
+      },
+      "duration": {
+        "max_s": 3600,
+        "warn_over_s": 1800,
+        "rule": "Videos uploaded in TikTok can be up to 60 minutes long.",
+        "warn_rule": "Web uploads in creator tools can be up to 30 minutes long.",
+        "source_url": "https://support.tiktok.com/en/using-tiktok/creating-videos/camera-tools",
+        "warn_source_url": "https://support.tiktok.com/en/using-tiktok/creating-videos/creator-tools-on-tiktok",
+        "checked": "2026-09-28"
+      },
+      "resolution": {
+        "min_short_side": 720,
+        "rule": "Web uploads must have a resolution of 720x1280 or higher.",
+        "source_url": "https://support.tiktok.com/en/using-tiktok/creating-videos/creator-tools-on-tiktok",
+        "checked": "2026-09-28"
+      },
+      "fps": null,
+      "loudness": null
+    },
+    "reels": {
+      "label": "Instagram Reels",
+      "checked": "2026-09-28",
+      "shape": {
+        "min_aspect": 0.5625,
+        "max_aspect": 1.91,
+        "rule": "Reels accept aspect ratios between 9:16 and 1.91:1.",
+        "source_url": "https://help.instagram.com/1038071743007909",
+        "checked": "2026-09-28"
+      },
+      "duration": {
+        "max_s": 1200,
+        "warn_over_s": 180,
+        "rule": "Reel clips can add up to 20 minutes.",
+        "warn_rule": "Reels over 3 minutes are not recommended to new audiences.",
+        "source_url": "https://help.instagram.com/2720958398006062",
+        "checked": "2026-09-28"
+      },
+      "resolution": {
+        "min_short_side": 720,
+        "rule": "Reels should have a minimum resolution of 720 pixels.",
+        "source_url": "https://help.instagram.com/1038071743007909",
+        "checked": "2026-09-28"
+      },
+      "fps": {
+        "min": 30,
+        "rule": "Reels should have a minimum frame rate of 30 fps.",
+        "source_url": "https://help.instagram.com/1038071743007909",
+        "checked": "2026-09-28"
+      },
+      "loudness": null
+    }
+  }
+}

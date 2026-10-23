@@ -1,0 +1,10 @@
+{
+  "name": "yap-studio",
+  "version": "1.0.0",
+  "description": "Checks every cut in a finished video: clicks, sync, frames, loudness and platform rules.",
+  "author": {
+    "name": "Cathryn Lavery"
+  },
+  "license": "Apache-2.0",
+  "keywords": ["video", "verify", "cuts", "sync"]
+}

@@ -1,0 +1,19 @@
+{
+  "slots": {
+    "title": "Details",
+    "rows": [
+      {
+        "name": "Duration",
+        "value": "12 weeks"
+      },
+      {
+        "name": "Format",
+        "value": "Live and recorded"
+      },
+      {
+        "name": "Access",
+        "value": "Included"
+      }
+    ]
+  }
+}

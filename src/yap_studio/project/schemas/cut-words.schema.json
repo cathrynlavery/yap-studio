@@ -1,0 +1,78 @@
+{
+  "$id": "urn:yap-studio:cut-words:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "yap-studio/cut-words@1"
+    },
+    "time_base": {
+      "const": "output"
+    },
+    "words": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "conf": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "id": {
+            "pattern": "^t[1-9][0-9]*:(0|[1-9][0-9]*)$",
+            "type": "string"
+          },
+          "segment": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "start",
+          "end",
+          "segment"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "words_sha256": {
+      "additionalProperties": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "pattern": "^t[1-9][0-9]*$",
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "time_base",
+    "words_sha256",
+    "words"
+  ],
+  "type": "object"
+}

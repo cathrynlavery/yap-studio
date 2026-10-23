@@ -1,0 +1,184 @@
+{
+  "id": "flow",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [
+    {
+      "item": "hw-pipeline",
+      "path": "registry/blocks/hw-pipeline/hw-pipeline.html"
+    },
+    {
+      "item": "hw-arrow",
+      "path": "registry/components/hw-arrow/hw-arrow.html"
+    }
+  ],
+  "slots": {
+    "nodes": {
+      "type": "string_list",
+      "required": true,
+      "min_items": 2,
+      "max_items": 4,
+      "min_length": 1,
+      "max_length": 18
+    },
+    "cues": {
+      "type": "number_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 4,
+      "default": []
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "nodes",
+      "type": "string",
+      "label": "Nodes",
+      "default": "[]"
+    },
+    {
+      "id": "cues",
+      "type": "string",
+      "label": "Cues",
+      "default": "[]"
+    },
+    {
+      "id": "text_px",
+      "type": "number",
+      "label": "Text px",
+      "default": 40
+    },
+    {
+      "id": "box_width_px",
+      "type": "number",
+      "label": "Box width px",
+      "default": 256
+    },
+    {
+      "id": "box_height_px",
+      "type": "number",
+      "label": "Box height px",
+      "default": 120
+    },
+    {
+      "id": "arrow_gap_px",
+      "type": "number",
+      "label": "Arrow gap px",
+      "default": 72
+    },
+    {
+      "id": "flow_look",
+      "type": "string",
+      "label": "Flow look",
+      "default": "boxes"
+    },
+    {
+      "id": "tag_height_px",
+      "type": "number",
+      "label": "Tag height px",
+      "default": 73
+    },
+    {
+      "id": "tag_max_width_px",
+      "type": "number",
+      "label": "Tag max width px",
+      "default": 827
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}

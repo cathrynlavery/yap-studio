@@ -1,0 +1,149 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "code-terminal-run"
+  (registry/components/code-terminal-run/code-terminal-run.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "typed-prompt"
+  (registry/components/typed-prompt/typed-prompt.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Added typed slots with fixed word cues, a title and host bar, style tokens, and bounded pixel typography.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"command","type":"string","label":"Command","default":""},{"id":"output","type":"string","label":"Output","default":"[]"},{"id":"title","type":"string","label":"Title","default":""},{"id":"host","type":"string","label":"Host","default":""},{"id":"prompt","type":"string","label":"Prompt","default":"$"},{"id":"schedule","type":"string","label":"Schedule","default":"{\"command\":\"\",\"output\":[],\"rows\":[[0,0]],\"type_start\":0.4,\"type_end\":0.41,\"exec_at\":0.63,\"output_at\":[]}"},{"id":"text_px","type":"number","label":"Text px","default":40},{"id":"bar_px","type":"number","label":"Bar px","default":30}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  width: var(--card-panel-width); max-height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); transform-origin: 50% 60%;
+  overflow: hidden;
+}
+.bar {
+  position: relative; height: 60px; padding: 12px 24px; display: flex; align-items: center;
+  background: var(--card-titlebar); color: var(--card-bar-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-ink) 14%, transparent);
+  font-size: var(--card-bar-size); line-height: 1.2;
+}
+.dots { display: flex; gap: 6px; width: 48px; flex: 0 0 48px; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--card-bar-ink); }
+.bar-title { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.host {
+  margin-left: auto; padding: 0 12px; display: flex; align-items: center; gap: 6px;
+  border-radius: 999px; font-family: var(--card-mono); white-space: nowrap;
+  background: var(--card-accent); color: var(--card-accent-ink);
+}
+.host-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--card-accent);
+  box-shadow: 0 0 0 2px var(--card-accent-ink); }
+.terminal-body { padding: 20px 24px; font-family: var(--card-mono); }
+.command, .output { font-size: var(--card-text-size); line-height: 1.35; white-space: pre; }
+.output { color: color-mix(in srgb, var(--card-ink) 62%, var(--card-paper)); }
+.prompt { color: var(--card-accent); }
+.caret {
+  display: inline-block; width: 0.55em; height: 1.05em; margin-left: 0.08em;
+  background: var(--card-accent); vertical-align: text-bottom;
+}
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="terminal" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel">
+  <div class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="bar-title"></span>
+    <span class="host"><i class="host-dot"></i><span class="host-text"></span></span></div>
+  <div class="terminal-body"><div class="command"><span class="prompt"></span><span class="typed"></span><span class="caret"></span></div></div>
+</div>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    function px(name, value) {
+      root.style.setProperty(`--card-${name}`, `${value}px`, "important");
+    }
+    function list(value, coerce) {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.map(coerce) : [];
+      } catch (_) { return []; }
+    }
+    px("text-size", v.text_px);
+    px("bar-size", v.bar_px);
+    root.querySelector(".bar-title").textContent = String(v.title);
+    root.querySelector(".host-text").textContent = String(v.host);
+    root.querySelector(".host").hidden = !v.host;
+    if (!v.host) root.querySelector(".host").style.display = "none";
+    root.querySelector(".prompt").textContent = String(v.prompt) + " ";
+    const command = Array.from(String(v.command));
+    const schedule = JSON.parse(v.schedule);
+    if (schedule.command !== v.command ||
+        JSON.stringify(schedule.output) !== JSON.stringify(JSON.parse(v.output))) {
+      throw new Error("schedule must come from card_layer_plan for the same command and output");
+    }
+    const commandNode = document.createTextNode("");
+    root.querySelector(".typed").appendChild(commandNode);
+    const outputs = list(v.output, String).map(function (text) {
+      const line = document.createElement("div");
+      line.className = "output";
+      line.appendChild(document.createTextNode(text));
+      root.querySelector(".terminal-body").appendChild(line);
+      return line;
+    });
+    const PRINT = 0.12;
+    // Build explicit text endpoints so repeated and reverse seeks share the table.
+    gsap.set(panel, { opacity: 0, y: 10 });
+    outputs.forEach(line => gsap.set(line, { opacity: 0 }));
+    const caret = root.querySelector(".caret");
+    gsap.set(caret, { opacity: 1 });
+    const tl = gsap.timeline({ paused: true });
+    const IN = Math.min(0.5, outStart);
+    tl.fromTo(panel, { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: IN, ease: "power3.out" }, 0);
+    schedule.rows.forEach(([t, n]) =>
+      tl.set(commandNode, { textContent: command.slice(0, n).join("") }, t));
+    const cycles = Math.max(1, Math.round((schedule.type_end - schedule.type_start) / 0.9));
+    for (let phase = 0; phase < cycles * 2; phase += 1) {
+      tl.set(caret, { opacity: phase % 2 === 0 ? 1 : 0 },
+        schedule.type_start + (schedule.type_end - schedule.type_start) * phase / (cycles * 2));
+    }
+    tl.set(caret, { opacity: 1 }, schedule.type_end);
+    tl.set(caret, { opacity: 0 }, schedule.exec_at);
+    outputs.forEach(function (line, i) {
+      tl.fromTo(line, { opacity: 0 },
+        { opacity: 1, duration: PRINT, ease: "none" },
+        schedule.output_at[i]);
+    });
+    tl.fromTo(panel, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    tl.seek(0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["terminal"] = tl;
+})();
+</script>
+</body>
+</html>

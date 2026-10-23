@@ -1,0 +1,231 @@
+{
+  "id": "image_compare",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [
+    {
+      "item": "before-after-wipe",
+      "path": "registry/components/before-after-wipe/before-after-wipe.html"
+    }
+  ],
+  "slots": {
+    "before": {
+      "type": "image",
+      "description": "Sets the frame aspect inside the band. Both images fill the frame with object-fit: cover and object-position: 50% 50%; this image is uncropped.",
+      "required": true,
+      "options": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp"
+      ]
+    },
+    "after": {
+      "type": "image",
+      "description": "Fills the frame at the before image's aspect with object-fit: cover and object-position: 50% 50%; another aspect is cropped equally from opposite sides without stretching.",
+      "required": true,
+      "options": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp"
+      ]
+    },
+    "before_label": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 20,
+      "default": "Before"
+    },
+    "after_label": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 20,
+      "default": "After"
+    },
+    "split": {
+      "type": "integer",
+      "required": false,
+      "minimum": 10,
+      "maximum": 90,
+      "default": 50
+    },
+    "wipe_at": {
+      "type": "number",
+      "required": false,
+      "default": 0.4
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "before_src",
+      "type": "string",
+      "label": "Before src",
+      "default": ""
+    },
+    {
+      "id": "after_src",
+      "type": "string",
+      "label": "After src",
+      "default": ""
+    },
+    {
+      "id": "before_label",
+      "type": "string",
+      "label": "Before label",
+      "default": "Before"
+    },
+    {
+      "id": "after_label",
+      "type": "string",
+      "label": "After label",
+      "default": "After"
+    },
+    {
+      "id": "split",
+      "type": "number",
+      "label": "Split",
+      "default": 50
+    },
+    {
+      "id": "wipe_at",
+      "type": "number",
+      "label": "Wipe at",
+      "default": 0.4
+    },
+    {
+      "id": "chip_px",
+      "type": "number",
+      "label": "Chip px",
+      "default": 36
+    },
+    {
+      "id": "before_chip_max_width_px",
+      "type": "number",
+      "label": "Before chip max width px",
+      "default": 172
+    },
+    {
+      "id": "after_chip_max_width_px",
+      "type": "number",
+      "label": "After chip max width px",
+      "default": 172
+    },
+    {
+      "id": "after_chip_reveal_progress",
+      "type": "number",
+      "label": "After chip reveal progress",
+      "default": 0.65
+    },
+    {
+      "id": "image_max_width_px",
+      "type": "number",
+      "label": "Image max width px",
+      "default": 944
+    },
+    {
+      "id": "image_max_height_px",
+      "type": "number",
+      "label": "Image max height px",
+      "default": 256
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}

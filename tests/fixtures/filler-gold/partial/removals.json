@@ -1,0 +1,13 @@
+{
+  "schema": "yap-studio/removals@1",
+  "removals": [
+    {"id": "r1", "take": "t1", "start": 1, "end": 2, "kind": "filler", "status": "applied"},
+    {"id": "r2", "take": "t1", "start": 3, "end": 3.4, "kind": "filler", "status": "proposed"},
+    {"id": "r3", "take": "t1", "start": 5, "end": 6, "kind": "silence", "status": "applied"},
+    {"id": "r4", "take": "t1", "start": 11, "end": 12, "kind": "restart", "status": "applied"},
+    {"id": "r5", "take": "t1", "start": 3.4, "end": 4, "kind": "filler", "status": "rejected"},
+    {"id": "r6", "take": "t1", "start": 3.4, "end": 4, "kind": "filler", "status": "applied", "by": "manual"},
+    {"id": "r7", "take": "t1", "start": 7, "end": 8, "kind": "manual", "status": "applied", "by": "manual"},
+    {"id": "r8", "take": "t1", "start": 7, "end": 8, "kind": "silence", "status": "rejected"}
+  ]
+}

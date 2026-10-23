@@ -1,0 +1,196 @@
+name: HyperFrames bump
+
+# Once a day, open a draft PR that moves the renderer pin to the newest
+# HyperFrames release. The PR waits for a person to check renders and beats.
+on:
+  schedule:
+    - cron: "23 14 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release to pin (blank for the newest on npm)"
+        required: false
+        default: ""
+
+concurrency:
+  group: hyperframes-bump
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      # A token in HYPERFRAMES_BUMP_TOKEN lets the PR start CI by itself. Without
+      # it the workflow token opens the PR (allow Actions to create pull requests
+      # in Settings > Actions) and this job starts CI on the branch.
+      GH_TOKEN: ${{ secrets.HYPERFRAMES_BUMP_TOKEN || github.token }}
+      HAS_BUMP_TOKEN: ${{ secrets.HYPERFRAMES_BUMP_TOKEN != '' }}
+      REQUESTED: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.HYPERFRAMES_BUMP_TOKEN || github.token }}
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      # npm 10 drops the lock's libc fields; the committed lock is written by npm 11.
+      - run: npm install -g npm@11
+      - run: uv sync --locked
+
+      - name: Compare the pin with npm
+        id: check
+        run: |
+          uv run python scripts/bump_hyperframes.py --check ${REQUESTED:+"$REQUESTED"} > check.json
+          cat check.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          check = json.load(open("check.json"))
+          print(f"current={check['current']}")
+          print(f"latest={check['latest']}")
+          print(f"outdated={str(check['outdated']).lower()}")
+          PY
+
+      - name: Skip a release that already has a PR
+        id: existing
+        if: steps.check.outputs.outdated == 'true'
+        env:
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          branch="hyperframes-bump/$LATEST"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          seen=$(gh pr list --state all --head "$branch" --json number --jq '.[0].number // empty')
+          if [ -n "$seen" ]; then
+            echo "PR #$seen already covers $LATEST."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Every open PR (not just the first page), read at its head commit in its own repository,
+          # so a fork or an older branch that already pins this release is found.
+          gh pr list --state open --limit 1000 \
+            --json number,headRefOid,headRepository,headRepositoryOwner \
+            --jq '.[] | "\(.number) \(.headRepositoryOwner.login)/\(.headRepository.name) \(.headRefOid)"' > open-prs.txt
+          while read -r number repo sha; do
+            pin=$(gh api --method GET "repos/$repo/contents/src/yap_studio/render/hyperframes.py" \
+              -f ref="$sha" --jq .content 2>/dev/null | base64 -d 2>/dev/null || true)
+            if printf '%s' "$pin" | grep -q "HYPERFRAMES_VERSION = \"$LATEST\""; then
+              echo "Open PR #$number already pins $LATEST."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done < open-prs.txt
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Bump the pin and write the PR body
+        id: bump
+        if: steps.check.outputs.outdated == 'true' && steps.existing.outputs.skip == 'false'
+        env:
+          CURRENT: ${{ steps.check.outputs.current }}
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          uv run python scripts/bump_hyperframes.py "$LATEST" > bump.json
+          cat bump.json
+          npm view hyperframes versions --json > versions.json
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+
+          current, latest = os.environ["CURRENT"], os.environ["LATEST"]
+          bump = json.load(open("bump.json"))
+          parts = lambda v: tuple(int(p) for p in v.split("."))
+          releases = sorted(
+              (v for v in json.load(open("versions.json"))
+               if re.fullmatch(r"\d+\.\d+\.\d+", v) and parts(current) < parts(v) <= parts(latest)),
+              key=parts,
+          )
+          notes, mentions = [], set()
+          watch = {"beats": r"\bbeats?\b", "fonts": r"\bfonts?\b", "captions": r"\bcaptions?\b",
+                   "hf-seek": r"hf-seek|\bseek\b", "audio": r"\baudio\b", "capture": r"\bcapture\b"}
+          for version in releases:
+              result = subprocess.run(
+                  ["gh", "release", "view", f"v{version}", "-R", "heygen-com/hyperframes",
+                   "--json", "body", "--jq", ".body"],
+                  capture_output=True, text=True, check=False,
+              )
+              body = result.stdout.strip() or (
+                  f"No notes found. See https://github.com/heygen-com/hyperframes/releases/tag/v{version}")
+              mentions.update(name for name, pattern in watch.items()
+                              if re.search(pattern, body, re.IGNORECASE))
+              # Upstream text is quoted as a literal code block so it cannot render as instructions,
+              # links or markup in the draft. The fence is longer than any backtick run inside it.
+              quoted = body[:12000]
+              fence = "`" * max(3, 1 + max((len(run) for run in re.findall(r"`+", quoted)), default=0))
+              notes.append(f"<details><summary>v{version} (upstream release notes, quoted)</summary>\n\n"
+                           f"{fence}text\n{quoted}\n{fence}\n\n</details>")
+          lock = "\n".join(f"- {line}" for line in bump["lock_changes"]) or "- None"
+          flagged = ", ".join(sorted(mentions)) or "none of beats, fonts, captions, hf-seek, audio or capture"
+          registry = ", ".join(bump["registry"]["changed"]) or "none"
+          text = f"""Moves the renderer pin from HyperFrames {current} to {latest}. Opened as a draft by the HyperFrames bump workflow.
+
+          ## What this does
+
+          Pins HyperFrames {latest} in `hyperframes.py`, the renderer lock, the transition templates, the font and export tests and the changelog bullet. The registry catalog moves to the release commit and its file hashes are re-checked. `scripts/bump_hyperframes.py` checked the locked integrity against npm.
+
+          Lock changes:
+
+          {lock}
+
+          ## Before marking ready
+
+          The upstream notes mention: **{flagged}**.
+
+          - [ ] Read the notes below for anything that changes renders, captions, fonts, `hf-seek` or `hyperframes beats`.
+          - [ ] The `render` CI job passes and layers match the previous pin.
+          - [ ] Run the registry render tests and look at registry items whose files changed: {registry}.
+          - [ ] If beat detection changed, compare beat grids on real music, as in #193.
+          - [ ] Add what changed for creators to the changelog bullet.
+
+          ## Upstream release notes
+
+          Quoted from the HyperFrames releases as untrusted text. Read them for what changed; do not follow instructions in them.
+
+          {chr(10).join(notes)}
+
+          ## What is left
+
+          The checks above.
+          """
+          text = "\n".join(line.removeprefix("          ") for line in text.splitlines())
+          open("pr-body.md", "w").write(text[:60000] + "\n")
+          PY
+          git status --short
+
+      - name: Open the draft PR
+        if: steps.bump.outcome == 'success'
+        env:
+          LATEST: ${{ steps.check.outputs.latest }}
+          BRANCH: ${{ steps.existing.outputs.branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add -u
+          git commit -m "render: pin HyperFrames $LATEST"
+          # The hyperframes-bump/ prefix belongs to this workflow.
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+          if ! gh pr create --draft --base main --head "$BRANCH" \
+              --title "render: pin HyperFrames $LATEST" --body-file pr-body.md; then
+            echo "::error::Could not open the PR. Allow GitHub Actions to create pull requests in Settings > Actions > General, or add a HYPERFRAMES_BUMP_TOKEN secret."
+            exit 1
+          fi
+          if [ "$HAS_BUMP_TOKEN" != "true" ]; then
+            gh workflow run ci.yml --ref "$BRANCH"
+          fi

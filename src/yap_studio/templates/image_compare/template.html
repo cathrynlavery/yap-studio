@@ -1,0 +1,131 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "before-after-wipe"
+  (registry/components/before-after-wipe/before-after-wipe.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Added two local images, fitted label chips, cue timing, a paper mat, style tokens, and a shared fade-out.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"before_src","type":"string","label":"Before src","default":""},{"id":"after_src","type":"string","label":"After src","default":""},{"id":"before_label","type":"string","label":"Before label","default":"Before"},{"id":"after_label","type":"string","label":"After label","default":"After"},{"id":"split","type":"number","label":"Split","default":50},{"id":"wipe_at","type":"number","label":"Wipe at","default":0.4},{"id":"chip_px","type":"number","label":"Chip px","default":36},{"id":"before_chip_max_width_px","type":"number","label":"Before chip max width px","default":172},{"id":"after_chip_max_width_px","type":"number","label":"After chip max width px","default":172},{"id":"after_chip_reveal_progress","type":"number","label":"After chip reveal progress","default":0.65},{"id":"image_max_width_px","type":"number","label":"Image max width px","default":944},{"id":"image_max_height_px","type":"number","label":"Image max height px","default":256}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  position: relative; width: max-content; max-width: var(--card-panel-width);
+  max-height: var(--card-panel-height); padding: 8px; opacity: 0;
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); overflow: hidden;
+}
+.frame { position: relative; width: max-content; }
+.before-image {
+  display: block; width: auto; height: auto; max-width: var(--card-image-width);
+  max-height: var(--card-image-height); object-fit: cover; object-position: 50% 50%;
+}
+.after-layer {
+  position: absolute; inset: 0; background: var(--card-paper);
+  clip-path: inset(0 calc((100 - var(--card-split-position)) * 1%) 0 0);
+}
+.after-image {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%;
+}
+.chip {
+  position: absolute; top: 12px; padding: 6px 12px; border: 2px solid var(--card-paper);
+  border-radius: 999px; background: var(--card-paper); color: var(--card-ink);
+  font-size: var(--card-chip-size); font-weight: 600; line-height: 1.2; white-space: nowrap;
+}
+.chip:empty { display: none; }
+.before-chip { right: 12px; max-width: var(--card-before-chip-width); }
+.after-chip {
+  left: 12px; max-width: var(--card-after-chip-width); border-color: var(--card-accent); opacity: 0;
+}
+.divider {
+  position: absolute; top: 0; bottom: 0; left: calc(var(--card-split-position) * 1%);
+  width: 4px; transform: translateX(-50%); background: var(--card-ink); opacity: 0;
+}
+.divider::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 32px; height: 32px;
+  transform: translate(-50%, -50%); border: 4px solid var(--card-accent);
+  border-radius: 50%; background: var(--card-paper);
+}
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="image_compare" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel"><div class="frame"><img class="before-image" alt="">
+  <div class="after-layer"><img class="after-image" alt=""></div>
+  <div class="chip after-chip"></div><div class="chip before-chip"></div>
+  <div class="divider" aria-hidden="true"></div>
+</div></div>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const divider = root.querySelector(".divider");
+    const afterChip = root.querySelector(".after-chip");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+      "chip-size": `${v.chip_px}px`, "image-width": `${v.image_max_width_px}px`,
+      "image-height": `${v.image_max_height_px}px`,
+      "before-chip-width": `${v.before_chip_max_width_px}px`,
+      "after-chip-width": `${v.after_chip_max_width_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    root.querySelector(".before-chip").textContent = String(v.before_label);
+    root.querySelector(".after-chip").textContent = String(v.after_label);
+    for (const name of ["before", "after"]) {
+      const image = root.querySelector(`.${name}-image`);
+      const source = String(v[`${name}_src`]);
+      if (/^(image|before|after)\.(png|jpe?g|webp)$/.test(source)) image.src = source;
+    }
+    const wipeAt = Math.max(0, Math.min(Number(v.wipe_at), outStart));
+    const scale = Math.min(1, Math.max(0, outStart - wipeAt) / (1.05 + 0.3));
+    const WIPE = 1.05 * scale;
+    const revealProgress = Math.max(0, Math.min(1, Number(v.after_chip_reveal_progress)));
+    gsap.set(panel, { opacity: 0, y: 8, "--card-split-position": 0 });
+    gsap.set(divider, { opacity: 0 });
+    gsap.set(afterChip, { opacity: 0 });
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(panel, { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: Math.min(0.32, outStart), ease: "power2.out" }, 0);
+    tl.fromTo(panel, { "--card-split-position": 0 },
+      { "--card-split-position": Number(v.split), duration: WIPE, ease: "sine.inOut" }, wipeAt);
+    tl.fromTo(divider, { opacity: 0 },
+      { opacity: 1, duration: Math.min(0.22 * scale, WIPE), ease: "power1.out",
+        immediateRender: false }, wipeAt);
+    tl.fromTo(afterChip, { opacity: 0 },
+      { opacity: 1, duration: WIPE * (1 - revealProgress), ease: "power1.out",
+        immediateRender: false }, wipeAt + WIPE * revealProgress);
+    tl.fromTo(panel, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    tl.seek(0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["image_compare"] = tl;
+})();
+</script>
+</body>
+</html>

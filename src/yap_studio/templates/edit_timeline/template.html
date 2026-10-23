@@ -1,0 +1,142 @@
+<!doctype html>
+<!-- Yap Studio card: edit_timeline. -->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E2DA"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#F4F3EE"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 0 0 2px color-mix(in srgb, #222222 12%, transparent), 0 8px 18px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"title","type":"string","label":"Title","default":""},{"id":"title_px","type":"number","label":"Title px","default":30},{"id":"text_px","type":"number","label":"Text px","default":30},{"id":"timecode_px","type":"number","label":"Timecode px","default":40},{"id":"timecode_width_px","type":"number","label":"Timecode width px","default":245},{"id":"label_width_px","type":"number","label":"Label width px","default":85},{"id":"lane_left_px","type":"number","label":"Lane left px","default":129},{"id":"lane_width_px","type":"number","label":"Lane width px","default":807},{"id":"window_start_frame","type":"number","label":"Window start frame","default":630.0},{"id":"window_end_frame","type":"number","label":"Window end frame","default":900.0},{"id":"playhead","type":"string","label":"Playhead","default":"{\"start_px\":0,\"end_px\":0}"},{"id":"playhead_height_px","type":"number","label":"Playhead height px","default":172},{"id":"timecode_row_px","type":"number","label":"Timecode row px","default":48},{"id":"timecodes","type":"string","label":"Timecodes","default":"[]"},{"id":"tracks","type":"string","label":"Tracks","default":"[]"},{"id":"ticks","type":"string","label":"Ticks","default":"[]"},{"id":"fps","type":"number","label":"Fps","default":30},{"id":"panel_height_px","type":"number","label":"Panel height px","default":272},{"id":"ruler_top_px","type":"number","label":"Ruler top px","default":78},{"id":"playhead_top_px","type":"number","label":"Playhead top px","default":76}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font); isolation: isolate; }
+.panel { position: relative; width: var(--card-panel-width); height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius); box-shadow: var(--card-shadow);
+  opacity: 0; overflow: hidden; }
+.header { position: absolute; top: 20px; left: 24px; right: 24px; height: var(--card-timecode-row);
+  display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.timecode { width: var(--card-timecode-width); height: var(--card-timecode-row);
+  overflow: hidden; flex-shrink: 0; font-family: var(--card-mono);
+  font-size: var(--card-timecode-size); line-height: var(--card-timecode-row); }
+.timecode-strip > div { height: var(--card-timecode-row); white-space: nowrap; }
+.title { font-size: var(--card-title-size); font-weight: 600; white-space: nowrap; }
+.ruler { position: absolute; top: var(--card-ruler-top); left: var(--card-lane-left);
+  width: var(--card-lane-width); height: 14px; border-bottom: 1px solid;
+  border-color: color-mix(in srgb, var(--card-ink) 30%, transparent); overflow: hidden; }
+.tick { position: absolute; bottom: 0; width: 1px; height: 5px;
+  background: color-mix(in srgb, var(--card-ink) 45%, transparent); }
+.tick.major { height: 12px; }
+.track { position: absolute; left: 24px; right: 24px; height: 44px; }
+.track-name { position: absolute; left: 0; width: var(--card-label-width); height: 44px;
+  font-size: var(--card-text-size); line-height: 44px; white-space: nowrap; }
+.lane { position: absolute; right: 0; width: var(--card-lane-width); height: 44px;
+  border-radius: 5px; background: color-mix(in srgb, var(--card-ink) 6%, var(--card-paper));
+  overflow: hidden; }
+.clip { position: absolute; top: 2px; height: 40px; border-radius: 4px; transform-origin: left;
+  border-right: 2px solid var(--card-paper); }
+.video-a { background: color-mix(in srgb, var(--card-accent) 28%, var(--card-paper)); }
+.video-b { background: color-mix(in srgb, var(--card-accent) 48%, var(--card-paper)); }
+.broll { background: var(--card-accent); }
+.cards { background: color-mix(in srgb, var(--card-ink) 32%, var(--card-paper)); }
+.playhead-window { position: absolute; top: var(--card-playhead-top); left: var(--card-lane-left);
+  width: var(--card-lane-width); height: var(--card-playhead-height); overflow: hidden;
+  pointer-events: none; z-index: 1; }
+.playhead { position: absolute; top: 0; bottom: 0; left: 0; width: 4px;
+  background: var(--card-ink); }
+.playhead::before { content: ""; position: absolute; top: 0; left: -5px;
+  width: 14px; height: 10px; background: var(--card-ink);
+  clip-path: polygon(0 0, 100% 0, 100% 40%, 50% 100%, 0 40%); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="edit_timeline" data-no-timeline data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel">
+  <div class="header"><div class="timecode"><div class="timecode-strip"></div></div><div class="title"></div></div>
+  <div class="ruler"></div>
+  <div class="playhead-window"><div class="playhead"></div></div>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const tokens = {
+    "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+    "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+    "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+    "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+    "panel-height": `${v.panel_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+    "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    "text-size": `${v.text_px}px`, "title-size": `${v.title_px}px`,
+    "timecode-size": `${v.timecode_px}px`, "timecode-width": `${v.timecode_width_px}px`,
+    "timecode-row": `${v.timecode_row_px}px`, "label-width": `${v.label_width_px}px`,
+    "lane-left": `${v.lane_left_px}px`, "lane-width": `${v.lane_width_px}px`,
+    "playhead-height": `${v.playhead_height_px}px`,
+    "ruler-top": `${v.ruler_top_px}px`, "playhead-top": `${v.playhead_top_px}px`,
+  };
+  Object.entries(tokens).forEach(([name, value]) => {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  });
+  const duration = Number(root.dataset.duration);
+  const out = Math.min(0.3, duration * 0.15);
+  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
+  panel.animate([{ opacity: 0, transform: "translateY(8px)" },
+    { opacity: 1, transform: "translateY(0)" }],
+    { duration: 300, fill: "both", easing });
+  root.animate([{ opacity: 1 }, { opacity: 0 }],
+    { delay: (duration - out) * 1000, duration: out * 1000, fill: "both", easing: "linear" });
+  root.querySelector(".title").textContent = v.title;
+  const strip = root.querySelector(".timecode-strip");
+  const labels = JSON.parse(v.timecodes);
+  labels.forEach(label => {
+    const row = document.createElement("div");
+    row.textContent = label;
+    strip.appendChild(row);
+  });
+  strip.animate([{ transform: "translateY(0)" },
+    { transform: `translateY(${-labels.length * v.timecode_row_px}px)` }],
+    { delay: -0.5 / v.fps * 1000, duration: labels.length / v.fps * 1000,
+      fill: "both", easing: `steps(${labels.length}, end)` });
+  const ruler = root.querySelector(".ruler");
+  JSON.parse(v.ticks).forEach(tick => {
+    const mark = document.createElement("div");
+    mark.className = tick.major ? "tick major" : "tick";
+    mark.style.left = `${tick.x_px}px`;
+    ruler.appendChild(mark);
+  });
+  JSON.parse(v.tracks).forEach((track, index) => {
+    const row = document.createElement("div");
+    row.className = "track";
+    row.style.top = `${track.y_px}px`;
+    const name = document.createElement("div");
+    name.className = "track-name";
+    name.textContent = track.name;
+    const lane = document.createElement("div");
+    lane.className = "lane";
+    track.clips.forEach(clip => {
+      const block = document.createElement("div");
+      block.className = `clip ${clip.tint}`;
+      block.style.left = `${clip.x_px}px`;
+      block.style.width = `${clip.width_px}px`;
+      lane.appendChild(block);
+      block.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }],
+        { delay: 100 + index * 60, duration: 350, fill: "both", easing });
+    });
+    row.appendChild(name);
+    row.appendChild(lane);
+    panel.appendChild(row);
+  });
+  const playhead = root.querySelector(".playhead");
+  const position = JSON.parse(v.playhead);
+  playhead.animate([{ opacity: 0 }, { opacity: 1 }],
+    { duration: 200, fill: "both", easing: "linear" });
+  playhead.animate([{ transform: `translateX(${position.start_px}px)` },
+    { transform: `translateX(${position.end_px}px)` }],
+    { duration: (labels.length - 1) / v.fps * 1000, fill: "both", easing: "linear" });
+})();
+</script>
+</body>
+</html>

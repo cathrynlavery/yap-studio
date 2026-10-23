@@ -1,0 +1,74 @@
+<!doctype html>
+<html data-composition-variables='[{"id":"number","type":"string","label":"Chapter number","default":"02"},{"id":"title","type":"string","label":"Chapter title","default":"Sample chapter"},{"id":"timecode","type":"string","label":"Start time","default":"01:24"},{"id":"font_name","type":"string","label":"Font name","default":"Inter"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"size_px","type":"number","label":"Title size","default":96},{"id":"background_color","type":"color","label":"Wash color","default":"#111111"},{"id":"text_color","type":"color","label":"Text color","default":"#FFFFFF"},{"id":"accent_color","type":"color","label":"Accent color","default":"#D8FF2F"},{"id":"fps","type":"number","label":"Frame rate","default":30}]'>
+<head><meta charset="utf-8"><style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; }
+[data-composition-id] { position: relative; width: 1080px; height: 1920px;
+  overflow: hidden; color: var(--ink);
+  font-family: var(--font); text-align: center; }
+/* The constant wash outside 240..1560 remains available to sync matching.
+   Multiple stops ease into the text band without a visible edge. */
+.surface { position: absolute; inset: 0;
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--background) 45%, transparent) 240px,
+    color-mix(in srgb, var(--background) 46%, transparent) 300px,
+    color-mix(in srgb, var(--background) 50%, transparent) 360px,
+    color-mix(in srgb, var(--background) 58%, transparent) 420px,
+    color-mix(in srgb, var(--background) 65%, transparent) 480px,
+    color-mix(in srgb, var(--background) 69%, transparent) 540px,
+    color-mix(in srgb, var(--background) 70%, transparent) 600px,
+    color-mix(in srgb, var(--background) 70%, transparent) 1200px,
+    color-mix(in srgb, var(--background) 69%, transparent) 1260px,
+    color-mix(in srgb, var(--background) 65%, transparent) 1320px,
+    color-mix(in srgb, var(--background) 58%, transparent) 1380px,
+    color-mix(in srgb, var(--background) 50%, transparent) 1440px,
+    color-mix(in srgb, var(--background) 46%, transparent) 1500px,
+    color-mix(in srgb, var(--background) 45%, transparent) 1560px); }
+.content { position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 120px 90px 260px;
+  text-shadow: 0 3px 16px var(--background), 0 0 6px var(--background); }
+.number { font-size: 300px; font-weight: 400; line-height: 1;
+  font-variant-numeric: tabular-nums; }
+.rule { width: 150px; height: 8px; margin: 56px 0; background: var(--accent);
+  transform-origin: center; flex-shrink: 0; }
+.title { margin: 0; width: 900px; font-size: var(--size); font-weight: 400;
+  line-height: 1.12; text-wrap: balance; white-space: normal; }
+.timecode { margin-top: 64px; font-size: 48px; line-height: 1.2;
+  letter-spacing: .16em; font-variant-numeric: tabular-nums; }
+</style></head>
+<body><div data-composition-id="chapter" data-no-timeline
+  data-width="1080" data-height="1920" data-duration="1.6">
+  <div class="surface"></div><div class="content">
+    <div class="number"></div><div class="rule"></div>
+    <h1 class="title"></h1><div class="timecode"></div>
+  </div>
+</div><script>
+(() => {
+  'use strict';
+  const v = window.__hyperframes.getVariables();
+  const root = document.querySelector('[data-composition-id]');
+  const duration = Number(root.dataset.duration) * 1000;
+  for (const [name, value] of Object.entries({ background: v.background_color,
+    ink: v.text_color, accent: v.accent_color, font: v.font_family, size: `${v.size_px}px` })) {
+    root.style.setProperty(`--${name}`, value);
+  }
+  for (const name of ['number', 'title', 'timecode']) {
+    root.querySelector(`.${name}`).textContent = v[name];
+  }
+  const enter = (selector, keyframes, delay, length = 300) => {
+    root.querySelector(selector).animate(keyframes,
+      { delay, duration: length, fill: 'both', easing: 'cubic-bezier(.2,.8,.2,1)' });
+  };
+  enter('.number', [{ opacity: 0, transform: 'translateY(40px)' },
+    { opacity: 1, transform: 'translateY(0)' }], 0);
+  enter('.rule', [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], 120);
+  enter('.title', [{ opacity: 0, transform: 'translateY(40px)' },
+    { opacity: 1, transform: 'translateY(0)' }], 120);
+  enter('.timecode', [{ opacity: 0 }, { opacity: 1 }], 360, 200);
+  root.animate([
+    { opacity: 0, offset: 0 }, { opacity: 1, offset: 150 / duration },
+    { opacity: 1, offset: (duration - 200) / duration }, { opacity: 0, offset: 1 },
+  ], { duration, fill: 'both', easing: 'linear' });
+})();
+</script></body></html>

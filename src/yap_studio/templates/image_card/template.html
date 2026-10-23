@@ -1,0 +1,231 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "browser-device-stage"
+  (registry/components/browser-device-stage/browser-device-stage.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "paper-collage-reveal"
+  (registry/components/paper-collage-reveal/paper-collage-reveal.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Replaced screen slots with one local image, fitted chrome text, style tokens, an optional seeded paper collage reveal, and a shared fade-out.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"image_src","type":"string","label":"Image src","default":"image.png"},{"id":"title","type":"string","label":"Title","default":""},{"id":"chrome","type":"enum","label":"Chrome","default":"window","options":[{"value":"window","label":"Window"},{"value":"browser","label":"Browser"}]},{"id":"bar_px","type":"number","label":"Bar px","default":30},{"id":"image_max_width_px","type":"number","label":"Image max width px","default":960},{"id":"image_max_height_px","type":"number","label":"Image max height px","default":212},{"id":"reveal","type":"enum","label":"Reveal","default":"fade","options":[{"value":"fade","label":"Fade"},{"value":"collage","label":"Collage"}]},{"id":"reveal_at","type":"number","label":"Reveal at","default":0.3},{"id":"panels","type":"number","label":"Panels","default":6,"min":4,"max":8,"step":1},{"id":"collage_span_s","type":"number","label":"Collage span s","default":1.25},{"id":"collage_exit_s","type":"number","label":"Collage exit s","default":0.45}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  width: max-content; max-width: var(--card-image-width); max-height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); transform-origin: 50% 60%; overflow: hidden;
+  will-change: transform;
+}
+.bar {
+  position: relative; height: 60px; padding: 12px 8px; display: flex; align-items: center;
+  width: 0; min-width: 100%;
+  background: var(--card-titlebar); color: var(--card-bar-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-ink) 14%, transparent);
+  font-size: var(--card-bar-size); line-height: 1.2;
+}
+.dots { display: flex; gap: 6px; width: 48px; flex: 0 0 48px; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--card-bar-ink); }
+.bar-title { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.browser .bar-title { font-family: var(--card-mono); padding: 0 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--card-ink) 14%, transparent); }
+.screen { display: flex; justify-content: center; }
+.screen img { display: block; width: auto; height: auto; max-width: var(--card-image-width);
+  max-height: var(--card-image-height); object-fit: contain; }
+.screen.collage { position: relative; overflow: hidden; isolation: isolate; }
+.collage-scraps { position: absolute; inset: 0; }
+.collage-scrap {
+  --card-lift: 0;
+  position: absolute;
+  filter: drop-shadow(0 calc(1px + var(--card-lift) * 12px)
+    calc(2px + var(--card-lift) * 14px) color-mix(in srgb, var(--card-ink) 28%, transparent));
+}
+.collage-arc, .collage-fill, .collage-grain { position: absolute; inset: 0; }
+.collage-arc { filter: url(#collage-deckle); }
+.collage-fill { background: var(--card-scrap-tone); }
+.collage-grain { background: var(--card-ink); opacity: 0.035; filter: url(#collage-grain); }
+.collage-filters { position: absolute; width: 0; height: 0; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="image_card" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel"><div class="bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="bar-title"></span></div><div class="screen"><img alt=""></div></div>
+<svg class="collage-filters" aria-hidden="true" width="0" height="0">
+<defs>
+<filter id="collage-grain" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+<feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" seed="41" stitchTiles="stitch" result="noise"></feTurbulence>
+<feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.33 0.33 0.33 0 0" result="grain-alpha"></feColorMatrix>
+<feComposite in="SourceGraphic" in2="grain-alpha" operator="in"></feComposite>
+</filter>
+<filter id="collage-deckle" x="-4%" y="-4%" width="108%" height="108%">
+<feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="4" seed="7" result="noise"></feTurbulence>
+<feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>
+</filter>
+</defs>
+</svg>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    function px(name, value) {
+      root.style.setProperty(`--card-${name}`, `${value}px`, "important");
+    }
+    px("bar-size", v.bar_px);
+    px("image-width", v.image_max_width_px);
+    px("image-height", v.image_max_height_px);
+    panel.classList.add(v.chrome === "browser" ? "browser" : "window");
+    root.querySelector(".bar-title").textContent = String(v.title);
+    const image = root.querySelector("img");
+    const source = String(v.image_src);
+    if (/^image\.(png|jpe?g|webp)$/.test(source)) image.src = source;
+    const IN = Math.min(0.9, outStart);
+    const HOLD = Math.max(0, outStart - IN);
+    gsap.set(panel, { opacity: 0, y: 16, scale: 0.965, transformOrigin: "50% 60%" });
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(panel, { opacity: 0 },
+      { opacity: 1, duration: IN * 0.66, ease: "power2.out" }, 0);
+    tl.fromTo(panel, { y: 16, scale: 0.965 },
+      { y: 0, scale: 1, duration: IN, ease: "power3.out" }, 0);
+    const driftHalf = Math.min(1.6, Math.max(0, HOLD - 0.35) / 2);
+    if (driftHalf >= 0.25) {
+      tl.fromTo(panel, { y: 0 },
+        { y: -2, duration: driftHalf, ease: "sine.inOut", immediateRender: false }, IN);
+      tl.fromTo(panel, { y: -2 },
+        { y: 0, duration: driftHalf, ease: "sine.inOut", immediateRender: false }, IN + driftHalf);
+    }
+    if (v.reveal === "collage") {
+      const screen = root.querySelector(".screen");
+      screen.classList.add("collage");
+      // Keep filtered scraps in two dimensions for deterministic frame seeking.
+      panel.style.willChange = "auto";
+      gsap.set(panel, { force3D: false });
+      const host = document.createElement("div");
+      host.className = "collage-scraps";
+      screen.appendChild(host);
+      const count = Number(v.panels);
+      const cols = { 4: 2, 5: 3, 6: 3, 7: 4, 8: 4 }[count];
+      const rows = Math.ceil(count / cols);
+      const span = Number(v.collage_span_s);
+      const travel = Number(v.collage_exit_s);
+      const gap = (span - travel) / (count - 1);
+      const firstLift = Number(v.reveal_at);
+      const tones = [
+        "var(--card-paper)", "var(--card-titlebar)",
+        "color-mix(in srgb, var(--card-paper) 92%, var(--card-ink))",
+      ];
+      // Build the complete field once from the pinned source's fixed LCG seed.
+      let state = 0x2c6b8f19;
+      function next() {
+        state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+        return state / 4294967296;
+      }
+      function range(lo, hi) { return lo + next() * (hi - lo); }
+      const toneOffset = Math.floor(next() * tones.length);
+      const sides = [
+        [0, 0, 100, 0, 0, 1], [100, 0, 100, 100, -1, 0],
+        [100, 100, 0, 100, 0, -1], [0, 100, 0, 0, 1, 0],
+      ];
+      function tornPolygon(w, h) {
+        const points = [];
+        sides.forEach(function (side) {
+          for (let k = 0; k < 6; k += 1) {
+            const t = (k === 0 ? 0 : k + range(-0.3, 0.3)) / 6;
+            const d = range(-1.1, 1.1);
+            const x = side[0] + (side[2] - side[0]) * t + side[4] * d * 100 / w;
+            const y = side[1] + (side[3] - side[1]) * t + side[5] * d * 100 / h;
+            points.push(`${x.toFixed(2)}% ${y.toFixed(2)}%`);
+          }
+        });
+        return points.join(", ");
+      }
+      const scraps = [];
+      const arcSize = Math.min(v.image_max_width_px, v.image_max_height_px);
+      for (let i = 0; i < count; i += 1) {
+        const row = Math.floor(i / cols);
+        const inRow = Math.min(cols, count - row * cols);
+        const cellW = 100 / inRow;
+        const cellH = 100 / rows;
+        const x = (i % cols) * cellW - 3.2 + range(-1, 1);
+        const y = row * cellH - 3.2 + range(-1, 1);
+        const w = cellW + 6.4;
+        const h = cellH + 6.4;
+        const poly = tornPolygon(w, h);
+        const angle = Math.atan2(y + h / 2 - 50, x + w / 2 - 50);
+        const ux = Math.cos(angle);
+        const uy = Math.sin(angle);
+        const arcAmp = (ux > 0 ? -0.09 : 0.09) * arcSize;
+        scraps.push({
+          x, y, w, h, poly, tone: tones[(i + toneOffset) % tones.length],
+          exitX: ux * v.image_max_width_px * 1.3,
+          exitY: uy * v.image_max_height_px * 1.3,
+          arcX: -uy * arcAmp, arcY: ux * arcAmp,
+          rotation: range(8, 15) * (next() < 0.5 ? -1 : 1),
+          startAt: i === 0 ? firstLift : firstLift + (i - range(0, 0.4)) * gap,
+        });
+      }
+      scraps.forEach(function (scrap, i) {
+        const el = document.createElement("div");
+        el.className = "collage-scrap";
+        el.style.left = `${scrap.x}%`;
+        el.style.top = `${scrap.y}%`;
+        el.style.width = `${scrap.w}%`;
+        el.style.height = `${scrap.h}%`;
+        el.style.zIndex = String(count - i);
+        const arc = document.createElement("div");
+        arc.className = "collage-arc";
+        const fill = document.createElement("div");
+        fill.className = "collage-fill";
+        fill.style.clipPath = `polygon(${scrap.poly})`;
+        fill.style.setProperty("--card-scrap-tone", scrap.tone, "important");
+        const grain = document.createElement("div");
+        grain.className = "collage-grain";
+        fill.appendChild(grain);
+        arc.appendChild(fill);
+        el.appendChild(arc);
+        host.appendChild(el);
+        tl.fromTo(el, { x: 0, y: 0, rotation: 0, "--card-lift": 0 },
+          { x: scrap.exitX, y: scrap.exitY, rotation: scrap.rotation, "--card-lift": 1,
+            duration: travel, ease: "power2.in", force3D: false }, scrap.startAt);
+        tl.fromTo(arc, { x: 0, y: 0 },
+          { x: scrap.arcX, y: scrap.arcY, duration: travel, ease: "power1.out", force3D: false },
+          scrap.startAt);
+      });
+    }
+    tl.fromTo(panel, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    tl.seek(0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["image_card"] = tl;
+})();
+</script>
+</body>
+</html>

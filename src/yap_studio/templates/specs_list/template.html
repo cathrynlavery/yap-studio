@@ -1,0 +1,157 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "mk-specs-list"
+  (registry/blocks/mk-specs-list/mk-specs-list.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Adapted the staggered specification rows into typed name and value pairs with fitted text.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"title","type":"string","label":"Title","default":""},{"id":"rows","type":"string","label":"Rows","default":"[]"},{"id":"title_px","type":"number","label":"Title Px","default":40},{"id":"row_px","type":"number","label":"Row Px","default":34},{"id":"specs_rows","type":"string","label":"Specs list rows","default":"together"},{"id":"cues","type":"string","label":"Row cues","default":"[]"},{"id":"text_color","type":"color","label":"Glow text color","default":"#B9C5C5"},{"id":"glow_color","type":"color","label":"Glow color","default":"#365A58"},{"id":"glow_pad_px","type":"number","label":"Effect top padding","default":0}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font); isolation: isolate; }
+.panel { width: var(--card-panel-width); max-height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius); box-shadow: var(--card-shadow);
+  padding: 24px; opacity: 0; overflow: hidden; }
+
+.specs-panel { padding: 16px; }
+.heading { font-size: var(--card-title-size); font-weight: 700; line-height: 1.1; margin-bottom: 4px; }
+.rows { display: flex; flex-direction: column; gap: 3px; }
+.row { display: flex; gap: 20px; border-top: 2px solid color-mix(in srgb, var(--card-ink) 20%, transparent); font-size: var(--card-row-size); line-height: 1; }
+.row-name, .row-value { width: 50%; overflow: hidden; white-space: nowrap; }
+.row-name { font-weight: 600; }
+.row-value { text-align: right; color: var(--card-accent); font-weight: 700; }
+.on-cue .heading { white-space: nowrap; }
+.on-cue .row { line-height: 1.05; }
+.on-cue .row-name, .on-cue .row-value { width: auto; flex-shrink: 0; overflow: visible; }
+.on-cue .row-name { flex-grow: 1; }
+.on-cue .row-value { color: var(--card-ink); }
+.on-cue:not(.glow) .panel { padding: 12px; }
+.on-cue:not(.glow) .heading { line-height: 1.05; }
+.on-cue:not(.glow) .rows { gap: 4px; }
+.on-cue:not(.glow) .row { line-height: 1.15; }
+.glow .panel { background: transparent; border-radius: 0; box-shadow: none; overflow: visible;
+  padding: 0; }
+.glow .heading { color: var(--card-glow-text); text-align: center; }
+.glow .row { border: 0; justify-content: center; color: white;
+  text-shadow: 0 0.04em 0.12em rgb(0 0 0 / 0.35); }
+.glow .row-name, .glow .row-value { width: auto; overflow: visible; }
+.glow .row-name { flex-grow: 0;
+  text-shadow: var(--card-dark-core), 0 0.03em 0.08em rgb(0 0 0 / 0.6), 0 0 0.35em rgb(0 0 0 / 0.35); }
+.glow .row-value { color: var(--card-glow-text); }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="specs_list" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel specs-panel"><div class="heading"></div><div class="rows"></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const tokens = {
+    "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+    "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+    "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+    "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+    "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+    "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+  };
+  for (const [name, value] of Object.entries(tokens)) {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  }
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  const duration = Number(root.dataset.duration);
+  const OUT = Math.min(0.3, duration * 0.15);
+  const outStart = duration - OUT;
+  function px(name, value) { root.style.setProperty(`--card-${name}`, `${value}px`, "important"); }
+  gsap.set(panel, { opacity: 0, y: 8 });
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo(panel, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: Math.min(0.3, outStart), ease: "power3.out" }, 0);
+  const onCue = v.specs_rows === "on_cue" || v.specs_rows === "on_cue_glow";
+  const cues = JSON.parse(v.cues || "[]");
+  if (onCue) root.classList.add("on-cue");
+  /* CARD_GLOW_SHADOW */
+  if (v.specs_rows === "on_cue_glow") {
+    root.classList.add("glow");
+    root.style.setProperty("--card-glow-text", v.text_color);
+    root.style.setProperty("--card-dark-core", cardGlowShadow(v.glow_color, 0));
+    const heading = root.querySelector(".heading");
+    function shadow(level) { return cardGlowShadow(v.glow_color, level); }
+    const glow = { level: 1 };
+    function paintGlow() { heading.style.textShadow = shadow(glow.level); }
+    paintGlow();
+    tl.fromTo(glow, { level: 1 },
+      { level: 0.65, duration: 0.2, onUpdate: paintGlow }, 0.3);
+  }
+
+px("title-size", v.title_px); px("row-size", v.row_px);
+root.querySelector(".heading").textContent = v.title;
+const rowElements = [];
+JSON.parse(v.rows).forEach((item, i) => {
+  const row = document.createElement("div"); row.className = "row";
+  const name = document.createElement("div"); name.className = "row-name"; name.textContent = item.name;
+  const value = document.createElement("div"); value.className = "row-value"; value.textContent = item.value;
+  if (v.specs_rows === "on_cue_glow") value.style.textShadow = cardGlowShadow(v.glow_color, 0);
+  row.append(name, value); root.querySelector(".rows").appendChild(row);
+  rowElements.push(row);
+  tl.fromTo(row, { opacity: 0, x: -12 }, { opacity: 1, x: 0, duration: 0.3 }, onCue ? cues[i] : 0.2 + i * 0.13);
+});
+
+  tl.fromTo(panel, { opacity: 1 }, { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+  function growPanel() {
+    if (v.specs_rows !== "on_cue" || rowElements.length < 2) return;
+    const box = panel.getBoundingClientRect();
+    const bottom = parseFloat(getComputedStyle(panel).paddingBottom);
+    const heights = rowElements.map((row, i) => i === rowElements.length - 1 ? box.height
+      : row.getBoundingClientRect().bottom - box.top + bottom);
+    // Reserve the final box so the panel top stays fixed.
+    const frame = document.createElement("div");
+    frame.style.width = `${box.width}px`; frame.style.height = `${box.height}px`;
+    frame.style.flex = "0 0 auto";
+    root.insertBefore(frame, panel); frame.appendChild(panel);
+    const overflow = panel.style.overflow;
+    const progress = heights.slice(1).map(() => 0);
+    function paint() {
+      let height = heights[0];
+      progress.forEach((value, i) => { height += (heights[i + 1] - heights[i]) * value; });
+      const complete = progress.every(value => value === 1);
+      panel.style.height = complete ? "" : `${height}px`;
+      panel.style.overflow = complete ? overflow : "hidden";
+      frame.style.display = complete ? "contents" : "";
+    }
+    progress.forEach((_, i) => {
+      // Setters run even when seeking suppresses timeline callbacks.
+      const clock = { get progress() { return progress[i]; },
+        set progress(value) { progress[i] = value; paint(); } };
+      tl.fromTo(clock, { progress: 0 },
+        { progress: 1, duration: 0.18, ease: "power2.out" }, cues[i + 1]);
+    });
+    paint();
+  }
+  function finishTimeline() {
+    growPanel();
+    tl.seek(0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["specs_list"] = tl;
+  }
+  if (v.specs_rows === "on_cue" && document.fonts) {
+    panel.getBoundingClientRect();
+    document.fonts.ready.then(finishTimeline);
+  } else {
+    finishTimeline();
+  }
+})();
+</script>
+</body>
+</html>

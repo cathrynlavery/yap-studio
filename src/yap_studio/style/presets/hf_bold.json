@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "name": "Bold",
+  "captions": {
+    "font": "Anton SC",
+    "size_px": 118,
+    "text_color": "#FFF8FF",
+    "highlight_color": "#FF3D81",
+    "highlight_text_color": "#080611",
+    "highlight_style": "moving_block",
+    "position": "bottom",
+    "top_px": 1503,
+    "max_words_per_phrase": 3,
+    "max_characters_per_phrase": 18,
+    "italic_stress": false
+  },
+  "hook": {
+    "style": "bold_band",
+    "font": "Anton SC",
+    "text_color": "#FFF8FF",
+    "background_color": "#080611",
+    "accent_color": "#7C5CFF"
+  },
+  "graphics": {
+    "style": "dark",
+    "font": "Inter",
+    "paper_color": "#1B1230",
+    "titlebar_color": "#080611",
+    "ink_color": "#FFF8FF",
+    "accent_color": "#00D4FF"
+  },
+  "music": {
+    "level": 0.06
+  }
+}

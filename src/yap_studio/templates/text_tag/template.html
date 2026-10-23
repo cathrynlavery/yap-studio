@@ -1,0 +1,281 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "lt-clean-bar"
+  (registry/blocks/lt-clean-bar/lt-clean-bar.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "lt-dark-card"
+  (registry/blocks/lt-dark-card/lt-dark-card.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "lt-color-block"
+  (registry/blocks/lt-color-block/lt-color-block.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "lt-soft-pill"
+  (registry/blocks/lt-soft-pill/lt-soft-pill.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "lt-accent-underline"
+  (registry/blocks/lt-accent-underline/lt-accent-underline.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "lt-side-rule"
+  (registry/blocks/lt-side-rule/lt-side-rule.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "titlecard-calm"
+  (registry/components/titlecard-calm/titlecard-calm.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Combined seven lower third and title looks with fitted text slots, style tokens, bounded entrances, and a shared fade-out.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"plain_ink_color","type":"color","label":"Plain ink color","default":"#F4F3EE"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"text","type":"string","label":"Text","default":""},{"id":"subtext","type":"string","label":"Subtext","default":""},{"id":"text_px","type":"number","label":"Text px","default":64},{"id":"subtext_px","type":"number","label":"Subtext px","default":36},{"id":"look","type":"enum","label":"Look","default":"bar","options":[{"value":"bar","label":"Bar"},{"value":"card","label":"Card"},{"value":"block","label":"Block"},{"value":"pill","label":"Pill"},{"value":"underline","label":"Underline"},{"value":"rule","label":"Rule"},{"value":"title","label":"Title"}]}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.tag-wrapper {
+  position: relative; width: max-content; max-width: var(--card-panel-width);
+  transform-origin: 50% 60%; opacity: 0; will-change: transform;
+}
+.shadow-backing {
+  position: absolute; inset: 0; z-index: 0; border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); opacity: 0;
+}
+.panel {
+  position: relative; z-index: 1; width: max-content; max-width: 100%;
+  max-height: var(--card-panel-height); display: flex; align-items: stretch; overflow: hidden;
+  background: var(--card-paper); border-radius: var(--card-radius);
+}
+.tab { display: none; background: var(--card-accent); will-change: transform; }
+.tag-body { min-width: 0; display: flex; flex-direction: column; }
+.tag-text { font-size: var(--card-text-size); font-weight: 700; line-height: 1.06;
+  white-space: nowrap; will-change: transform; }
+.subtext { font-size: var(--card-subtext-size); line-height: 1.2; white-space: nowrap;
+  color: color-mix(in srgb, var(--card-ink) 62%, var(--card-paper)); will-change: transform; }
+.subtext:empty { display: none; }
+.rule { display: none; background: var(--card-accent); width: 100%;
+  transform-origin: 0% 50%; will-change: transform; }
+.tag-wrapper[data-look="bar"] .tab { display: block; width: 12px; flex: 0 0 12px; }
+.tag-wrapper[data-look="bar"] .tag-body { padding: 24px; gap: 7px; }
+.tag-wrapper[data-look="card"] .tag-body { padding: 24px 38px 26px 32px; gap: 12px; }
+.tag-wrapper[data-look="card"] .tag-text { line-height: 1.02; }
+.tag-wrapper[data-look="card"] .rule { display: block; height: 4px; border-radius: 2px; }
+.tag-wrapper[data-look="block"] .panel { background: var(--card-accent);
+  color: var(--card-accent-ink); border-radius: 0; }
+.tag-wrapper[data-look="block"] .shadow-backing { display: none; }
+.tag-wrapper[data-look="block"] .tag-body { padding: 20px 36px 24px 32px; gap: 8px; }
+.tag-wrapper[data-look="block"] .tag-text { text-transform: uppercase; letter-spacing: 0.01em; }
+.tag-wrapper[data-look="block"] .subtext { font-family: var(--card-mono); letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--card-accent-ink) 86%, var(--card-accent)); }
+.tag-wrapper[data-look="pill"] { max-width: calc(var(--card-panel-width) - 32px);
+  transform-origin: 0% 100%; }
+.tag-wrapper[data-look="pill"] .panel { border-radius: 999px; align-items: center;
+  padding: 20px 64px 20px 40px; gap: 22px; }
+.tag-wrapper[data-look="pill"] .shadow-backing { border-radius: 999px; }
+.tag-wrapper[data-look="pill"] .tab { display: block; width: 18px; height: 18px;
+  flex: 0 0 18px; border-radius: 50%; }
+.tag-wrapper[data-look="pill"] .tag-body { gap: 4px; }
+.tag-wrapper[data-look="underline"] .panel { background: transparent; border-radius: 0;
+  color: var(--card-plain-ink); }
+.tag-wrapper[data-look="underline"] .shadow-backing { display: none; }
+.tag-wrapper[data-look="underline"] .tag-body { padding: 24px; gap: 14px; }
+.tag-wrapper[data-look="underline"] .tag-text { text-transform: uppercase;
+  letter-spacing: 0.005em; text-shadow: 0 2px 12px rgb(0 0 0 / 0.65); }
+.tag-wrapper[data-look="underline"] .rule { display: block; height: 6px; border-radius: 3px; }
+.tag-wrapper[data-look="underline"] .subtext { font-family: var(--card-mono);
+  color: var(--card-plain-ink); letter-spacing: 0.04em;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 0.65); }
+.tag-wrapper[data-look="rule"] .tab { display: block; width: 8px; flex: 0 0 8px;
+  transform-origin: 50% 0%; }
+.tag-wrapper[data-look="rule"] .tag-body { padding: 24px 32px 24px 26px; gap: 12px; }
+.tag-wrapper[data-look="rule"] .tag-text { text-transform: uppercase; letter-spacing: 0.01em; }
+.tag-wrapper[data-look="rule"] .subtext { color: var(--card-ink); letter-spacing: 0.04em; }
+.tag-wrapper[data-look="title"] { width: var(--card-panel-width); }
+.tag-wrapper[data-look="title"] .panel { width: 100%; }
+.tag-wrapper[data-look="title"] .tag-body { width: 100%; padding: 32px; gap: 18px; }
+.tag-wrapper[data-look="title"] .tag-text { font-weight: 600; }
+.tag-wrapper[data-look="title"] .subtext { order: -1; text-transform: uppercase;
+  letter-spacing: 0.18em; font-weight: 600; color: var(--card-accent); }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="text_tag" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="tag-wrapper" data-look="bar"><div class="shadow-backing" aria-hidden="true"></div>
+<div class="panel"><div class="tab" aria-hidden="true"></div><div class="tag-body"><div class="tag-text"></div><div class="rule" aria-hidden="true"></div><div class="subtext"></div></div></div>
+</div>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const wrapper = root.querySelector(".tag-wrapper");
+    const backing = root.querySelector(".shadow-backing");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "plain-ink": v.plain_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    function px(name, value) {
+      root.style.setProperty(`--card-${name}`, `${value}px`, "important");
+    }
+    function fitText(element) {
+      const available = element.clientWidth;
+      if (!(element.scrollWidth > available)) return;
+      let size = parseFloat(getComputedStyle(element).fontSize);
+      size = Math.max(1, Math.floor(size * available / element.scrollWidth));
+      element.style.fontSize = `${size}px`;
+      while (element.scrollWidth > available && size > 1) {
+        size -= 1;
+        element.style.fontSize = `${size}px`;
+      }
+    }
+    px("text-size", v.text_px);
+    px("subtext-size", v.subtext_px);
+    const text = root.querySelector(".tag-text");
+    const subtext = root.querySelector(".subtext");
+    const tab = root.querySelector(".tab");
+    const rule = root.querySelector(".rule");
+    wrapper.setAttribute("data-look", v.look);
+    text.textContent = String(v.text);
+    subtext.textContent = String(v.subtext);
+    gsap.set(wrapper, { opacity: 0 });
+    gsap.set(backing, { opacity: 0 });
+    const tl = gsap.timeline({ paused: true });
+    function barMotion() {
+      const scale = Math.min(1, outStart / 0.94);
+      const closedClip = `inset(0 100% 0 0 round ${v.card_radius_px}px)`;
+      const openClip = `inset(0 0% 0 0 round ${v.card_radius_px}px)`;
+      gsap.set(panel, { clipPath: closedClip });
+      gsap.set(tab, { scaleY: 0, transformOrigin: "50% 0%" });
+      gsap.set([text, subtext], { y: 22, opacity: 0 });
+      tl.set(wrapper, { opacity: 1 }, 0.1 * scale);
+      tl.fromTo(panel, { clipPath: closedClip },
+        { clipPath: openClip, duration: 0.55 * scale, ease: "power3.out" }, 0.1 * scale);
+      tl.fromTo(backing, { opacity: 0 },
+        { opacity: 1, duration: 0.55 * scale, ease: "power3.out" }, 0.1 * scale);
+      tl.fromTo(tab, { scaleY: 0 },
+        { scaleY: 1, duration: 0.45 * scale, ease: "power2.out" }, 0.28 * scale);
+      tl.fromTo(text, { y: 22, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.34 * scale);
+      tl.fromTo(subtext, { y: 22, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.44 * scale);
+    }
+    function cardMotion() {
+      const scale = Math.min(1, outStart / 1.01);
+      gsap.set(wrapper, { opacity: 0, y: 24 });
+      gsap.set(text, { y: 14, opacity: 0 });
+      gsap.set(rule, { scaleX: 0 });
+      gsap.set(subtext, { opacity: 0 });
+      tl.set(backing, { opacity: 1 }, 0);
+      tl.fromTo(wrapper, { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.1 * scale);
+      tl.fromTo(text, { y: 14, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.45 * scale, ease: "power3.out" }, 0.26 * scale);
+      tl.fromTo(rule, { scaleX: 0 },
+        { scaleX: 1, duration: 0.5 * scale, ease: "power4.out" }, 0.42 * scale);
+      tl.fromTo(subtext, { opacity: 0 },
+        { opacity: 1, duration: 0.45 * scale, ease: "power2.out" }, 0.56 * scale);
+    }
+    function blockMotion() {
+      const scale = Math.min(1, outStart / 0.82);
+      gsap.set(wrapper, { x: -24, opacity: 0 });
+      gsap.set(text, { y: 24, opacity: 0 });
+      gsap.set(subtext, { y: 18, opacity: 0 });
+      tl.fromTo(wrapper, { x: -24, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.5 * scale, ease: "back.out(1.4)" }, 0.1 * scale);
+      tl.fromTo(text, { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.42 * scale, ease: "power3.out" }, 0.3 * scale);
+      tl.fromTo(subtext, { y: 18, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.42 * scale, ease: "power3.out" }, 0.4 * scale);
+    }
+    function pillMotion() {
+      const scale = Math.min(1, outStart / 0.95);
+      gsap.set(wrapper, { scale: 0.88, y: 18, opacity: 0, transformOrigin: "0% 100%" });
+      gsap.set(tab, { scale: 0 });
+      gsap.set([text, subtext], { opacity: 0, x: -10 });
+      tl.set(backing, { opacity: 1 }, 0);
+      tl.fromTo(wrapper, { scale: 0.88, y: 18, opacity: 0 },
+        { scale: 1, y: 0, opacity: 1, duration: 0.55 * scale, ease: "back.out(1.7)" }, 0.1 * scale);
+      tl.fromTo(tab, { scale: 0 },
+        { scale: 1, duration: 0.4 * scale, ease: "back.out(3)" }, 0.4 * scale);
+      tl.fromTo(text, { opacity: 0, x: -10 },
+        { opacity: 1, x: 0, duration: 0.45 * scale, ease: "power3.out" }, 0.42 * scale);
+      tl.fromTo(subtext, { opacity: 0, x: -10 },
+        { opacity: 1, x: 0, duration: 0.45 * scale, ease: "power3.out" }, 0.5 * scale);
+    }
+    function underlineMotion() {
+      const scale = Math.min(1, outStart / 0.96);
+      gsap.set(text, { y: 28, opacity: 0 });
+      gsap.set(rule, { scaleX: 0 });
+      gsap.set(subtext, { y: 16, opacity: 0 });
+      tl.set(wrapper, { opacity: 1 }, 0.1 * scale);
+      tl.fromTo(text, { y: 28, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.55 * scale, ease: "power3.out" }, 0.1 * scale);
+      tl.fromTo(rule, { scaleX: 0 },
+        { scaleX: 1, duration: 0.5 * scale, ease: "power4.out" }, 0.3 * scale);
+      tl.fromTo(subtext, { y: 16, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.46 * scale);
+    }
+    function ruleMotion() {
+      const scale = Math.min(1, outStart / 0.88);
+      gsap.set(tab, { scaleY: 0, transformOrigin: "50% 0%" });
+      gsap.set([text, subtext], { x: -24, opacity: 0 });
+      tl.set(backing, { opacity: 1 }, 0);
+      tl.fromTo(wrapper, { opacity: 0 },
+        { opacity: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.1 * scale);
+      tl.fromTo(tab, { scaleY: 0 },
+        { scaleY: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.1 * scale);
+      tl.fromTo(text, { x: -24, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.26 * scale);
+      tl.fromTo(subtext, { x: -24, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.5 * scale, ease: "power3.out" }, 0.38 * scale);
+    }
+    function titleMotion() {
+      const scale = Math.min(1, outStart / 1.0);
+      gsap.set(subtext, { y: 10, opacity: 0 });
+      gsap.set(text, { y: 16, opacity: 0 });
+      tl.set(backing, { opacity: 1 }, 0);
+      tl.fromTo(wrapper, { opacity: 0 },
+        { opacity: 1, duration: 0.3 * scale, ease: "power2.out" }, 0);
+      tl.fromTo(subtext, { y: 10, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5 * scale, ease: "power2.out" }, 0);
+      tl.fromTo(text, { y: 16, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.72 * scale, ease: "power3.out" }, 0.28 * scale);
+    }
+    const motions = { bar: barMotion, card: cardMotion, block: blockMotion,
+      pill: pillMotion, underline: underlineMotion, rule: ruleMotion, title: titleMotion };
+    motions[v.look]();
+    tl.fromTo(wrapper, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    function finishTimeline() {
+      if (v.look === "rule" || v.look === "title") {
+        // The planner fits covered bundled text; retain those sizes unless it overflows.
+        fitText(text);
+        fitText(subtext);
+      }
+      tl.seek(0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["text_tag"] = tl;
+    }
+    if (document.fonts) {
+      panel.getBoundingClientRect();
+      document.fonts.ready.then(finishTimeline);
+    } else {
+      finishTimeline();
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"options","type":"string","label":"Options","default":"[\"Ten minutes\", \"One hour\", \"All day\"]"},{"id":"cues","type":"string","label":"Cues","default":"[0, 0.616167, 1.232333]"},{"id":"letters","type":"boolean","label":"Letters","default":true},{"id":"text_px","type":"number","label":"Text px","default":64},{"id":"scale","type":"number","label":"Scale","default":1.6},{"id":"glow_color","type":"color","label":"Glow color","default":"#365A58"},{"id":"text_color","type":"color","label":"Text color","default":"#B9C5C5"},{"id":"glow_pad_px","type":"number","label":"Glow pad px","default":52},{"id":"land_s","type":"number","label":"Land s","default":0.16666666666666666},{"id":"hold_s","type":"number","label":"Hold s","default":0.5},{"id":"settle_s","type":"number","label":"Settle s","default":0.2},{"id":"rest_s","type":"number","label":"Rest s","default":0.3},{"id":"out_s","type":"number","label":"Out s","default":0.1},{"id":"fade_in_s","type":"number","label":"Fade in s","default":0.06666666666666667},{"id":"lines","type":"string","label":"Lines","default":"[[\"A) Ten\", \"minutes\"], [\"B) One hour\"], [\"C) All day\"]]"},{"id":"stack_top_px","type":"number","label":"Stack top px","default":95},{"id":"row_heights","type":"string","label":"Row heights","default":"[140.8, 70.4, 70.4]"},{"id":"row_gaps","type":"string","label":"Row gaps","default":"[47, 26]"},{"id":"line_height","type":"number","label":"Line height","default":1.1}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: flex-start; justify-content: center;
+  background: transparent; pointer-events: none;
+}
+.stack { display: flex; flex-direction: column; align-items: center; }
+.option {
+  width: max-content; text-align: center;
+  font-weight: 600; white-space: pre; opacity: 0;
+  transform-origin: 50% 50%;
+}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="choices" data-no-timeline data-start="0" data-width="692" data-height="524" data-duration="2.5">
+<div class="stack"></div>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const MS_PER_S = 1000;
+    const easeIn = "cubic-bezier(0.3333333333333333, 0, 0.6666666666666666, 0)";
+    const easeOut = "cubic-bezier(0.3333333333333333, 1, 0.6666666666666666, 1)";
+    const root = document.getElementById("root");
+    const stack = root.querySelector(".stack");
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    root.style.fontFamily = v.font_family;
+    root.style.fontSize = `${v.text_px}px`;
+    root.style.color = v.text_color;
+    const lines = JSON.parse(v.lines);
+    const rowHeights = JSON.parse(v.row_heights);
+    const rowGaps = JSON.parse(v.row_gaps);
+    stack.style.marginTop = `${v.stack_top_px}px`;
+    const cues = JSON.parse(v.cues);
+    const duration = Number(root.dataset.duration);
+    /* CARD_GLOW_SHADOW */
+    function shadow(level) { return cardGlowShadow(v.glow_color, level); }
+    const rows = lines.map(function (option, i) {
+      const row = document.createElement("div");
+      row.className = "option";
+      row.style.height = `${rowHeights[i]}px`;
+      row.style.marginBottom = `${rowGaps[i] ?? 0}px`;
+      row.style.lineHeight = String(v.line_height);
+      row.textContent = option.join("\n");
+      stack.appendChild(row);
+      row.style.transform = `scale(${v.scale})`;
+      row.style.textShadow = shadow(0);
+      return row;
+    });
+    function animate(node, keyframes, options) {
+      const animation = node.animate(keyframes, options);
+      animation.pause();
+      animation.currentTime = 0;
+    }
+    function animateOptions() {
+      rows.forEach(function (row, i) {
+        const cue = cues[i];
+        const settle = Math.min(cue + v.land_s + v.hold_s,
+          (cues[i + 1] ?? Infinity) - v.settle_s);
+        animate(row, [{ opacity: 0 }, { opacity: 1 }],
+          { delay: cue * MS_PER_S, duration: v.fade_in_s * MS_PER_S,
+            fill: "both", easing: "linear" });
+        animate(row, [
+          { transform: `scale(${v.scale})`, offset: 0, easing: easeIn },
+          { transform: `scale(${(v.scale + 1) / 2})`, offset: 0.5, easing: easeOut },
+          { transform: "scale(1)", offset: 1 },
+        ], { delay: settle * MS_PER_S, duration: v.settle_s * MS_PER_S,
+             fill: "both", easing: "linear" });
+        const glowDuration = settle + v.settle_s - cue;
+        // Rounded word cues must keep the glow keyframes ordered.
+        animate(row, [
+          { textShadow: shadow(0), offset: 0, easing: easeOut },
+          { textShadow: shadow(1), offset: Math.min(v.land_s, settle - cue) / glowDuration },
+          { textShadow: shadow(1), offset: (settle - cue) / glowDuration, easing: easeIn },
+          { textShadow: shadow(0.825),
+            offset: (settle + v.settle_s / 2 - cue) / glowDuration, easing: easeOut },
+          { textShadow: shadow(0.65), offset: 1 },
+        ], { delay: cue * MS_PER_S, duration: glowDuration * MS_PER_S,
+             fill: "both", easing: "linear" });
+      });
+      animate(stack, [{ opacity: 1 }, { opacity: 0 }],
+        { delay: (duration - v.out_s) * MS_PER_S, duration: v.out_s * MS_PER_S,
+          fill: "both", easing: "linear" });
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(animateOptions);
+    } else {
+      animateOptions();
+    }
+})();
+</script>
+</body>
+</html>

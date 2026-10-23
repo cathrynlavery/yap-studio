@@ -1,0 +1,182 @@
+{
+  "id": "playing_grid",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [
+    {
+      "item": "mk-placeholder-grid",
+      "path": "registry/blocks/mk-placeholder-grid/mk-placeholder-grid.html"
+    }
+  ],
+  "slots": {
+    "clips": {
+      "type": "video_list",
+      "required": true,
+      "sources": [
+        "media"
+      ],
+      "min_items": 2,
+      "max_items": 6
+    },
+    "labels": {
+      "type": "string_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 6,
+      "min_length": 0,
+      "max_length": 24,
+      "default": []
+    },
+    "stagger_s": {
+      "type": "number",
+      "required": false,
+      "minimum": 0,
+      "maximum": 0.4,
+      "default": 0.12
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 618
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "tiles",
+      "type": "string",
+      "label": "Tiles",
+      "default": "[{\"x\": 24, \"y\": 96, \"width\": 320, \"height\": 262}, {\"x\": 360, \"y\": 96, \"width\": 320, \"height\": 262}, {\"x\": 696, \"y\": 96, \"width\": 320, \"height\": 262}]"
+    },
+    {
+      "id": "labels",
+      "type": "string",
+      "label": "Labels",
+      "default": "[\"First\",\"Next\",\"Then\"]"
+    },
+    {
+      "id": "chip_px",
+      "type": "number",
+      "label": "Chip px",
+      "default": 30
+    },
+    {
+      "id": "windows",
+      "type": "string",
+      "label": "Windows",
+      "default": "[{\"x\": 54, \"y\": 118, \"width\": 260, \"height\": 146, \"radius\": 24, \"start\": 0, \"frames\": 90, \"fade_in\": 8, \"fade_out\": 9}, {\"x\": 390, \"y\": 118, \"width\": 260, \"height\": 146, \"radius\": 24, \"start\": 4, \"frames\": 86, \"fade_in\": 8, \"fade_out\": 9}, {\"x\": 726, \"y\": 118, \"width\": 260, \"height\": 146, \"radius\": 24, \"start\": 7, \"frames\": 83, \"fade_in\": 8, \"fade_out\": 9}]"
+    },
+    {
+      "id": "window_fill",
+      "type": "enum",
+      "label": "Window fill",
+      "default": "preview",
+      "options": [
+        {
+          "value": "preview",
+          "label": "Preview"
+        },
+        {
+          "value": "clear",
+          "label": "Clear"
+        }
+      ]
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Fps",
+      "default": 30
+    }
+  ],
+  "box": {
+    "width": 1080,
+    "height": 1920,
+    "x": 0,
+    "y": 0
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "schema": "yap-studio/sfx-kit@1",
+  "name": "extras",
+  "description": "More ElevenLabs sounds you turn on, or ask for",
+  "sounds": [
+    {
+      "name": "typing",
+      "duration_s": 2.0,
+      "rule": "typing",
+      "priority": 2,
+      "prompt": "Soft, clean laptop keyboard typing: a short, steady run of light key presses, close and dry, no music, quiet enough to sit under calm speech.",
+      "gain_db": 0,
+      "prompt_influence": 0.5
+    },
+    {
+      "name": "message-ping",
+      "duration_s": 1.0,
+      "rule": "message",
+      "priority": 3,
+      "prompt": "A soft, short, friendly message notification ping, clean and modern, no music, quiet enough to sit under calm speech.",
+      "gain_db": 0,
+      "prompt_influence": 0.5
+    },
+    {
+      "name": "camera-shutter",
+      "duration_s": 1.0,
+      "rule": "photo",
+      "priority": 2,
+      "prompt": "A single crisp camera shutter click, close and clean, no music.",
+      "gain_db": 0,
+      "prompt_influence": 0.5
+    },
+    {
+      "name": "applause",
+      "duration_s": 3.0,
+      "rule": "request",
+      "priority": 9,
+      "prompt": "A small audience applauding warmly for a few seconds, natural room sound, no cheering, no whistles, no music.",
+      "gain_db": 0,
+      "prompt_influence": 0.5
+    },
+    {
+      "name": "laugh",
+      "duration_s": 2.5,
+      "rule": "request",
+      "priority": 9,
+      "prompt": "A small group of people laughing warmly together for a moment, natural room sound, no music.",
+      "gain_db": 0,
+      "prompt_influence": 0.5
+    },
+    {
+      "name": "cheer",
+      "duration_s": 2.5,
+      "rule": "request",
+      "priority": 9,
+      "prompt": "A small crowd cheering and whooping happily for a moment, natural room sound, no music.",
+      "gain_db": 0,
+      "prompt_influence": 0.5
+    },
+    {
+      "name": "record-scratch",
+      "duration_s": 1.2,
+      "rule": "request",
+      "priority": 9,
+      "prompt": "A short vinyl record scratch, a quick comedic stop, no music after it.",
+      "gain_db": 0,
+      "prompt_influence": 0.5
+    }
+  ]
+}

@@ -1,0 +1,311 @@
+{
+  "schema": "yap-studio/sfx-made-kit@1",
+  "name": "made",
+  "label": "Made by Yap Studio",
+  "description": "Soft sounds made on your computer from small recipes.",
+  "sounds": [
+    {
+      "name": "whoosh",
+      "rule": "transition",
+      "priority": 3,
+      "gain_db": 0,
+      "duration_s": 0.9,
+      "peak_s": 0.4,
+      "seed": 105045,
+      "layers": [
+        {
+          "source": "noise",
+          "level": 0.8,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.4,
+            "hold_s": 0,
+            "release_s": 0.5,
+            "attack_curve": 1.6,
+            "release_curve": 1.8
+          },
+          "filter": {
+            "type": "bandpass",
+            "from_hz": 750,
+            "to_hz": 900,
+            "via_hz": 3200,
+            "q": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "name": "swoosh-in",
+      "rule": "card_in",
+      "priority": 1,
+      "gain_db": 0,
+      "duration_s": 0.45,
+      "peak_s": 0.3,
+      "seed": 112964,
+      "layers": [
+        {
+          "source": "noise",
+          "level": 0.7,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.3,
+            "hold_s": 0,
+            "release_s": 0.15,
+            "attack_curve": 1.8,
+            "release_curve": 2
+          },
+          "filter": {
+            "type": "bandpass",
+            "from_hz": 600,
+            "to_hz": 5500,
+            "q": 0.6
+          }
+        }
+      ]
+    },
+    {
+      "name": "swoosh-out",
+      "rule": "card_out",
+      "priority": 1,
+      "gain_db": 0,
+      "duration_s": 0.5,
+      "peak_s": 0.06,
+      "seed": 16154,
+      "layers": [
+        {
+          "source": "noise",
+          "level": 0.65,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.06,
+            "hold_s": 0,
+            "release_s": 0.44,
+            "release_curve": 2.5
+          },
+          "filter": {
+            "type": "bandpass",
+            "from_hz": 4200,
+            "to_hz": 400,
+            "q": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "name": "click",
+      "rule": "item",
+      "priority": 2,
+      "gain_db": 0,
+      "duration_s": 0.06,
+      "peak_s": 0.002,
+      "seed": 24073,
+      "layers": [
+        {
+          "source": "noise",
+          "level": 0.5,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.002,
+            "hold_s": 0,
+            "release_s": 0.058,
+            "decay": 9
+          },
+          "filter": {
+            "type": "lowpass",
+            "from_hz": 2500,
+            "to_hz": 1200
+          }
+        }
+      ]
+    },
+    {
+      "name": "pop",
+      "rule": "pop",
+      "priority": 2,
+      "gain_db": 0,
+      "duration_s": 0.15,
+      "peak_s": 0.004,
+      "seed": 31992,
+      "layers": [
+        {
+          "source": "sine",
+          "level": 0.8,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.004,
+            "hold_s": 0,
+            "release_s": 0.146,
+            "decay": 6
+          },
+          "from_hz": 540,
+          "to_hz": 85
+        },
+        {
+          "source": "noise",
+          "level": 0.07,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.002,
+            "hold_s": 0,
+            "release_s": 0.025
+          },
+          "filter": {
+            "type": "lowpass",
+            "from_hz": 1800,
+            "to_hz": 600
+          }
+        }
+      ]
+    },
+    {
+      "name": "hit",
+      "rule": "land",
+      "priority": 4,
+      "gain_db": 0,
+      "duration_s": 0.5,
+      "peak_s": 0.006,
+      "seed": 39911,
+      "layers": [
+        {
+          "source": "sine",
+          "level": 0.8,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.006,
+            "hold_s": 0,
+            "release_s": 0.494,
+            "decay": 8
+          },
+          "from_hz": 125,
+          "to_hz": 42
+        },
+        {
+          "source": "noise",
+          "level": 0.12,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.004,
+            "hold_s": 0,
+            "release_s": 0.09,
+            "decay": 5
+          },
+          "filter": {
+            "type": "lowpass",
+            "from_hz": 1500,
+            "to_hz": 300
+          }
+        }
+      ]
+    },
+    {
+      "name": "riser",
+      "rule": "chapter",
+      "priority": 5,
+      "gain_db": 0,
+      "duration_s": 1.4,
+      "peak_s": 1.3,
+      "seed": 152559,
+      "layers": [
+        {
+          "source": "noise",
+          "level": 0.65,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 1.3,
+            "hold_s": 0,
+            "release_s": 0.1,
+            "attack_curve": 2,
+            "release_curve": 3
+          },
+          "filter": {
+            "type": "bandpass",
+            "from_hz": 350,
+            "to_hz": 6200,
+            "q": 0.7
+          }
+        },
+        {
+          "source": "sine",
+          "level": 0.12,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 1.3,
+            "hold_s": 0,
+            "release_s": 0.1,
+            "attack_curve": 2,
+            "release_curve": 3
+          },
+          "from_hz": 160,
+          "to_hz": 640
+        }
+      ]
+    },
+    {
+      "name": "tick-roll",
+      "rule": "count_start",
+      "priority": 2,
+      "gain_db": 0,
+      "duration_s": 0.8,
+      "peak_s": 0.002,
+      "seed": 55749,
+      "layers": [
+        {
+          "source": "noise",
+          "level": 0.6,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.002,
+            "hold_s": 0,
+            "release_s": 0.035,
+            "decay": 7
+          },
+          "filter": {
+            "type": "lowpass",
+            "from_hz": 3200,
+            "to_hz": 2400
+          },
+          "repeat": {
+            "count": 9,
+            "every_s": 0.085,
+            "decay": 0.83
+          }
+        }
+      ]
+    },
+    {
+      "name": "chime",
+      "rule": "settle",
+      "priority": 4,
+      "gain_db": 0,
+      "duration_s": 0.9,
+      "peak_s": 0.006,
+      "seed": 63668,
+      "layers": [
+        {
+          "source": "sine",
+          "level": 0.65,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.006,
+            "hold_s": 0,
+            "release_s": 0.894,
+            "decay": 6
+          },
+          "from_hz": 880
+        },
+        {
+          "source": "sine",
+          "level": 0.28,
+          "envelope": {
+            "start_s": 0,
+            "attack_s": 0.006,
+            "hold_s": 0,
+            "release_s": 0.894,
+            "decay": 8
+          },
+          "from_hz": 1320
+        }
+      ]
+    }
+  ]
+}

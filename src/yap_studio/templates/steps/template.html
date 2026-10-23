@@ -1,0 +1,129 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "state-chip-rail"
+  (registry/components/state-chip-rail/state-chip-rail.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Added fitted step slots, resolved cue snaps, a tokenized paper panel, staggered entrances, and a shared fade-out.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"steps","type":"string","label":"Steps","default":"[]"},{"id":"cues","type":"string","label":"Cues","default":"[]"},{"id":"text_px","type":"number","label":"Text px","default":36}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  background: transparent; color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel {
+  width: var(--card-panel-width); max-height: var(--card-panel-height);
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); transform-origin: 50% 60%;
+  padding: 24px; opacity: 0;
+}
+.rail { display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 12px; }
+.chip {
+  position: relative; display: flex; flex: 0 0 auto; align-items: center;
+  padding: 14px 18px; border: 1px solid color-mix(in srgb, var(--card-ink) 25%, transparent);
+  border-radius: var(--card-radius); background: transparent;
+  color: color-mix(in srgb, var(--card-ink) 78%, var(--card-paper));
+  font-family: var(--card-mono); font-size: var(--card-text-size);
+  font-weight: 500; line-height: 1.2; letter-spacing: 0.14em; text-transform: uppercase;
+  white-space: nowrap; will-change: transform, opacity; opacity: 0;
+}
+.chip[data-state="active"] {
+  border-color: var(--card-accent); background: var(--card-accent); color: var(--card-accent-ink);
+}
+.chip[data-state="done"] {
+  border-color: color-mix(in srgb, var(--card-ink) 16%, transparent);
+  color: color-mix(in srgb, var(--card-ink) 52%, var(--card-paper));
+}
+.chip[data-state="done"]::before {
+  content: ""; position: absolute; left: 7px; width: 5px; height: 5px;
+  border-radius: 50%; background: currentColor;
+}
+.label { display: block; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="steps" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel"><div class="rail" role="list"></div></div>
+</div>
+<script>
+(function () {
+    "use strict";
+    const v = window.__hyperframes.getVariables();
+    const root = document.getElementById("root");
+    const panel = root.querySelector(".panel");
+    const rail = root.querySelector(".rail");
+    const tokens = {
+      "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+      "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+      "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+      "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+      "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+      "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+    };
+    for (const [name, value] of Object.entries(tokens)) {
+      root.style.setProperty(`--card-${name}`, value, "important");
+    }
+    root.style.width = `${root.dataset.width}px`;
+    root.style.height = `${root.dataset.height}px`;
+    const duration = Number(root.dataset.duration);
+    const OUT = Math.min(0.3, duration * 0.15);
+    const outStart = duration - OUT;
+    root.style.setProperty("--card-text-size", `${v.text_px}px`, "important");
+    function list(value, coerce) {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.map(coerce) : [];
+      } catch (_) { return []; }
+    }
+    const steps = list(v.steps, String);
+    const cues = list(v.cues, Number);
+    // These entrance numbers match the adapter's default cue formula.
+    const entranceEnd = 0.3 + 0.24 + Math.max(0, steps.length - 1) * 0.06;
+    const scale = Math.min(1, outStart / entranceEnd);
+    const PANEL_IN = 0.3 * scale;
+    const CHIP_IN = 0.24 * scale;
+    const STAGGER = 0.06 * scale;
+    gsap.set(panel, { opacity: 0, y: 8 });
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(panel, { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: PANEL_IN, ease: "power3.out" }, 0);
+    const chips = steps.map(function (step, i) {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.setAttribute("role", "listitem");
+      chip.setAttribute("data-state", "pending");
+      const label = document.createElement("span");
+      label.className = "label";
+      label.textContent = step.toUpperCase();
+      // Reserve uppercase mono advance and tracking, as measured by the adapter.
+      label.style.width = `${Array.from(label.textContent).length * (0.62 + 0.14) * v.text_px}px`;
+      chip.appendChild(label);
+      rail.appendChild(chip);
+      gsap.set(chip, { opacity: 0, y: 10 });
+      tl.fromTo(chip, { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: CHIP_IN, ease: "power3.out" }, PANEL_IN + i * STAGGER);
+      return chip;
+    });
+    rail.setAttribute("aria-label", steps.join(", "));
+    // Only attributes snap at cues. CSS owns all state colors.
+    cues.forEach(function (at, i) {
+      tl.set(chips[i], { attr: { "data-state": "active" } }, at);
+      if (i > 0) tl.set(chips[i - 1], { attr: { "data-state": "done" } }, at);
+    });
+    tl.fromTo(panel, { opacity: 1 },
+      { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+    tl.seek(0);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["steps"] = tl;
+})();
+</script>
+</body>
+</html>

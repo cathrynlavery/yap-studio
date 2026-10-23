@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: macos-15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Require CI on the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check_release_ci.py
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: Check tag and prepare release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+          from scripts.bump_version import changelog_section, project_version
+
+          version = project_version(Path("pyproject.toml").read_text(encoding="utf-8"))
+          if os.environ["RELEASE_TAG"] != f"v{version}":
+              raise SystemExit("Release tag must equal v<pyproject version>.")
+          section = changelog_section(Path("CHANGELOG.md").read_text(encoding="utf-8"), version)
+          if section is None or re.search(r"(?m)^[ \t]*[-*+] [^\s]", section) is None:
+              raise SystemExit("Add a changelog section with at least one bullet for this release.")
+          Path("release-notes.md").write_text(section, encoding="utf-8")
+          PY
+      - run: uv build
+      - run: uv run python scripts/build_mcpb.py
+      - run: uv run python scripts/build_workspace.py
+      - name: Accept a clean workspace install
+        run: uv run python scripts/accept_workspace.py dist/yap-studio-workspace-*.zip
+      # Package-index publishing is separate from this draft-release workflow.
+      - name: Create draft release with all artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$RELEASE_TAG" dist/*.whl dist/*.tar.gz dist/*.mcpb
+          dist/yap-studio-workspace-*.zip
+          --draft --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md

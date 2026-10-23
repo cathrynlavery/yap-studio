@@ -1,0 +1,1 @@
+Drop video takes or audio memos here. "Edit this video" copies the newest unused file, or the files you name, into a project. An audio memo from Voice Memos or any recorder starts a voiceover video, and later memos can join it as pickups. `.used.json` records which files went where. Your files are never changed.

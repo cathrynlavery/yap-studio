@@ -1,0 +1,141 @@
+{
+  "schema": "yap-studio/provenance@1",
+  "upstream": {
+    "name": "HyperFrames theme packs",
+    "repository": "github.com/heygen-com/hyperframes",
+    "commit": "6afcb48395632b85663b9b9486e1b47fd175f8bc",
+    "license": "Apache-2.0",
+    "license_file": "LICENSES/Apache-2.0.txt",
+    "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "copyright": "Copyright 2026 HeyGen, Inc.",
+    "notice_file": null
+  },
+  "files": [
+    {
+      "item": "theme-bold",
+      "upstream_path": "themes/bold.css",
+      "upstream_sha256": "2f38bad3f990729a59c335a4a6cbc68f34d90e022797dcb82e0224ee21bcf46b",
+      "yap_path": "src/yap_studio/style/presets/hf_bold.json",
+      "changes": "Mapped palette and display/body typography to captions, opening title and cards. Uses bundled fonts; spacing, radii, motion, muted and border tokens have no matching preset fields.",
+      "tokens": {
+        "bg": "#080611",
+        "fg": "#fff8ff",
+        "muted": "#b6a9ca",
+        "surface": "#1b1230",
+        "border": "#493668",
+        "brand": "#ff3d81",
+        "accent": "#7c5cff",
+        "accent-2": "#00d4ff",
+        "font-display": "Impact, Haettenschweiler, \"Arial Narrow Bold\", sans-serif",
+        "font-body": "Inter, \"Helvetica Neue\", Arial, sans-serif",
+        "font-mono": "\"SFMono-Regular\", Consolas, \"Liberation Mono\", monospace",
+        "radius": "1.4cqmin",
+        "space-1": "1.2cqmin",
+        "space-2": "2.6cqmin",
+        "space-3": "4.6cqmin",
+        "dur-beat": "0.32s",
+        "ease-standard": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "ease-emphasis": "cubic-bezier(0.34, 1.56, 0.64, 1)"
+      },
+      "font_substitutions": {
+        "font-display": "Anton SC",
+        "font-body": "Inter"
+      },
+      "field_tokens": {
+        "captions.text_color": "fg",
+        "captions.highlight_color": "brand",
+        "hook.text_color": "fg",
+        "hook.background_color": "bg",
+        "hook.accent_color": "accent",
+        "graphics.paper_color": "surface",
+        "graphics.titlebar_color": "bg",
+        "graphics.ink_color": "fg",
+        "graphics.accent_color": "accent-2"
+      }
+    },
+    {
+      "item": "theme-editorial",
+      "upstream_path": "themes/editorial.css",
+      "upstream_sha256": "7f7736893c8aee33a8b05f05c8a5be1ca2f733d6b31f723c662e0b0cce4cf78c",
+      "yap_path": "src/yap_studio/style/presets/hf_editorial.json",
+      "changes": "Mapped palette and display/body typography to captions, opening title and cards. Uses bundled fonts; spacing, radii, motion, muted and border tokens have no matching preset fields.",
+      "tokens": {
+        "bg": "#e9e1d2",
+        "fg": "#202725",
+        "muted": "#6c746f",
+        "surface": "#f8f1e5",
+        "border": "#c9bfad",
+        "brand": "#246b63",
+        "accent": "#31776f",
+        "accent-2": "#8a6549",
+        "font-display": "Georgia, \"Times New Roman\", serif",
+        "font-body": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif",
+        "font-mono": "\"SFMono-Regular\", Consolas, \"Liberation Mono\", monospace",
+        "radius": "0.9cqmin",
+        "space-1": "1.1cqmin",
+        "space-2": "2.2cqmin",
+        "space-3": "3.8cqmin",
+        "dur-beat": "0.48s",
+        "ease-standard": "cubic-bezier(0.22, 0.61, 0.36, 1)",
+        "ease-emphasis": "cubic-bezier(0.16, 1, 0.3, 1)"
+      },
+      "font_substitutions": {
+        "font-display": "Gelasio",
+        "font-body": "Gelasio"
+      },
+      "field_tokens": {
+        "captions.text_color": "fg",
+        "captions.highlight_color": "brand",
+        "hook.text_color": "fg",
+        "hook.background_color": "bg",
+        "hook.accent_color": "accent",
+        "graphics.paper_color": "surface",
+        "graphics.titlebar_color": "bg",
+        "graphics.ink_color": "fg",
+        "graphics.accent_color": "accent-2"
+      }
+    },
+    {
+      "item": "theme-neutral",
+      "upstream_path": "themes/neutral.css",
+      "upstream_sha256": "324f4edb566f77138d6c8992ca7e9c792795a6be08fcc32ce66ac8db86cf36c6",
+      "yap_path": "src/yap_studio/style/presets/hf_neutral.json",
+      "changes": "Mapped palette and display/body typography to captions, opening title and cards. Uses bundled fonts; spacing, radii, motion, muted and border tokens have no matching preset fields.",
+      "tokens": {
+        "bg": "#f3f4f6",
+        "fg": "#111318",
+        "muted": "#626873",
+        "surface": "#fcfcfd",
+        "border": "#d7dbe2",
+        "brand": "#1d4ed8",
+        "accent": "#0284c7",
+        "accent-2": "#60a5fa",
+        "font-display": "Inter, \"Helvetica Neue\", Arial, sans-serif",
+        "font-body": "Inter, \"Helvetica Neue\", Arial, sans-serif",
+        "font-mono": "\"SFMono-Regular\", Consolas, \"Liberation Mono\", monospace",
+        "radius": "2.4cqmin",
+        "space-1": "1.2cqmin",
+        "space-2": "2.4cqmin",
+        "space-3": "4cqmin",
+        "dur-beat": "0.4s",
+        "ease-standard": "cubic-bezier(0.215, 0.61, 0.355, 1)",
+        "ease-emphasis": "cubic-bezier(0.19, 1, 0.22, 1)"
+      },
+      "font_substitutions": {
+        "font-display": "Inter",
+        "font-body": "Inter"
+      },
+      "field_tokens": {
+        "captions.text_color": "fg",
+        "captions.highlight_color": "brand",
+        "hook.text_color": "fg",
+        "hook.background_color": "bg",
+        "hook.accent_color": "accent",
+        "graphics.paper_color": "surface",
+        "graphics.titlebar_color": "bg",
+        "graphics.ink_color": "fg",
+        "graphics.accent_color": "accent-2"
+      }
+    }
+  ]
+}

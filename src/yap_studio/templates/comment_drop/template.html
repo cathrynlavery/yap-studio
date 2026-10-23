@@ -1,0 +1,118 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "chat-message"
+  (registry/components/chat-message/chat-message.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Derived from HyperFrames registry item "spring-pop"
+  (registry/components/spring-pop/spring-pop.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Adapted the corner arrival and spring easing to a fitted comment bubble with local avatars and creator style tokens.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":272},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"text","type":"string","label":"Text","default":""},{"id":"name","type":"string","label":"Name","default":""},{"id":"initials","type":"string","label":"Initials","default":""},{"id":"avatar_src","type":"string","label":"Avatar src","default":""},{"id":"side","type":"string","label":"Side","default":"left"},{"id":"drop_at","type":"number","label":"Drop at","default":0.1},{"id":"text_px","type":"number","label":"Text px","default":40},{"id":"lines","type":"string","label":"Lines","default":"[]"},{"id":"bubble_width_px","type":"number","label":"Bubble width px","default":360}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  padding: var(--card-pad-top) var(--card-pad-x) var(--card-pad-bottom);
+  color: var(--card-ink); font-family: var(--card-font);
+  isolation: isolate; pointer-events: none;
+}
+.panel { width: var(--card-panel-width); padding-bottom: 16px; opacity: 0; }
+.bubble {
+  position: relative; display: flex; align-items: center; gap: 20px;
+  width: var(--card-bubble-width); padding: 24px 28px;
+  background: var(--card-paper); border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow); opacity: 0; transform-origin: 40px bottom;
+}
+.bubble::before {
+  content: ""; position: absolute; width: 22px; height: 22px;
+  left: 40px; bottom: -11px; transform: rotate(45deg); background: var(--card-paper);
+}
+.panel[data-side="right"] .bubble { margin-left: auto; transform-origin: calc(100% - 40px) bottom; }
+.panel[data-side="right"] .bubble::before { left: auto; right: 40px; }
+.avatar {
+  flex: 0 0 72px; width: 72px; height: 72px; border-radius: 50%; overflow: hidden;
+  background: var(--card-accent); color: var(--card-accent-ink);
+  display: flex; align-items: center; justify-content: center; font-weight: 700;
+  font-size: 30px; line-height: 1;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.initials[hidden], .name[hidden] { display: none; }
+.column { min-width: 0; }
+.name { font-size: 30px; font-weight: 700; line-height: 1.2; white-space: pre; }
+.text { font-size: var(--card-text-size); font-weight: 500; line-height: 1.2; white-space: pre; }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="comment_drop" data-start="0" data-width="1040" data-height="360" data-duration="3">
+<div class="panel" data-side="left">
+  <div class="bubble">
+    <div class="avatar"><span class="initials"></span></div>
+    <div class="column"><div class="name"></div><div class="text"></div></div>
+  </div>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  const panel = root.querySelector(".panel");
+  const bubble = root.querySelector(".bubble");
+  const tokens = {
+    "paper": v.paper_color, "titlebar": v.titlebar_color, "bar-ink": v.bar_ink_color,
+    "ink": v.ink_color, "accent": v.accent_color, "accent-ink": v.accent_ink_color,
+    "font": v.font_family, "mono": v.mono_family, "radius": `${v.card_radius_px}px`,
+    "shadow": v.card_shadow, "panel-width": `${v.panel_width_px}px`,
+    "panel-height": `${v.panel_max_height_px}px`, "pad-x": `${v.pad_x_px}px`,
+    "pad-top": `${v.pad_top_px}px`, "pad-bottom": `${v.pad_bottom_px}px`,
+  };
+  for (const [name, value] of Object.entries(tokens)) {
+    root.style.setProperty(`--card-${name}`, value, "important");
+  }
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  root.style.setProperty("--card-text-size", `${v.text_px}px`, "important");
+  root.style.setProperty("--card-bubble-width", `${v.bubble_width_px}px`, "important");
+  panel.setAttribute("data-side", v.side);
+  const name = root.querySelector(".name");
+  name.textContent = v.name;
+  name.hidden = !v.name;
+  root.querySelector(".text").textContent = JSON.parse(v.lines).join("\n");
+  if (v.avatar_src) {
+    if (!/^avatar\.(png|jpe?g|webp)$/.test(v.avatar_src)) {
+      throw new Error("use a local avatar filename");
+    }
+    const image = document.createElement("img");
+    image.setAttribute("src", v.avatar_src);
+    image.setAttribute("alt", "");
+    root.querySelector(".avatar").appendChild(image);
+  }
+  const initials = root.querySelector(".initials");
+  initials.textContent = v.initials;
+  initials.hidden = !!v.avatar_src;
+  const duration = Number(root.dataset.duration);
+  const OUT = Math.min(0.3, duration * 0.15);
+  const outStart = duration - OUT;
+  gsap.set(panel, { opacity: 0, y: 8 });
+  gsap.set(bubble, { opacity: 0, y: -140, scale: 0.75 });
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo(panel, { opacity: 0, y: 8 },
+    { opacity: 1, y: 0, duration: Math.min(0.3, outStart), ease: "power3.out" }, 0);
+  tl.fromTo(bubble, { y: -140, scale: 0.75 },
+    { y: 0, scale: 1, duration: 0.6, ease: "back.out(1.7)" }, v.drop_at);
+  tl.fromTo(bubble, { opacity: 0 },
+    { opacity: 1, duration: 0.15, ease: "power2.out" }, v.drop_at);
+  tl.fromTo(panel, { opacity: 1 },
+    { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
+  tl.seek(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["comment_drop"] = tl;
+})();
+</script>
+</body>
+</html>

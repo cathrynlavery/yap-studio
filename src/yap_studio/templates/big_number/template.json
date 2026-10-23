@@ -1,0 +1,289 @@
+{
+  "id": "big_number",
+  "version": 1,
+  "reads": "graphics",
+  "derived_from": [],
+  "slots": {
+    "end": {
+      "type": "number",
+      "required": true,
+      "minimum": 0,
+      "maximum": 999999999
+    },
+    "start": {
+      "type": "number",
+      "required": false,
+      "minimum": 0,
+      "maximum": 999999999,
+      "default": 0
+    },
+    "prefix": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 3,
+      "default": ""
+    },
+    "suffix": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 6,
+      "default": ""
+    },
+    "label": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 24,
+      "default": ""
+    }
+  },
+  "variables": [
+    {
+      "id": "start",
+      "type": "number",
+      "label": "Start",
+      "default": 0
+    },
+    {
+      "id": "end",
+      "type": "number",
+      "label": "End",
+      "default": 10000
+    },
+    {
+      "id": "value_px",
+      "type": "number",
+      "label": "Value px",
+      "default": 300
+    },
+    {
+      "id": "label_px",
+      "type": "number",
+      "label": "Label px",
+      "default": 48
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Fps",
+      "default": 30
+    },
+    {
+      "id": "count_s",
+      "type": "number",
+      "label": "Count s",
+      "default": 1
+    },
+    {
+      "id": "fade_in_s",
+      "type": "number",
+      "label": "Fade in s",
+      "default": 0.15
+    },
+    {
+      "id": "fade_out_s",
+      "type": "number",
+      "label": "Fade out s",
+      "default": 0.3
+    },
+    {
+      "id": "decimals",
+      "type": "number",
+      "label": "Decimals",
+      "default": 0
+    },
+    {
+      "id": "weight",
+      "type": "number",
+      "label": "Weight",
+      "default": 700
+    },
+    {
+      "id": "cap_height_em",
+      "type": "number",
+      "label": "Cap height em",
+      "default": 0.75
+    },
+    {
+      "id": "shadow_pad_px",
+      "type": "number",
+      "label": "Shadow pad px",
+      "default": 24
+    },
+    {
+      "id": "shadow_blur_px",
+      "type": "number",
+      "label": "Shadow blur px",
+      "default": 6
+    },
+    {
+      "id": "shadow_y_px",
+      "type": "number",
+      "label": "Shadow y px",
+      "default": 4
+    },
+    {
+      "id": "shadow_alpha",
+      "type": "number",
+      "label": "Shadow alpha",
+      "default": 0.7
+    },
+    {
+      "id": "label_gap_px",
+      "type": "number",
+      "label": "Label gap px",
+      "default": 12
+    },
+    {
+      "id": "widest_em",
+      "type": "number",
+      "label": "Widest em",
+      "default": 1
+    },
+    {
+      "id": "label_em",
+      "type": "number",
+      "label": "Label em",
+      "default": 0
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 0
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 0
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 0
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 0
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 0
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 0
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "label_color",
+      "type": "color",
+      "label": "Label color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "prefix",
+      "type": "string",
+      "label": "Prefix",
+      "default": ""
+    },
+    {
+      "id": "suffix",
+      "type": "string",
+      "label": "Suffix",
+      "default": ""
+    },
+    {
+      "id": "label",
+      "type": "string",
+      "label": "Label",
+      "default": ""
+    },
+    {
+      "id": "font_name",
+      "type": "string",
+      "label": "Font name",
+      "default": "Inter"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "advances",
+      "type": "string",
+      "label": "Advances",
+      "default": "{}"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": ""
+    },
+    {
+      "id": "digit_descent_em",
+      "type": "number",
+      "label": "Digit descent em",
+      "default": 0.2
+    }
+  ],
+  "box": {
+    "width": "fitted number and label plus shadow",
+    "height": "cap height plus label and shadow",
+    "y": 0
+  }
+}

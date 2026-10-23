@@ -1,0 +1,94 @@
+<!doctype html>
+<!--
+  Derived from HyperFrames registry item "mk-placeholder-grid"
+  (registry/blocks/mk-placeholder-grid/mk-placeholder-grid.html at commit 0d5e395cd31d0f491e9b26d0da110da6e231c512)
+  Copyright 2026 HeyGen, Inc. Apache License 2.0 (LICENSES/Apache-2.0.txt).
+  Modified for Yap Studio, 2026: Replaced moving cells with fixed rounded video windows, paper rings, fitted chips and frame-based linear fades around the speaker.
+-->
+<html lang="en" data-composition-variables='[{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"titlebar_color","type":"color","label":"Titlebar color","default":"#E4E1D8"},{"id":"bar_ink_color","type":"color","label":"Bar ink color","default":"#222222"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"accent_ink_color","type":"color","label":"Accent ink color","default":"#FFFFFF"},{"id":"font_family","type":"string","label":"Font family","default":"\"Yap Studio Inter\", sans-serif"},{"id":"mono_family","type":"string","label":"Mono family","default":"\"Yap Studio Space Mono\", monospace"},{"id":"card_radius_px","type":"number","label":"Card radius px","default":16},{"id":"card_shadow","type":"string","label":"Card shadow","default":"0 10px 24px rgb(0 0 0 / 0.16)"},{"id":"panel_width_px","type":"number","label":"Panel width px","default":960},{"id":"panel_max_height_px","type":"number","label":"Panel max height px","default":618},{"id":"pad_x_px","type":"number","label":"Pad x px","default":40},{"id":"pad_top_px","type":"number","label":"Pad top px","default":24},{"id":"pad_bottom_px","type":"number","label":"Pad bottom px","default":64},{"id":"tiles","type":"string","label":"Tiles","default":"[{\"x\": 24, \"y\": 96, \"width\": 320, \"height\": 262}, {\"x\": 360, \"y\": 96, \"width\": 320, \"height\": 262}, {\"x\": 696, \"y\": 96, \"width\": 320, \"height\": 262}]"},{"id":"labels","type":"string","label":"Labels","default":"[\"First\",\"Next\",\"Then\"]"},{"id":"chip_px","type":"number","label":"Chip px","default":30},{"id":"windows","type":"string","label":"Windows","default":"[{\"x\": 54, \"y\": 118, \"width\": 260, \"height\": 146, \"radius\": 24, \"start\": 0, \"frames\": 90, \"fade_in\": 8, \"fade_out\": 9}, {\"x\": 390, \"y\": 118, \"width\": 260, \"height\": 146, \"radius\": 24, \"start\": 4, \"frames\": 86, \"fade_in\": 8, \"fade_out\": 9}, {\"x\": 726, \"y\": 118, \"width\": 260, \"height\": 146, \"radius\": 24, \"start\": 7, \"frames\": 83, \"fade_in\": 8, \"fade_out\": 9}]"},{"id":"window_fill","type":"enum","label":"Window fill","default":"preview","options":[{"value":"preview","label":"Preview"},{"value":"clear","label":"Clear"}]},{"id":"fps","type":"number","label":"Fps","default":30}]'>
+<head>
+<meta charset="utf-8">
+<style>
+/* BUNDLED_FONT_FACES */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+#root { position: relative; color: var(--card-ink); font-family: var(--card-font); }
+.tile { position: absolute; opacity: 0; }
+.frame { position: absolute; border-radius: var(--card-radius); box-shadow: var(--card-shadow); }
+.frame svg { display: block; width: 100%; height: 100%; }
+.chip { position: absolute; max-width: 100%; padding: 4px 8px; border-radius: 8px;
+  color: var(--card-ink); background: var(--card-paper); font-size: var(--card-chip-size);
+  font-weight: 600; line-height: 32px; white-space: nowrap; opacity: 0;
+  box-shadow: var(--card-shadow); }
+</style>
+<script src="gsap.min.js"></script>
+</head>
+<body>
+<div id="root" data-composition-id="playing_grid" data-start="0" data-width="1080" data-height="1920" data-duration="3"><svg style="display:none" aria-hidden="true"></svg></div>
+<script>
+(function () {
+  "use strict";
+  const v = window.__hyperframes.getVariables();
+  const root = document.getElementById("root");
+  for (const [name, value] of Object.entries({ paper: v.paper_color, ink: v.ink_color,
+    font: v.font_family, radius: `${v.card_radius_px}px`, shadow: v.card_shadow,
+    "chip-size": `${v.chip_px}px` })) root.style.setProperty(`--card-${name}`, value, "important");
+  root.style.width = `${root.dataset.width}px`;
+  root.style.height = `${root.dataset.height}px`;
+  const windows = JSON.parse(v.windows), tiles = JSON.parse(v.tiles), labels = JSON.parse(v.labels);
+  const fps = Number(v.fps);
+  const namespace = root.querySelector("svg").namespaceURI;
+  const tl = gsap.timeline({ paused: true });
+  function rounded(x, y, width, height, r) {
+    return `M${x+r},${y}h${width-2*r}a${r} ${r} 0 0 1 ${r} ${r}v${height-2*r}` +
+      `a${r} ${r} 0 0 1 ${-r} ${r}h${-width+2*r}a${r} ${r} 0 0 1 ${-r} ${-r}` +
+      `v${-height+2*r}a${r} ${r} 0 0 1 ${r} ${-r}Z`;
+  }
+  function shape(svg, tag, attrs, parent = svg) {
+    const node = document.createElementNS(svg.namespaceURI, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    parent.appendChild(node);
+    return node;
+  }
+  windows.forEach((w, i) => {
+    const t = tiles[i];
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    Object.assign(tile.style, { left: `${t.x}px`, top: `${t.y}px`, width: `${t.width}px`, height: `${t.height}px` });
+    const frame = document.createElement("div");
+    frame.className = "frame";
+    Object.assign(frame.style, { left: `${w.x-t.x-6}px`, top: `${w.y-t.y-6}px`, width: `${w.width+12}px`, height: `${w.height+12}px` });
+    const svg = document.createElementNS(namespace, "svg");
+    svg.setAttribute("viewBox", `0 0 ${w.width+12} ${w.height+12}`);
+    frame.appendChild(svg);
+    shape(svg, "path", { d: rounded(0, 0, w.width+12, w.height+12, w.radius+6) + rounded(6, 6, w.width, w.height, w.radius), fill: v.paper_color, "fill-rule": "evenodd" });
+    if (v.window_fill === "preview") {
+      const defs = shape(svg, "defs", {});
+      const gradient = shape(svg, "linearGradient", { id: `preview-${i}` }, defs);
+      shape(svg, "stop", { "stop-color": v.paper_color }, gradient);
+      shape(svg, "stop", { offset: "1", "stop-color": `color-mix(in srgb, ${v.ink_color} 12%, ${v.paper_color})` }, gradient);
+      shape(svg, "rect", { x: 6, y: 6, width: w.width, height: w.height, rx: w.radius, fill: `url(#preview-${i})` });
+      const x = 6+w.width/2, y = 6+w.height/2;
+      shape(svg, "path", { d: `M${x-10},${y-14}L${x+16},${y}L${x-10},${y+14}Z`, fill: v.ink_color, opacity: "0.6" });
+    }
+    tile.appendChild(frame);
+    if (labels[i]) {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = labels[i];
+      Object.assign(chip.style, { left: `${w.x-t.x}px`, top: `${w.y-t.y+w.height+14}px`, maxWidth: `${w.width}px` });
+      tile.appendChild(chip);
+      tl.fromTo(chip, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 6/fps, ease: "none" }, (w.start+w.fade_in)/fps);
+    }
+    root.appendChild(tile);
+    gsap.set(tile, { opacity: 0 });
+    tl.fromTo(tile, { opacity: 0 }, { opacity: 1, duration: w.fade_in/fps, ease: "none" }, w.start/fps);
+    tl.fromTo(tile, { opacity: 1 }, { opacity: 0, duration: w.fade_out/fps, ease: "none", immediateRender: false }, (w.start+w.frames-w.fade_out)/fps);
+  });
+  tl.seek(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["playing_grid"] = tl;
+})();
+</script>
+</body>
+</html>

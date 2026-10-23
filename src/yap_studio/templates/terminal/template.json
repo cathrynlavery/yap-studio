@@ -1,0 +1,229 @@
+{
+  "id": "terminal",
+  "version": 1,
+  "reads": "graphics",
+  "notes": "schedule comes from card_layer_plan; replan command, output and timing slot overrides.",
+  "derived_from": [
+    {
+      "item": "code-terminal-run",
+      "path": "registry/components/code-terminal-run/code-terminal-run.html"
+    },
+    {
+      "item": "typed-prompt",
+      "path": "registry/components/typed-prompt/typed-prompt.html"
+    }
+  ],
+  "slots": {
+    "command": {
+      "type": "string",
+      "required": true,
+      "min_length": 1,
+      "max_length": 60
+    },
+    "output": {
+      "type": "string_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 3,
+      "min_length": 1,
+      "max_length": 60,
+      "default": []
+    },
+    "title": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 40,
+      "default": ""
+    },
+    "host": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 32,
+      "default": ""
+    },
+    "prompt": {
+      "type": "string",
+      "required": false,
+      "min_length": 0,
+      "max_length": 3,
+      "default": "$"
+    },
+    "cadence": {
+      "type": "enum",
+      "required": false,
+      "options": [
+        "human",
+        "uniform"
+      ],
+      "default": "human"
+    },
+    "type_at": {
+      "type": "number",
+      "required": false,
+      "default": 0.4
+    },
+    "cues": {
+      "type": "number_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 3,
+      "default": []
+    },
+    "word_cues": {
+      "type": "number_list",
+      "required": false,
+      "min_items": 0,
+      "max_items": 12,
+      "default": [],
+      "description": "Non-decreasing seconds, one per word, starting at 0.3 s or later; replaces type_at when nonempty and reserves 0.5 s before fade-out."
+    }
+  },
+  "variables": [
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "titlebar_color",
+      "type": "color",
+      "label": "Titlebar color",
+      "default": "#E4E1D8"
+    },
+    {
+      "id": "bar_ink_color",
+      "type": "color",
+      "label": "Bar ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "accent_ink_color",
+      "type": "color",
+      "label": "Accent ink color",
+      "default": "#FFFFFF"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "\"Yap Studio Inter\", sans-serif"
+    },
+    {
+      "id": "mono_family",
+      "type": "string",
+      "label": "Mono family",
+      "default": "\"Yap Studio Space Mono\", monospace"
+    },
+    {
+      "id": "card_radius_px",
+      "type": "number",
+      "label": "Card radius px",
+      "default": 16
+    },
+    {
+      "id": "card_shadow",
+      "type": "string",
+      "label": "Card shadow",
+      "default": "0 10px 24px rgb(0 0 0 / 0.16)"
+    },
+    {
+      "id": "panel_width_px",
+      "type": "number",
+      "label": "Panel width px",
+      "default": 960
+    },
+    {
+      "id": "panel_max_height_px",
+      "type": "number",
+      "label": "Panel max height px",
+      "default": 272
+    },
+    {
+      "id": "pad_x_px",
+      "type": "number",
+      "label": "Pad x px",
+      "default": 40
+    },
+    {
+      "id": "pad_top_px",
+      "type": "number",
+      "label": "Pad top px",
+      "default": 24
+    },
+    {
+      "id": "pad_bottom_px",
+      "type": "number",
+      "label": "Pad bottom px",
+      "default": 64
+    },
+    {
+      "id": "command",
+      "type": "string",
+      "label": "Command",
+      "default": ""
+    },
+    {
+      "id": "output",
+      "type": "string",
+      "label": "Output",
+      "default": "[]"
+    },
+    {
+      "id": "title",
+      "type": "string",
+      "label": "Title",
+      "default": ""
+    },
+    {
+      "id": "host",
+      "type": "string",
+      "label": "Host",
+      "default": ""
+    },
+    {
+      "id": "prompt",
+      "type": "string",
+      "label": "Prompt",
+      "default": "$"
+    },
+    {
+      "id": "schedule",
+      "type": "string",
+      "label": "Schedule",
+      "default": "{\"command\":\"\",\"output\":[],\"rows\":[[0,0]],\"type_start\":0.4,\"type_end\":0.41,\"exec_at\":0.63,\"output_at\":[]}"
+    },
+    {
+      "id": "text_px",
+      "type": "number",
+      "label": "Text px",
+      "default": 40
+    },
+    {
+      "id": "bar_px",
+      "type": "number",
+      "label": "Bar px",
+      "default": 30
+    }
+  ],
+  "box": {
+    "width": "graphics.card_width_px + 80",
+    "height": 360,
+    "y": "internal.key_text_top_px",
+    "panel_max_height": 272
+  }
+}
