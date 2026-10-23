@@ -910,6 +910,26 @@ def test_planned_join_words_use_source_energy(
 
 
 @pytest.mark.parametrize("side", ["first", "last"])
+def test_planned_word_beyond_edge_cannot_use_kept_neighbour(side: str) -> None:
+    """Small per-word clock errors must not substitute an adjacent kept nucleus."""
+    levels = np.full(250, -65.0)
+    levels[80:100] = -20.0
+    levels[104:126] = -20.0
+    spans = [("quiet", 0.80, 1.00), ("garden", 1.00, 1.22)]
+    point = 1.01
+    if side == "first":
+        levels = levels[::-1]
+        spans = [(text, 2.5 - end, 2.5 - start) for text, start, end in reversed(spans)]
+        point = 2.5 - point
+    finding = joins._planned_word_finding(
+        Transcript([Word(text, start + 1, end + 1) for text, start, end in spans]),
+        "garden", side, point, "Cut 1", point, sound=_word_level_sound(levels), sr=16000,
+    )
+    assert finding is not None and (finding.check, finding.severity) == ("join.words", "fail")
+    assert finding.evidence["overlap_ms"] == pytest.approx(250, abs=10)
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
 @pytest.mark.parametrize("overlap_ms", [-40, 0, 20, 30, 70, 80, 400])
 def test_planned_word_energy_tolerance_and_whole_word_loss(
     small_media: SimpleNamespace, side: str, overlap_ms: int,
@@ -1237,7 +1257,7 @@ def test_planned_word_excluded_speech_locates_long_word(side: str) -> None:
     levels[80:90] = -20.0
     levels[110:220] = -35.0
     levels[170:190] = -20.0
-    # The heard start is early enough for the energy fallback to credit the kept neighbour.
+    # An early heard start must not let the energy fallback credit the kept neighbour.
     start, end, point = 0.95, 2.20, 1.00
     if side == "first":
         levels = levels[::-1]
@@ -1250,9 +1270,12 @@ def test_planned_word_excluded_speech_locates_long_word(side: str) -> None:
     assert abs(planned.nucleus_s - point) > joins._WORD_SEARCH_S
     assert planned.nucleus_s == pytest.approx(0.70 if side == "first" else 1.80, abs=0.01)
     assert joins._locate_excluded_word_shape(shapes, side, point) == planned
-    assert joins._planned_word_finding(
+    fallback = joins._planned_word_finding(
         transcript, "garden", side, point, "Cut 1", point, sound=sound, sr=16000,
-    ) is None
+    )
+    assert fallback is not None and (fallback.check, fallback.severity) == ("join.words", "fail")
+    assert fallback.evidence["located_by"] == "energy"
+    assert fallback.evidence["overlap_ms"] == pytest.approx(1200, abs=10)
     finding = joins._planned_word_finding(
         transcript, "garden", side, point, "Cut 1", point, sound=sound, sr=16000,
         excluded=Transcript([Word("Garden!", 9.0, 10.0)]),

@@ -237,6 +237,7 @@ def test_save_chain_hashes_snapshots_and_immutability(project: Path) -> None:
     assert version_cut_words(first).words[0].id == "t1:0"
     assert version_pieces(first) == {
         "schema": "yap-studio/version-pieces@1", "fps": "30/1", "total_frames": 60,
+        "listen_joins": [],
         "inputs": _receipt_inputs(project),
         "pieces": [
             {"segment": "s1", "take": "t1", "out_f0": 0, "n_frames": 30,

@@ -224,13 +224,6 @@ def _layer_findings(project_dir: Path, sha256: str) -> tuple[list, list, list]:
 def _join_findings(project_dir: Path, sha256: str, version_id: str | None) -> list[dict]:
     """Keep uncertain source edges only where they still meet on the review timeline."""
     try:
-        record = read_receipt(project_dir / "cut")
-        if not record or record.get("status") != "verified":
-            return []
-        joins = record.get("plan", {}).get("listen_joins", [])
-        if not isinstance(joins, list) or not joins:
-            return []
-        source = _receipt_pieces(record, project_dir / "cut/receipt.json")
         manifest = (load_version(project_dir, version_id) if version_id is not None else
                     find_version_by_media(project_dir, sha256))
         if manifest is not None:
@@ -238,7 +231,19 @@ def _join_findings(project_dir: Path, sha256: str, version_id: str | None) -> li
                 return []
             target = version_pieces(manifest)
             duration = Fraction(str(manifest.media["duration_s"]))
+        if manifest is not None and "listen_joins" in target:
+            source = target
+            joins = target["listen_joins"]
         else:
+            # Older snapshots have no saved join evidence; retain their validated mapping.
+            record = read_receipt(project_dir / "cut")
+            if not record or record.get("status") != "verified":
+                return []
+            joins = record.get("plan", {}).get("listen_joins", [])
+            source = _receipt_pieces(record, project_dir / "cut/receipt.json")
+        if not isinstance(joins, list) or not joins:
+            return []
+        if manifest is None:
             digest = next((item["sha256"] for item in record.get("outputs", [])
                            if item.get("path") == "cut/cut.mp4"), None)
             duration = Fraction(source["total_frames"], 1) / Fraction(source["fps"])

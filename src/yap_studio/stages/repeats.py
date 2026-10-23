@@ -42,21 +42,18 @@ def _sentences(words: Sequence[RepeatWord]) -> list[_Sentence]:
     groups: list[list[RepeatWord]] = []
     pending: list[RepeatWord] = []
     for word in words:
+        # Punctuation keeps a sentence whole only between breaths and story edges.
+        if pending and (word.segment_id != pending[-1].segment_id
+                        or word.time_s - pending[-1].end_s
+                        >= RULE_DEFAULTS["beat_breath_s"] - 1e-9):
+            groups.append(pending)
+            pending = []
         pending.append(word)
         if word.text.rstrip("\"')]}’”»").endswith((".", "?", "!")):
             groups.append(pending)
             pending = []
     if pending:
-        # Preserve punctuated sentences; use breath gaps and story edges for unfinished text.
-        group: list[RepeatWord] = []
-        for word in pending:
-            if group and (word.segment_id != group[-1].segment_id
-                          or word.time_s - group[-1].end_s
-                          >= RULE_DEFAULTS["beat_breath_s"] - 1e-9):
-                groups.append(group)
-                group = []
-            group.append(word)
-        groups.append(group)
+        groups.append(pending)
     result = []
     for group in groups:
         tokens = [(token, word) for word in group if (token := _token(word.text))]

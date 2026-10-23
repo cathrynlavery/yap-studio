@@ -429,9 +429,13 @@ def _parse_pieces(data: object) -> dict:
     keys = {"schema", "fps", "total_frames", "pieces"}
     if isinstance(data, dict) and "inputs" in data:
         keys.add("inputs")
+    if isinstance(data, dict) and "listen_joins" in data:
+        keys.add("listen_joins")
     data = _fields(data, keys)
     if "inputs" in data:
         _cut_inputs(data["inputs"])
+    if "listen_joins" in data and not isinstance(data["listen_joins"], list):
+        raise ValueError("listen_joins must be an array")
     if data["schema"] != _PIECES_SCHEMA or not isinstance(data["fps"], str):
         raise ValueError("invalid pieces schema or fps")
     if Fraction(data["fps"]) <= 0:
@@ -470,6 +474,7 @@ def _receipt_pieces(receipt: dict, path: Path) -> dict:
                 key: item[key] for key in ("take", "out_f0", "n_frames", "src_t0", "src_t1")
             }} for item in plan["pieces"]],
             "inputs": receipt["inputs"],
+            "listen_joins": plan.get("listen_joins", []),
         }
         return _parse_pieces(pieces)
     except (KeyError, TypeError, ValueError, ZeroDivisionError, OverflowError) as exc:

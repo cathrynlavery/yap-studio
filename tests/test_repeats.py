@@ -104,9 +104,16 @@ def test_normalizes_punctuation_and_apostrophes_and_keeps_unfinished_sentence() 
 
 
 @pytest.mark.parametrize("ending", ["", "."])
-def test_repeated_phrase_with_or_without_punctuation(ending: str) -> None:
-    sentence = f"Amber lanterns glow brightly tonight{ending}"
-    repeats = find_repeats(script((0, sentence), (10, sentence)))
+@pytest.mark.parametrize("punctuated_tail", [False, True])
+@pytest.mark.parametrize("opening", ["Amber", "amber"])
+def test_repeated_phrase_with_or_without_punctuation(
+    ending: str, punctuated_tail: bool, opening: str,
+) -> None:
+    sentence = f"{opening} lanterns glow brightly tonight{ending}"
+    sentences = [(0, sentence), (10, sentence)]
+    if punctuated_tail:
+        sentences.append((20, "Thanks."))
+    repeats = find_repeats(script(*sentences))
     assert len(repeats) == 1
     assert repeats[0]["shared"] == "amber lanterns glow brightly tonight"
     assert repeats[0]["first"]["time_s"] == 0
@@ -128,11 +135,17 @@ def test_short_phrase_does_not_warn_without_punctuation(ending: str) -> None:
     assert find_repeats(script((0, f"you know{ending}"), (10, f"you know{ending}"))) == []
 
 
-def test_punctuated_rhetorical_repetition_keeps_one_sentence_despite_pause() -> None:
-    assert find_repeats(script(
-        (0, "Amber lanterns glow brightly tonight"),
-        (10, "amber lanterns glow brightly tonight, I say again."),
-    )) == []
+@pytest.mark.parametrize(("gap", "expected"), [(0.39, 0), (0.4, 1), (6.1, 1)])
+def test_punctuated_sentence_stays_whole_only_between_breaths(gap: float, expected: int) -> None:
+    words = [
+        RepeatWord(f"t1:{line}:{offset}", text, start + offset * 0.8, start + offset * 0.8 + 0.7)
+        for line, (start, sentence) in enumerate((
+            (0, "Amber lanterns glow brightly tonight"),
+            (3.9 + gap, "amber lanterns glow brightly tonight, I say again."),
+        ))
+        for offset, text in enumerate(sentence.split())
+    ]
+    assert len(find_repeats(words)) == expected
 
 
 @pytest.mark.parametrize(("opening", "closing"), [
