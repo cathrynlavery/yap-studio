@@ -11,16 +11,21 @@ restarts, adds your captions, cards, B-roll and music, and checks the video befo
 You leave notes from your phone, and the next version follows them.
 
 <p>
+<a href="https://github.com/cathrynlavery/yap-studio/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/cathrynlavery/yap-studio?style=flat&color=2f3bff"></a>
 <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2f3bff"></a>
 <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-2f3bff">
 <img alt="macOS only" src="https://img.shields.io/badge/platform-macOS%20only-2f3bff">
 </p>
+
+**[Website](https://yapstudio.app) · [Changelog](CHANGELOG.md) · [Discussions](https://github.com/cathrynlavery/yap-studio/discussions)**
 
 </div>
 
 <p align="center"><img src="docs/images/demo.gif" alt="A scroll through Yap Studio with a generated sample presenter: a take with the restarts and dead air struck out, cards and captions timed to the words, approved notes becoming taste rules, and the checks every render passes before you see it." width="720"></p>
 
 <p align="center">You talk. The agent edits. You comment.</p>
+
+<p align="center">If it saves you an evening of editing, star the repo so other creators can find it.</p>
 
 Yap Studio is an open-source add-on for [HyperFrames](https://www.npmjs.com/package/hyperframes)
 that edits vertical videos on your own computer. It is for people who talk to a camera and would
@@ -104,6 +109,8 @@ generated music, still goes through Claude in chat, and Claude asks first.
 - [A cold plunge build](https://x.com/cathrynlavery/status/2110819344745923004): the first
   voiceover test, made from footage that sat in a camera roll since 2023.
 - [The launch teaser](https://x.com/cathrynlavery/status/2108720117635022887).
+
+Made something with it? Share it in [Discussions](https://github.com/cathrynlavery/yap-studio/discussions).
 
 ## What goes into the edit
 
