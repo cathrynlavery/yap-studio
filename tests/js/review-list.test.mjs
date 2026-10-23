@@ -224,6 +224,7 @@ for (const prefix of ['/', '/v/2/']) {
       ...timeline, URLSearchParams, location: base,
       document: {getElementById: getElement, addEventListener() {}},
       window: {addEventListener() {}}, setInterval() {}, confirm: () => true,
+      setTimeout() {}, clearTimeout() {},
       fetch: async (route, options) => {
         calls.push({url: new URL(route, base), options});
         return {ok: true, status: options.method === 'DELETE' ? 204 : 200,

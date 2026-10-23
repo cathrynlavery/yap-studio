@@ -17,8 +17,37 @@ async function run(url, resultFile, shots) {
       page.on('pageerror', (error) => errors.push(error.message));
       await page.setViewport({width: mobile ? 390 : 1440, height: mobile ? 844 : 900,
         isMobile: mobile, hasTouch: mobile});
+      await page.setRequestInterception(true);
+      let holdMedia = true;
+      const held = new Set();
+      page.on('request', (request) => {
+        if (holdMedia && new URL(request.url()).pathname.endsWith('/media')) held.add(request);
+        else void request.continue();
+      });
       await page.goto(url);
+      await page.waitForSelector('#codec-error:not([hidden])', {timeout: 20000});
+      assert.match(await page.$eval('#player-message', (node) => node.textContent), /load stalled/u);
+      assert.equal(await page.$eval('#player-retry', (node) => node.textContent), 'Retry');
+      assert.equal(await page.$eval('#offline-banner', (node) => node.hidden), true);
+      await page.$eval('#player-retry', (node) => node.scrollIntoView({block: 'center'}));
+      const retryBox = await page.$eval('#player-retry', (node) => {
+        const {left, right, width, height} = node.getBoundingClientRect();
+        return {left, right, width, height};
+      });
+      assert.ok(retryBox.left >= 0 && retryBox.right <= (mobile ? 390 : 1440));
+      assert.ok(retryBox.width >= 44 && retryBox.height >= 44);
+      if (shots) {
+        const directory = mobile ? shots : join(shots, 'desktop');
+        await mkdir(directory, {recursive: true});
+        await page.screenshot({path: join(directory, '0-stalled.png')});
+      }
+      holdMedia = false;
+      for (const request of held) await request.abort();
+      if (mobile) await page.tap('#player-retry');
+      else await page.click('#player-retry');
       await page.waitForFunction(() => document.getElementById('video').videoWidth > 0);
+      await page.waitForFunction(() => document.getElementById('video').readyState >= 2);
+      assert.equal(await page.$eval('#codec-error', (node) => node.hidden), true);
       const settle = () => page.evaluate(() => new Promise((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const show = async (selector) => {
@@ -123,7 +152,7 @@ async function run(url, resultFile, shots) {
       await shot('4-selected.png');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), mobile ? 390 : 1440);
       assert.deepEqual(errors, []);
-      results.push({mobile, comment: comment.id, x: 0.42, y: 0.31, frame,
+      results.push({mobile, stall: true, retry: true, comment: comment.id, x: 0.42, y: 0.31, frame,
         pictureWidth: initial.width, markerWidth: marker.width, markerHeight: marker.height});
       await page.close();
     }

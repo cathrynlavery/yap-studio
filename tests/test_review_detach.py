@@ -12,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit
@@ -279,8 +280,15 @@ def test_versions_detach_reuses_saved_link(video: Path, review_env: dict[str, st
         assert second.returncode == 0, second.stderr
         second_doc = json.loads(second.stdout)
         assert second_doc["videos"][0]["url"] == first_doc["videos"][0]["url"]
-        assert not alive(first_doc["detached"]["pid"])
+        assert second_doc["detached"]["pid"] == first_doc["detached"]["pid"]
+        assert alive(first_doc["detached"]["pid"])
         assert review_payload(second_doc["videos"][0]["url"])["media"]["name"] == "newer.mp4"
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: command(review_env, *args), range(2)))
+        for result in results:
+            assert result.returncode == 0, result.stderr
+            assert json.loads(result.stdout)["detached"]["pid"] == first_doc["detached"]["pid"]
+        assert len(records(review_env)) == 1
     finally:
         command(review_env, "--stop")
         cleanup(review_env)

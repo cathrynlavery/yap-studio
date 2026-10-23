@@ -176,6 +176,7 @@ async function findingsPage({cfr = true, series = true, duration = 10} = {}) {
     location: new URL(`http://review.example.net/v/2/?t=token${series ? '&version=1' : ''}`),
     history: {replaceState() {}}, window: {addEventListener() {}},
     setInterval() {}, clearInterval() {}, confirm: () => true,
+    setTimeout() {}, clearTimeout() {},
     fetch: async (path, options) => {
       requests.push({path, options});
       if (state.offline) throw new TypeError('offline');
@@ -588,7 +589,12 @@ async function replyPage({initial = 3, variable = false, oldVariable = false,
     document: {getElementById: element, createElement: (tag) => new Node(tag), addEventListener() {},
       visibilityState: 'visible'},
     setInterval() { return 1; }, clearInterval() {},
-    setTimeout(fn, delay) { const id = ++timerId; timers.set(id, {fn, delay}); return id; },
+    setTimeout(fn, delay) {
+      const id = ++timerId;
+      // Only comparison sync timers belong to this harness's pending-match assertions.
+      if (delay === 150) timers.set(id, {fn, delay});
+      return id;
+    },
     clearTimeout(id) { timers.delete(id); },
     fetch: async (path) => {
       requests.push(path);
@@ -1033,6 +1039,7 @@ test('page confirms rollback and approval and reconnects without losing notes', 
       visibilityState: 'visible'},
     window: {addEventListener() {}},
     setInterval(callback, delay) { intervals.push({callback, delay}); return intervals.length; },
+    setTimeout() {}, clearTimeout() {},
     clearInterval() {},
     confirm(message) { confirmations.push(message); return allow; },
     fetch: async (path, options) => {
@@ -1140,6 +1147,7 @@ test('page polls and loads the review after an offline initial launch', async ()
     document: {getElementById: element, createElement: () => new Node(), addEventListener() {},
       visibilityState: 'visible'}, window: {addEventListener() {}},
     setInterval(callback, delay) { poll = callback; assert.equal(delay, 5000); return 1; },
+    setTimeout() {}, clearTimeout() {},
     clearInterval() {}, fetch: async () => {
       if (!network) throw new Error('Network unavailable');
       return {ok: true, status: 200, json: async () => ({media: {name: 'sample.mp4',
@@ -1251,6 +1259,7 @@ for (const cfr of [true, false]) {
       location: new URL('http://review.example.net/v/2/?t=token&version=1'),
       history: {replaceState() {}}, window: {addEventListener() {}},
       setInterval() {}, clearInterval() {},
+      setTimeout() {}, clearTimeout() {},
       fetch: async (path, options) => {
         calls.push({path, options});
         const url = new URL(path, 'http://review.example.net/v/2/');
@@ -1410,6 +1419,7 @@ test('page attaches spelling, edits and clears drafts, and renders sent notes re
     location: new URL('http://review.example.net/?t=token&version=1'),
     history: {replaceState() {}}, window: {addEventListener() {}},
     setInterval() {}, clearInterval() {},
+    setTimeout() {}, clearTimeout() {},
     fetch: async (path, options) => {
       requests.push({path, options});
       if (options.method === 'POST') {
@@ -1590,6 +1600,7 @@ test('page saves questions under notes and earlier threads and sends answers wit
     document: {getElementById: element, createElement: (tag) => new Node(tag),
       addEventListener() {}, visibilityState: 'visible'},
     window: {addEventListener() {}}, setInterval() {}, clearInterval() {},
+    setTimeout() {}, clearTimeout() {},
     fetch: async (path, options) => {
       requests.push({path, options});
       if (path.startsWith('api/questions/answer')) {
@@ -1706,6 +1717,7 @@ test('page sends and retries the round version, polls progress, and locks rows',
       visibilityState: 'visible'},
     window: {addEventListener() {}},
     setInterval(_callback, delay) { intervals.push(delay); return intervals.length; },
+    setTimeout() {}, clearTimeout() {},
     clearInterval() {},
     fetch: async (path, options) => {
       requests.push({path, options});
@@ -1804,6 +1816,7 @@ test('saving a series comment re-enables version switching and retains its write
     history: {replaceState() {}},
     document: {getElementById: element, createElement: () => new Node(), addEventListener() {}},
     window: {addEventListener() {}}, setInterval() {}, clearInterval() {},
+    setTimeout() {}, clearTimeout() {},
     fetch: async (path, options) => {
       requests.push({path, options});
       const version = Number(new URL(path, 'http://review.example.net/').searchParams.get('version'));

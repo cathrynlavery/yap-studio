@@ -14,6 +14,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from test_review_detach import review_payload
+from test_review_rounds import round_project  # noqa: F401
 
 ROOT = Path(__file__).parents[1]
 
@@ -91,7 +93,9 @@ if os.environ.get("FAKE_START_ERROR") and "--detached-run" in sys.argv:
     run_detach.child = fail_start
 def fake(root, state):
     state["final"] = "final/demo.mp4"
-    state["version"] = "v2"
+    from yap_studio.feedback.versions import load_versions
+    versions = load_versions(root)
+    state["version"] = versions[-1].id if versions else "v2"
     return True, "fake"
 def assemble(root, state):
     mode = os.environ.get("FAKE_RUN", "slow")
@@ -122,6 +126,11 @@ def assemble(root, state):
     return fake(root, state)
 run._HANDLERS = {name: fake for name in run.STEPS}
 run._HANDLERS["assemble"] = assemble
+if os.environ.get("FAKE_REVIEW_START_ERROR"):
+    from yap_studio.review import detach
+    def fail_review(*args, **kwargs):
+        raise YapError("Synthetic review start failure.", code="review_start_failed")
+    detach.start = fail_review
 ''')
     env = {**os.environ, "PYTHONPATH": os.pathsep.join((str(tmp_path), str(ROOT / "src")))}
     yield root, env
@@ -186,6 +195,65 @@ def start(job, *options):
     result = command(job, "run", "--detach", "--json", *options)
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)
+
+
+@pytest.mark.e2e
+def test_finished_run_delivers_newest_review_and_reuses_it(job, round_project):  # noqa: F811
+    from test_feedback_batch import _cut
+
+    from yap_studio import background
+    from yap_studio.feedback.versions import load_versions, save_version
+
+    _, env = job
+    job = round_project, {**env, "FAKE_RUN": "quick"}
+    root = round_project
+    try:
+        start(job)
+        wait_for(lambda: (read_state(root) or {}).get("state") == "finished", timeout=30)
+        first = read_state(root)["result"]["review"]
+        assert first["status"] == "ready"
+        pid = first["links"]["detached"]["pid"]
+        video = first["links"]["videos"][0]
+        url = video.get("local_url") or video["url"]
+        assert review_payload(url)["media"]["sha256"] == load_versions(root)[-1].media["sha256"]
+        start(job)
+        wait_for(lambda: read_state(root)["state"] == "finished", timeout=30)
+        assert read_state(root)["result"]["review"]["links"]["detached"]["pid"] == pid
+        assert len(background.records("review")) == 1
+        _cut(root, label="third render")
+        newest = save_version(root)
+        start(job)
+        wait_for(lambda: read_state(root)["state"] == "finished", timeout=30)
+        result = read_state(root)["result"]
+        assert result["version"] == newest.id == "v3"
+        link = result["review"]["links"]["videos"][0]
+        newest_url = link.get("local_url") or link["url"]
+        assert review_payload(newest_url)["media"]["sha256"] == newest.media["sha256"]
+        assert len(background.records("review")) == 1
+    finally:
+        command(job, "review", "--stop", timeout=30)
+        stop_left_run(root)
+
+
+@pytest.mark.e2e
+def test_review_failure_keeps_detached_run_finished(job, round_project):  # noqa: F811
+    _, env = job
+    job = round_project, {**env, "FAKE_RUN": "quick", "FAKE_REVIEW_START_ERROR": "1"}
+    root = round_project
+    try:
+        start(job)
+        wait_for(lambda: (read_state(root) or {}).get("state") == "finished", timeout=30)
+        result = read_state(root)["result"]
+        assert result["status"] == "finished" and result["stopped"] is None
+        assert result["version"] == "v2"
+        assert result["review"]["status"] == "failed"
+        assert "review page did not start" in result["review"]["message"]
+        assert result["review"]["command"] == (
+            f"yap-studio review --versions {root} --phone --detach")
+        assert result["next"] == result["review"]["command"]
+        assert "review page did not start" in command(job, "status").stdout
+    finally:
+        stop_left_run(root)
 
 
 @pytest.mark.e2e
