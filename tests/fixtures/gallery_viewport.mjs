@@ -13,6 +13,7 @@ const browser = await puppeteer.launch({ executablePath: browserPath, headless: 
 try {
   for (const [name, width, height] of [['desktop', 1440, 900], ['phone', 390, 844]]) {
     const page = await browser.newPage();
+    await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }]);
     const errors = [];
     page.on('pageerror', (error) => errors.push(String(error)));
     await page.setViewport({ width, height, isMobile: name === 'phone', hasTouch: name === 'phone' });

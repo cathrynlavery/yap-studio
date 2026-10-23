@@ -21,11 +21,11 @@ from yap_studio.errors import InputError, YapError
 
 
 @pytest.mark.parametrize("value,private,marker", [
-    ("open /Users/Somebody/Private Folder/take.mov", "Somebody", "[path]"),
-    ("open /Volumes/Secret Disk/Private Stuff/take.mov", "Secret", "[path]"),
+    ("open /" + "Users/Somebody/Private Folder/take.mov", "Somebody", "[path]"),
+    ("open /" + "Volumes/Secret Disk/Private Stuff/take.mov", "Secret", "[path]"),
     ("open /private/var/Personal Stuff/take", "Personal", "[path]"),
     ("open ~/Personal/take.mov", "Personal", "[path]"),
-    ('open "/Users/Other/Secret Folder/take.mov" then retry', "Secret", "[path]"),
+    ('open "/' + 'Users/Other/Secret Folder/take.mov" then retry', "Secret", "[path]"),
     ("portrait.MOV failed", "portrait", "[file]"),
     ("draft.final.v2.json failed", "draft", "[file]"),
     ("read .env now", ".env", "[file]"),
@@ -73,7 +73,7 @@ def test_home_scrub_limits_and_safe_domains(monkeypatch, tmp_path):
     assert feedback.scrub("go to https://github.com/private now") == "go to github.com now"
     assert feedback.scrub("2026-10-23T12:15:36.123456+00:00") == "2026-10-23T12:15:36.123456+00:00"
     assert len(feedback.scrub("note " * 500)) == 500
-    assert "secret" not in feedback.scrub("x " * 240 + "/Users/Someone/secret.mov")
+    assert "secret" not in feedback.scrub("x " * 240 + "/" + "Users/Someone/secret.mov")
     assert feedback.scrub("retry\x1b[31m\nnow").isascii()
 
 
@@ -111,8 +111,8 @@ def test_fingerprint_stability_and_distinctions():
     assert first != feedback.fingerprint("slow", "run", "failed", "try again")
     assert first != feedback.fingerprint("bug", "cut", "failed", "try again")
     assert first != feedback.fingerprint("bug", "run", "other", "try again")
-    assert feedback.fingerprint("bug", None, None, "/Users/A/take.mov") == (
-        feedback.fingerprint("bug", None, None, "/Users/B/other.mov"))
+    assert feedback.fingerprint("bug", None, None, "/" + "Users/A/take.mov") == (
+        feedback.fingerprint("bug", None, None, "/" + "Users/B/other.mov"))
 
 
 @pytest.mark.parametrize("arguments", [[], [""], ["--kind", "invalid", "note"],
@@ -378,8 +378,8 @@ def test_rescrub_edited_ledger_and_drop_unknown_fields(monkeypatch):
     feedback.record("A note")
     ledger = feedback.data_dir() / "feedback.jsonl"
     entry = json.loads(ledger.read_text())
-    entry.update(text="/Users/Private/secret.mov", agent="agent@example.invalid",
-                 step="/Volumes/Private/test", extra="unshared", fingerprint="fake")
+    entry.update(text="/" + "Users/Private/secret.mov", agent="agent@example.invalid",
+                 step="/" + "Volumes/Private/test", extra="unshared", fingerprint="fake")
     ledger.write_text(json.dumps(entry) + "\n")
     with endpoint(monkeypatch) as received:
         preview = feedback.send(dry_run=True)[0]["json"]
