@@ -83,8 +83,13 @@ func frameRateConversionSupported() -> Bool {
 #if compiler(>=6.2)
     return VTFrameRateConversionConfiguration.isSupported
 #else
-    // Older SDKs have no isSupported; processing reports an unsupported Mac instead.
-    return true
+    // Older SDKs have no isSupported, so prove support with a tiny conversion.
+    do {
+        _ = try convert(Data(count: 128 * 192 * 6 * 2), width: 128, height: 192, phases: [0.5])
+        return true
+    } catch {
+        return false
+    }
 #endif
 }
 
@@ -95,10 +100,12 @@ func run() throws {
         print("{\"supported\":\(frameRateConversionSupported()),\"revision\":1}")
         return
     }
-    if !frameRateConversionSupported() {
+#if compiler(>=6.2)
+    if !VTFrameRateConversionConfiguration.isSupported {
         FileHandle.standardError.write(Data("Frame rate conversion processor is not supported on this Mac.\n".utf8))
         exit(3)
     }
+#endif
     try require(arguments.count == 6, "Use --width W --height H --phases p1,p2,...")
     var options: [String: String] = [:]
     for index in stride(from: 0, to: arguments.count, by: 2) {
@@ -121,14 +128,22 @@ func run() throws {
     }
     try require(!phases.isEmpty && zip(phases, phases.dropFirst()).allSatisfy { $0 < $1 },
                 "Phases must be strictly increasing.")
+    let size = width * height * 6
+    let raw = FileHandle.standardInput.readData(ofLength: size * 2 + 1)
+    try require(raw.count == size * 2, "Input must contain exactly two rgb48le frames.")
+    for frame in try convert(raw, width: width, height: height, phases: phases) {
+        try FileHandle.standardOutput.write(contentsOf: read(frame.buffer, width: width, height: height))
+    }
+}
+
+@available(macOS 15.4, *)
+func convert(_ raw: Data, width: Int, height: Int, phases: [Float]) throws -> [VTFrameProcessorFrame] {
     guard let configuration = VTFrameRateConversionConfiguration(
         frameWidth: width, frameHeight: height, usePrecomputedFlow: false,
         qualityPrioritization: .quality, revision: .revision1) else {
         throw Failure("Frame rate conversion configuration refused these dimensions.")
     }
     let size = width * height * 6
-    let raw = FileHandle.standardInput.readData(ofLength: size * 2 + 1)
-    try require(raw.count == size * 2, "Input must contain exactly two rgb48le frames.")
     let source = try makeBuffer(width: width, height: height,
                                 attributes: configuration.sourcePixelBufferAttributes)
     let next = try makeBuffer(width: width, height: height,
@@ -166,9 +181,7 @@ func run() throws {
     }
     semaphore.wait()
     if let processingError { throw processingError }
-    for frame in destinations {
-        try FileHandle.standardOutput.write(contentsOf: read(frame.buffer, width: width, height: height))
-    }
+    return destinations
 }
 
 do {
