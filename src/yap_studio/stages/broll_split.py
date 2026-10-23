@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 WIDTH = 1080
 HEIGHT = 1920
-# Moving the seam also moves her picture, so it cannot add headroom.
+# Moving the seam also moves the person's picture, so it cannot add headroom.
 DEFAULT_SEAM_Y = 960
 HEAD_GAP = 24
 
@@ -72,7 +72,7 @@ def calculate_layout(element_id: str, faces: Sequence[Box]) -> SplitLayout:
             from yap_studio.stages.assemble_picture import PictureError
 
             raise PictureError(f"{element_id}: split cannot keep the head 24 px below the seam; "
-                               "use fit cover for this shot, or start it where she sits "
+                               "use fit cover for this shot, or start it where the person sits "
                                "lower in the frame")
     left, right = min(box.x for box in boxes), max(box.x + box.w for box in boxes)
     min_x, max_x = max(0, math.ceil(right - w)), min(WIDTH - w, math.floor(left))
@@ -81,7 +81,7 @@ def calculate_layout(element_id: str, faces: Sequence[Box]) -> SplitLayout:
     if min_x > max_x or min_y > max_y:
         from yap_studio.stages.assemble_picture import PictureError
 
-        raise PictureError(f"{element_id}: she moves too much for one crop; "
+        raise PictureError(f"{element_id}: the person moves too much for one crop; "
                            "use fit cover for this shot or shorten it")
     x = max(min_x, min(max_x, math.floor((left + right - w) / 2 + 0.5)))
     y = max(min_y, min(max_y, y))

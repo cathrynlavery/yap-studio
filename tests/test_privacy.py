@@ -21,10 +21,10 @@ from yap_studio.review import phone
 
 ROOT = Path(__file__).resolve().parents[1]
 DISCLOSURE = (
-    "Your footage, renders and review files stay on your computer. "
-    "The transcript, your notes and the project files Claude reads go to Claude (Anthropic) "
-    "as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels get only what "
-    "they need, and only if you turn them on."
+    "Your video files stay on your computer. Still frames from pinned notes and contact sheets of "
+    "your clips go to Claude (Anthropic), along with the transcript, your notes and the project "
+    "files Claude reads, as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels "
+    "get only what they need, and only if you turn them on."
 )
 TRANSPORTS = [
     ("tailscale", "Encrypted (Tailscale)"),

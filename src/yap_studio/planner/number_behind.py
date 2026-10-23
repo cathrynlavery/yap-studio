@@ -268,14 +268,14 @@ def place_number(
             if min(gap_px(Box(x, y, side.width, side.height), head) for head in heads) < margin_px:
                 continue
             reason = ("a zoom, insert or transition overlaps the number" if face_windows else
-                      "the number would be hidden behind her head")
+                      "the number would be hidden behind the creator's head")
             return side, "top", {
                 "status": "beside_front", "position": "side", "x": x, "y": y,
                 "scale": size / original_size, "value_px": size,
                 "worst_visible_share": 1.0, "margin_px": margin_px,
                 "ink_status": "front",
                 "hair": DEFAULT_HAIR.to_dict(), "reason": reason,
-                "warning": f"{identifier}: {reason}, so it sits beside her head in front",
+                "warning": f"{identifier}: {reason}, so it sits beside the creator's head in front",
             }
     raise ValidationError("big_number.clearance",
                           "use a shorter number, a smaller label, or another moment")

@@ -29,12 +29,12 @@ node --test tests/js/*.mjs
 If you change rendering, captions, graphics, timeline or assembly, also run:
 
 ```console
-yap-studio renderer install
+uv run yap-studio renderer install
 YAP_STUDIO_RENDER_TESTS=1 uv run pytest -q -p no:cacheprovider -m render -n 4
 ```
 
 For speech-engine changes, install the `asr` extra, cache the model with
-`yap-studio speech download`, and run the speech tests with
+`uv run yap-studio speech download`, and run the speech tests with
 `YAP_STUDIO_ASR_TESTS=1 uv run pytest -q -p no:cacheprovider -m asr -n 4`.
 Vision helper tests require macOS and Xcode command line tools. Tests that need
 unavailable dependencies may skip; include those skips when reporting results.

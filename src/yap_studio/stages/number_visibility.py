@@ -16,7 +16,7 @@ MAX_HIDDEN_FRAMES = 3  # Allow at most 0.1 seconds of weak visibility at 30 fps.
 MAX_HIDDEN_SHARE = 0.1  # Keep exactly 90% visible ink on the passing side of the boundary.
 NUMBER_INK_ALPHA_THRESHOLD = 230  # Exclude shadow alpha up to 179 while retaining solid glyph ink.
 NUMBER_VISIBLE_CHECK = "graphics.number_visible"
-NUMBER_VISIBLE_FIX = "re-run graphics so the number moves up or beside her head"
+NUMBER_VISIBLE_FIX = "re-run graphics so the number moves up or beside the creator's head"
 
 
 def measure_number_layers(

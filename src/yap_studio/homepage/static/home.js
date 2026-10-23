@@ -332,7 +332,7 @@ function renderWelcome() {
     h('h1', {class: 'title wide', text: "You're set up. Let's make your first video."}),
     h('p', {class: 'lede', text: 'You pick what to make, your footage and your look. Claude picks the story from your own words, cuts it and adds captions, cards and music. You watch it, leave comments, and the next version follows.'}),
     h('ol', {class: 'welcome-steps'}, steps),
-    h('p', {class: 'note', text: 'Your footage, renders and review files stay on your computer. The transcript, your notes and the project files Claude reads go to Claude (Anthropic) as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.'}),
+    h('p', {class: 'note', text: 'Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to Claude (Anthropic), along with the transcript, your notes and the project files Claude reads, as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.'}),
     h('div', {class: 'actions'},
       h('button', {type: 'button', class: 'btn primary big', onclick: () => { markWelcomed(); clearDraft(); navigate('#new/what'); },
         text: 'Start my first video'})));

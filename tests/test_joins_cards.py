@@ -216,7 +216,7 @@ def test_behind_cards_check_smooth_join_clearance(
             run(template, **options)
         assert caught.value.code == "card_behind_join"
         assert str(caught.value) == (
-            "card: the card behind the speaker is too close to her head without person "
+            "card: the card behind the speaker is too close to their head without person "
             "restoration; move the card off the smooth join, or use layer front")
         assert caught.value.suggested_action == (
             "Move the card off the smooth join, or use layer front.")

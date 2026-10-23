@@ -48,7 +48,7 @@ jobs:
       - name: Install shared renderer
         run: uv run yap-studio renderer install
       - run: uv cache prune --ci
-      - run: uv run pytest -q -m render -n 3 --durations=20 -o faulthandler_timeout=600
+      - run: uv run pytest -q -rxX -m render -n 3 --durations=20 -o faulthandler_timeout=600
 
   speech:
     runs-on: macos-15

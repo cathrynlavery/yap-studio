@@ -106,7 +106,7 @@ def test_mcpb_manifest_has_required_uv_fields() -> None:
     assert manifest["manifest_version"] == "0.4"
     assert manifest["server"]["type"] == "uv"
     assert (ROOT / manifest["server"]["entry_point"]).is_file()
-    assert manifest["compatibility"]["platforms"] == ["darwin", "linux", "win32"]
+    assert manifest["compatibility"]["platforms"] == ["darwin"]
 
 
 def test_build_mcpb_contains_exactly_allowed_files(tmp_path: Path) -> None:

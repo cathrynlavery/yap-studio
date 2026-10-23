@@ -411,8 +411,8 @@ def check_without_edl(
     """Check detected joins and structure, explicitly skipping source comparisons.
 
     Join measurements share one native-rate decode. Structure performs its own
-    native decode through its public API. Platform checks belong to T11 and are
-    not included in this task's coverage map.
+    native decode through its public API. Platform checks run separately and are
+    not included in this coverage map.
     """
     cuts = detect_cuts(render)
     boundary_frames = video.grey_frames(render, w=64) if cuts else None

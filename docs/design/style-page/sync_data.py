@@ -29,7 +29,7 @@ OUT = HERE / "style-data.js"
 PORT_JS = HERE / "caption-ports.js"
 PORT_CSS = HERE / "caption-ports.css"
 PROPOSED = HERE / "proposed-presets"
-# Shipped presets buyers may see. Anything not listed here stays out.
+# Shipped presets creators may see. Anything not listed here stays out.
 SHIPPED = [
     "editorial_serif", "clean_minimal", "warm_editorial", "cobalt", "mono",
     "headline", "electric", "candy", "marker", "one_word", "hf_bold", "hf_editorial", "hf_neutral",

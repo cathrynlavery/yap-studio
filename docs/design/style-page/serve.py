@@ -6,9 +6,10 @@
 
 GET /api/site-colors?url=example.com gathers a site's colors from two places:
 
-1. The context.dev brand lookup, when context-dev-pp-cli is installed and
+1. The optional context.dev brand lookup, when context-dev-pp-cli is installed and
    signed in. It returns named logo and site colors. Each lookup costs credits,
    so results are cached while the server runs.
+   Without the CLI or a successful brand lookup, only HTML and stylesheets are used.
 2. The page's own HTML and up to six stylesheets. Colors on buttons and links
    count extra, the body background becomes the card color, and browser default
    link colors are ignored.
@@ -415,7 +416,7 @@ def suggest(colors: list[tuple[str, float]], canvas: str | None) -> dict:
 
 
 def brand_lookup(host: str) -> tuple[list[tuple[str, float, str]], str]:
-    """Named colors from the context.dev brand lookup, or nothing."""
+    """Optional context.dev colors; return none so HTML and CSS work alone."""
     host = host.lower().removeprefix("www.")
     cli = shutil.which("context-dev-pp-cli")
     if not cli or not DOMAIN.match(host):

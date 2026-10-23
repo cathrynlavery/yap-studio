@@ -18,5 +18,6 @@ What version 1 does not do yet, and what it never judges.
 
 ## What it does not check
 
-Yap Studio does not judge writing, pacing, caption accuracy, or whether a subject is
-framed well. Its taste checks cover supported, measurable approved style fields and face clearance.
+Yap Studio does not judge writing, pacing, or whether a subject is framed well.
+It checks that captions agree with the speech it hears; it does not guarantee the transcript
+is right. Its taste checks cover supported, measurable approved style fields and face clearance.

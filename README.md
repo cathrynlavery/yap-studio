@@ -16,7 +16,7 @@ You leave notes from your phone, and the next version follows them.
 
 </div>
 
-<p align="center"><img src="docs/images/demo.gif" alt="A sample take raw on the left and finished on the right, then a run of Yap Studio: the creator picks talking head and a look, Claude Code makes the edit, she pins a note on her phone, and the approved video is ready to download." width="720"></p>
+<p align="center"><img src="docs/images/demo.gif" alt="A sample take raw on the left and finished on the right, then a run of Yap Studio: the creator picks talking head and a look, Claude Code makes the edit, they pin a note on their phone, and the approved video is ready to download." width="720"></p>
 
 <p align="center">One raw take in, the finished video out.</p>
 
@@ -26,8 +26,9 @@ rather not spend the evening in an editor. There is no timeline to drag. A page 
 walks you through each video, and the notes you approve become taste rules, so the next video
 starts closer to how you like it.
 
-Your footage, renders and review files stay on your computer. The transcript, your notes and
-the project files Claude reads go to Claude (Anthropic) as part of your Claude Code session.
+Your video files stay on your computer. Still frames from pinned notes and contact sheets of
+your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
+Claude reads, as part of your Claude Code session.
 ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.
 
 If you build software, the engine is Python with a command line. Skip to
@@ -110,7 +111,8 @@ generated music, still goes through Claude in chat, and Claude asks first.
   you approve it.
 - Sound effects on cuts, cards and counts, kept under your voice. They are made on your
   computer with no account, or come from your own ElevenLabs kit.
-- Captions and cards that stay off your face. A final that covers it fails its check.
+- Captions and cards that stay off your face. When faces were measured, a final that covers
+  them fails its check. Otherwise, verify reports face clearance as "not measured".
 - Phone review with comments pinned to a frame, a range or a spot on the picture, and versions
   side by side with earlier comments carried over.
 
@@ -134,6 +136,10 @@ It can also learn a style from videos you already posted.
 Every render is checked before anyone watches it. Verify looks at every join for clicks, gaps,
 broken words and wrong frames, and at picture and sound sync, frame and sample counts, loudness,
 black or frozen picture, and the published rules for YouTube, Shorts, TikTok and Reels.
+
+Source comparisons for sync, joins and expected frame and sample counts need an edit list
+(`--edl`); platform rules need `--platform`. Checks that listen for words at joins or compare
+captions with heard speech need a speech engine.
 
 It works without the editor too. Point it at any finished video:
 

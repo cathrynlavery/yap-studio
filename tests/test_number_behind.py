@@ -248,8 +248,8 @@ def test_number_falls_beside_head_in_front_with_warning(blocked: str) -> None:
     )
     assert placement == "top" and evidence["status"] == "beside_front"
     assert gap_px(Box(placed.x, placed.y, placed.width, placed.height), head_box(face)) >= 24
-    assert "agent-number:" in evidence["warning"] and "beside her head in front" in evidence[
-        "warning"]
+    assert "agent-number:" in evidence["warning"]
+    assert "beside the creator's head in front" in evidence["warning"]
 
 
 def test_number_refuses_when_no_side_corridor_fits() -> None:

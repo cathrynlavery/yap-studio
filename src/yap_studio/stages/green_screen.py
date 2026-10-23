@@ -161,7 +161,7 @@ def pull_offset(background: tuple, person: tuple) -> tuple[int, int, int]:
     bg_y = sum(a * b for a, b in zip(background, weights, strict=True))
     person_y = sum(a * b for a, b in zip(person, weights, strict=True))
     return tuple(max(-PULL_CLAMP, min(PULL_CLAMP, round(PULL_STRENGTH * (
-        bg - bg_y - her + person_y)))) for bg, her in zip(background, person, strict=True))
+        bg - bg_y - channel + person_y)))) for bg, channel in zip(background, person, strict=True))
 
 
 def _split(graph: Any, branch: str, count: int = 2) -> list[str]:
@@ -309,10 +309,10 @@ def measure_pull(source: Any, cut: Any, matte: Any, item: Any, commands: list) -
     person = _sample(graph, graph.filter(f"{picture}][{alpha}", "alphamerge"), frames, commands,
                      decode_seconds=item.end_frame / 30)
     pixels = person[..., :3][person[..., 3] >= 200]
-    her = tuple(float(v) for v in pixels.mean(axis=0)) if len(pixels) else (0., 0., 0.)
+    person_rgb = tuple(float(v) for v in pixels.mean(axis=0)) if len(pixels) else (0., 0., 0.)
     background = tuple(float(v) for v in bg[..., :3].mean(axis=(0, 1, 2)))
-    return {"background_rgb": list(background), "person_rgb": list(her),
-            "offset_rgb": list(pull_offset(background, her)), "strength": PULL_STRENGTH,
+    return {"background_rgb": list(background), "person_rgb": list(person_rgb),
+            "offset_rgb": list(pull_offset(background, person_rgb)), "strength": PULL_STRENGTH,
             "clamp": PULL_CLAMP, "skin_keep": SKIN_KEEP}
 
 
@@ -333,7 +333,7 @@ def prepare(graph: Any, backgrounds: list, sources: dict, people: dict,
         pull = measure_pull(sources[item.id], cut, matte, item, commands) if blend else None
         background = background_layer(graph, sources[item.id], item)
         if layer_filter is not None:
-            # The whole-picture grade reaches backgrounds before her light wraps them.
+            # The whole-picture grade reaches backgrounds before the person's light wraps them.
             background = graph.filter(graph.filter(background, "format=rgba"), layer_filter)
         wrap_source = None
         if blend:

@@ -23,6 +23,10 @@ Yap Studio home opens in the browser on the Mac and walks through one video at a
 Each video also has a Talk to Claude box. A message goes to Claude the same way a button does, and
 Claude's reply shows under it.
 
+Your video files stay on your computer. Still frames from pinned notes and contact sheets of
+your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
+Claude reads, as part of your Claude Code session.
+
 The page never edits, renders, downloads stock clips or spends money. Those stay with the agent,
 which asks before anything paid.
 

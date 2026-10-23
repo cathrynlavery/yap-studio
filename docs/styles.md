@@ -24,8 +24,8 @@ block, in the brand accent colour, else the caption ground colour.
 
 List the shipped looks and make a named style file:
 
-The shipped presets are Clean Minimal, Electric, Warm Editorial, Editorial Serif,
-and One Word.
+The shipped presets are Candy, Clean Minimal, Cobalt, Editorial Serif, Electric, Headline,
+Bold, Editorial, Neutral, Marker, Mono, One Word and Warm Editorial.
 
 Set `captions.entrance` to `slide` (the default) or `rise` for a clipped entrance per word.
 Set `captions.camera_3d` to `true` for the 3D camera caption look. It defaults to `false`.
