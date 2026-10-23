@@ -770,4 +770,4 @@ def test_real_pinned_renderer_lints_export_and_returns_catch_up_json(project: Pa
     target = studio.export_project(project)
     assert summary(target)["lint"]["errorCount"] == 0
     assert isinstance(studio.catch_up(project), dict)
-    assert hyperframes.ensure_installed().version == "0.8.184"
+    assert hyperframes.ensure_installed().version == "0.8.188"
