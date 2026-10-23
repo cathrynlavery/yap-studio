@@ -51,13 +51,17 @@ def test_blocks_land_in_exactly_one_balanced_stable_shard(monkeypatch):
     assert owners[Path("test_a.py")] == 1
 
 
-def test_big_module_splits_into_blocks_across_shards(monkeypatch):
+@pytest.mark.parametrize("chunk", [None, "40", "4", "1"])
+def test_big_module_splits_into_blocks_across_shards(monkeypatch, chunk):
+    monkeypatch.delenv("YAP_STUDIO_TEST_SHARD_CHUNK", raising=False)
+    if chunk is not None:
+        monkeypatch.setenv("YAP_STUDIO_TEST_SHARD_CHUNK", chunk)
+    size = int(chunk) if chunk is not None else 40
     big = [SimpleNamespace(path=Path("test_big.py"), nodeid=f"big::{index:03d}", keywords={})
-           for index in range(conftest._SHARD_CHUNK * 2 + 5)]
+           for index in range(size * 2 + 1)]
     shards = [{item.nodeid for item in _collect(monkeypatch, f"{shard}/3", big)}
               for shard in (1, 2, 3)]
-    assert sorted(len(shard) for shard in shards) == [5, conftest._SHARD_CHUNK,
-                                                      conftest._SHARD_CHUNK]
+    assert sorted(len(shard) for shard in shards) == [1, size, size]
     ordered = [item.nodeid for item in big]
     for shard in shards:
         positions = sorted(ordered.index(nodeid) for nodeid in shard)
@@ -82,6 +86,35 @@ def test_unset_shard_keeps_every_item(monkeypatch):
 
 def test_nested_pytest_does_not_inherit_the_outer_shard():
     assert "YAP_STUDIO_TEST_SHARD" not in os.environ
+    assert "YAP_STUDIO_TEST_SHARD_CHUNK" not in os.environ
+
+
+@pytest.mark.parametrize("chunk", ["1", "4", "40"])
+def test_chunk_override_assigns_every_item_once_stably(monkeypatch, chunk):
+    monkeypatch.setenv("YAP_STUDIO_TEST_SHARD_CHUNK", chunk)
+    items = _items()
+    owners = set()
+    sizes = []
+    for shard in range(1, 9):
+        selected = {item.nodeid for item in _collect(monkeypatch, f"{shard}/8", items)}
+        assert selected == {item.nodeid for item in
+                            _collect(monkeypatch, f"{shard}/8", list(reversed(items)))}
+        assert not owners & selected
+        owners.update(selected)
+        sizes.append(len(selected))
+    assert owners == {item.nodeid for item in items}
+    assert max(sizes) - min(sizes) <= max(int(chunk), 2)
+
+
+@pytest.mark.parametrize("shard", [None, "1/2"])
+@pytest.mark.parametrize("value", ["", "bad", "0", "-1", "1.5", " 4", "4\n", "+4"])
+def test_bad_chunk_is_usage_error(monkeypatch, value, shard):
+    monkeypatch.delenv("YAP_STUDIO_TEST_SHARD", raising=False)
+    if shard:
+        monkeypatch.setenv("YAP_STUDIO_TEST_SHARD", shard)
+    monkeypatch.setenv("YAP_STUDIO_TEST_SHARD_CHUNK", value)
+    with pytest.raises(pytest.UsageError, match="YAP_STUDIO_TEST_SHARD_CHUNK"):
+        conftest.pytest_collection_modifyitems(config=Mock(), items=[])
 
 
 @pytest.mark.parametrize("value", ["", "bad", "1", "1/2/3", "1.0/2", "0/5", "6/5",

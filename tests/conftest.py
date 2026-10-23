@@ -691,6 +691,10 @@ _SHARD_CHUNK = 40
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Shard selected modules and keep speech and renderer tests opt-in."""
+    chunk_value = os.environ.get("YAP_STUDIO_TEST_SHARD_CHUNK", str(_SHARD_CHUNK))
+    if not re.fullmatch(r"[0-9]+", chunk_value) or int(chunk_value) < 1:
+        raise pytest.UsageError("YAP_STUDIO_TEST_SHARD_CHUNK must be a positive integer.")
+    chunk_size = int(chunk_value)
     shard = os.environ.get("YAP_STUDIO_TEST_SHARD")
     if shard is not None:
         if not re.fullmatch(r"[0-9]+/[0-9]+", shard):
@@ -705,8 +709,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         chunks = {}
         for path, members in modules.items():
             members = sorted(members, key=lambda item: item.nodeid)
-            for start in range(0, len(members), _SHARD_CHUNK):
-                chunks[(path, start)] = members[start:start + _SHARD_CHUNK]
+            for start in range(0, len(members), chunk_size):
+                chunks[(path, start)] = members[start:start + chunk_size]
         sizes = [0] * count
         assigned = {}
         for key in sorted(chunks, key=lambda key: (-len(chunks[key]), key)):
@@ -881,6 +885,7 @@ def _session_owner_folders(
     with pytest.MonkeyPatch.context() as folders:
         # Sharding ends at collection; nested pytest probes need their whole suite.
         folders.delenv("YAP_STUDIO_TEST_SHARD", raising=False)
+        folders.delenv("YAP_STUDIO_TEST_SHARD_CHUNK", raising=False)
         folders.setenv("YAP_STUDIO_DATA_DIR", str(owner / "data"))
         folders.setenv("YAP_STUDIO_CONFIG", str(owner / "config"))
         folders.setenv("YAP_STUDIO_CACHE", str(owner / "cache"))

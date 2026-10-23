@@ -2,20 +2,61 @@ name: Release checks
 
 on:
   workflow_dispatch:
+    inputs:
+      render:
+        type: choice
+        default: auto
+        options: [auto, full, skip]
+      speech:
+        type: choice
+        default: auto
+        options: [auto, full, skip]
+      helpers:
+        type: choice
+        default: auto
+        options: [auto, full, skip]
+  schedule:
+    - cron: '17 7 * * *'
 
 permissions:
   contents: read
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      render: ${{ steps.scope.outputs.render }}
+      speech: ${{ steps.scope.outputs.speech }}
+      helpers: ${{ steps.scope.outputs.helpers }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Decide release check scope
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RENDER_MODE: ${{ inputs.render || 'auto' }}
+          SPEECH_MODE: ${{ inputs.speech || 'auto' }}
+          HELPERS_MODE: ${{ inputs.helpers || 'auto' }}
+        run: python3 scripts/release_check_scope.py
+
   render:
+    needs: scope
+    if: needs.scope.outputs.render == 'true'
     runs-on: macos-15
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     env:
-      YAP_STUDIO_TEST_SHARD: ${{ matrix.shard }}/4
+      YAP_STUDIO_TEST_SHARD: ${{ matrix.shard }}/8
+      YAP_STUDIO_TEST_SHARD_CHUNK: "4"
       YAP_STUDIO_RENDER_TESTS: "1"
     steps:
       - uses: actions/checkout@v7
@@ -51,6 +92,8 @@ jobs:
       - run: uv run pytest -q -rxX -m render -n 3 --durations=20 -o faulthandler_timeout=600
 
   speech:
+    needs: scope
+    if: needs.scope.outputs.speech == 'true'
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -82,6 +125,8 @@ jobs:
       - run: YAP_STUDIO_ASR_TESTS=1 uv run --extra asr pytest -q -m asr -n 3 --durations=20 -o faulthandler_timeout=600
 
   helpers:
+    needs: scope
+    if: needs.scope.outputs.helpers == 'true'
     runs-on: macos-15
     timeout-minutes: 45
     steps:

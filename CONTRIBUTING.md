@@ -13,8 +13,10 @@ uv run yap-studio doctor
 Scripts in `scripts/` need the project's environment. Run them with `uv run python scripts/<name>.py`.
 
 PRs and main run lint, JavaScript tests, builds and the Python suite in ten macOS
-shards. Render, speech and helper suites run on demand from the Release checks
-workflow. Before merge, all required checks must pass and all review comments
+shards. Release checks runs render, speech and helpers when matching paths changed
+since each suite last passed on main; the nightly 07:17 UTC run checks all three.
+To force all suites, dispatch Release checks with render, speech and helpers set to `full`.
+Before merge, all required checks must pass and all review comments
 must be resolved. A release tag needs green CI and Release checks on the tagged
 commit, plus a clean workspace install that serves its home page.
 

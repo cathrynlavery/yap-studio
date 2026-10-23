@@ -34,6 +34,7 @@ def test_ci_cannot_skip_the_browser_pin_flow(monkeypatch) -> None:
 @pytest.mark.parametrize("workflow,event,name", [
     ("ci.yml", "push", "Main CI"),
     ("release-checks.yml", "workflow_dispatch", "Release checks"),
+    ("release-checks.yml", "schedule", "Release checks"),
 ])
 @pytest.mark.parametrize("change", [None, "sha", "branch", "event", "pending", "failed",
                                   "missing", "newer_failure", "newer_success"])
@@ -81,9 +82,32 @@ def test_release_requires_latest_main_checks_on_exact_commit(
     for call in api.call_args_list:
         command = call.args[0]
         assert "--paginate" in command and "--slurp" in command
-        assert "head_sha=abc&branch=main&event=" in command[-1]
-        expected_event = "workflow_dispatch" if "release-checks.yml" in command[-1] else "push"
-        assert f"event={expected_event}&per_page=100" in command[-1]
+        assert "head_sha=abc&branch=main" in command[-1]
+        assert "per_page=100" in command[-1]
+        if "ci.yml" in command[-1].split("/"):
+            assert "&event=push&" in command[-1]
+        else:
+            assert "&event=" not in command[-1]
+
+
+@pytest.mark.parametrize("event", ["push", "pull_request", "pull_request_target", "workflow_run"])
+def test_release_checks_rejects_other_events(event):
+    module = _module(ROOT / "scripts/check_release_ci.py", "release_ci")
+    run = {"id": 1, "head_sha": "abc", "head_branch": "main", "event": event,
+           "status": "completed", "conclusion": "success"}
+    with pytest.raises(ValueError, match="Release checks must pass"):
+        module.require_ci([{"workflow_runs": [run]}], "abc", "Release checks",
+                          ("workflow_dispatch", "schedule"))
+
+
+def test_release_checks_uses_latest_across_accepted_events():
+    module = _module(ROOT / "scripts/check_release_ci.py", "release_ci")
+    run = {"id": 1, "head_sha": "abc", "head_branch": "main", "event": "workflow_dispatch",
+           "status": "completed", "conclusion": "success"}
+    with pytest.raises(ValueError, match="failure"):
+        module.require_ci([{"workflow_runs": [run, dict(
+            run, id=2, event="schedule", conclusion="failure",
+        )]}], "abc", "Release checks", ("workflow_dispatch", "schedule"))
 
 
 @pytest.mark.parametrize("failure", [None, "setup", "start", "http", "empty"])
