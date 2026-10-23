@@ -1527,6 +1527,17 @@ def _skill_commands() -> list[str]:
     return re.findall(r"`(yap-studio [^`]+)`", " ".join(skill.split()))
 
 
+def test_skill_rechecks_the_whole_story_after_notes() -> None:
+    skill = " ".join((ROOT / "workspace/.claude/skills/edit-video/SKILL.md").read_text().split())
+    revision = skill.split("4. Review the cut.", 1)[1].split("5. Build the picture.", 1)[0]
+    assert revision.index("yap-studio feedback apply") < revision.index(
+        "yap-studio edit check DIR") < revision.index("yap-studio cut DIR")
+    for instruction in ("reread the whole kept script", "`Repeated`", "`Same point twice`",
+                        "repeat kept on purpose", "version note", '"remove the repeats"',
+                        "whole video"):
+        assert instruction in revision
+
+
 def test_workspace_setup_asks_before_each_json_step() -> None:
     guide = (ROOT / "workspace/CLAUDE.md").read_text()
     assert "python3 setup.py --json" in guide

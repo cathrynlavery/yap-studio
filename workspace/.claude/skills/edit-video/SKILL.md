@@ -144,7 +144,11 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    the spot in canvas pixels. When `pin.under` is empty and `pin.known` is all false, the spot
    is not mapped: look at the still and ask if the note could mean two things.
    If a note could mean two moments, ask with `yap-studio feedback ask` and quote nearby
-   words. Then run `yap-studio cut DIR` and `yap-studio feedback check DIR`; exit 3 means a
+   words. After applying notes to the story, reread the whole kept script, run
+   `yap-studio edit check DIR` again, settle `Repeated` and `Same point twice` as in step 3,
+   and name any repeat kept on purpose in the version note. A broad note such as
+   "remove the repeats" means the whole video, not one spot.
+   Then run `yap-studio cut DIR` and `yap-studio feedback check DIR`; exit 3 means a
    keep broke, so restore it. Run `yap-studio versions save DIR --note "Notes from bN"`; it prints
    the new version vM. Answer every note with `yap-studio feedback reply DIR --batch bN
    --comment vK:cN --version vM --status changed --text "..."` (or `kept`, `declined`,

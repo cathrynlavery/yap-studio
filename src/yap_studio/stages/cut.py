@@ -766,12 +766,13 @@ def _resolve(context: ProjectContext) -> CutPlan:
     )
     retained_words: dict[tuple[str, str], repeats.RepeatWord] = {}
     for piece in placed:
-        for word, first, _ in _piece_word_spans(piece, source_words[piece.take]):
+        offset = Fraction(piece.out_f0, 1) / FPS - piece.src_t0
+        for word, first, last in _piece_word_spans(piece, source_words[piece.take]):
             key = (piece.segment_id, word.id)
             if key not in retained_words:
                 retained_words[key] = repeats.RepeatWord(
-                    word.id, word.text,
-                    float(Fraction(piece.out_f0, 1) / FPS + first - piece.src_t0),
+                    word.id, word.text, float(offset + first), float(offset + last),
+                    piece.segment_id,
                 )
     repeated = repeats.find_repeats(list(retained_words.values()))
     warnings.extend(repeats.repeat_warnings(repeated))

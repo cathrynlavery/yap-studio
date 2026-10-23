@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import Any
 
+from yap_studio.project.model import RULE_DEFAULTS
 from yap_studio.text_rules import STOP_WORDS
 
 
@@ -26,6 +27,8 @@ class RepeatWord:
     id: str
     text: str
     time_s: float
+    end_s: float
+    segment_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -44,7 +47,16 @@ def _sentences(words: Sequence[RepeatWord]) -> list[_Sentence]:
             groups.append(pending)
             pending = []
     if pending:
-        groups.append(pending)
+        # Preserve punctuated sentences; use breath gaps and story edges for unfinished text.
+        group: list[RepeatWord] = []
+        for word in pending:
+            if group and (word.segment_id != group[-1].segment_id
+                          or word.time_s - group[-1].end_s
+                          >= RULE_DEFAULTS["beat_breath_s"] - 1e-9):
+                groups.append(group)
+                group = []
+            group.append(word)
+        groups.append(group)
     result = []
     for group in groups:
         tokens = [(token, word) for word in group if (token := _token(word.text))]
