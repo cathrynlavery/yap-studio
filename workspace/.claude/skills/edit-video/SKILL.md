@@ -238,7 +238,15 @@ when they pressed a page button.
      take unless the style sets `broll.color_match` off. Set `color_match` false on a
      request to keep one shot's own colour (screens are planned that way), or true
      to match one shot when the style is off. The speaker's picture never changes.
-     Use placement `split` only when the style has it or a review comment asks for it.
+     Horizontal talking heads use the same yes/no B-roll question, then sources only on yes.
+     Full-frame `insert` clips and stills render at 1920x1080. Landscape media uses cover;
+     portrait and square media stay whole and full height over blurred, darkened fill.
+     The existing face engine keeps faces inside automatic landscape crops. Use
+     `yap-studio media sheet ID --shape horizontal` for wide contact sheets. Stock searches
+     prefer landscape and approved generated pictures use 16:9. Keep colour match on and
+     follow capture order in project videos. Box overlays use wide canvas coordinates.
+     Horizontal splits are refused: use `media.fit: cover` or `contain`. For vertical,
+     use placement `split` only when the style has it or a review comment asks for it.
      Start a shot showing a named thing on that word with `offset_s: -0.1`.
    - Tall box. Use `tall_behind` only for the creator's own long screenshots or pages exported
      as one tall image; ask before using anything else. Start it on the first word after a

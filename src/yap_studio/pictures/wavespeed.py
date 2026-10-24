@@ -186,7 +186,15 @@ def _reason(exc: ProcessingError) -> str:
     )
 
 
-def estimate(prompt: str) -> float:
+def picture_size(project_dir: Path) -> str:
+    """Use the project's delivery pixels for quotes and approved submissions."""
+    from yap_studio.canvas import project_canvas
+
+    frame = project_canvas(project_dir)
+    return f"{frame.width}*{frame.height}"
+
+
+def estimate(prompt: str, *, size: str = SIZE) -> float:
     """Read the current per-image quote without submitting a prediction."""
     try:
         result = tools.run_tool(
@@ -197,7 +205,7 @@ def estimate(prompt: str) -> float:
                 MODEL_ID,
                 f"--prompt={prompt}",
                 "--set",
-                f"size={SIZE}",
+                f"size={size}",
                 *FLAGS,
             ],
             timeout_s=READ_TIMEOUT_S,
@@ -218,7 +226,7 @@ def run_price(data: dict) -> float | None:
         return None
 
 
-def generate(prompt: str, staging_dir: Path, *, dry_run: bool):
+def generate(prompt: str, staging_dir: Path, *, dry_run: bool, size: str = SIZE):
     """Submit once, or return a redacted free preview."""
     args = [
         "run",
@@ -226,7 +234,7 @@ def generate(prompt: str, staging_dir: Path, *, dry_run: bool):
         MODEL_ID,
         f"--prompt={prompt}",
         "--set",
-        f"size={SIZE}",
+        f"size={size}",
         "--price",
         "--wait",
         "--wait-timeout",

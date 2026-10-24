@@ -178,6 +178,7 @@ def ask_sheet(
 ) -> dict:
     """Price all uncovered lines before publishing an immutable ask sheet."""
     project_dir = Path(project_dir)
+    size = wavespeed.picture_size(project_dir)
     require_allowed(style, project_dir)
     state = wavespeed.status()
     if state != "ready":
@@ -210,7 +211,8 @@ def ask_sheet(
                 )
                 continue
             line.pop("not_fitting")
-            line["estimate_usd"] = wavespeed.estimate(line["prompt"])
+            line["estimate_usd"] = wavespeed.estimate(
+                line["prompt"], **({"size": size} if size != wavespeed.SIZE else {}))
             selected.append(line)
     except wavespeed.PicturesUnavailable as exc:
         return unavailable(exc.reason)
@@ -245,7 +247,7 @@ def ask_sheet(
                 "home_url": wavespeed.HOME_URL,
             },
             "model": wavespeed.MODEL_ID,
-            "size": wavespeed.SIZE,
+            "size": size,
             "lines": selected,
             "skipped": skipped,
             "currency": "USD",

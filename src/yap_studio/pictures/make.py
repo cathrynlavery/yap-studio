@@ -64,7 +64,7 @@ def _load_sheet(project_dir: Path, sheet: str | None) -> dict:
         or data.get("status") != "ok"
         or data.get("sheet") != sheet
         or data.get("model") != wavespeed.MODEL_ID
-        or data.get("size") != wavespeed.SIZE
+        or data.get("size") != wavespeed.picture_size(project_dir)
         or not isinstance(data.get("lines"), list)
     ):
         raise ValidationError("sheet", "invalid ask sheet")
@@ -182,7 +182,7 @@ def _record(project_dir, data, line, source, identifier, estimate, charged, cost
         "model": wavespeed.MODEL_ID,
         "prompt": line["prompt"],
         "seed": None,
-        "size": wavespeed.SIZE,
+        "size": data["size"],
         "prediction_id": identifier,
         "cost_usd": cost,
         "cost_source": cost_source,
@@ -336,7 +336,8 @@ def _obtain(project_dir, data, line, quote, attempt, now):
         else:
             save_attempt(project_dir, data["sheet"], line["number"], evidence)
             uncertain = True
-            payload = wavespeed.generate(line["prompt"], staging, dry_run=False)
+            payload = wavespeed.generate(line["prompt"], staging, dry_run=False,
+                **({"size": data["size"]} if data["size"] != wavespeed.SIZE else {}))
             identifier = wavespeed.prediction_id(_prediction(payload).get("id"))
             uncertain = identifier is None
             if identifier:
@@ -420,7 +421,8 @@ def _make(project_dir, data, chosen, ceiling, now, new):
         return unavailable(state, schema=MAKE_SCHEMA)
     try:
         quotes = [
-            attempt["quote_usd"] if attempt else wavespeed.estimate(line["prompt"])
+            attempt["quote_usd"] if attempt else wavespeed.estimate(line["prompt"],
+                **({"size": data["size"]} if data["size"] != wavespeed.SIZE else {}))
             for line, attempt in pending
         ]
     except wavespeed.PicturesUnavailable as exc:
@@ -509,7 +511,8 @@ def make_pictures(
                         "number": line["number"],
                         "prompt": line["prompt"],
                         "request": wavespeed.generate(
-                            line["prompt"], project_dir / "pictures/preview", dry_run=True
+                            line["prompt"], project_dir / "pictures/preview", dry_run=True,
+                            **({"size": data["size"]} if data["size"] != wavespeed.SIZE else {}),
                         ),
                     }
                     for line in chosen

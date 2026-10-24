@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from yap_studio import ffmpeg, hdr, paths, receipt, transcript
+from yap_studio.canvas import canvas
 from yap_studio.errors import (
     DependencyError,
     InputError,
@@ -171,7 +172,7 @@ def _tile_size(item: dict, columns: int, rows: int) -> tuple[int, int]:
 
 
 def _render_clip(
-    source: Path, item: dict, count: int, output: Path,
+    source: Path, item: dict, count: int, output: Path, *, shape: str = "vertical",
 ) -> tuple[list[dict], bool | None]:
     info = ffmpeg.probe(source)
     if info.video_frames is not None and info.video_frames > 0:
@@ -179,9 +180,13 @@ def _render_clip(
     duration = item["duration_s"]
     if duration <= 0:
         raise InputError(str(source), "clip has no positive duration; add a playable clip")
-    columns = min(2 if item["orientation"] == "horizontal" else 3, count)
+    wide = shape == "horizontal"
+    columns = min(3 if wide else 2 if item["orientation"] == "horizontal" else 3, count)
     rows = math.ceil(count / columns)
     width, height = _tile_size(item, columns, rows)
+    if wide:
+        frame = canvas(shape)
+        width, height = frame.width // 4, frame.height // 4
     frames = [{
         "index": i, "time_s": duration * (2 * i + 1) / (2 * count),
         "column": i % columns, "row": i // columns,
@@ -215,19 +220,24 @@ def _render_clip(
             "ffmpeg", "-v", "error", "-y", "-framerate", "1",
             "-noautorotate", "-i", str(tiles / "tile-%02d.png"), "-map", "0:v:0",
             "-vf", f"tile={columns}x{rows}:nb_frames={count}:padding={_PADDING}:"
-            f"margin={_PADDING}:color=black",
+            f"margin={_PADDING}:color=black" + (
+                ",scale=1600:900:force_original_aspect_ratio=decrease,"
+                "pad=1600:900:(ow-iw)/2:(oh-ih)/2,setsar=1" if wide else ""),
             "-frames:v", "1", "-threads", "1", "-q:v", "2", "-update", "1", str(output),
         ], timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
     return frames, colour_converted
 
 
-def _render_still(source: Path, output: Path) -> None:
+def _render_still(source: Path, output: Path, *, shape: str = "vertical") -> None:
     stream = "0:v:0"
     if catalog.heif_grid(source) is not None:
         stream = "0:g:0"
     # The decoder's upright dimensions drive scaling, including HEIF grid pictures.
     filters = f"[{stream}]scale=w='min(1600,iw)':h='min(1600,ih)':"
     filters += "force_original_aspect_ratio=decrease,setsar=1[out]"
+    if shape == "horizontal":
+        filters = (f"[{stream}]scale=1600:900:force_original_aspect_ratio=decrease,"
+                   "pad=1600:900:(ow-iw)/2:(oh-ih)/2,setsar=1[out]")
     ffmpeg.run([
         "ffmpeg", "-v", "error", "-y", "-i", str(source),
         "-filter_complex", filters, "-map", "[out]", "-frames:v", "1",
@@ -275,8 +285,10 @@ def make_sheet(
     item_id: str, *, frames: int = 6, asr: str = "auto", force: bool = False,
     backend_factory: Callable[[str], transcript.Backend | None] | None = None,
     now: Callable[[], datetime] | None = None,
+    shape: str = "vertical",
 ) -> dict:
     """Render local viewing evidence and store it with one short catalog update."""
+    canvas(shape)
     if type(frames) is not int or not 1 <= frames <= 12:
         raise ValidationError("frames", "must be an integer from 1 to 12")
     if asr not in ("auto", *transcript.ENGINES, "none"):
@@ -292,6 +304,9 @@ def make_sheet(
         source = _source(item, document)
         folder = (config_root() / "assets" / "sheets" / item_id).absolute()
         params = {"frames": frames, "asr": asr}
+        if shape == "horizontal":
+            folder = folder / shape
+            params["shape"] = shape
         if not force and _reusable(item, folder, params):
             return {
                 "id": item_id, "sheet": item["sheet"], "speech": item["speech"],
@@ -308,9 +323,9 @@ def make_sheet(
         with tempfile.TemporaryDirectory(prefix="yap-sheet-") as temporary:
             rendered = Path(temporary) / "sheet.jpg"
             if item["kind"] == "video":
-                tiles, colour_converted = _render_clip(source, item, frames, rendered)
+                tiles, colour_converted = _render_clip(source, item, frames, rendered, shape=shape)
             else:
-                _render_still(source, rendered)
+                _render_still(source, rendered, shape=shape)
                 tiles = [{"index": 0, "time_s": None, "column": 0, "row": 0}]
                 colour_converted = None
             speech, words = _speech(source, item, asr, at, backend_factory)

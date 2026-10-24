@@ -134,7 +134,7 @@ def test_horizontal_grade_override(tmp_path: Path, grade: dict | None) -> None:
         require_supported(context)
 
 
-@pytest.mark.parametrize("kind", ["title", "chapter", "graphic", "insert", "overlay",
+@pytest.mark.parametrize("kind", ["title", "chapter", "graphic",
                                    "background", "zoom", "transition", "moment"])
 def test_visual_lanes_refused_even_with_rule_override(tmp_path: Path, kind: str) -> None:
     from yap_studio.project.model import Anchor, Element, TimelineLane

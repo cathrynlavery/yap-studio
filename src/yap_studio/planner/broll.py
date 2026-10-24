@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from yap_studio import letters, paths, receipt
+from yap_studio.canvas import canvas, project_canvas
 from yap_studio.errors import InputError, OutputPathError, ValidationError
 from yap_studio.media.select import (
     INSERT_MAX_S,
@@ -132,8 +133,10 @@ def suggest_broll(
     *,
     phrase_words: int = 8,
     limit: int = 3,
+    shape: str = "vertical",
 ) -> dict:
     """Rank supporting media for phrases without selecting or writing a lane."""
+    canvas(shape)
     _positive_int(phrase_words, "phrase_words")
     _positive_int(limit, "limit")
     if limit > 50:
@@ -183,14 +186,21 @@ def suggest_broll(
             if source is None:
                 skipped.append({"item": candidate["item"], "reasons": [reason]})
                 continue
-            overlay = candidate["placement"] == "overlay"
+            placement = candidate["placement"]
+            if shape == "horizontal" and placement == "overlay":
+                placement = "full_frame"
+            overlay = placement == "overlay"
+            fit = "cover" if overlay else candidate["fit"]
+            if shape == "horizontal" and not overlay:
+                item = catalog[item_id]
+                fit = "cover" if item["width"] > item["height"] else "contain"
             result = {
                 "item": candidate["item"],
                 "media_type": candidate["media_type"],
                 "kind": "overlay" if overlay else "insert",
-                "placement": candidate["placement"],
+                "placement": placement,
                 "box": _suggested_box(catalog[item_id], style, window) if overlay else None,
-                "fit": "cover" if overlay else candidate["fit"],
+                "fit": fit,
                 "motion": None,
                 "score": candidate["score"],
                 "matched": candidate["matched"],
@@ -304,8 +314,12 @@ def _media_path(item: Mapping[str, Any], location: str, project_dir: Path) -> st
 
 def _element(request: dict, item: Mapping[str, Any], style_data: Mapping, location: str,
              project_dir: Path) -> dict:
+    frame = project_canvas(project_dir)
     style = style_data.get("broll", {})
     placement = requested_placement(request, item, style)
+    if (frame.width > frame.height and placement == "overlay"
+            and "kind" not in request and "placement" not in request and "box" not in request):
+        placement = "full_frame"
     if not isinstance(placement, str):
         raise ValidationError(f"{location}.placement", "expected a placement name")
     kind = request.get("kind", {"full_frame": "insert", "split": "insert",
@@ -391,10 +405,11 @@ def _element(request: dict, item: Mapping[str, Any], style_data: Mapping, locati
         elif request.get("fit") == "crop":
             raise ValidationError(f"{location}.crop", "fit crop requires a crop rectangle")
         else:
-            media["fit"] = request.get(
-                "fit", "cover" if "letters" in request or item["orientation"] == "vertical"
-                else "contain"
-            )
+            default_fit = ("cover" if "letters" in request or item["orientation"] == "vertical"
+                           else "contain")
+            if frame.width > frame.height:
+                default_fit = "cover" if item["width"] > item["height"] else "contain"
+            media["fit"] = request.get("fit", default_fit)
         element["audio"] = copy.deepcopy(request.get("audio", "mute"))
     else:
         if "crop" in request:

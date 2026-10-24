@@ -3,6 +3,7 @@
 ## Unreleased
 
 - A Listen that runs to the end of the video stops on its planned last frame, not two frames early, on a busy machine.
+- Wide videos get B-roll: full-frame clips and stills, portrait and square media shown whole over a soft blurred fill, landscape-first stock and 16:9 generated pictures, and 16:9 picking sheets.
 - The Home browser test taps only a live, enabled button, so a page refresh mid-tap no longer fails it on slow machines.
 - The fresh-user browser test expects Home to name Claude Code while it builds a video, and the join Listen test waits for the previous Listen to settle so a late seek can't count as the next start.
 - Open the workspace in Claude Code, the Claude app's Code tab, Codex or Cursor: shared instructions and skills, settings that let each app run Yap Studio, the app's name on Home and review, and a privacy line for each app.

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from yap_studio import paths
+from yap_studio.canvas import project_canvas
 from yap_studio.errors import OutputPathError, ValidationError, YapError
 from yap_studio.faces.model import load_faces
 from yap_studio.faces.project import picture_faces
@@ -158,7 +159,10 @@ def _broll(args: argparse.Namespace) -> int:
                 items, excluded = filter_approved(items, style, project)
                 items, pictures_excluded = pictures_guard.filter_approved(items, style, project)
                 excluded.extend(pictures_excluded)
-                data = suggest_broll(words, items, style, limit=args.limit)
+                frame = project_canvas(project) if project is not None else None
+                shape = ("horizontal" if frame is not None and frame.width > frame.height
+                         else "vertical")
+                data = suggest_broll(words, items, style, limit=args.limit, shape=shape)
                 data["excluded"].extend(excluded)
                 outputs = {}
                 plan = None

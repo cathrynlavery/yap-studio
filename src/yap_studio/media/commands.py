@@ -48,6 +48,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         else:
             command.add_argument("id", metavar="ID")
             if name == "sheet":
+                command.add_argument("--shape", choices=("vertical", "horizontal"),
+                                     default="vertical")
                 command.add_argument("--frames", type=int, default=6)
                 command.add_argument(
                     "--asr", default="auto",
@@ -235,7 +237,8 @@ def _media(args: argparse.Namespace) -> int:
                 "No candidates."
             )
         elif args.media_command == "sheet":
-            result = make_sheet(args.id, frames=args.frames, asr=args.asr, force=args.force)
+            result = make_sheet(args.id, frames=args.frames, asr=args.asr, force=args.force,
+                                shape=args.shape)
             times = [
                 "still" if frame["time_s"] is None else f"{frame['time_s']:.3f} s"
                 for frame in result["sheet"]["frames"]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -13,10 +13,12 @@ from typing import TYPE_CHECKING, Any, Literal
 import numpy as np
 
 from yap_studio import ffmpeg, paths
+from yap_studio.canvas import Canvas
 from yap_studio.edl import load_edit_list
 from yap_studio.errors import ProcessingError
 from yap_studio.plan import Plan
 from yap_studio.project.model import load_project
+from yap_studio.stages.broll_framing import insert_fit
 from yap_studio.stages.broll_split import DEFAULT_SEAM_Y, WIDTH
 from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline
 
@@ -210,9 +212,12 @@ def _decode(source: _Source, expression: str, count: int, width: int, height: in
     return pixels
 
 
-def _geometry(item: ResolvedElement | _Shot) -> tuple[str, int, int]:
+def _geometry(item: ResolvedElement | _Shot, *, frame: Canvas | None = None
+              ) -> tuple[str, int, int]:
     """Measure only visible pixels, excluding contain padding and blurred fill."""
     width, height = MEASURE_WIDTH, MEASURE_HEIGHT
+    if frame is not None and frame.width > frame.height:
+        width, height = MEASURE_HEIGHT, MEASURE_WIDTH
     media = item.payload["media"]
     fit = media.get("fit", "cover") if item.kind == "insert" else item.payload.get("fit", "cover")
     if item.kind == "insert" and fit == "split":
@@ -285,6 +290,10 @@ def match_broll(root: Path, timeline: ResolvedTimeline, cut: _Source,
                                    }, window_sources[key]))
     if not items:
         return {}, []
+    frame = Canvas(cut.info.width, cut.info.height, 0)
+    measure_width, measure_height = ((MEASURE_HEIGHT, MEASURE_WIDTH)
+                                    if frame.width > frame.height else
+                                    (MEASURE_WIDTH, MEASURE_HEIGHT))
     talking_heads = {take.id for take in load_project(root / "project.json").takes
                      if not take.voiceover}
     if not talking_heads:
@@ -310,8 +319,8 @@ def match_broll(root: Path, timeline: ResolvedTimeline, cut: _Source,
     if frames:
         # The cut has already been conformed to SDR and the delivery frame clock.
         select = "+".join(f"eq(n,{frame})" for frame in frames)
-        pixels = _decode(cut, f"select='{select}',scale={MEASURE_WIDTH}:{MEASURE_HEIGHT},"
-                         "format=rgb24", len(frames), MEASURE_WIDTH, MEASURE_HEIGHT,
+        pixels = _decode(cut, f"select='{select}',scale={measure_width}:{measure_height},"
+                         "format=rgb24", len(frames), measure_width, measure_height,
                          (frames[-1] + 1) / FPS, commands,
                          owner=", ".join(item.id for item in items if candidates[item.id]))
         take_pixels = dict(zip(frames, pixels, strict=True))
@@ -329,10 +338,13 @@ def match_broll(root: Path, timeline: ResolvedTimeline, cut: _Source,
         length = item.end_frame - item.start_frame
         local = [0] if source.image else sorted({length * n // d for n, d in SAMPLE_POSITIONS})
         media = item.payload["media"]
-        geometry, width, height = _geometry(item)
+        fit = (insert_fit(media, source.info, (frame.width, frame.height))
+               if item.kind == "insert" else item.payload.get("fit", "cover"))
+        if item.kind == "insert" and fit != media.get("fit", "cover"):
+            item = replace(item, payload={**item.payload, "media": {**media, "fit": fit}})
+        geometry, width, height = _geometry(item, frame=frame)
         # Contain has no padding, so its actual sample dimensions follow the source.
-        if ((media.get("fit") if item.kind == "insert" else item.payload.get("fit"))
-                == "contain"):
+        if fit == "contain":
             factor = min(width / source.info.width, height / source.info.height)
             width = max(1, round(source.info.width * factor))
             height = max(1, round(source.info.height * factor))

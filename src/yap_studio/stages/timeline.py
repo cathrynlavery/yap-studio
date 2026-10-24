@@ -487,9 +487,10 @@ def camera_findings(elements: list[ResolvedElement], moves: dict) -> list[Timeli
 
 def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> ResolvedTimeline:
     """Check a complete proposed merge from a single retained project snapshot."""
-    from yap_studio.canvas import require_supported
+    from yap_studio.canvas import canvas, require_supported
 
     require_supported(context, lanes)
+    delivery = canvas(context.project.shape)
     data = _fresh_cut(context)
     cut_words = cast(CutWords, _document(context, "cut-words", "cut/cut-words.json"))
     edit = cast(Edit, _document(context, "edit", "edit.json"))
@@ -928,8 +929,9 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
             if item.kind == "overlay":
                 x, y, width, height = payload["box_px"]
                 if (x < 0 or y < 0 or width <= 0 or height <= 0
-                        or x + width > CANVAS_WIDTH_PX or y + height > CANVAS_HEIGHT_PX):
-                    finding("overlay_box", "overlay box must lie inside the 1080x1920 canvas", item)
+                        or x + width > delivery.width or y + height > delivery.height):
+                    finding("overlay_box", "overlay box must lie inside the "
+                            f"{delivery.width}x{delivery.height} canvas", item)
                 if payload["placement"] == "tall_behind":
                     if not tall_box.TALL_MIN_S <= seconds <= tall_box.TALL_MAX_S:
                         finding("tall_box_length", "tall box length must be 2.5 to 8 s", item,

@@ -56,7 +56,8 @@ def test_home_shape_phone_and_desktop(tmp_path: Path, agent) -> None:
         for row, captions in zip(requests, [True, False], strict=True):
             assert row["payload"] == {
                 "video_type": "talking_head", "shape": "horizontal", "captions": captions,
-                "takes": ["computer.mp4"], "broll_sources": [], "album": None,
+                "takes": ["computer.mp4"],
+                "broll_sources": ["folder", "stock"] if captions else [], "album": None,
             }
     finally:
         server.shutdown()

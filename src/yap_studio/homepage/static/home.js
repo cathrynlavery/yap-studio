@@ -415,22 +415,16 @@ function stepShape(draft) {
   const unsupported = draft.shape === 'horizontal' && draft.video_type !== 'talking_head';
   return h('section', {}, ...stepHeader('what', 'Vertical or horizontal?', 'Choose for this video. You can change it when you add your footage.'),
     h('div', {class: 'section'}, shapeChoices(draft)),
-    draft.shape === 'horizontal' ? h('p', {class: 'note', text: 'Horizontal talking head is ready. Voiceover, green screen, screen recording effects, titles, cards and B-roll are coming soon.'}) : null,
+    draft.shape === 'horizontal' ? h('p', {class: 'note', text: 'Horizontal talking head and B-roll are ready. Voiceover, green screen, screen recording effects, titles and cards are coming soon.'}) : null,
     unsupported ? h('p', {class: 'note', role: 'alert', text: 'Choose vertical for a voiceover, or go back and choose talking head.'}) : null,
     h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/what', text: 'Back'}), h('span', {class: 'spacer'}),
       h('button', {type: 'button', class: 'btn primary big', disabled: unsupported, text: 'Next', onclick: async () => {
         saveDraft({...draft, shape_seen: true});
-        if (draft.shape === 'horizontal') {
-          try {
-            await api('/api/video-type', {video_type: draft.video_type, broll_sources: []});
-            navigate('#new/footage');
-          } catch (error) { toast(error.message, true); }
-        } else navigate('#new/sources');
+        navigate('#new/sources');
       }})));
 }
 
 function stepSources(draft, problems) {
-  if (draft.shape === 'horizontal') return stepShape(draft);
   const broll = state.video_type.questions.find((item) => item.id === 'broll_sources');
   const content = [...stepHeader('what', draft.video_type === 'voiceover' ? 'Where are your photos and clips?' : 'Anything to show on top?', null)];
   if (draft.video_type) {
@@ -528,7 +522,7 @@ function stepFootage(draft, problems) {
     if (problems.footage) content.push(h('p', {class: 'note', role: 'alert', text: problems.footage}));
   }
   content.push(h('div', {class: 'actions'},
-    h('a', {class: 'link', href: draft.shape === 'horizontal' ? '#new/shape' : '#new/sources', text: 'Back'}), h('span', {class: 'spacer'}),
+    h('a', {class: 'link', href: '#new/sources', text: 'Back'}), h('span', {class: 'spacer'}),
     h('button', {type: 'button', class: 'btn primary big', disabled: Boolean(problems.footage), onclick: () => {
       saveDraft({...loadDraft(), takes: draftTakes(loadDraft())});
       navigate('#new/look');
@@ -649,7 +643,7 @@ function stepLook(draft) {
         h('label', {class: 'check-row'}, h('input', {type: 'checkbox', role: 'switch', checked: draft.captions === true,
           onchange: (event) => { saveDraft({...loadDraft(), captions: event.target.checked}); }}),
         h('span', {}, h('strong', {text: 'Add captions to this video'})))),
-      h('p', {class: 'note', text: 'More horizontal looks, titles, cards, B-roll, zooms and color grades are coming soon.'}),
+      h('p', {class: 'note', text: 'More horizontal looks, titles, cards, zooms and color grades are coming soon.'}),
       h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/footage', text: 'Back'}), h('span', {class: 'spacer'}),
         h('button', {type: 'button', class: 'btn primary big', text: 'Next', onclick: () => navigate('#new/make')})));
   }
@@ -822,7 +816,7 @@ function stepMake(draft, problems) {
     ["What", typeLabel(draft.video_type), '#new/what'],
     ['Shape', horizontal ? 'Horizontal (YouTube)' : 'Vertical (Shorts, Reels, TikTok)', '#new/shape'],
     [voice ? 'Voice' : 'Footage', takes.length ? takes.join(', ') : voice ? `${agentName(state)} writes the script first` : 'Not chosen', '#new/footage'],
-    voice ? ['Pictures', draft.album ? `Photos album: ${draft.album}` : brollText(sourcesToSend(draft)), '#new/sources'] : ['On top', !horizontal && draft.has_broll ? brollText(sourcesToSend(draft)) : horizontal ? 'No B-roll' : 'Nothing, just you talking', horizontal ? '#new/shape' : '#new/sources'],
+    voice ? ['Pictures', draft.album ? `Photos album: ${draft.album}` : brollText(sourcesToSend(draft)), '#new/sources'] : ['On top', draft.has_broll ? brollText(sourcesToSend(draft)) : 'Nothing, just you talking', '#new/sources'],
     ['Look', horizontal ? `Simple, captions ${draft.captions === true ? 'on' : 'off'}` : state.style?.saved ? state.style.name : 'Default look', '#new/look'],
   ];
   const next = voice

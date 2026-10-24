@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from yap_studio import paths
+from yap_studio.canvas import project_canvas
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.media.select import (
     INSERT_MAX_S,
@@ -147,8 +148,9 @@ def option_label(candidate: dict) -> str:
     )
 
 
-def _candidate(clip: StockClip, phrase: dict, code: str, provider: StockProvider) -> dict:
-    file = best_file(clip)
+def _candidate(clip: StockClip, phrase: dict, code: str, provider: StockProvider,
+               *, shape: str = "vertical") -> dict:
+    file = best_file(clip, shape=shape)
     return {
         "code": code,
         "provider": clip.provider,
@@ -173,8 +175,8 @@ def _candidate(clip: StockClip, phrase: dict, code: str, provider: StockProvider
             "height": file.height,
             "fps": file.fps,
         },
-        "crop_width": crop_width(file.width, file.height),
-        "tier": tier(clip),
+        "crop_width": crop_width(file.width, file.height, shape=shape),
+        "tier": tier(clip, shape=shape),
         "in_s": in_point(clip.duration_s, phrase["window_s"]),
         "license": clip.license,
         "license_url": clip.license_url,
@@ -204,10 +206,14 @@ def _link(url: str, label: str) -> str:
 
 def render_html(data: dict, project: str) -> str:
     esc = html.escape
+    wide = data.get("shape") == "horizontal"
+    css = _CSS + (".preview{height:auto;aspect-ratio:16/9}"
+                  ".preview .media{width:100%!important;aspect-ratio:16/9!important}"
+                  ".media img{object-fit:contain}" if wide else "")
     parts = [
         f'<!doctype html><html lang="en"><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>Stock clips for {esc(project)}</title><style>" + _CSS + "</style><main>",
+        f"<title>Stock clips for {esc(project)}</title><style>" + css + "</style><main>",
         f"<h1>Stock clips for {esc(project)}</h1>",
         "<p>Nothing is downloaded until you say yes. Tell your agent the codes you want, "
         "for example 1a and 3b.</p>",
@@ -232,11 +238,11 @@ def render_html(data: dict, project: str) -> str:
                     f'<img src="{esc(c["thumb"], quote=True)}" '
                     f'alt="Stock clip {esc(c["code"])} by {esc(c["author"], quote=True)}">'
                 )
-                if c["orientation"] != "portrait":
+                if not wide and c["orientation"] != "portrait":
                     percent = min(100, c["height"] * 9 / 16 / c["width"] * 100)
                     parts.append(f'<span class="crop-frame" style="width:{percent:.4f}%"></span>')
                 parts.append("</div></div>")
-                if c["orientation"] != "portrait":
+                if not wide and c["orientation"] != "portrait":
                     parts.append("<p>Cropped to the white frame</p>")
             else:
                 parts.append('<div class="preview no-preview">No preview</div>')
@@ -320,6 +326,8 @@ def search_sheet(
     if type(per_phrase) is not int or not 1 <= per_phrase <= 3:
         raise ValidationError("per_phrase", "expected an integer from 1 to 3")
     phrases = _phrases(requests, cut_words)
+    frame = project_canvas(project_dir)
+    shape = "horizontal" if frame.width > frame.height else "vertical"
     selected, skipped = [], []
     own = [item for item in catalog_items if "stock" not in item and "generated" not in item]
     own_by_id = {item["id"]: item for item in own}
@@ -347,24 +355,25 @@ def search_sheet(
                 )
                 continue
             usable, seen = [], set()
-            for orientation, size in (("portrait", "medium"), (None, "large")):
+            for orientation, size in (("landscape" if shape == "horizontal" else "portrait",
+                                       "medium"), (None, "large")):
                 for clip in provider.search(
                     phrase["query"], orientation=orientation, size=size, per_page=15
                 ):
                     identity = (clip.provider, clip.clip_id)
                     if (
                         identity not in seen
-                        and best_file(clip) is not None
+                        and best_file(clip, shape=shape) is not None
                         and clip.duration_s >= phrase["window_s"]
                     ):
                         seen.add(identity)
                         usable.append(clip)
                 if len(usable) >= per_phrase:
                     break
-            usable.sort(key=lambda clip: tier(clip))
+            usable.sort(key=lambda clip: tier(clip, shape=shape))
             phrase.pop("not_fitting")
             phrase["candidates"] = [
-                _candidate(clip, phrase, f"{phrase['number']}{chr(97 + i)}", provider)
+                _candidate(clip, phrase, f"{phrase['number']}{chr(97 + i)}", provider, shape=shape)
                 for i, clip in enumerate(usable[:per_phrase])
             ]
             phrase["note"] = None if usable else "Nothing suitable found; try other search words"
@@ -433,6 +442,8 @@ def search_sheet(
                 if p["candidates"]
             ],
         }
+        if shape == "horizontal":
+            data["shape"] = shape
         paths.atomic_write_text(
             out / "pick-sheet.json", json.dumps(data, indent=2, ensure_ascii=False) + "\n"
         )

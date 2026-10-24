@@ -212,7 +212,7 @@ export function draftProblems(draft, state) {
   if (draft?.shape === 'horizontal' && type !== 'talking_head') {
     problems.what = 'Horizontal voiceover is coming soon. Choose talking head or vertical.';
   }
-  if (type === 'talking_head' && draft?.shape !== 'horizontal') {
+  if (type === 'talking_head') {
     if (typeof draft?.has_broll !== 'boolean') problems.what ??= 'Say whether you have anything to show on top.';
     else if (draft.has_broll && !sources.length) problems.what ??= 'Pick where those clips and photos are.';
   }
@@ -348,7 +348,6 @@ export function answersSummary(questions) {
 
 /** The B-roll sources to send: none at all when a talking head has nothing on top. */
 export function sourcesToSend(draft) {
-  if (draft?.shape === 'horizontal') return [];
   if (draft?.video_type === 'talking_head' && draft.has_broll === false) return [];
   return (Array.isArray(draft?.broll_sources) ? draft.broll_sources : []).filter((source) => source !== 'none');
 }

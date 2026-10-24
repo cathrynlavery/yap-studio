@@ -3,8 +3,13 @@
 This folder is for one creator's videos. Use the bundled Yap Studio engine. Keep raw takes in
 `inbox/` and one edit per folder under `projects/`.
 
-For horizontal talking-head videos, follow the Home event instructions below; see docs/limits.md
-for unsupported features.
+For horizontal talking-head videos, follow the Home event instructions below. Full-frame
+clips and stills work at 1920x1080. Landscape media covers the frame; portrait and square media
+stay whole, centred and full height over a blurred, darkened fill from the same media.
+Keep colour matching on by default, ask before using stock, and follow capture order in
+project videos. Stock searches prefer landscape and approved generated pictures use 16:9.
+Use `yap-studio media sheet ID --shape horizontal` when picking wide B-roll. Splits and
+behind-person B-roll remain refused; see docs/limits.md for unsupported features.
 
 ## Set me up
 
@@ -86,7 +91,8 @@ do the editing. Setup starts it. When the creator comes back, reopen it this way
      (inbox file names), and for a voiceover maybe a Photos album: do not ask again. Run
      `python3 new_project.py TAKE ... --type TYPE --broll SOURCE ...` for vertical.
      For `payload.shape == horizontal`, run
-     `python3 new_project.py TAKE ... --type talking_head --shape horizontal`.
+     `python3 new_project.py TAKE ... --type talking_head --shape horizontal --broll SOURCE ...`.
+     Pass every source in `payload.broll_sources`, or `--broll none` for an empty list.
      The helper copies and records the takes and sets up a talking head for YouTube with a
      project-local style: hard cuts, no hook, chapters, grade, 3D captions, zooms or transitions.
      When `payload.captions` is not true, after the cut add one `caption_gap` covering the whole
@@ -197,7 +203,8 @@ your app's question tool if it has one, otherwise in chat, one question at a tim
 recommended choice first: say the question's `note`, then each choice's `label` and `description`.
 Ask `video_type` first. For a talking head, ask next whether the creator has anything to show on
 top of their video (clips, photos or screenshots), and do not assume they do: if not, record no
-B-roll sources. Only when they do, or for a voiceover, ask `broll_sources`, with several answers
+B-roll sources. This yes/no question also applies to horizontal talking heads. Only when they
+do, or for a voiceover, ask `broll_sources`, with several answers
 allowed, and offer only the choices whose `only_for` (if any) lists the chosen type.
 Skip `video_type` when the creator already said what this video is. Save the answer with
 `yap-studio video-type set --type TYPE --broll SOURCE ...`. It becomes the default, so do not ask

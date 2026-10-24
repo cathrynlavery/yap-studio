@@ -212,8 +212,6 @@ def _start_locked(root: Path, takes: list[str] | None, newest: int, *,
     if shape not in {"vertical", "horizontal"}:
         raise ValueError("Use --shape vertical or --shape horizontal.")
     if shape == "horizontal":
-        if broll_sources is not None:
-            raise ValueError("Horizontal videos do not use B-roll. Remove --broll.")
         if video_type not in (None, "talking_head"):
             raise ValueError("Horizontal videos need a talking head. Use --type talking_head.")
     inbox = root / "inbox"
@@ -265,7 +263,9 @@ def _start_locked(root: Path, takes: list[str] | None, newest: int, *,
                             str(copies / source.name)])
         if shape == "horizontal":
             command.extend(["--shape", "horizontal", "--video-type", "talking_head",
-                            "--broll", "none", "--style", "preset:clean_minimal"])
+                            "--style", "preset:clean_minimal"])
+            for source in broll_sources or ["none"]:
+                command.extend(["--broll", source])
         else:
             if video_type is not None:
                 command.extend(["--video-type", video_type])

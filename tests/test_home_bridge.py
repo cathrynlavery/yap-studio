@@ -38,9 +38,10 @@ def story_workspace(workspace, feedback_project):
 
 
 @pytest.mark.parametrize("captions", [None, False, True])
-def test_horizontal_request_reaches_listener_with_caption_choice(workspace, captions):
+@pytest.mark.parametrize("sources", [[], ["folder"], ["album", "stock"]])
+def test_horizontal_request_reaches_listener_with_caption_choice(workspace, captions, sources):
     payload = {"shape": "horizontal", "video_type": "talking_head", "takes": ["wide.mp4"],
-               "broll_sources": []}
+               "broll_sources": sources}
     if captions is not None:
         payload["captions"] = captions
     bridge.create_request(workspace, "edit", payload)
@@ -50,7 +51,7 @@ def test_horizontal_request_reaches_listener_with_caption_choice(workspace, capt
 
 @pytest.mark.parametrize("extra", [
     {"shape": "square"}, {"captions": "yes"}, {"video_type": "voiceover"},
-    {"video_type": "screen_recording"}, {"broll_sources": ["folder"]}, {"text_hook": "A title"},
+    {"video_type": "screen_recording"}, {"text_hook": "A title"},
 ])
 def test_horizontal_request_refuses_unsupported_choices(workspace, extra):
     with pytest.raises(ValidationError):

@@ -90,11 +90,14 @@ test('take dimensions suggest a shape without guessing a device from a filename'
   assert.match(shapeProblem({shape: 'horizontal', takes: ['unknown']}, {inbox: {takes: [{name: 'unknown', kind: 'take'}]}}), /Replace it/);
 });
 
-test('horizontal drafts skip B-roll and refuse voiceover until it is supported', () => {
+test('horizontal drafts ask about B-roll and refuse voiceover until it is supported', () => {
   const state = {inbox: {takes: [{name: 'wide.mp4', kind: 'take', width: 320, height: 180}]}};
   const draft = {video_type: 'talking_head', shape: 'horizontal', takes: ['wide.mp4']};
-  assert.deepEqual(draftProblems(draft, state), {});
-  assert.deepEqual(sourcesToSend({...draft, has_broll: true, broll_sources: ['stock']}), []);
+  assert.match(draftProblems(draft, state).what, /anything to show on top/);
+  assert.deepEqual(draftProblems({...draft, has_broll: false}, state), {});
+  assert.match(draftProblems({...draft, has_broll: true}, state).what, /Pick where/);
+  assert.deepEqual(sourcesToSend({...draft, has_broll: true, broll_sources: ['stock']}), ['stock']);
+  assert.deepEqual(sourcesToSend({...draft, has_broll: false, broll_sources: ['stock']}), []);
   assert.match(draftProblems({...draft, video_type: 'voiceover'}, state).what, /coming soon/);
   assert.deepEqual(parseRoute('#new/shape'), {view: 'new', step: 'shape'});
   assert.deepEqual(parseRoute('#new/sources'), {view: 'new', step: 'sources'});

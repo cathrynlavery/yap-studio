@@ -206,9 +206,9 @@ def create_request(
                     "video_type", "Horizontal voiceover and screen effects are coming soon. "
                     "Choose talking head or vertical.",
                 )
-            if payload.get("broll_sources") or payload.get("text_hook"):
+            if payload.get("text_hook"):
                 raise ValidationError(
-                    "shape", "Horizontal titles, cards and B-roll are coming soon. "
+                    "shape", "Horizontal text hooks are coming soon. "
                     "Remove them or choose vertical.",
                 )
             payload = {**payload, "captions": payload.get("captions", False)}

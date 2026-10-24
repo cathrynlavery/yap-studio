@@ -11,6 +11,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from yap_studio import ffmpeg, paths, receipt
+from yap_studio.canvas import canvas
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.media.catalog import add_stock_item, load_catalog
 from yap_studio.project.lock import project_lock
@@ -71,7 +72,7 @@ def _cached(target: Path, provider: str, clip_id: str):
     return None
 
 
-def _obtain(candidate: dict, phrase: dict, *, provider, fetch, now=None):
+def _obtain(candidate: dict, phrase: dict, *, provider, fetch, now=None, shape="vertical"):
     name, clip_id = candidate["provider"], candidate["clip_id"]
     if (
         name != provider.name
@@ -96,10 +97,10 @@ def _obtain(candidate: dict, phrase: dict, *, provider, fetch, now=None):
                 and file.width > 0
                 and file.height > 0
                 and allowed_url(file.url)
-                and crop_width(file.width, file.height) >= 1080
+                and crop_width(file.width, file.height, shape=shape) >= canvas(shape).width
             ),
             None,
-        ) or best_file(clip)
+        ) or best_file(clip, shape=shape)
         if file is None:
             raise ValidationError("pick.file", "no fitting MP4 remains available")
         if clip.duration_s < phrase["window_s"]:
@@ -199,7 +200,8 @@ def get_picks(
             candidate, phrase = by_code[code]
             try:
                 item, target, cached, stock = _obtain(
-                    candidate, phrase, provider=provider, fetch=fetch, now=now
+                    candidate, phrase, provider=provider, fetch=fetch, now=now,
+                    shape=data.get("shape", "vertical"),
                 )
                 request = {
                     "id": "broll-" + phrase["id"],

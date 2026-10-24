@@ -7,8 +7,10 @@ What version 1 does not do yet, and what it never judges.
 - Vertical 1080 × 1920 stays the default. New horizontal talking-head videos use
   `init DIR --take FILE --shape horizontal` (or `"shape": "horizontal"` in project.json).
   Horizontal phase 1 supports horizontal source takes, hard cuts, audio/music, caption gaps
-  and fixed lower captions with wider lines and safe margins at 1920 × 1080; platform is
-  `youtube` or `none`. Titles, cards, B-roll, zooms, transitions, person effects, 3D captions,
+  and fixed lower captions with wider lines and safe margins at 1920 × 1080, plus full-frame
+  B-roll clips and stills and B-roll in explicit boxes; platform is `youtube` or `none`.
+  Portrait and square inserts use blurred, darkened fill. Split B-roll, titles, cards,
+  zooms, transitions, person effects, 3D captions,
   grades, applied taste preferences, covers and studio export fail with a fix line.
   Style/gallery samples remain vertical. Use the review page for final horizontal playback.
   Standalone `verify` also accepts other shapes and can check their platform rules.

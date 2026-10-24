@@ -43,6 +43,7 @@ from yap_studio.project.receipts import projection_sha256
 from yap_studio.render.moments import overlay_moments
 from yap_studio.stages import green_screen, tall_box
 from yap_studio.stages.behind_window import number_redraw
+from yap_studio.stages.broll_framing import insert_fit, wide_insert
 from yap_studio.stages.broll_match import match_broll
 from yap_studio.stages.broll_split import (
     check_insert_bounds,
@@ -472,14 +473,15 @@ def _insert(graph: _Graph, source: _Source, item: ResolvedElement, *,
         f"fps={FPS}:start_time=0:round=near,trim=end_frame={frames},"
         f"tpad=stop_mode=clone:stop=1,trim=end_frame={frames},setsar=1",
     )
-    fit = media.get("fit", "cover")
+    fit = insert_fit(media, source.info, size)
     if fit == "crop":
         x, y, w, h = media["crop"]
         branch = graph.filter(branch, f"crop={w}:{h}:{x}:{y}:exact=1,{_cover(size)}")
     elif fit == "contain":
         background, foreground = f"b{len(graph.filters)}", f"f{len(graph.filters)}"
         graph.filters.append(f"[{branch}]split=2[{background}][{foreground}]")
-        background = graph.filter(background, f"{_cover(size)},boxblur=24:2")
+        background = graph.filter(background, f"{_cover(size)},boxblur=24:2" + (
+            ",eq=brightness=-0.12" if width > height else ""))
         foreground = graph.filter(
             foreground, f"scale={width}:{height}:force_original_aspect_ratio=decrease:"
             "force_divisible_by=2",
@@ -496,7 +498,7 @@ def _insert(graph: _Graph, source: _Source, item: ResolvedElement, *,
         radius = min(16, int(min(w, h)) // 2 - 1)
         box = graph.filter(box, f"crop={w}:{h}:{x}:{y}:exact=1,boxblur={radius}:2")
         branch = graph.filter(f"{base}][{box}", f"overlay=x={x}:y={y}:format=auto:shortest=1")
-    if item.payload.get("motion") == "push":
+    if item.payload.get("motion") == "push" and not (width > height and fit == "contain"):
         base_w, base_h = 4 * width, 4 * height
         travel = item.payload["push_scale"] - 1
         progress = f"n/{max(frames - 1, 1)}"
@@ -1159,6 +1161,10 @@ def render_picture(
         target.parent.mkdir(parents=True, exist_ok=True)
         title_layers = graphics(root)["elements"] if title_layers is None else title_layers
         window_sources = _window_sources(root, title_layers, cut, commands, conversions)
+        if frame.width > frame.height:
+            timeline = replace(timeline, elements=tuple(
+                wide_insert(item, inserts[item.id], cache_root, (frame.width, frame.height))
+                if item.kind == "insert" else item for item in timeline.elements))
         matches, match_records = match_broll(
             root, timeline, cut, inserts, work, prefix=_prefix, still_loop=_still_loop,
             commands=commands, placements=title_layers, window_sources=window_sources,
@@ -1224,7 +1230,8 @@ def render_picture(
                                          insert=_insert, cut=cut,
                                          top_filter=matches.get(item.id))
                 else:
-                    branch = _insert(graph, inserts[item.id], item)
+                    branch = _insert(graph, inserts[item.id], item,
+                                     size=(frame.width, frame.height))
                     if item.id in matches:
                         branch = graph.filter(branch, matches[item.id])
                 if item.id in letters_by_id:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from yap_studio.errors import ValidationError, YapError
@@ -40,6 +42,15 @@ def canvas(shape: str = "vertical") -> Canvas:
     if shape == "horizontal":
         return Canvas(1920, 1080, 160)
     raise ValidationError("shape", "choose vertical or horizontal")
+
+
+def project_canvas(project_dir: Path) -> Canvas:
+    """Use delivery geometry for source tools, including pre-project pick sheets."""
+    try:
+        data = json.loads((Path(project_dir) / "project.json").read_bytes())
+    except FileNotFoundError:
+        return canvas()
+    return canvas(data.get("shape", "vertical"))
 
 
 def unsupported(feature: str, fix: str) -> None:
@@ -81,6 +92,15 @@ def require_supported(context: ProjectContext,
         lanes = _lanes(context)
     for lane in lanes.values():
         for item in lane.elements:
-            if item.kind not in {"caption_gap", "sound"}:
+            if item.kind == "insert" and item.fields.get("media", {}).get("fit") == "split":
+                unsupported(f"split B-roll element {item.id}",
+                            f"Set {item.id} media.fit to cover or contain")
+            if item.kind == "insert" and "letters" in item.fields:
+                unsupported(f"video letters B-roll element {item.id}",
+                            f"Remove letters from {item.id} to use a full-frame insert")
+            if item.kind == "overlay" and item.fields.get("placement") != "box":
+                unsupported(f"{item.fields.get('placement')} B-roll element {item.id}",
+                            f"Set {item.id} placement to box with a box inside the wide canvas")
+            if item.kind not in {"caption_gap", "sound", "insert", "overlay"}:
                 unsupported(f"{item.kind} element {item.id}",
                             f"Remove {item.id} from the {lane.lane} timeline")

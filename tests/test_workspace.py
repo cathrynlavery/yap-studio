@@ -540,7 +540,8 @@ def test_new_project_video_flags_and_json(tmp_path, monkeypatch, capsys):
     assert result["video_type"] == "green_screen" and result["broll_sources"] == ["folder", "stock"]
 
 
-def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch):
+@pytest.mark.parametrize("sources", [None, ["folder"], ["album", "stock"], ["none"]])
+def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, sources):
     from yap_studio.homepage.state import inbox_files
     from yap_studio.style import resolve_style_data
 
@@ -554,12 +555,14 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch):
     (tmp_path / "style").mkdir()
     (tmp_path / "style/answers.json").write_text("{}")
     calls = _fake_project_runner(module, monkeypatch, tmp_path)
-    assert module.main([*names, "--type", "talking_head", "--shape", "horizontal"]) == 0
+    flags = [value for source in sources or [] for value in ("--broll", source)]
+    assert module.main([*names, "--type", "talking_head", "--shape", "horizontal", *flags]) == 0
     project = Path(calls[0][2])
     assert calls[0][3:] == [
         *[value for name in names for value in ("--take", str(project / "takes" / name))],
-        "--shape", "horizontal", "--video-type", "talking_head", "--broll", "none",
+        "--shape", "horizontal", "--video-type", "talking_head",
         "--style", "preset:clean_minimal",
+        *[value for source in sources or ["none"] for value in ("--broll", source)],
     ]
     used = json.loads((inbox / ".used.json").read_text())["takes"]
     assert [item["file"] for item in used] == names
@@ -588,8 +591,6 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch):
 @pytest.mark.parametrize("takes,flags,fix", [
     (["memo.wav"], [], "Use video takes"),
     (["take.mov", "memo.wav"], [], "Use video takes"),
-    (["take.mov"], ["--broll", "folder"], "Remove --broll"),
-    (["take.mov"], ["--broll", "none"], "Remove --broll"),
     (["take.mov"], ["--type", "green_screen"], "Use --type talking_head"),
 ])
 def test_new_project_horizontal_refuses_unsupported(

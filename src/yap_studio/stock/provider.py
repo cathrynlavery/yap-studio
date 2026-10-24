@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from yap_studio.canvas import canvas
 from yap_studio.errors import YapError
 
 
@@ -101,16 +102,17 @@ def redact(text: str) -> str:
     )
 
 
-def crop_width(width: int, height: int) -> float:
-    """Width left after a centre crop of upright pixels to 9:16."""
-    return min(width, height * 9 / 16)
+def crop_width(width: int, height: int, *, shape: str = "vertical") -> float:
+    """Width left after a cover crop to the delivery aspect ratio."""
+    frame = canvas(shape)
+    return min(width, height * frame.width / frame.height)
 
 
 def _id_order(file: StockFile) -> tuple[int, int | str]:
     return (0, int(file.file_id)) if file.file_id.isdecimal() else (1, file.file_id)
 
 
-def best_file(clip: StockClip) -> StockFile | None:
+def best_file(clip: StockClip, *, shape: str = "vertical") -> StockFile | None:
     """Choose the smallest fitting MP4, then the nearest 30 fps and lowest id.
 
     Providers admit only MP4 files into StockClip.files. Recheck dimensions and
@@ -124,7 +126,7 @@ def best_file(clip: StockClip) -> StockFile | None:
         if file.width > 0
         and file.height > 0
         and allowed_url(file.url)
-        and crop_width(file.width, file.height) >= 1080
+        and crop_width(file.width, file.height, shape=shape) >= canvas(shape).width
     ]
     return min(
         fitting,
@@ -137,9 +139,10 @@ def best_file(clip: StockClip) -> StockFile | None:
     )
 
 
-def tier(clip: StockClip) -> int | None:
-    """Prefer portrait source clips, dropping clips with no fitting file."""
-    return (0 if clip.height > clip.width else 1) if best_file(clip) else None
+def tier(clip: StockClip, *, shape: str = "vertical") -> int | None:
+    """Prefer sources with the delivery orientation, dropping files too small to cover."""
+    preferred = clip.width > clip.height if shape == "horizontal" else clip.height > clip.width
+    return (0 if preferred else 1) if best_file(clip, shape=shape) else None
 
 
 def in_point(duration_s: float, window_s: float) -> float:

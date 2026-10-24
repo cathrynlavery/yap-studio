@@ -23,6 +23,11 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
         'Privacy Mode stops training', 'command output']) assert.ok(disclosure.includes(phrase));
       await mkdir(shots, {recursive: true});
       await page.screenshot({path: join(shots, `welcome-${width}.png`), fullPage: true});
+      await page.evaluate(() => {
+        const key = `yap-home-draft:${document.getElementById('workspace-name').textContent}`;
+        localStorage.setItem(key, JSON.stringify({video_type: null, has_broll: null,
+          broll_sources: [], takes: null}));
+      });
       await page.goto(`${url}#new/what`);
       await page.waitForSelector('.tile');
       assert.ok(await page.$eval('#listener', (el, name) => el.textContent.includes(name), agent));
@@ -53,7 +58,7 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
         else await page.mouse.click(point.x, point.y);
         await settle();
       };
-      const titles = {'#new/shape': 'Vertical or horizontal?', '#new/footage': 'Your footage',
+      const titles = {'#new/shape': 'Vertical or horizontal?', '#new/sources': 'Anything to show on top?', '#new/footage': 'Your footage',
         '#new/look': 'Your look', '#new/make': 'Make it'};
       const route = (hash) => page.waitForFunction((value, title) => location.hash === value
         && document.querySelector('h1')?.textContent === title, {}, hash, titles[hash]);
@@ -75,6 +80,19 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
       await mkdir(shots, {recursive: true});
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({path: join(shots, `shape-${width}.png`), fullPage: true});
+      await next('#new/sources');
+      assert.equal(await page.$('#source-folder'), null);
+      assert.equal(await page.$eval('.actions button', (el) => el.disabled), true);
+      await click('#has-broll-true');
+      assert.ok(await page.$('#source-folder'));
+      assert.equal(await page.$eval('.actions button', (el) => el.disabled), true);
+      await click('#source-folder');
+      await click('#source-stock');
+      if (width === 1440) {
+        await click('#has-broll-false');
+        assert.equal(await page.$('#source-folder'), null);
+      }
+      await page.screenshot({path: join(shots, `sources-${width}.png`), fullPage: true});
       await next('#new/footage');
       await page.waitForSelector('[role=alert]');
       assert.match(await page.$eval('[role=alert]', (el) => el.textContent), /phone.mp4 is vertical/);
