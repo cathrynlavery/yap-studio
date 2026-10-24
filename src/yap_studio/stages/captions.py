@@ -1251,7 +1251,7 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
         phrases = clip_layout_phrases(phrases, green_layouts)
     duration = timeline.total_frames / 30
     phrases = [replace(phrase, start=max(0.0, phrase.start), end=min(duration, phrase.end))
-               for phrase in phrases if phrase.start < duration and phrase.end > 0]
+               for phrase in phrases if min(duration, phrase.end) > max(0.0, phrase.start)]
     gaps = [item for item in timeline.elements if item.kind == "caption_gap"]
     phrases = [phrase for phrase in phrases if not any(
         phrase.start < gap.end_s and phrase.end > gap.start_s for gap in gaps

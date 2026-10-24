@@ -124,6 +124,40 @@ def test_caption_plan_backing_slots_and_original_bytes() -> None:
     assert [slot.get("backing") for slot in slots] == [None, "shadow", "box"]
 
 
+@pytest.mark.parametrize("shape", ["vertical", "horizontal"])
+@pytest.mark.parametrize("count", [2, 1800])
+def test_snapshot_excludes_empty_phrases_before_backing(tmp_path, monkeypatch, shape, count):
+    root = make_project(tmp_path)
+    context = ProjectContext(root)
+    timeline = replace(context.resolved_timeline(), elements=(), total_frames=count * 30)
+    context.project = replace(context.project, shape=shape)
+    monkeypatch.setattr(context, "resolved_timeline", lambda: timeline)
+    document = context.json("cut/cut-words.json")
+    document["words"] = [
+        {"id": f"t1:{i}", "text": "Steps.", "start": float(i), "end": i + .2,
+         "segment": "s1"} for i in range(count)
+    ]
+    # Equal starts at a phrase boundary produce a zero-duration display phrase.
+    document["words"][-2].update(start=count - 1., end=count - 1.)
+    read = context.read
+    monkeypatch.setattr(context, "read", lambda name: json.dumps(document).encode()
+                        if name == "cut/cut-words.json" else read(name))
+    context.project = replace(context.project, caption_backing={f"caption:t1:{count - 1}": "box"})
+    snapshot = stage.caption_snapshot(context)
+    slots = json.loads(snapshot.plan.variables["phrases"])
+    assert len(slots) == len(snapshot.phrases) == len(snapshot.backing) == count - 1
+    assert len(snapshot.windows) == len(snapshot.auto) == len(slots)
+    assert all(phrase.end > phrase.start for phrase in snapshot.phrases)
+    assert slots[-1]["backing"] == "box"
+    assert slots[-1]["words"][0]["id"] == f"t1:{count - 1}"
+    assert snapshot.inputs["phrases"] == projection_sha256(
+        [phrase.to_dict() for phrase in snapshot.phrases])
+    placed = stage.caption_layer_plan(
+        snapshot.phrases, context.render_style(), frames=timeline.total_frames,
+        backing=snapshot.backing, offsets=[-20] * len(slots), shape=shape)
+    assert all(slot["offset_px"] == -20 for slot in json.loads(placed.variables["phrases"]))
+
+
 @pytest.mark.parametrize("background,opacity", [("none", 0.85), ("band", 0)])
 def test_box_backing_plans_breaks_without_changing_plain_slots(background, opacity) -> None:
     texts = "Small steady steps matter".split()

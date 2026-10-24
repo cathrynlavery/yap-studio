@@ -1051,6 +1051,46 @@ def test_standalone_clip_still_requires_output(clip: Path) -> None:
     assert cli.main(["captions", str(clip)]) == 2
 
 
+@pytest.mark.parametrize("project_mode", [False, True])
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize("error", [ValueError("backing count mismatch"),
+                                 OSError("caption layer write failed")])
+def test_internal_caption_error_keeps_message(
+    tmp_path, monkeypatch, capsys, project_mode, json_output, error,
+) -> None:
+    def fail(*args, **kwargs):
+        raise error
+
+    if project_mode:
+        (tmp_path / "project.json").write_text("{}")
+        monkeypatch.setattr(captions, "captions", fail)
+        args = ["captions", str(tmp_path)]
+    else:
+        monkeypatch.setattr(captions, "caption_clip", fail)
+        args = ["captions", "clip.mp4", "--out", str(tmp_path / "out.mp4")]
+    assert cli.main([*args, *(["--json"] if json_output else [])]) == 2
+    output = capsys.readouterr().err
+    if json_output:
+        result = json.loads(output)["error"]
+        assert result["message"] == str(error)
+        assert result["type"] == "processing_error"
+        assert result["code"] == "caption_failed"
+        assert "report" in result["suggested_action"].lower()
+    else:
+        assert f"error: {error}" in output
+        assert "report" in output.lower()
+    assert "Cannot read input" not in output
+    assert "existing audio or video file" not in output
+
+
+def test_missing_caption_input_keeps_input_error(tmp_path, capsys) -> None:
+    missing = tmp_path / "missing.mp4"
+    assert cli.main(["captions", str(missing), "--out", str(tmp_path / "out.mp4"),
+                     "--json"]) == 2
+    error = json.loads(capsys.readouterr().err)["error"]
+    assert error == InputError(str(missing)).to_dict()
+
+
 def test_project_captions_cli_timeline_and_missing_input_errors(
     tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:

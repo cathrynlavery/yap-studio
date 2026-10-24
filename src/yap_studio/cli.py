@@ -864,7 +864,9 @@ def _captions(args: argparse.Namespace) -> int:
             result["taste"] = application.pin()
     except (YapError, OSError, ValueError) as exc:
         if not isinstance(exc, YapError):
-            exc = InputError(args.clip, f"cannot read or render captions: {exc}")
+            exc = YapError(str(exc), error_type="processing_error", code="caption_failed",
+                           suggested_action="Report this caption failure with the error message "
+                           "and the command you ran.")
         if args.json:
             print(json.dumps({"error": exc.to_dict()}), file=sys.stderr)
         else:
