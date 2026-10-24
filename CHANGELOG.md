@@ -11,7 +11,7 @@
 - Home asks vertical or horizontal for each video, with horizontal captions off by default.
 - Add horizontal talking-head videos at 1920x1080 with hard cuts and captions; other features are refused with a fix.
 - Cards fit ordinary framing, notes can be closed in a later version, review controls stay on screen, and Home and review use honest labels.
-- Pin the renderer to HyperFrames 0.8.188.
+- Pin the renderer to HyperFrames 0.8.192.
 - Record scrubbed product feedback locally, with consent settings, repeat grouping and optional sharing.
 - Multiword caption fixes keep words separate across long pauses, sentence ends and cuts. Layout breaks preserve merged spellings.
 - Catch repeated points in unpunctuated story cuts using pauses and edit segment edges, and check the whole story again after review notes.
