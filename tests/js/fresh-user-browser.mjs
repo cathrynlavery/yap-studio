@@ -88,13 +88,15 @@ async function run(reviewUrl, homeUrl, shots, resultFile) {
       const state = await home.evaluate(async () => (await fetch('/api/state')).json());
       let requestState;
       await home.setRequestInterception(true);
-      home.on('request', (request) => {
+      const mockState = (request) => {
         if (new URL(request.url()).pathname === '/api/state') {
           const failed = {...state, requests: state.requests.map((item) => ({...item,
             state: requestState, ack: {...item.ack, message: 'Synthetic render failure'}}))};
-          request.respond({status: 200, contentType: 'application/json', body: JSON.stringify(failed)});
-        } else request.continue();
-      });
+          return request.respond({status: 200, contentType: 'application/json', body: JSON.stringify(failed)});
+        }
+        return request.continue();
+      };
+      home.on('request', mockState);
       for (requestState of ['failed', 'cancelled']) {
         const hash = `#request/${state.requests[0].id}`;
         await home.goto('about:blank');
@@ -108,9 +110,14 @@ async function run(reviewUrl, homeUrl, shots, resultFile) {
         });
         await home.screenshot({path: join(shots, `home-${requestState}-${width}.png`)});
       }
+      home.off('request', mockState);
       await home.setRequestInterception(false);
+      const restored = await home.evaluate(async () => (await fetch('/api/state')).json());
+      check(`home state is live after mocking ${width}`, () =>
+        assert.equal(restored.requests[0].state, state.requests[0].state));
       await home.evaluate((name) => localStorage.setItem(`yap-home-draft:${name}`, JSON.stringify({
-        video_type: 'talking_head', has_broll: false, broll_sources: [], takes: ['take.mp4'], album: '',
+        video_type: 'talking_head', shape: 'vertical', shape_seen: true,
+        has_broll: false, broll_sources: [], takes: ['take.mp4'], album: '',
       })), state.workspace);
       await home.goto(`${homeUrl}#new/make`);
       await home.waitForSelector('#make');

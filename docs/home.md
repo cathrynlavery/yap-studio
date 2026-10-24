@@ -65,7 +65,12 @@ It returns as soon as there is something to do and prints one JSON object:
 | `approved` | `version` of `project` was approved. |
 | `timeout` | Nothing happened before `--timeout`; start it again. |
 
-For an edit, `payload.shape` reaches the agent unchanged: horizontal starts with `yap-studio init DIR --take FILE --shape horizontal`, using the plain horizontal style and `payload.captions` (off by default); vertical follows the existing recipe.
+For an edit, `payload.shape` reaches the agent unchanged: horizontal starts with
+`python3 new_project.py TAKE ... --type talking_head --shape horizontal`. The helper copies and
+records the takes and sets up the plain horizontal style. When `payload.captions` is not true,
+after the cut the agent adds one `caption_gap` covering the whole video on the agent lane using
+`yap-studio timeline add FRAGMENT DIR --lane agent`; see
+[Caption gaps](../workspace/CLAUDE.md#caption-gaps). Vertical follows the existing recipe.
 
 The agent reports back with `yap-studio home ack ID --state claimed|done|failed`, adding
 `--project DIR` once the project folder exists and `--message` with one plain sentence. The page

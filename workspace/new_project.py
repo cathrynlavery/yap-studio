@@ -168,11 +168,13 @@ def _engine() -> str:
 
 
 def start(root: Path = ROOT, takes: list[str] | None = None, newest: int = 1, *,
-          video_type: str | None = None, broll_sources: list[str] | None = None) -> Path:
+          video_type: str | None = None, broll_sources: list[str] | None = None,
+          shape: str = "vertical") -> Path:
     """Initialize a fresh project with copied takes and record their identities."""
     with _project_lock(root / "projects"):
         return _start_locked(root, takes, newest,
-                             video_type=video_type, broll_sources=broll_sources)
+                             video_type=video_type, broll_sources=broll_sources,
+                             shape=shape)
 
 
 def _select(root: Path, available: list[Path], used: dict,
@@ -205,11 +207,21 @@ def _select(root: Path, available: list[Path], used: dict,
 
 
 def _start_locked(root: Path, takes: list[str] | None, newest: int, *,
-                  video_type: str | None = None, broll_sources: list[str] | None = None) -> Path:
+                  video_type: str | None = None, broll_sources: list[str] | None = None,
+                  shape: str = "vertical") -> Path:
+    if shape not in {"vertical", "horizontal"}:
+        raise ValueError("Use --shape vertical or --shape horizontal.")
+    if shape == "horizontal":
+        if broll_sources is not None:
+            raise ValueError("Horizontal videos do not use B-roll. Remove --broll.")
+        if video_type not in (None, "talking_head"):
+            raise ValueError("Horizontal videos need a talking head. Use --type talking_head.")
     inbox = root / "inbox"
     used = _used(inbox)
     selected = _select(root, _inbox_takes(inbox), used, takes, newest)
     kinds = [_kind(source) for source in selected]
+    if shape == "horizontal" and "memo" in kinds:
+        raise ValueError("Horizontal videos cannot use audio memos. Use video takes from inbox/.")
     if len(set(kinds)) > 1:
         if takes:
             raise ValueError("Audio memos and video takes cannot share a project. Name only "
@@ -251,13 +263,32 @@ def _start_locked(root: Path, takes: list[str] | None, newest: int, *,
         for source in selected:
             command.extend(["--voiceover" if kinds[0] == "memo" else "--take",
                             str(copies / source.name)])
-        if video_type is not None:
-            command.extend(["--video-type", video_type])
-        for source in broll_sources or []:
-            command.extend(["--broll", source])
-        if (root / "style/answers.json").is_file():
-            command.extend(["--answers", "style/answers.json"])
+        if shape == "horizontal":
+            command.extend(["--shape", "horizontal", "--video-type", "talking_head",
+                            "--broll", "none", "--style", "preset:clean_minimal"])
+        else:
+            if video_type is not None:
+                command.extend(["--video-type", video_type])
+            for source in broll_sources or []:
+                command.extend(["--broll", source])
+            if (root / "style/answers.json").is_file():
+                command.extend(["--answers", "style/answers.json"])
         subprocess.run(command, cwd=root, check=True, stdout=subprocess.DEVNULL)
+        if shape == "horizontal":
+            styles = destination / "styles"
+            styles.mkdir(exist_ok=True)
+            _write_json(styles / "horizontal.json", {
+                "schema_version": 1, "name": "Horizontal",
+                "captions": {"camera_3d": False},
+                "hook": {"style": "none"}, "chapters": {"style": "none"},
+                "grade": {"look": "none"},
+                "moves": {"jump_cuts": "hard", "zoom_mode": "none",
+                          "opening_push": False, "transitions": []},
+            })
+            manifest = destination / "project.json"
+            project = json.loads(manifest.read_text())
+            project.update(platform="youtube", style="styles/horizontal.json")
+            _write_json(manifest, project)
         now = datetime.now().astimezone().isoformat()
         for source, size, mtime_ns in identities:
             used["takes"].append({"file": source.name, "bytes": size,
@@ -409,6 +440,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--add", type=Path, metavar="DIR")
     parser.add_argument("--type", choices=VIDEO_TYPES)
     parser.add_argument("--broll", action="append", choices=BROLL_SOURCES)
+    parser.add_argument("--shape", choices=("vertical", "horizontal"), default="vertical")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
@@ -416,6 +448,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("Do not combine --add and --name.")
         if (args.name or args.add) and (args.type is not None or args.broll is not None):
             raise ValueError("Do not combine --type or --broll with --name or --add.")
+        if (args.name or args.add) and args.shape != "vertical":
+            raise ValueError("Do not combine --shape horizontal with --name or --add.")
         if args.name:
             if args.takes:
                 raise ValueError("Do not pass take names with --name.")
@@ -424,7 +458,8 @@ def main(argv: list[str] | None = None) -> int:
             destination = add_pickups(ROOT, args.add, args.takes, args.newest)
         else:
             destination = start(ROOT, args.takes, args.newest,
-                                video_type=args.type, broll_sources=args.broll)
+                                video_type=args.type, broll_sources=args.broll,
+                                shape=args.shape)
         if args.json:
             names = []
             if not args.name:

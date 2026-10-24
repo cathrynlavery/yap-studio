@@ -521,8 +521,120 @@ def test_new_project_video_flags_and_json(tmp_path, monkeypatch, capsys):
     assert result["video_type"] == "green_screen" and result["broll_sources"] == ["folder", "stock"]
 
 
+def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch):
+    from yap_studio.homepage.state import inbox_files
+    from yap_studio.style import resolve_style_data
+
+    module = _module(ROOT / "workspace/new_project.py", "workspace_horizontal")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    names = ["first.mov", "second.mp4"]
+    for name in names:
+        (inbox / name).write_bytes(name.encode())
+    (tmp_path / "style").mkdir()
+    (tmp_path / "style/answers.json").write_text("{}")
+    calls = _fake_project_runner(module, monkeypatch, tmp_path)
+    assert module.main([*names, "--type", "talking_head", "--shape", "horizontal"]) == 0
+    project = Path(calls[0][2])
+    assert calls[0][3:] == [
+        *[value for name in names for value in ("--take", str(project / "takes" / name))],
+        "--shape", "horizontal", "--video-type", "talking_head", "--broll", "none",
+        "--style", "preset:clean_minimal",
+    ]
+    used = json.loads((inbox / ".used.json").read_text())["takes"]
+    assert [item["file"] for item in used] == names
+    for item in used:
+        source = inbox / item["file"]
+        assert (item["bytes"], item["mtime_ns"], item["project"]) == (
+            source.stat().st_size, source.stat().st_mtime_ns, f"projects/{project.name}")
+        assert (project / "takes" / source.name).read_bytes() == source.read_bytes()
+    manifest = json.loads((project / "project.json").read_text())
+    assert manifest["platform"] == "youtube"
+    style_path = project / manifest["style"]
+    assert style_path.is_relative_to(project)
+    style_data = json.loads(style_path.read_text())
+    assert style_data["captions"] == {"camera_3d": False}
+    assert "taste" not in style_data
+    style = resolve_style_data(style_data)
+    assert style["hook"]["style"] == style["chapters"]["style"] == "none"
+    assert style["grade"]["look"] == style["moves"]["zoom_mode"] == "none"
+    assert style["moves"]["jump_cuts"] == "hard"
+    assert style["moves"]["opening_push"] is False and style["moves"]["transitions"] == []
+    assert inbox_files(tmp_path) == ([], 2)
+    with pytest.raises(ValueError, match="already in a project"):
+        module.start(tmp_path, shape="horizontal")
+
+
+@pytest.mark.parametrize("takes,flags,fix", [
+    (["memo.wav"], [], "Use video takes"),
+    (["take.mov", "memo.wav"], [], "Use video takes"),
+    (["take.mov"], ["--broll", "folder"], "Remove --broll"),
+    (["take.mov"], ["--broll", "none"], "Remove --broll"),
+    (["take.mov"], ["--type", "green_screen"], "Use --type talking_head"),
+])
+def test_new_project_horizontal_refuses_unsupported(
+    tmp_path, monkeypatch, capsys, takes, flags, fix,
+):
+    module = _module(ROOT / "workspace/new_project.py", "workspace_horizontal_refusal")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    (tmp_path / "inbox").mkdir()
+    for name in takes:
+        (tmp_path / "inbox" / name).write_bytes(b"take")
+    calls = _fake_project_runner(module, monkeypatch, tmp_path)
+    assert module.main([*takes, "--shape", "horizontal", *flags]) == 1
+    assert fix in capsys.readouterr().err
+    assert calls == [] and not (tmp_path / "inbox/.used.json").exists()
+    assert not any(p.is_dir() for p in (tmp_path / "projects").iterdir())
+
+
+@pytest.mark.parametrize("failed_file", ["init", "horizontal.json", "project.json", ".used.json"])
+def test_new_project_horizontal_failure_rolls_back(tmp_path, monkeypatch, failed_file):
+    module = _module(ROOT / "workspace/new_project.py", "workspace_horizontal_failure")
+    (tmp_path / "inbox").mkdir()
+    source = tmp_path / "inbox/take.mov"
+    source.write_bytes(b"take")
+    _fake_project_runner(module, monkeypatch, tmp_path)
+    write = module._write_json
+    run = module.subprocess.run
+
+    def fail_write(target, data):
+        assert not (tmp_path / "inbox/.used.json").exists()
+        if target.name == failed_file:
+            raise OSError("setup failed")
+        write(target, data)
+
+    def fail_init(args, **kwargs):
+        if failed_file == "init":
+            raise OSError("setup failed")
+        return run(args, **kwargs)
+
+    monkeypatch.setattr(module, "_write_json", fail_write)
+    monkeypatch.setattr(module.subprocess, "run", fail_init)
+    with pytest.raises(OSError, match="setup failed"):
+        module.start(tmp_path, shape="horizontal")
+    assert not any(p.is_dir() for p in (tmp_path / "projects").iterdir())
+    assert not (tmp_path / "inbox/.used.json").exists()
+    assert source.read_bytes() == b"take"
+
+
+@pytest.mark.parametrize("shape", [None, "vertical"])
+def test_new_project_vertical_init_unchanged(tmp_path, monkeypatch, capsys, shape):
+    module = _module(ROOT / "workspace/new_project.py", "workspace_vertical_unchanged")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "inbox/take.mov").write_bytes(b"take")
+    calls = _fake_project_runner(module, monkeypatch, tmp_path)
+    assert module.main([*(["--shape", shape] if shape else [])]) == 0
+    project = Path(calls[0][2])
+    assert calls == [["yap-studio", "init", str(project), "--take",
+                      str(project / "takes/take.mov")]]
+    assert capsys.readouterr().out == f"{project}\n"
+
+
 @pytest.mark.parametrize("mode", [["--name", "DIR", "TOPIC"], ["--add", "DIR"]])
-@pytest.mark.parametrize("flags", [["--type", "talking_head"], ["--broll", "none"]])
+@pytest.mark.parametrize("flags", [["--type", "talking_head"], ["--broll", "none"],
+                                   ["--shape", "horizontal"]])
 def test_new_project_refuses_video_flags_with_name_or_add(mode, flags, capsys):
     module = _module(ROOT / "workspace/new_project.py", "workspace_video_flags")
     assert module.main([*mode, *flags]) == 1
@@ -535,8 +647,13 @@ def test_workspace_video_routing_and_commands_parse():
     section = guide.split("## What are you making?", 1)[1].split("## Make a voiceover video", 1)[0]
     for phrase in ("yap-studio video-type show --json", "AskUserQuestion", "not in this version",
                    "talking_head", "voiceover", "green_screen", "screen_recording",
-                   "Behind the speaker", "cover every frame", "middle of its width"):
+                   "Behind the speaker", "cover every frame", "using its display dimensions"):
         assert phrase in section
+    assert "python3 new_project.py TAKE ... --type talking_head --shape horizontal" in guide
+    assert "yap-studio init DIR --take FILE --shape horizontal" not in guide
+    assert "payload.captions` is not true" in guide
+    assert "[Caption gaps](#caption-gaps)" in guide
+    assert "yap-studio timeline add FRAGMENT DIR --lane agent" in guide
     skill = (ROOT / "workspace/.claude/skills/edit-video/SKILL.md").read_text()
     assert "broll_sources" in skill and "`stock` is in this video's B-roll sources" in skill
     files = ["workspace/CLAUDE.md", "workspace/.claude/skills/edit-video/SKILL.md",
@@ -724,8 +841,9 @@ def test_new_project_copy_failure_removes_partial_project(
     assert not (inbox / ".used.json").exists()
 
 
+@pytest.mark.parametrize("shape", ["vertical", "horizontal"])
 def test_new_project_waits_for_project_lock_and_reads_ledger_inside_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str,
 ) -> None:
     fcntl = pytest.importorskip("fcntl")
     module = _module(ROOT / "workspace/new_project.py", "workspace_locked")
@@ -742,7 +860,7 @@ def test_new_project_waits_for_project_lock_and_reads_ledger_inside_it(
 
     def run_start() -> None:
         try:
-            result.append(module.start(tmp_path))
+            result.append(module.start(tmp_path, shape=shape))
         except BaseException as exc:
             errors.append(exc)
         finally:
@@ -761,7 +879,7 @@ def test_new_project_waits_for_project_lock_and_reads_ledger_inside_it(
     assert not worker.is_alive()
     assert errors == []
     assert len(result) == 1
-    second = module.start(tmp_path)
+    second = module.start(tmp_path, shape=shape)
     assert second != result[0]
     used = json.loads((inbox / ".used.json").read_text())["takes"]
     assert len(used) == 2

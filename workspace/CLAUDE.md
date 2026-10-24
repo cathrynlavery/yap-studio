@@ -3,7 +3,8 @@
 This folder is for one creator's videos. Use the bundled Yap Studio engine. Keep raw takes in
 `inbox/` and one edit per folder under `projects/`.
 
-For horizontal talking-head videos, use `init DIR --take FILE --shape horizontal`: hard cuts and captions only; see docs/limits.md for unsupported features.
+For horizontal talking-head videos, follow the Home event instructions below; see docs/limits.md
+for unsupported features.
 
 ## Set me up
 
@@ -66,7 +67,12 @@ do the editing. Setup starts it. When the creator comes back, reopen it this way
      your footage"`. The payload already has the video type, the B-roll sources and the takes
      (inbox file names), and for a voiceover maybe a Photos album: do not ask again. Run
      `python3 new_project.py TAKE ... --type TYPE --broll SOURCE ...` for vertical.
-     For `payload.shape == horizontal`, copy the takes into a fresh project's `takes/`, then use `yap-studio init DIR --take FILE --shape horizontal` (repeat `--take` for each copied file), with `talking_head`, platform `youtube`, no B-roll, titles, cards, grade, taste, zooms or smooth joins; use a project-local style with hard cuts and captions enabled only when `payload.captions` is true. Then run
+     For `payload.shape == horizontal`, run
+     `python3 new_project.py TAKE ... --type talking_head --shape horizontal`.
+     The helper copies and records the takes and sets up a talking head for YouTube with a
+     project-local style: hard cuts, no hook, chapters, grade, 3D captions, zooms or transitions.
+     When `payload.captions` is not true, after the cut add one `caption_gap` covering the whole
+     video on the agent lane, as in [Caption gaps](#caption-gaps). Then run
      `yap-studio home ack ID --state claimed --project DIR`. Follow the recipe for the type. After
      `new_project.py --name DIR TOPIC` renames the folder, run
      `yap-studio home ack ID --state done --project NEWDIR`. A voiceover with no takes starts
@@ -219,3 +225,11 @@ cut and apply their notes. The review link opens on their phone. If a note could
 two moments, quote nearby transcript words and ask which one they mean. Save the finished
 video as a version and show it for another review, so earlier comments carry over. A passing
 technical check does not replace the creator's approval.
+
+## Caption gaps
+
+After the cut, save a timeline fragment with one `caption_gap` on the `agent` lane, starting
+at `{"time": 0}` and ending at the full cut duration, including the end hold. Add it with the
+documented `yap-studio timeline add FRAGMENT DIR --lane agent` command (see
+docs/editing.md, Timeline elements). This hides captions for the whole video without changing
+the style format.
