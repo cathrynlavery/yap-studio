@@ -679,6 +679,7 @@ def test_model_contract() -> None:
         "platform.duration",
         "platform.resolution",
         "platform.fps",
+        "platform.chapters",
         "taste.rules",
     )
     assert len(CHECK_IDS) == len(set(CHECK_IDS))

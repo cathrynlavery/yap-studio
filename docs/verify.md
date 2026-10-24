@@ -133,6 +133,7 @@ Each finding gives the time on the output, the problem and a fix.
 | `platform.duration` | The video exceeds a duration limit or warning threshold for the selected format. | For YouTube uploads over 15 minutes, verify your YouTube account; trim only if you cannot verify. Above the hard limit, shorten it or choose another format. |
 | `platform.resolution` | The frame size misses a platform rule. | Render at a supported size. |
 | `platform.fps` | The frame rate misses a platform rule. | Render at a supported frame rate. |
+| `platform.chapters` | The edit has chapters, but the YouTube chapter list breaks a YouTube rule: the first chapter must start at 0:00, there must be at least three, and each must last at least 10 seconds. No list is offered. | Move, merge or add chapters until the list meets those rules, then render again. |
 | `taste.rules` | The finished picture breaks an approved taste rule applied to this render, or its receipt names a different style. Rules that could not be measured have a reason. | Render again with the approved style, or revoke the rule if it no longer holds. |
 
 ## Speech engines and first-run downloads
