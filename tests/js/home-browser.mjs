@@ -32,12 +32,23 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       });
       const click = async (selector) => {
-        await page.$eval(selector, (el) => el.scrollIntoView({block: 'center'}));
         await settle();
-        const point = await page.$eval(selector, (el) => {
+        // A poll can detach a $eval handle between finding it and measuring it.
+        const target = await page.waitForFunction(async (selector) => {
+          const el = document.querySelector(selector);
+          if (!el || el.matches(':disabled')) return false;
+          el.scrollIntoView({block: 'center'});
           const rect = el.getBoundingClientRect();
-          return {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
-        });
+          await new Promise(requestAnimationFrame);
+          const after = el.getBoundingClientRect();
+          if (!el.isConnected || !rect.width || !rect.height
+            || ['x', 'y', 'width', 'height'].some((key) => rect[key] !== after[key])) return false;
+          const point = {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
+          const hit = document.elementFromPoint(point.x, point.y);
+          return hit && el.contains(hit) ? point : false;
+        }, {polling: 'raf'}, selector);
+        const point = await target.jsonValue();
+        await target.dispose();
         if (width === 390) await page.touchscreen.tap(point.x, point.y);
         else await page.mouse.click(point.x, point.y);
         await settle();

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Home browser test taps only a live, enabled button, so a page refresh mid-tap no longer fails it on slow machines.
 - The fresh-user browser test expects Home to name Claude Code while it builds a video, and the join Listen test waits for the previous Listen to settle so a late seek can't count as the next start.
 - Open the workspace in Claude Code, the Claude app's Code tab, Codex or Cursor: shared instructions and skills, settings that let each app run Yap Studio, the app's name on Home and review, and a privacy line for each app.
 - Cutting seeks to each piece instead of decoding the take from the start: on a 20-minute video the cut went from 282 s to 201 s, with identical output.
