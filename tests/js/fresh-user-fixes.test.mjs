@@ -44,8 +44,10 @@ test('make and building copy promise only the chosen look', () => {
   const state = {style: {saved: true, name: 'Just you'}, listening: true};
   const code = source.slice(source.indexOf('function stepMake('), source.indexOf('// ---------- Request'));
   const make = new Function('state', 'h', 'typeLabel', 'brollText', 'sourcesToSend', 'draftTakes',
-    'stepHeader', 'busy', 'shapeProblem', `${code}; return stepMake;`)(state, h, home.typeLabel, home.brollText,
-      home.sourcesToSend, () => ['take.mp4'], () => [], false, home.shapeProblem);
+    'stepHeader', 'busy', 'shapeProblem', 'topTextChoice', 'topTextAnswers',
+    `${code}; return stepMake;`)(state, h, home.typeLabel, home.brollText,
+      home.sourcesToSend, () => ['take.mp4'], () => [], false, home.shapeProblem,
+      home.topTextChoice, home.topTextAnswers);
   const text = nodes(make({video_type: 'talking_head', has_broll: false}, {}))
     .filter((node) => node.tag === 'li').map((node) => node.text).join(' ');
   assert.match(text, /chosen look/);

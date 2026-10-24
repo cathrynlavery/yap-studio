@@ -14,7 +14,7 @@
   -webkit-font-smoothing: antialiased;
 }
 * { box-sizing: border-box; }
-body { margin: 0; }
+body { margin: 0; min-height: 100svh; display: flex; flex-direction: column; }
 html { scroll-padding-bottom: calc(var(--savebar-height) + 24px); }
 [hidden] { display: none!important; }
 button,input,select { font: inherit; color: inherit; }
@@ -33,7 +33,7 @@ h3 { font-size: 14px; margin: 22px 0 9px; }
 .topbar span { font-size: 14px; background: #e5e5e2; padding: 5px 10px; border-radius: 7px; }
 .brand { display: flex; align-items: center; gap: 9px; }
 .brand-mark { width: 22px; height: 22px; }
-.app { max-width: 1360px; margin: auto; padding: 28px 28px calc(var(--savebar-height) + 24px); }
+.app { flex: 1; width: 100%; max-width: 1360px; margin: auto; padding: 28px 28px 24px; }
 .page-head { margin-bottom: 24px; }
 .crumbs { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .lede { font-size: 16px; margin-top: 8px; color: #4c4c47; }
@@ -140,7 +140,7 @@ input[type=text],input[type=url],input[type=number] { min-width: 0; border: 1px 
 .kind-row input { accent-color: var(--ink); }
 .kind-note { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 400; }
 #step-count { color: var(--muted); font-size: 12px; }
-.savebar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 14px 28px max(14px,env(safe-area-inset-bottom)); }
+.savebar { position: sticky; bottom: 0; flex-shrink: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 14px 28px max(14px,env(safe-area-inset-bottom)); }
 .savebar-inner { max-width: 1304px; margin: auto; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; }
 .save-name { min-width: 0; }
 #style-name { width: 100%; }
@@ -163,7 +163,7 @@ input[type=text],input[type=url],input[type=number] { min-width: 0; border: 1px 
 .eyebrow { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 @media (max-width: 899px) {
   :root { --savebar-height: 64px; }
-  .app { max-width: 680px; padding: 14px 16px calc(var(--savebar-height) + 24px); }
+  .app { max-width: 680px; padding: 14px 16px 24px; }
   .topbar { position: sticky; top: 0; z-index: 30; }
   .topbar-inner { padding: 0 16px; }
   h1 { font-size: 26px; }

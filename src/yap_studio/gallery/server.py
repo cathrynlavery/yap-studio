@@ -599,6 +599,7 @@ class GalleryServer:
                         layers = live.live_layers(
                             ResolvedStyle(style_data["name"], "gallery", style_data), words,
                             Path(folder.name), card=card, slots=slots, only=selected,
+                            title=("Make your", "point clear.") if step == "top-text" else None,
                             show_title=(not (tab == "preview" and showing_cards)
                                         or (step == "font" and card is None)),
                             face_boxes=face_boxes,

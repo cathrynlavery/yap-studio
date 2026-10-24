@@ -372,6 +372,11 @@ window.YAP_STYLE_DATA = {
         "description": "Opening title card choices.",
         "additionalProperties": false,
         "properties": {
+          "answered": {
+            "type": "boolean",
+            "default": false,
+            "description": "The creator answered Text at the top. Older styles keep their look and ask once."
+          },
           "style": {
             "type": "string",
             "description": "Opening title treatment.",

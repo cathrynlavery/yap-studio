@@ -26,7 +26,42 @@ try {
     .every(frame => frame._galleryReady));
   assert.equal(await page.$eval('#main-frame', node => node._galleryStage.candidate.hook.style), 'none');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), width);
-  if (out) await page.screenshot({path: path.join(out, `${width}-top-text.png`), fullPage: true});
+  await page.waitForFunction(() => [...document.querySelectorAll('#top-text-tiles .tile-frame')]
+    .every(node => node._galleryStage?.frames.every(frame => frame._galleryReady)));
+  const titleFrame = (await page.$$('#top-text-opening iframe')).at(-1);
+  const title = await (await titleFrame.contentFrame()).evaluate(() => {
+    const node = document.querySelector('.hook-title');
+    const range = document.createRange();
+    const rows = new Map();
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const text = walker.currentNode;
+      for (const match of text.textContent.matchAll(/\S+/g)) {
+        range.setStart(text, match.index);
+        range.setEnd(text, match.index + match[0].length);
+        const top = Math.round(range.getBoundingClientRect().top);
+        rows.set(top, [...(rows.get(top) ?? []), match[0]]);
+      }
+    }
+    return {text: node.textContent.replace(/\s+/g, ' ').trim(), rows: [...rows.values()],
+      size: parseFloat(getComputedStyle(node).fontSize), expectedSize: window.__hfVariables.size_px * .72};
+  });
+  assert.equal(title.text, 'Make your point clear.');
+  assert.ok(title.rows.length <= 2, JSON.stringify(title));
+  assert.ok(title.rows.length === 1 || title.rows.at(-1).length > 1, JSON.stringify(title));
+  assert.ok(Math.abs(title.size - title.expectedSize) < .01, 'keep the existing title size');
+  for (const step of ['font', 'captions', 'colors', 'more', 'top-text']) {
+    await page.evaluate(id => location.hash = `#${id}`, step);
+    await page.waitForFunction(id => document.body.dataset.screen === id, {}, step);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const gap = await page.evaluate(id => document.getElementById('savebar').getBoundingClientRect().top
+      - document.getElementById(`panel-${id}`).getBoundingClientRect().bottom, step);
+    assert.ok(gap >= 23, `${step} clears the bottom bar: ${gap}px`);
+  }
+  await page.waitForFunction(() => [...document.querySelectorAll('#top-text-tiles .tile-frame')]
+    .every(node => node._galleryStage?.frames.every(frame => frame._galleryReady)));
+  if (out) await page.screenshot({path: path.join(out, `${width}-top-text-after.png`)});
   for (const [id, look] of [['whole', 'text_hook'], ['none', 'none'], ['opening', 'quiet_serif']]) {
     await page.$eval(`#top-text-${id}`, button => button.click());
     await page.waitForFunction(look => {
@@ -35,7 +70,6 @@ try {
     }, {}, look);
     assert.equal(await page.$eval(`#top-text-${id}`, button => button.getAttribute('aria-pressed')), 'true');
   }
-  if (out) await page.screenshot({path: path.join(out, `${width}-top-text-opening.png`), fullPage: true});
   await page.click('#save');
   await page.waitForSelector('#save-sheet[open]');
   await page.$eval('#style-name', input => input.value = 'My top text');
@@ -45,7 +79,8 @@ try {
   await page.evaluate(async () => {
     const state = await (await fetch('/api/state')).json();
     localStorage.setItem(`yap-home-draft:${state.workspace}`, JSON.stringify({
-      video_type: 'voiceover', has_broll: true, broll_sources: ['album'], takes: [], album: 'Sample',
+      video_type: 'voiceover', shape: 'vertical', shape_seen: true,
+      has_broll: true, broll_sources: ['album'], takes: [], album: 'Sample',
     }));
     location.hash = '#new/look';
   });
@@ -59,7 +94,6 @@ try {
   }
   await page.type('#text-hook', 'My chosen title');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), width);
-  if (out) await page.screenshot({path: path.join(out, `${width}-home-make.png`), fullPage: true});
   const sent = page.waitForResponse(response => response.url().includes('/api/requests')
     && response.request().method() === 'POST');
   await page.click('#make');

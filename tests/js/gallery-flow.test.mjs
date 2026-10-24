@@ -1175,8 +1175,9 @@ test('the footer reserves its measured height and leaves the name in a sheet', a
   assert.equal(page.document.documentElement.style['--savebar-height'], '65px');
   const css = readFileSync(new URL('src/yap_studio/gallery/static/pick.css', root), 'utf8');
   const phone = css.split('@media (max-width: 899px) {')[1];
-  assert.match(css, /padding: 28px 28px calc\(var\(--savebar-height\) \+ 24px\)/);
-  assert.match(phone, /padding: 14px 16px calc\(var\(--savebar-height\) \+ 24px\)/);
+  assert.match(css, /\.savebar \{ position: sticky; bottom: 0; flex-shrink: 0/);
+  assert.match(css, /padding: 28px 28px 24px/);
+  assert.match(phone, /padding: 14px 16px 24px/);
   assert.match(phone, /\.sticky-preview \{ position: sticky; top: var\(--topbar-height\)/);
   assert.match(phone, /\.topbar \{ position: sticky; top: 0/);
   assert.match(css, /body:not\(\[data-screen=looks\]\) \.save-name \{ display: block/);

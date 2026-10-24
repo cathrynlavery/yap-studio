@@ -70,6 +70,7 @@ async function run(url, resultFile, shots) {
       if (width === 1440) await click('[role=switch]');
       await next('#new/make');
       assert.equal(await page.$('#text-hook'), null);
+      assert.equal(await page.$('#top-text-choice'), null);
       const sent = page.waitForResponse((response) => response.url().includes('/api/requests')
         && response.request().method() === 'POST');
       await click('#make');
@@ -78,6 +79,11 @@ async function run(url, resultFile, shots) {
       const request = await response.json();
       assert.equal(request.payload.shape, 'horizontal');
       assert.equal(request.payload.captions, width === 390);
+      const payload = JSON.parse(response.request().postData());
+      assert.equal('top_text' in payload, false);
+      assert.equal('text_hook' in payload, false);
+      assert.equal('top_text' in request.payload, false);
+      assert.equal('text_hook' in request.payload, false);
       await page.evaluate(async (id) => {
         const token = new URLSearchParams(location.search).get('t');
         const response = await fetch(`/api/requests/${id}/cancel`, {method: 'POST',
