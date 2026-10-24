@@ -62,7 +62,7 @@ def person_scene(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request):
     monkeypatch.setattr(stage, "ensure_cut_matte", lambda *args, **kwargs: matte)
     monkeypatch.setattr(stage, "measure_behind_layers", lambda *args, **kwargs: ())
     monkeypatch.setattr(stage, "_zoom_inputs", lambda *args: [])
-    monkeypatch.setattr(stage, "_insert_inputs", lambda *args: {
+    monkeypatch.setattr(stage, "_insert_inputs", lambda *args, **kwargs: {
         "item": stage._Source(layer, ffmpeg.probe(layer), None)})
     caption = {"path": blank.name, "width": 2, "height": 2, "x": 0, "y": 0,
                "start_frame": 0, "frames": 12}
@@ -171,7 +171,7 @@ def test_background_composite_keeps_soft_rim_and_opaque_interior(
     monkeypatch.setattr(stage, "HEIGHT", 64)
     monkeypatch.setattr(stage, "ensure_cut_matte", lambda *args, **kwargs: matte)
     monkeypatch.setattr(stage, "_zoom_inputs", lambda *args: [])
-    monkeypatch.setattr(stage, "_insert_inputs", lambda *args: {
+    monkeypatch.setattr(stage, "_insert_inputs", lambda *args, **kwargs: {
         "blue": stage._Source(layer, ffmpeg.probe(layer), None)})
     item = ResolvedElement("blue", "background", "test", 0, 3, "behind", {
         "box_px": [0, 0, 96, 64], "media": {},
@@ -326,7 +326,7 @@ def test_render_uses_edge_layers_and_hard_mattes_keep_pixels(
     monkeypatch.setattr(stage, "HEIGHT", 64)
     monkeypatch.setattr(stage, "ensure_cut_matte", lambda *args, **kwargs: matte)
     monkeypatch.setattr(stage, "measure_behind_layers", lambda *args, **kwargs: ())
-    monkeypatch.setattr(stage, "_insert_inputs", lambda *args: {
+    monkeypatch.setattr(stage, "_insert_inputs", lambda *args, **kwargs: {
         "item": stage._Source(layer, ffmpeg.probe(layer), None)})
     monkeypatch.setattr(stage, "_assert_picture", lambda *args: None)
     layer = synth.picture_source(root / "layer.mov", "color=blue:s=96x64:r=30,format=rgba",
