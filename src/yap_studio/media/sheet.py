@@ -53,17 +53,17 @@ def _source(item: dict, document: dict) -> Path:
 def _reusable(item: dict, folder: Path, params: dict) -> bool:
     if (folder / "receipt.pending.json").exists():
         return False
-    sheet = item["sheet"]
-    if sheet is None or sheet["path"] != str(folder / "sheet.jpg"):
-        return False
-    speech = item["speech"]
-    if item["kind"] == "video" and speech is None:
-        return False
-    if speech is not None and speech["status"] in {"failed", "no_engine"}:
-        return False
     try:
         saved = json.loads((folder / "receipt.json").read_text(encoding="utf-8"))
         if not isinstance(saved, dict) or saved.get("schema") != "yap-studio/receipt@1":
+            return False
+        evidence = saved.get("catalog", item)
+        sheet, speech = evidence["sheet"], evidence["speech"]
+        if sheet is None or sheet["path"] != str(folder / "sheet.jpg"):
+            return False
+        if item["kind"] == "video" and speech is None:
+            return False
+        if speech is not None and speech["status"] in {"failed", "no_engine"}:
             return False
         if saved.get("media") != {"id": item["id"], "sha256": item["sha256"]}:
             return False
@@ -83,8 +83,9 @@ def _reusable(item: dict, folder: Path, params: dict) -> bool:
                 return False
             if receipt.sha256_file(target) != recorded[str(target)]:
                 return False
+        item.update(sheet=sheet, speech=speech)
         return True
-    except (OSError, ValueError, UnicodeError, TypeError, RecursionError):
+    except (OSError, ValueError, UnicodeError, TypeError, KeyError, RecursionError):
         return False
 
 
@@ -302,12 +303,25 @@ def make_sheet(
         if item is None:
             raise catalog.UnknownMediaError(item_id)
         source = _source(item, document)
+
+        def store(current: dict) -> None:
+            found = next((entry for entry in current["items"] if entry["id"] == item_id), None)
+            if found is None:
+                raise catalog.UnknownMediaError(item_id)
+            if found["sha256"] != item["sha256"]:
+                raise InputError(str(source), "catalog media changed; run media sheet again")
+            found.update(sheet=sheet, speech=speech)
+
         folder = (config_root() / "assets" / "sheets" / item_id).absolute()
         params = {"frames": frames, "asr": asr}
         if shape == "horizontal":
             folder = folder / shape
             params["shape"] = shape
+        previous_evidence = item["sheet"], item["speech"]
         if not force and _reusable(item, folder, params):
+            sheet, speech = item["sheet"], item["speech"]
+            if (sheet, speech) != previous_evidence:
+                catalog.update_catalog(store)
             return {
                 "id": item_id, "sheet": item["sheet"], "speech": item["speech"],
                 "noop": True, "folder": str(folder),
@@ -353,6 +367,7 @@ def make_sheet(
                 "width": info.width, "height": info.height, "frames": tiles,
                 "colour_converted": colour_converted, "at": at,
             }
+            evidence["catalog"] = {"sheet": sheet, "speech": speech}
             paths.validate_output(receipt_path)
             owners = [receipt_path, pending_path]
             try:
@@ -382,14 +397,6 @@ def make_sheet(
                 raise error from exc
             receipt.write_receipt(receipt_path, evidence)
             pending_path.unlink()
-
-        def store(current: dict) -> None:
-            found = next((entry for entry in current["items"] if entry["id"] == item_id), None)
-            if found is None:
-                raise catalog.UnknownMediaError(item_id)
-            if found["sha256"] != item["sha256"]:
-                raise InputError(str(source), "catalog media changed; run media sheet again")
-            found.update(sheet=sheet, speech=speech)
 
         catalog.update_catalog(store)
         return {

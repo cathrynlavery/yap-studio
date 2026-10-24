@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import math
+import tempfile
+from bisect import bisect_left
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from yap_studio import ffmpeg
 from yap_studio.faces.clearance import head_box
 from yap_studio.faces.model import Box
 
@@ -39,7 +41,17 @@ def wide_insert(item: ResolvedElement, source: _Source, root: Path,
             detector = default_landmark_detector()
             if detector is None:
                 fit = 'contain'
-            faces = (detector.measure([source.path])[0] if detector is not None else [])
+            if detector is not None and source.still:
+                from pathlib import Path
+
+                with tempfile.TemporaryDirectory(prefix='yap-face-') as temporary:
+                    image = Path(temporary) / 'frame.png'
+                    ffmpeg.run(['ffmpeg', '-v', 'error', '-i', str(source.path),
+                                '-vf', source.params or 'null', '-frames:v', '1',
+                                '-threads', '1', str(image)], timeout_s=300)
+                    faces = detector.measure([image])[0]
+            else:
+                faces = detector.measure([source.path])[0] if detector is not None else []
             boxes = [Box(face.x, face.y, face.w, face.h) for face in faces]
         else:
             from yap_studio.faces.project import cut_faces
@@ -47,13 +59,17 @@ def wide_insert(item: ResolvedElement, source: _Source, root: Path,
             faces = cut_faces(root, source.path)
             if not faces.frames:
                 fit = 'contain'
-            first = math.floor(media.get('in_s', 0) * faces.video.fps)
-            last = math.ceil(first + (item.end_frame - item.start_frame) / 30
-                             * media.get('speed', 1) * faces.video.fps)
+            start = media.get('in_s', 0)
+            first = bisect_left(range(len(faces.frames)), start, key=faces.time_at)
+            if first < len(faces.frames):
+                start = faces.time_at(first)
+            end = start + (item.end_frame - item.start_frame) / 30 * media.get('speed', 1)
+            last = bisect_left(range(len(faces.frames)), end, key=faces.time_at)
             boxes = [face.box for frame in faces.frames[first:last] for face in frame]
+            if source.info.variable_frame_rate and faces.times is None:
+                fit = 'contain'
+                boxes = []
         if boxes:
-            if item.payload.get('motion') == 'push':
-                item = replace(item, payload={**item.payload, 'motion': 'still'})
             boxes = [head_box(box) for box in boxes]
             left, top = min(box.x for box in boxes), min(box.y for box in boxes)
             right, bottom = max(box.x1 for box in boxes), max(box.y1 for box in boxes)
@@ -67,4 +83,11 @@ def wide_insert(item: ResolvedElement, source: _Source, root: Path,
                 y = max(0, min(height - h, top, max(bottom - h, (height - h) / 2)))
                 media = {**media, 'crop': [round(x), round(y), w, h]}
                 fit = 'crop'
+                if item.payload.get('motion') == 'push':
+                    scale = item.payload['push_scale']
+                    inset_x, inset_y = w * (1 - 1 / scale) / 2, h * (1 - 1 / scale) / 2
+                    if not (round(x) + inset_x <= left and right <= round(x) + w - inset_x
+                            and round(y) + inset_y <= top
+                            and bottom <= round(y) + h - inset_y):
+                        item = replace(item, payload={**item.payload, 'motion': 'still'})
     return replace(item, payload={**item.payload, 'media': {**media, 'fit': fit}})

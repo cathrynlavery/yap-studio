@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -11,14 +12,13 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from yap_studio import ffmpeg, paths, receipt
-from yap_studio.canvas import canvas
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.media.catalog import add_stock_item, load_catalog
 from yap_studio.project.lock import project_lock
 from yap_studio.stock.fetch import CLIP_MAX_BYTES, CLIP_TIMEOUT_S, allowed_url
 from yap_studio.stock.guard import CLIPS_SCHEMA, approved_clips
 from yap_studio.stock.metadata import Clock, timestamp
-from yap_studio.stock.provider import StockProvider, best_file, crop_width, in_point, redact
+from yap_studio.stock.provider import StockProvider, best_file, fits, in_point, redact
 from yap_studio.stock.sheet import SCHEMA
 from yap_studio.style.library import config_root
 
@@ -80,11 +80,15 @@ def _obtain(candidate: dict, phrase: dict, *, provider, fetch, now=None, shape="
         or re.fullmatch(r"[0-9]+", clip_id) is None
     ):
         raise ValidationError("pick", "invalid provider or clip id")
-    target = config_root() / "assets/stock" / name / f"{clip_id}.mp4"
+    selected = candidate["file"]
+    key = hashlib.sha256(selected["file_id"].encode()).hexdigest()[:16]
+    target = config_root() / "assets/stock" / name / f"{clip_id}-{key}.mp4"
     # Serialize shared-cache writers; recheck the catalog after acquiring the lock.
     with project_lock(target.parent):
         item = _cached(target, name, clip_id)
-        if item is not None:
+        if (item is not None and item["stock"]["file_url"] == selected["url"]
+                and (item["width"], item["height"]) == (selected["width"], selected["height"])
+                and fits(item["width"], item["height"], shape=shape)):
             if item["duration_s"] < phrase["window_s"]:
                 raise ValidationError("pick.duration_s", "cached clip is shorter than the phrase")
             return item, target, True, item["stock"]
@@ -94,10 +98,8 @@ def _obtain(candidate: dict, phrase: dict, *, provider, fetch, now=None, shape="
                 file
                 for file in clip.files
                 if file.file_id == candidate["file"]["file_id"]
-                and file.width > 0
-                and file.height > 0
                 and allowed_url(file.url)
-                and crop_width(file.width, file.height, shape=shape) >= canvas(shape).width
+                and fits(file.width, file.height, shape=shape)
             ),
             None,
         ) or best_file(clip, shape=shape)
@@ -105,6 +107,8 @@ def _obtain(candidate: dict, phrase: dict, *, provider, fetch, now=None, shape="
             raise ValidationError("pick.file", "no fitting MP4 remains available")
         if clip.duration_s < phrase["window_s"]:
             raise ValidationError("pick.duration_s", "clip is shorter than the phrase")
+        key = hashlib.sha256(file.file_id.encode()).hexdigest()[:16]
+        target = target.with_name(f"{clip_id}-{key}.mp4")
         paths._guard_write(target)
         # Download to a fresh staging file so a failed refresh cannot replace cached bytes.
         fd, staged_name = tempfile.mkstemp(prefix=".stock-", suffix=".mp4", dir=target.parent)
@@ -123,6 +127,8 @@ def _obtain(candidate: dict, phrase: dict, *, provider, fetch, now=None, shape="
                 raise ValidationError(
                     "pick.duration_s", "download must contain video lasting the phrase"
                 )
+            if not fits(info.width or 0, info.height or 0, shape=shape):
+                raise ValidationError("pick.file", "download is too small for the delivery canvas")
             paths._guard_write(target)
             os.replace(staged, target)
         finally:

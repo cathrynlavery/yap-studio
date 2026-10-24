@@ -457,7 +457,8 @@ def _still_loop(source: _Source) -> str:
 
 
 def _insert(graph: _Graph, source: _Source, item: ResolvedElement, *,
-            size: tuple[int, int] = (WIDTH, HEIGHT)) -> str:
+            size: tuple[int, int] = (WIDTH, HEIGHT),
+            delivery_size: tuple[int, int] = (WIDTH, HEIGHT)) -> str:
     """Decode, retime and fit one montage part in its already resolved window."""
     media = item.payload["media"]
     width, height = size
@@ -473,7 +474,8 @@ def _insert(graph: _Graph, source: _Source, item: ResolvedElement, *,
         f"fps={FPS}:start_time=0:round=near,trim=end_frame={frames},"
         f"tpad=stop_mode=clone:stop=1,trim=end_frame={frames},setsar=1",
     )
-    fit = insert_fit(media, source.info, size)
+    wide = delivery_size[0] > delivery_size[1]
+    fit = insert_fit(media, source.info, delivery_size)
     if fit == "crop":
         x, y, w, h = media["crop"]
         branch = graph.filter(branch, f"crop={w}:{h}:{x}:{y}:exact=1,{_cover(size)}")
@@ -481,7 +483,7 @@ def _insert(graph: _Graph, source: _Source, item: ResolvedElement, *,
         background, foreground = f"b{len(graph.filters)}", f"f{len(graph.filters)}"
         graph.filters.append(f"[{branch}]split=2[{background}][{foreground}]")
         background = graph.filter(background, f"{_cover(size)},boxblur=24:2" + (
-            ",eq=brightness=-0.12" if width > height else ""))
+            ",eq=brightness=-0.12" if wide else ""))
         foreground = graph.filter(
             foreground, f"scale={width}:{height}:force_original_aspect_ratio=decrease:"
             "force_divisible_by=2",
@@ -498,7 +500,7 @@ def _insert(graph: _Graph, source: _Source, item: ResolvedElement, *,
         radius = min(16, int(min(w, h)) // 2 - 1)
         box = graph.filter(box, f"crop={w}:{h}:{x}:{y}:exact=1,boxblur={radius}:2")
         branch = graph.filter(f"{base}][{box}", f"overlay=x={x}:y={y}:format=auto:shortest=1")
-    if item.payload.get("motion") == "push" and not (width > height and fit == "contain"):
+    if item.payload.get("motion") == "push" and not (wide and fit == "contain"):
         base_w, base_h = 4 * width, 4 * height
         travel = item.payload["push_scale"] - 1
         progress = f"n/{max(frames - 1, 1)}"
@@ -710,7 +712,8 @@ def _frames(spans: Iterable[tuple[int, int]]) -> str:
 
 
 def _insert_inputs(root: Path, timeline: ResolvedTimeline, commands: list[tuple[str, ...]],
-                   conversions: list[dict[str, Any]]) -> dict[str, _Source]:
+                   conversions: list[dict[str, Any]], *,
+                   size: tuple[int, int] = (WIDTH, HEIGHT)) -> dict[str, _Source]:
     """Recheck media identity and geometry before any layer or picture render."""
     sources = {}
     for item in timeline.elements:
@@ -728,7 +731,7 @@ def _insert_inputs(root: Path, timeline: ResolvedTimeline, commands: list[tuple[
             if x + w > source.info.width or y + h > source.info.height:
                 raise PictureError(f"{item.id}: source crop extends beyond the displayed picture.")
         for x, y, w, h in media.get("blur", []):
-            if min(w, h) < 8 or x + w > WIDTH or y + h > HEIGHT:
+            if min(x, y) < 0 or min(w, h) < 8 or x + w > size[0] or y + h > size[1]:
                 raise PictureError(f"{item.id}: blur boxes must be at least 8 px "
                                    "and inside canvas.")
         sources[item.id] = source
@@ -1133,7 +1136,8 @@ def render_picture(
         if (cut.info.video_frames != timeline.total_frames or cut.info.width != frame.width
                 or cut.info.height != frame.height or cut.info.fps != FPS):
             raise PictureError("Cut picture dimensions or frame count disagree with the timeline.")
-        inserts = _insert_inputs(root, timeline, commands, conversions)
+        inserts = _insert_inputs(root, timeline, commands, conversions,
+                                 size=(frame.width, frame.height))
         layouts = split_layouts(cache_root, timeline)
         warnings.extend(warning for layout in layouts.values() for warning in layout.warnings)
         letters_by_id = letters.placements(timeline, letters_layers or [])
@@ -1231,7 +1235,8 @@ def render_picture(
                                          top_filter=matches.get(item.id))
                 else:
                     branch = _insert(graph, inserts[item.id], item,
-                                     size=(frame.width, frame.height))
+                                     size=(frame.width, frame.height),
+                                     delivery_size=(frame.width, frame.height))
                     if item.id in matches:
                         branch = graph.filter(branch, matches[item.id])
                 if item.id in letters_by_id:

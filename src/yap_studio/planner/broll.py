@@ -187,7 +187,7 @@ def suggest_broll(
                 skipped.append({"item": candidate["item"], "reasons": [reason]})
                 continue
             placement = candidate["placement"]
-            if shape == "horizontal" and placement == "overlay":
+            if shape == "horizontal":
                 placement = "full_frame"
             overlay = placement == "overlay"
             fit = "cover" if overlay else candidate["fit"]
@@ -209,7 +209,7 @@ def suggest_broll(
             if overlay:
                 result["motion"] = _suggested_motion(
                     catalog[item_id], {"placement": result["box"]}, style_data, int(window * 30))
-            if candidate["placement"] == "green_screen":
+            if placement == "green_screen":
                 result.update(kind="background", layout=style.get("green_screen_layout", "full"))
             if not candidate["still"]:
                 result.update(in_s=candidate["in_s"], out_s=candidate["out_s"])

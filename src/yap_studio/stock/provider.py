@@ -112,8 +112,18 @@ def _id_order(file: StockFile) -> tuple[int, int | str]:
     return (0, int(file.file_id)) if file.file_id.isdecimal() else (1, file.file_id)
 
 
+def fits(width: int, height: int, *, shape: str = "vertical") -> bool:
+    """Require native pixels for the cover crop or the wide contain foreground."""
+    frame = canvas(shape)
+    if width <= 0 or height <= 0:
+        return False
+    if shape == "horizontal" and width <= height:
+        return height >= frame.height
+    return crop_width(width, height, shape=shape) >= frame.width
+
+
 def best_file(clip: StockClip, *, shape: str = "vertical") -> StockFile | None:
-    """Choose the smallest fitting MP4, then the nearest 30 fps and lowest id.
+    """Prefer landscape for wide deliveries, then size, nearest 30 fps and lowest id.
 
     Providers admit only MP4 files into StockClip.files. Recheck dimensions and
     download hosts here so manually constructed providers obey the same fit rule.
@@ -123,14 +133,12 @@ def best_file(clip: StockClip, *, shape: str = "vertical") -> StockFile | None:
     fitting = [
         file
         for file in clip.files
-        if file.width > 0
-        and file.height > 0
-        and allowed_url(file.url)
-        and crop_width(file.width, file.height, shape=shape) >= canvas(shape).width
+        if fits(file.width, file.height, shape=shape) and allowed_url(file.url)
     ]
     return min(
         fitting,
         key=lambda file: (
+            shape == "horizontal" and file.width <= file.height,
             file.width * file.height,
             abs(file.fps - 30) if file.fps is not None else float("inf"),
             _id_order(file),

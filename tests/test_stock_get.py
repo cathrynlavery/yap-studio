@@ -20,18 +20,26 @@ from yap_studio.receipt import sha256_file
 
 
 @pytest.fixture
-def picked(tmp_path, monkeypatch, fake_pexels, synth_media):
+def picked(tmp_path, monkeypatch, fake_pexels):
     monkeypatch.setenv("YAP_STUDIO_CONFIG", str(tmp_path / "config"))
     root = tmp_path / "video"
     search(root)
-    source = synth_media.path("audio_clean_priming")
     fetched = []
+    sources = {}
 
     def fetch(url, target, *, max_bytes, timeout_s):
         assert max_bytes == 600 * 1024 * 1024 and timeout_s == 900
         fetched.append(url)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+        import synth_broll
+
+        data = json.loads((root / 'stock/sheets/s1/pick-sheet.json').read_bytes())
+        file = next((c['file'] for p in data['phrases'] for c in p['candidates']
+                     if c['file']['url'] == url), data['phrases'][0]['candidates'][0]['file'])
+        size = f"{file['width']}x{file['height']}"
+        if size not in sources:
+            sources[size] = synth_broll.clip(tmp_path / f'stock-{size}.mp4', size=size, duration=4)
+        shutil.copyfile(sources[size], target)
 
     return root, fetch, fetched
 
@@ -84,7 +92,7 @@ def test_download_catalog_request_and_offline_cache(picked, fake_pexels):
     assert item["description"]["tags"] == ["stock_clip"]
     assert item["description"]["text"] == "dog park (stock clip from Pexels)"
     assert item["description"]["by"] == "stock"
-    assert Path(item["locations"][0]["path"]).name == "101.mp4"
+    assert Path(item["locations"][0]["path"]).name.startswith("101-")
     records = json.loads((root / "stock/clips.json").read_text())["clips"]
     assert records[0]["request"] == request and records[0]["sha256"] == item["sha256"]
     before = calls(fake_pexels)
@@ -165,7 +173,9 @@ def test_same_bytes_preserves_creator_item_and_records_stock_approval(
 
     root, fetch, _ = picked
     source = root / "own.mp4"
-    shutil.copyfile(synth_media.path("audio_clean_priming"), source)
+    data = json.loads((root / 'stock/sheets/s1/pick-sheet.json').read_bytes())
+    fetch(data['phrases'][0]['candidates'][0]['file']['url'], source,
+          max_bytes=600 * 1024 * 1024, timeout_s=900)
     catalog.add_paths([source])
     provenance = {"kind": "own", "source": "my camera", "license": None, "url": None}
     description = (

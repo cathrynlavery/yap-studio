@@ -46,7 +46,7 @@ def test_wide_insert_filter_uses_delivery_frame(tmp_path, size):
     item = ResolvedElement('broll-still', 'insert', 'broll', 0, 15, 'front',
                            {'media': {'fit': 'cover'}})
     graph = picture._Graph()
-    picture._insert(graph, source, item, size=(1920, 1080))
+    picture._insert(graph, source, item, size=(1920, 1080), delivery_size=(1920, 1080))
     filters = ';'.join(graph.filters)
     assert '1920:1080' in filters
     if size != '320x180':
@@ -113,7 +113,7 @@ def test_horizontal_media_contact_sheet(tmp_path, kind, capsys):
 @pytest.mark.render
 @pytest.mark.parametrize('kind,size', [('clip', '320x180'), ('portrait', '180x320'),
                                       ('square', '240x240'), ('still', '320x180'),
-                                      ('overlay', '320x180')])
+                                      ('overlay', '320x180'), ('blur', '320x180')])
 def test_wide_broll_real_render(tmp_path: Path, monkeypatch, kind, size):
     pictures = {
         'cut': synth.picture_source(tmp_path / 'cut.mov', 'color=c=0x55606a:s=1920x1080:r=30', 45),
@@ -136,6 +136,8 @@ def test_wide_broll_real_render(tmp_path: Path, monkeypatch, kind, size):
     source = (synth_broll.clip(root / 'clip.mov', size=size, colour='0x8ca0b9', duration=1)
               if kind == 'clip' else synth_broll.png(root / 'photo.png', size=size))
     shot = insert(root, source, 6, 30, identifier='broll-wide')
+    if kind == 'blur':
+        shot['media']['blur'] = [[1300, 300, 200, 200]]
     if kind == 'overlay':
         shot.update(kind='overlay', placement='box', box=[1300, 300, 600, 400],
                     fit='cover', motion='none')
@@ -181,12 +183,14 @@ def test_wide_crop_keeps_existing_face_measurements(tmp_path, monkeypatch, sourc
     from yap_studio.stages.broll_framing import wide_insert
 
     source = SimpleNamespace(info=SimpleNamespace(width=1200, height=900),
-                             path=tmp_path / 'synthetic', image=source_kind == 'image')
+                             path=tmp_path / 'synthetic', image=source_kind == 'image', still=False)
+    source.info.variable_frame_rate = False
     measured = [SimpleNamespace(x=x, y=y, w=w, h=h) for x, y, w, h in boxes]
     monkeypatch.setattr(still, 'default_landmark_detector',
                          lambda: SimpleNamespace(measure=lambda _: [measured]))
     monkeypatch.setattr(faces_project, 'cut_faces', lambda *_: SimpleNamespace(
         video=SimpleNamespace(fps=Fraction(30)),
+        time_at=lambda index: index / 30, times=None,
         frames=tuple(tuple(SimpleNamespace(box=Box(*box)) for box in boxes) for _ in range(30))))
     item = ResolvedElement('broll-face', 'insert', 'broll', 0, 30, 'front',
                             {'media': {'fit': 'cover'}})
@@ -244,7 +248,7 @@ def test_wide_contain_keeps_the_whole_photo_even_with_default_push(tmp_path):
     item = ResolvedElement('broll-portrait', 'insert', 'broll', 0, 15, 'front',
         {'media': {'fit': 'cover'}, 'motion': 'push', 'push_scale': 1.08, 'push_direction': 'in'})
     graph = picture._Graph()
-    picture._insert(graph, source, item, size=(1920, 1080))
+    picture._insert(graph, source, item, size=(1920, 1080), delivery_size=(1920, 1080))
     filters = ';'.join(graph.filters)
     assert 'force_original_aspect_ratio=decrease' in filters
     assert 'eval=frame' not in filters
@@ -316,7 +320,7 @@ def test_wide_still_push_does_not_crop_a_measured_face(tmp_path, monkeypatch):
     from yap_studio.stages.broll_framing import wide_insert
 
     source = SimpleNamespace(info=SimpleNamespace(width=1920, height=1080),
-                             path=tmp_path / 'photo.png', image=True)
+                             path=tmp_path / 'photo.png', image=True, still=False)
     face = SimpleNamespace(x=50, y=10, w=100, h=100)
     monkeypatch.setattr(still, 'default_landmark_detector',
                          lambda: SimpleNamespace(measure=lambda _: [[face]]))
