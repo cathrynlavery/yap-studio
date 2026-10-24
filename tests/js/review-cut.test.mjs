@@ -446,6 +446,22 @@ test('Play range still accepts a comment timed only in seconds on a frame timeli
   assert.equal(evaluate('selectedId'), 'c2');
 });
 
+for (const cfr of [true, false]) {
+  test(`EOF keeps the planned range end when the last frame update is missing, cfr=${cfr}`, async () => {
+    const {element, evaluate} = await cutPage({cfr});
+    evaluate(`review.media.duration_s = 4;
+      playRange({start_frame: 35, end_frame: ${cfr ? 120 : null}, start_s: 35 / 30, end_s: 4})`);
+    await element('video').emit('seeked');
+    assert.equal(element('video').paused, false);
+    evaluate('setDisplayedTime(117 / 30)');
+    element('video').currentTime = 4;
+    element('video').paused = true;
+    await element('video').emit('pause');
+    assert.equal(element('video').currentTime, cfr ? 119.5 / 30 : 4);
+    assert.equal(evaluate('rangePlayback'), null);
+  });
+}
+
 test('variable-rate mouse handles and range playback use the selected seconds', async () => {
   const {element, mark, click, at, evaluate} = await cutPage({cfr: false});
   await mark();

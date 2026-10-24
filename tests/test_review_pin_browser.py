@@ -65,8 +65,12 @@ def test_review_pin_phone_and_desktop(tmp_path: Path) -> None:
         server.server_close()
 
 
-@pytest.mark.parametrize("agent", [None, "codex"])
-def test_review_join_listens_phone_and_desktop(join_project, tmp_path, agent):
+@pytest.mark.parametrize(("agent", "cpu_throttle"), [
+    pytest.param(None, 1, id="None"),
+    pytest.param("codex", 1, id="codex"),
+    pytest.param("codex", 8, id="codex-8x"),
+])
+def test_review_join_listens_phone_and_desktop(join_project, tmp_path, agent, cpu_throttle):
     root, _, _ = join_project
     if agent:
         folder = root / ".yap-studio"
@@ -83,7 +87,8 @@ def test_review_join_listens_phone_and_desktop(join_project, tmp_path, agent):
     try:
         result = subprocess.run(["node", str(ROOT / "tests/js/review-join-browser.mjs"),
                                  server.url, str(result_file), str(shots),
-                                 "Codex" if agent == "codex" else "Claude Code"],
+                                 "Codex" if agent == "codex" else "Claude Code",
+                                 str(cpu_throttle)],
                                 stdin=subprocess.DEVNULL, capture_output=True, text=True,
                                 timeout=120, check=False)
         assert result.returncode == 0, result.stdout + result.stderr

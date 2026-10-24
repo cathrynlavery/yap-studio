@@ -3,7 +3,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {join} from 'node:path';
 
-async function run(url, resultFile, shots, agent = 'Claude Code') {
+async function run(url, resultFile, shots, agent = 'Claude Code', cpuThrottle = '1') {
   const puppeteer = createRequire(import.meta.url)(process.env.YAP_STUDIO_PUPPETEER);
   const browser = await puppeteer.launch({executablePath: process.env.YAP_STUDIO_CHROME,
     pipe: true, headless: true, args: ['--no-sandbox']});
@@ -16,6 +16,25 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
       page.on('pageerror', (error) => errors.push(error.message));
       await page.setViewport({width: mobile ? 390 : 1440, height: mobile ? 844 : 900,
         isMobile: mobile, hasTouch: mobile});
+      if (Number(cpuThrottle) > 1) {
+        const cdp = await page.createCDPSession();
+        await cdp.send('Emulation.setCPUThrottlingRate', {rate: Number(cpuThrottle)});
+        await page.evaluateOnNewDocument(() => {
+          // Let EOF beat the final frame callback, as a busy main thread can on a slow Mac.
+          window.joinEndStalled = false;
+          const requestFrame = HTMLVideoElement.prototype.requestVideoFrameCallback;
+          HTMLVideoElement.prototype.requestVideoFrameCallback = function(callback) {
+            return requestFrame.call(this, (now, metadata) => {
+              if (!window.joinEndStalled && metadata.mediaTime >= this.duration - 0.1 && !this.paused) {
+                window.joinEndStalled = true;
+                const until = performance.now() + 180;
+                while (performance.now() < until) {}
+              }
+              callback(now, metadata);
+            });
+          };
+        });
+      }
       await page.goto(url);
       await page.waitForFunction(() => document.querySelector('#findings-count').textContent === '2');
       assert.ok(await page.$eval('#range-note', (el, name) => el.placeholder.includes(name), agent));
@@ -52,6 +71,7 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
         assert.ok(Math.abs(end - (index ? 119.5 / 30 : 84.5 / 30)) < 0.06, `Listen ${index} end: ${end}`);
         played.push({start, end});
       }
+      if (Number(cpuThrottle) > 1) assert.equal(await page.evaluate(() => window.joinEndStalled), true);
       assert.deepEqual(writes, []);
       assert.deepEqual(errors, []);
       const screenshot = join(shots, mobile ? 'joins-phone.png' : 'joins-desktop.png');

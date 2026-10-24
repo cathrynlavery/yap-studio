@@ -2670,6 +2670,8 @@ function wireEvents() {
   });
   el.video.addEventListener('pause', () => {
     el.playPause.textContent = 'Play';
+    // EOF can arrive before the last frame callback on a busy main thread.
+    checkRangeStop(el.video.currentTime);
     if (!rangePlayback?.starting) rangePlayback = null;
     snapPausedFrame();
     scheduleMatch();
