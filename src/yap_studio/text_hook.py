@@ -29,8 +29,8 @@ def require_top_text(context):
     hook = style["hook"]
     if hook["style"] == "none":
         return
-    # Existing projects keep their title layers until the creator answers once.
-    if hook["style"] != "text_hook" and not hook.get("answered", False):
+    # Existing projects keep their rendering behavior until the creator answers once.
+    if not hook.get("answered", False):
         return
     kind = "text_hook" if hook["style"] == "text_hook" else "opening"
     try:

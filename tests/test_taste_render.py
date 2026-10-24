@@ -360,6 +360,65 @@ def test_project_stage_retains_one_taste_snapshot_during_run(
     assert _stage_state(root, stage) == "stale"
 
 
+@pytest.mark.parametrize("look", ["quiet_serif", "text_hook"])
+@pytest.mark.parametrize("answered", [None, False])
+def test_old_project_assembles_without_top_text_choice(
+    project_pipeline: tuple[Path, dict], capsys: pytest.CaptureFixture[str], answered: bool | None,
+    look: str,
+) -> None:
+    from yap_studio import cli
+    from yap_studio.stages.graphics import graphics_snapshot
+
+    root, _ = project_pipeline
+    style = root / "style.json"
+    data = json.loads(style.read_bytes())
+    assert "answered" not in data["hook"]
+    data["hook"]["style"] = look
+    if answered is not None:
+        data["hook"]["answered"] = answered
+    style.write_text(json.dumps(data))
+    _project_stage("graphics")(root)
+    assert not (root / "plans/text-hook.json").exists()
+    titles = graphics_snapshot(ProjectContext(root)).titles
+    if look == "text_hook":
+        assert not titles
+    else:
+        assert len(titles) == 1 and titles[0].plan.variables["look"] == look
+    unchanged = {file: file.read_bytes() for file in (
+        style, *root.glob("graphics/*.mov"), *root.glob("timeline/*.json"),
+    )}
+
+    assert cli.main(["assemble", str(root), "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "verified"
+    assert (root / result["out"]).read_bytes() == b"final media"
+    assert graphics_snapshot(ProjectContext(root)).titles == titles
+    assert all(file.read_bytes() == content for file, content in unchanged.items())
+    assert not (root / "plans/text-hook.json").exists()
+
+
+@pytest.mark.parametrize("look", ["quiet_serif", "text_hook"])
+@pytest.mark.parametrize("frames", [[], ["--frames", "0-20"]])
+def test_assemble_still_requires_chosen_text_after_answer(
+    project_pipeline: tuple[Path, dict], capsys: pytest.CaptureFixture[str], frames: list[str],
+    look: str,
+) -> None:
+    from yap_studio import cli
+
+    root, _ = project_pipeline
+    style = root / "style.json"
+    data = json.loads(style.read_bytes())
+    data["hook"].update(style=look, answered=True)
+    style.write_text(json.dumps(data))
+
+    assert cli.main(["assemble", str(root), "--json", *frames]) == 2
+    error = json.loads(capsys.readouterr().err)["error"]
+    assert error["code"] == "invalid_parameter"
+    assert "Choose the text at the top" in error["message"]
+    assert not list(root.glob("final/*.mp4"))
+    assert not list(root.glob("pilot/*.mp4"))
+
+
 def test_project_timeline_uses_taste_defaults_and_explicit_element_duration(
     project_pipeline: tuple[Path, dict],
 ) -> None:

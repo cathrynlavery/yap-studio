@@ -33,6 +33,18 @@ def test_old_styles_keep_their_look_and_are_unanswered():
         resolve_style_data({"schema_version": 1, "hook": {"answered": "yes"}})
 
 
+def test_old_whole_video_style_without_choice_keeps_rendering(layer_project):
+    data = json.loads((layer_project / "style.json").read_bytes())
+    data["hook"] = {"style": "text_hook"}
+    write(layer_project / "style.json", data)
+    set_elements(layer_project, {"id": "agent-title", "kind": "title",
+                                "start": {"time": 0}, "hold_s": 1, "lines": ["Small steps."]})
+    assert not (layer_project / "plans/text-hook.json").exists()
+    assert not graphics_snapshot(ProjectContext(layer_project)).titles
+    assert graphics(layer_project)["elements"] == []
+    assert not (layer_project / "plans/text-hook.json").exists()
+
+
 @pytest.mark.parametrize("raw,displayed", [
     ("Twenty dollars", "$20"), ("sparrowlight", "SparrowLight"),
     ("spoiler", "s******"),

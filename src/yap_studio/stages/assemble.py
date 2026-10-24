@@ -1370,6 +1370,7 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
             refreshed: list[str] = []
             while True:
                 try:
+                    require_top_text(context)
                     snapshot = assembly_snapshot(context, allow_violations=allow_violations)
                     break
                 except StaleStageError as exc:
@@ -1681,7 +1682,6 @@ def assemble(project_dir: Path, *, force: bool = False, allow_violations: bool =
     """Render a final and mark any owned predecessor stale on failure."""
     with paths.operation():
         try:
-            require_top_text(ProjectContext(project_dir))
             try:
                 return _assemble_impl(project_dir, force=force,
                                       allow_violations=allow_violations, frames=frames)
