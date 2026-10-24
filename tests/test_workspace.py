@@ -541,7 +541,8 @@ def test_new_project_video_flags_and_json(tmp_path, monkeypatch, capsys):
 
 
 @pytest.mark.parametrize("sources", [None, ["folder"], ["album", "stock"], ["none"]])
-def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, sources):
+@pytest.mark.parametrize("branded", [False, True])
+def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, sources, branded):
     from yap_studio.homepage.state import inbox_files
     from yap_studio.style import resolve_style_data
 
@@ -554,6 +555,11 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, s
         (inbox / name).write_bytes(name.encode())
     (tmp_path / "style").mkdir()
     (tmp_path / "style/answers.json").write_text("{}")
+    if branded:
+        (tmp_path / "style/my-style.json").write_text(json.dumps({
+            "schema_version": 1, "name": "Brand", "hook": {"font": "Gelasio"},
+            "graphics": {"font": "Inter", "accent_color": "#AB1256"},
+        }))
     calls = _fake_project_runner(module, monkeypatch, tmp_path)
     flags = [value for source in sources or [] for value in ("--broll", source)]
     assert module.main([*names, "--type", "talking_head", "--shape", "horizontal", *flags]) == 0
@@ -579,6 +585,9 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, s
     assert style_data["captions"] == {"camera_3d": False}
     assert "taste" not in style_data
     style = resolve_style_data(style_data)
+    if branded:
+        assert style["hook"]["font"] == "Gelasio"
+        assert style["graphics"]["accent_color"] == "#AB1256"
     assert style["hook"]["style"] == style["chapters"]["style"] == "none"
     assert style["grade"]["look"] == style["moves"]["zoom_mode"] == "none"
     assert style["moves"]["jump_cuts"] == "hard"

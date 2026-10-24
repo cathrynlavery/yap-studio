@@ -22,13 +22,13 @@ test('top text is unanswered until a deliberate answer, preserving each title lo
   assert.throws(() => withTopText({hook: {}}, 'invented'));
 });
 
-test('horizontal has no top text even with a saved look or a vertical draft answer', () => {
+test('horizontal offers a chosen opening and refuses the whole-video label', () => {
   for (const hook_style of ['none', 'quiet_serif', 'text_hook']) {
     const style = {hook_answered: true, hook_style};
     assert.equal(homeChoice(style, {shape: 'horizontal'}), '');
     for (const top_text of ['none', 'opening', 'whole']) {
       const draft = {shape: 'horizontal', top_text, text_hook: 'My chosen title'};
-      assert.equal(homeChoice(style, draft), '');
+      assert.equal(homeChoice(style, draft), top_text === 'whole' ? '' : top_text);
       assert.equal(homeChoice(style, {...draft, shape: 'vertical'}), top_text);
       assert.equal(draft.top_text, top_text);
     }

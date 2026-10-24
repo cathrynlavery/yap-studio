@@ -643,7 +643,7 @@ function stepLook(draft) {
         h('label', {class: 'check-row'}, h('input', {type: 'checkbox', role: 'switch', checked: draft.captions === true,
           onchange: (event) => { saveDraft({...loadDraft(), captions: event.target.checked}); }}),
         h('span', {}, h('strong', {text: 'Add captions to this video'})))),
-      h('p', {class: 'note', text: 'More horizontal looks, titles, cards, zooms and color grades are coming soon.'}),
+      h('p', {class: 'note', text: 'Opening titles, chapter cards, name tags and B-roll work in horizontal videos. Titles, chapter cards and name tags use your fonts and colors. Cards, zooms and color grades are coming soon.'}),
       h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/footage', text: 'Back'}), h('span', {class: 'spacer'}),
         h('button', {type: 'button', class: 'btn primary big', text: 'Next', onclick: () => navigate('#new/make')})));
   }
@@ -787,14 +787,15 @@ function stepMake(draft, problems) {
   const horizontal = draft.shape === 'horizontal';
   const answer = topTextChoice(state.style, draft);
   const hasHook = ['opening', 'whole'].includes(answer);
-  const topText = horizontal ? null : h('div', {class: 'section field'},
+  const topText = h('div', {class: 'section field'},
     h('label', {for: 'top-text-choice', text: 'Text at the top'}),
     h('p', {class: 'note', text: 'For this video. Your saved look stays the same.'}),
     h('select', {id: 'top-text-choice', onchange: (event) => {
       draft.top_text = event.target.value;
       saveDraft(draft);
       render();
-    }}, [...(!topTextChoice(state.style) ? [['', 'Ask me before the cut']] : []), ...topTextAnswers].map(([id, name]) =>
+    }}, [...(!topTextChoice(state.style) || horizontal ? [['', 'Ask me before the cut']] : []),
+      ...topTextAnswers.filter(([id]) => !horizontal || id !== 'whole')].map(([id, name]) =>
       h('option', {value: id, selected: answer === id, text: name}))));
   let hookField = null;
   if (hasHook) {
@@ -938,6 +939,9 @@ function renderVideo(route) {
   const versions = project.versions ?? [];
   const latest = versions.at(-1);
   const content = [h('p', {class: 'step-count', text: `${typeLabel(project.video?.type)} · ${project.title || project.name}`})];
+  const chapters = project.youtube_chapters ? h('div', {class: 'section', 'data-youtube-chapters': ''},
+    h('h2', {text: 'YouTube chapters'}), h('pre', {text: project.youtube_chapters}),
+    copyButton(project.youtube_chapters)) : null;
   if (project.phase === 'approved') {
     content.push(h('div', {class: 'done-hero'}, h('span', {class: 'done-mark'}, icon('bigCheck')),
       h('h1', {class: 'title', text: info.title})));
@@ -954,10 +958,10 @@ function renderVideo(route) {
       review ? h('a', {class: 'link', href: review, text: `Watch it again${reviewLabel}`}) : null,
       h('span', {class: 'spacer'}),
       h('a', {class: 'link', href: '#new/what', onclick: startNew, text: 'Make another video'})));
-    content.push(versionNotes(project), messagesSection(project));
+    content.push(chapters, versionNotes(project), messagesSection(project));
     return h('section', {}, content);
   }
-  content.push(h('h1', {class: 'title', text: info.title}));
+  content.push(h('h1', {class: 'title', text: info.title}), chapters);
   const lede = {
     cut_ready: `Watch the story cut and leave notes on any moment. When you send them, ${agentName(state)} makes the next version.`,
     final_ready: 'Watch the whole video. Leave notes for another version, or approve it to download it.',

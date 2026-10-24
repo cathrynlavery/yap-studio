@@ -86,6 +86,9 @@ class TitleSnapshot:
     @property
     def kind(self) -> str:
         """Keep timeline identity separate from the rendering template."""
+        if self.plan.template == "wide_titles":
+            kind = self.plan.variables["kind"]
+            return "graphic" if kind == "name_tag" else kind
         return "chapter" if self.plan.template == "chapter" else "title"
 
     def placement(self) -> dict[str, Any]:
@@ -429,6 +432,48 @@ def graphics_snapshot(
             or placement_record["layer"] not in {"front", "behind"}
         ):
             raise ValidationError("graphics.receipt", f"placement changed for {element.id}")
+        if context.project.shape == "horizontal" and (
+            element.kind in {"title", "chapter"}
+            or element.kind == "graphic" and element.payload["template"] == "name_tag"
+        ):
+            from yap_studio.wide_titles import wide_layer_plan
+
+            kind = "name_tag" if element.kind == "graphic" else element.kind
+            if kind == "name_tag" and cards.card_kind_off(style, kind):
+                raise ValidationError(f"graphic.{element.id}.template",
+                                      cards.card_kind_off_detail(style, kind))
+            if kind == "title":
+                lines, _ = apply_title_rules(element.payload["lines"], "", vocabulary)
+                text = {"title": " ".join(lines)}
+            else:
+                text = element.payload["slots"] if kind == "name_tag" else element.payload
+            if bleep_words is not None:
+                text = {key: bleep.mask_text(value, bleep_words) if isinstance(value, str)
+                        else value for key, value in text.items()}
+            if faces is None and placement_record is None:
+                faces = picture_faces(context.project_dir, timeline, context)
+                face_frames = (face_boxes_per_frame(faces) if faces.status == "measured" else None)
+            plan, clearance = wide_layer_plan(
+                kind, text, style, frames=element.end_frame - element.start_frame,
+                start_frame=element.start_frame,
+                faces=face_frames[element.start_frame:element.end_frame]
+                if face_frames is not None else None,
+                reason=faces.reason if faces is not None else None,
+                number=numbers.get(element.id, 1), total=len(chapters),
+                saved_box=Box(**placement_record["clearance"]["box"])
+                if placement_record is not None else None,
+            )
+            if placement_record is not None:
+                clearance = placement_record["clearance"]
+            wide_assets = layer_assets("wide_titles", plan.variables["font_name"], context)
+            digest = projection_sha256({
+                "element": element.to_dict(), "variables": plan.variables, "clearance": clearance,
+                "fonts": wide_assets.font_identity(),
+                "template": wide_assets.template_identity(workers=hyperframes.RENDER_WORKERS),
+                **bleep_input,
+            })
+            titles.append(TitleSnapshot(element.id, "front", plan, digest, clearance, wide_assets))
+            continue
         if element.kind == "chapter":
             chapter_title = (bleep.mask_text(element.payload["title"], bleep_words)
                              if bleep_words is not None else element.payload["title"])
@@ -854,7 +899,8 @@ def graphics_snapshot(
     if style.data["captions"].get("camera_3d", False) and camera_plan.is_file():
         inputs["captions/camera3d.json"] = hashlib.sha256(
             context.read("captions/camera3d.json")).hexdigest()
-    if any(title.kind == "title" for title in titles) or graphics:
+    if (any(title.kind == "title" for title in titles) or graphics
+            or context.project.shape == "horizontal" and titles):
         # Receipt inspection can validate placement dependencies by identity alone.
         # It must not run the detector or probe the cut to reproduce a placement.
         face_inputs = {

@@ -94,7 +94,15 @@ do the editing. Setup starts it. When the creator comes back, reopen it this way
      `python3 new_project.py TAKE ... --type talking_head --shape horizontal --broll SOURCE ...`.
      Pass every source in `payload.broll_sources`, or `--broll none` for an empty list.
      The helper copies and records the takes and sets up a talking head for YouTube with a
-     project-local style: hard cuts, no hook, chapters, grade, 3D captions, zooms or transitions.
+     project-local style: hard cuts, no grade, 3D captions, zooms or transitions. Opening titles,
+     chapter cards and name tags use the creator's chosen fonts and colors. Whole-video text
+     hooks are not supported for horizontal; offer None or Just the opening. Apply a Home
+     `top_text: opening` choice and wait for chosen text as below before rendering.
+     For long horizontal videos (five minutes or more), offer chapters. Plan their boundaries
+     from the story, not equal time intervals, and show the creator all chapter names before
+     rendering. Wait for approval or their edits. Enable `chapters.style: title_card` when chosen.
+     YouTube needs at least three chapters starting at 0:00, each at least ten seconds long,
+     including the final chapter. The final includes a copyable chapter list when those rules fit.
      When `payload.captions` is not true, after the cut add one `caption_gap` covering the whole
      video on the agent lane, as in [Caption gaps](#caption-gaps). Then run
      `yap-studio home ack ID --state claimed --project DIR`. Follow the recipe for the type. After

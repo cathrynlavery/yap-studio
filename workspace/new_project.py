@@ -277,14 +277,18 @@ def _start_locked(root: Path, takes: list[str] | None, newest: int, *,
         if shape == "horizontal":
             styles = destination / "styles"
             styles.mkdir(exist_ok=True)
-            _write_json(styles / "horizontal.json", {
+            saved_style = root / "style/my-style.json"
+            wide_style = json.loads(saved_style.read_text()) if saved_style.is_file() else {}
+            wide_style.update({
                 "schema_version": 1, "name": "Horizontal",
-                "captions": {"camera_3d": False},
-                "hook": {"style": "none"}, "chapters": {"style": "none"},
+                "captions": {**wide_style.get("captions", {}), "camera_3d": False},
+                "hook": {**wide_style.get("hook", {}), "style": "none"},
+                "chapters": {**wide_style.get("chapters", {}), "style": "none"},
                 "grade": {"look": "none"},
                 "moves": {"jump_cuts": "hard", "zoom_mode": "none",
                           "opening_push": False, "transitions": []},
             })
+            _write_json(styles / "horizontal.json", wide_style)
             manifest = destination / "project.json"
             project = json.loads(manifest.read_text())
             project.update(platform="youtube", style="styles/horizontal.json")

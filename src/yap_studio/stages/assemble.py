@@ -813,7 +813,16 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
         # Invalid or empty regions become whole-frame masks in the ranges reader.
         if right <= x or bottom <= y:
             continue
-        if placement.get("kind") == "chapter":
+        if frame.width > frame.height and placement.get("clearance", {}).get("box"):
+            box = placement["clearance"]["box"]
+            x, y, right, bottom = box["x"], box["y"], box["x"] + box["w"], box["y"] + box["h"]
+            if placement["kind"] == "title":
+                x, y, right, bottom = 0, frame.height // 2, frame.width, frame.height
+            if placement["kind"] == "chapter":
+                overlays.append({"start_in_output": placement["start_frame"] / 30,
+                                 "duration": placement["frames"] / 30,
+                                 "region": [120, frame.height - 68, frame.width - 240, 24]})
+        elif placement.get("kind") == "chapter":
             # Sync normalises brightness and contrast, so the uniform 45% wash
             # still matches. Exclude the text and varying band, retaining the
             # source above 240 and below 1560 (see the chapter template).
@@ -851,7 +860,11 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
                                                 for item in timeline.elements
                                                 if item.kind == "transition"]}}
                     if grade is not None and grade.active else {})
+    from yap_studio.youtube_chapters import timeline_chapters
+
+    youtube = timeline_chapters(timeline) if frame.width > frame.height else None
     return {"sources": sources, "fps": "30/1", "composite": True, **grade_record,
+            **({"youtube_chapters": youtube} if youtube else {}),
             "ranges": copy.deepcopy(snapshot.spans.get("ranges", snapshot.spans.get("segments"))),
             "overlays": overlays,
             "stills": [{"id": item.id, "start_frame": item.start_frame,
@@ -904,6 +917,11 @@ def _final_records(context: ProjectContext, snapshot: AssemblySnapshot, retained
     for layer in snapshot.title_layers:
         start = layer["start_frame"]
         end = start + layer["frames"]
+        if frame.width > frame.height and layer.get("clearance", {}).get("box"):
+            elements.append({"id": layer["id"], "element_id": layer["id"],
+                             "kind": "card", "label": layer["id"],
+                             **layer["clearance"]["box"], "start_frame": start, "end_frame": end})
+            continue
         if layer["kind"] == "chapter":
             elements.append({"id": layer["id"], "element_id": layer["id"], "kind": "background",
                              "label": (f"chapter {chapter_numbers[layer['id']]}: "
@@ -1670,6 +1688,19 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     raise AssemblyError(message, failed_checks=True, suggested_action=action)
                 verify_path.write_text(json.dumps(edl, indent=2) + "\n", encoding="utf-8")
                 run.replace_output(root / out, final)
+                if report.get("youtube_chapters"):
+                    chapter_path = work / "chapters.txt"
+                    chapter_path.write_text(report["youtube_chapters"], encoding="utf-8")
+                    run.replace_output((root / out).with_suffix(".chapters.txt"), chapter_path)
+                else:
+                    chapter_path = (root / out).with_suffix(".chapters.txt")
+                    if chapter_path.exists():
+                        with project_lock(root):
+                            paths.validate_output(chapter_path, owner_receipts=(run.pending_path,))
+                            old = receipt.sha256_file(chapter_path)
+                            run._journal_output({"path": str(chapter_path.relative_to(root)),
+                                                 "old_sha256": old, "new_sha256": None})
+                            chapter_path.unlink()
                 run.replace_output((root / out).with_suffix(LAYOUT_SUFFIX), layout_path)
                 run.replace_output((root / out).with_suffix(CONTRAST_SUFFIX), contrast_path)
                 run.replace_output((root / out).with_suffix(".faces.json"), faces_path)

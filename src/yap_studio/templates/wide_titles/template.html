@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-composition-variables='[{"id":"kind","type":"string","label":"Kind","default":"title"},{"id":"font_name","type":"string","label":"Font name","default":"Inter"},{"id":"font_family","type":"string","label":"Font family","default":"sans-serif"},{"id":"paper_color","type":"color","label":"Paper color","default":"#F4F3EE"},{"id":"ink_color","type":"color","label":"Ink color","default":"#222222"},{"id":"accent_color","type":"color","label":"Accent color","default":"#365A58"},{"id":"fps","type":"number","label":"Fps","default":30},{"id":"number","type":"string","label":"Number","default":"02"},{"id":"states","type":"string","label":"States","default":"[]"},{"id":"name","type":"string","label":"Name","default":""},{"id":"role","type":"string","label":"Role","default":""},{"id":"lines","type":"string","label":"Lines","default":"[]"},{"id":"size_px","type":"number","label":"Size px","default":84},{"id":"role_px","type":"number","label":"Role px","default":30},{"id":"left","type":"number","label":"Left","default":120},{"id":"top","type":"number","label":"Top","default":760},{"id":"box_width","type":"number","label":"Box width","default":1300},{"id":"box_height","type":"number","label":"Box height","default":200}]'>
+<head><meta charset="utf-8"><style>
+/* BUNDLED_FONT_FACES */
+*{box-sizing:border-box}html,body{margin:0;background:transparent;overflow:hidden}
+#root{position:relative;width:1920px;height:1080px;font-family:var(--font);color:var(--ink)}
+.scrim{position:absolute;inset:0;background:linear-gradient(to top,rgb(0 0 0/.72),transparent 48%)}
+.content{position:absolute;left:var(--wide-left);top:var(--wide-top);width:var(--width);height:var(--height)}
+.title{margin:0;font-size:var(--size);font-weight:700;line-height:1.05;letter-spacing:-.02em;white-space:pre;color:#fff}
+.chapter{padding:44px 52px 52px;background:var(--paper);border-radius:24px;box-shadow:0 24px 60px rgb(0 0 0/.28)}
+.kicker{font-size:24px;line-height:30px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.number{font-size:150px;font-weight:700;color:var(--accent);line-height:1;letter-spacing:-.04em}
+.chapter .title{margin-top:14px;font-size:var(--size);font-weight:700;line-height:1.08;color:var(--ink)}
+.strip{position:absolute;left:120px;right:120px;bottom:56px;display:flex;gap:10px}
+.strip i{flex:1;height:8px;border-radius:4px;background:rgb(255 255 255/.4)}
+.strip .done{background:rgb(255 255 255/.85)}.strip .current{background:#fff;box-shadow:0 0 0 2px var(--accent)}
+.tag{padding:26px 40px 28px 36px;background:var(--paper);border-radius:16px;border-left:10px solid var(--accent);box-shadow:0 14px 34px rgb(0 0 0/.25)}
+.name{font-size:52px;line-height:58px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.role{font-size:var(--role-size);line-height:36px;opacity:.75;margin-top:6px;white-space:nowrap}
+</style></head><body><div id="root" data-composition-id="wide_titles" data-no-timeline data-width="1920" data-height="1080" data-duration="1.6"></div>
+<script>
+(() => {
+  'use strict';
+  const v=window.__hyperframes.getVariables(),root=document.getElementById('root');
+  for(const [key,value] of Object.entries({font:v.font_family,paper:v.paper_color,ink:v.ink_color,accent:v.accent_color,'wide-left':`${v.left}px`,'wide-top':`${v.top}px`,width:`${v.box_width}px`,height:`${v.box_height}px`,size:`${v.size_px}px`,'role-size':`${v.role_px}px`})) root.style.setProperty(`--${key}`,value);
+  const add=(parent,tag,cls,text)=>{const el=document.createElement(tag);el.className=cls;if(text!=null)el.textContent=text;parent.append(el);return el;};
+  if(v.kind==='title')add(root,'div','scrim');
+  const content=add(root,'div',`content ${v.kind==='chapter'?'chapter':v.kind==='name_tag'?'tag':''}`);
+  if(v.kind==='chapter'){
+    add(content,'div','kicker','Chapter');add(content,'div','number',v.number);
+    const strip=add(root,'div','strip');strip.setAttribute('aria-label','Chapters');
+    JSON.parse(v.states).forEach((state)=>add(strip,'i',state));
+  }
+  if(v.kind==='name_tag'){add(content,'div','name',v.name);add(content,'div','role',v.role);}
+  else add(content,'h1','title',JSON.parse(v.lines).join('\n'));
+  const duration=Number(root.dataset.duration)*1000;
+  root.animate([{opacity:0,offset:0},{opacity:1,offset:Math.min(.2,150/duration)},{opacity:1,offset:Math.max(.8,1-200/duration)},{opacity:0,offset:1}],{duration,fill:'both',easing:'linear'});
+})();
+</script></body></html>

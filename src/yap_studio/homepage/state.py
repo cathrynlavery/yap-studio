@@ -20,6 +20,7 @@ from yap_studio.feedback.versions import VersionManifest, load_versions
 from yap_studio.homepage import bridge
 from yap_studio.project.status import status
 from yap_studio.style.answers import load_answers, questions
+from yap_studio.youtube_chapters import version_chapters
 
 OFFERED_TYPES = ("talking_head", "voiceover")
 VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".m4v", ".mkv", ".webm"})
@@ -369,6 +370,8 @@ class HomeState:
             "renamed_from": earlier_names,
             "title": project.name,
             "shape": raw.get("shape", "vertical"),
+            "youtube_chapters": version_chapters(
+                approved if approved_file else manifests[-1] if manifests else None),
             "dir": relative,
             "created_at": raw.get("created_at")
             or datetime.fromtimestamp((project / "project.json").stat().st_mtime, UTC).isoformat(),

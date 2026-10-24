@@ -1092,7 +1092,7 @@ def prepare_layer_plan(
     plan: LayerPlan, work_dir: Path, *, assets: LayerAssets | None = None,
 ) -> Path:
     """Prepare the exact local HTML and bundled fonts without rendering."""
-    if plan.template not in {"captions", "title", "letters", "chapter"}:
+    if plan.template not in {"captions", "title", "letters", "chapter", "wide_titles"}:
         raise ValidationError("template", "choose captions, title, letters or chapter")
     with paths.operation():
         composition = work_dir / plan.template

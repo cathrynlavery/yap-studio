@@ -62,6 +62,8 @@ const el = {
   versionBar: $('version-bar'), versionButtons: $('version-buttons'),
   versionActions: $('version-actions'), rollback: $('rollback-version'), approve: $('approve-version'),
   makeFinal: $('make-final'), approveHint: $('approve-hint'),
+  youtubeChapters: $('youtube-chapters'), youtubeChapterText: $('youtube-chapter-text'),
+  youtubeChapterCopy: $('youtube-chapter-copy'),
   downloadVideo: $('download-video'), downloadReport: $('download-report'), offline: $('offline-banner'),
   approval: $('approval-confirmation'), approvalTitle: $('approval-title'),
   approvalText: $('approval-text'), approvalHome: $('approval-home'),
@@ -861,7 +863,7 @@ function copyText(text, count) {
       return;
     }
     navigator.clipboard.writeText(text).then(
-      () => showToast(count === 0 ? 'Copied feedback' :
+      () => showToast(count == null ? 'Copied chapters' : count === 0 ? 'Copied feedback' :
         `Copied ${count} ${count === 1 ? 'comment' : 'comments'}`),
       () => copyFallback(text),
     );
@@ -944,6 +946,12 @@ function seriesVersion(number) {
 function renderVersions() {
   updateFindingControls();
   const series = review.series;
+  const chapterText = series?.versions.find((item) => item.number === selectedVersion)?.youtube_chapters;
+  if (el.youtubeChapters) {
+    el.youtubeChapters.hidden = !chapterText;
+    el.youtubeChapterText.textContent = chapterText ?? '';
+    el.youtubeChapterCopy.onclick = () => copyText(chapterText);
+  }
   el.versionBar.hidden = !series;
   if (!series) return;
   el.versionButtons.replaceChildren();

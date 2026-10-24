@@ -48,6 +48,7 @@ CHECK_IDS: tuple[str, ...] = (
     "platform.duration",
     "platform.resolution",
     "platform.fps",
+    "platform.chapters",
     "taste.rules",
 )
 

@@ -1,0 +1,114 @@
+{
+  "id": "wide_titles",
+  "version": 1,
+  "variables": [
+    {
+      "id": "kind",
+      "type": "string",
+      "label": "Kind",
+      "default": "title"
+    },
+    {
+      "id": "font_name",
+      "type": "string",
+      "label": "Font name",
+      "default": "Inter"
+    },
+    {
+      "id": "font_family",
+      "type": "string",
+      "label": "Font family",
+      "default": "sans-serif"
+    },
+    {
+      "id": "paper_color",
+      "type": "color",
+      "label": "Paper color",
+      "default": "#F4F3EE"
+    },
+    {
+      "id": "ink_color",
+      "type": "color",
+      "label": "Ink color",
+      "default": "#222222"
+    },
+    {
+      "id": "accent_color",
+      "type": "color",
+      "label": "Accent color",
+      "default": "#365A58"
+    },
+    {
+      "id": "fps",
+      "type": "number",
+      "label": "Fps",
+      "default": 30
+    },
+    {
+      "id": "number",
+      "type": "string",
+      "label": "Number",
+      "default": "02"
+    },
+    {
+      "id": "states",
+      "type": "string",
+      "label": "States",
+      "default": "[]"
+    },
+    {
+      "id": "name",
+      "type": "string",
+      "label": "Name",
+      "default": ""
+    },
+    {
+      "id": "role",
+      "type": "string",
+      "label": "Role",
+      "default": ""
+    },
+    {
+      "id": "lines",
+      "type": "string",
+      "label": "Lines",
+      "default": "[]"
+    },
+    {
+      "id": "size_px",
+      "type": "number",
+      "label": "Size px",
+      "default": 84
+    },
+    {
+      "id": "role_px",
+      "type": "number",
+      "label": "Role px",
+      "default": 30
+    },
+    {
+      "id": "left",
+      "type": "number",
+      "label": "Left",
+      "default": 120
+    },
+    {
+      "id": "top",
+      "type": "number",
+      "label": "Top",
+      "default": 760
+    },
+    {
+      "id": "box_width",
+      "type": "number",
+      "label": "Box width",
+      "default": 1300
+    },
+    {
+      "id": "box_height",
+      "type": "number",
+      "label": "Box height",
+      "default": 200
+    }
+  ]
+}

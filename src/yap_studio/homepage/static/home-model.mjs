@@ -23,7 +23,7 @@ export function textHookProblem(text, answer = 'whole') {
 
 export const topTextAnswers = [['none', 'None'], ['opening', 'Just the opening'], ['whole', 'The whole video']];
 export function topTextChoice(style, draft = {}) {
-  if (draft.shape === 'horizontal') return '';
+  if (draft.shape === 'horizontal') return ['none', 'opening'].includes(draft.top_text) ? draft.top_text : '';
   if (draft.top_text != null) return draft.top_text;
   return !style?.hook_answered ? '' : style.hook_style === 'none' ? 'none'
     : style.hook_style === 'text_hook' ? 'whole' : 'opening';

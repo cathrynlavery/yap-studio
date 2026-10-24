@@ -92,6 +92,19 @@ Opening title rules below apply after the creator has chosen their text.
 
 ## Procedure
 
+For horizontal talking-head videos of five minutes or more, offer chapters. Read the whole
+story and plan boundaries where its subject changes; do not divide the running time evenly.
+Show the creator the chapter names and wait for their approval or edits before rendering,
+as opening titles wait for chosen text. Set `chapters.style: title_card` and add chapter
+elements on those story boundaries. The paper card sits on the open side of the shot and
+its bar shows progress through all chapters. Keep at least three YouTube chapters, starting
+at 0:00 and lasting at least ten seconds each, including the opening and final chapter.
+An opening before the first authored chapter gets its own 0:00 entry. Verification gives
+a plain fix when the list is invalid; a valid list is saved beside the final and is copyable
+on Home and review. Use the creator's title and card fonts and colors for wide titles,
+chapters and name tags. Offer None or Just the opening for horizontal text; the whole-video
+label remains unavailable. Wait for chosen opening text before rendering it.
+
 Use a moment only when the style lists it or a review comment asks for one; then turn
 it on in the project's style. Put it on a punchline, key claim or reveal. Keep starts
 at least 10 seconds apart and use at most two moments in a video.

@@ -331,3 +331,4 @@ details.fold > summary span { color: var(--muted); font-weight: 400; font-size: 
 .message-field { margin-top: 12px; max-width: 680px; }
 .message-field textarea { min-height: 80px; }
 .message-field > div { margin-top: 8px; }
+[data-youtube-chapters] pre { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }

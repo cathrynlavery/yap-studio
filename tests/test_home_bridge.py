@@ -52,12 +52,20 @@ def test_horizontal_request_reaches_listener_with_caption_choice(workspace, capt
 @pytest.mark.parametrize("extra", [
     {"shape": "square"}, {"captions": "yes"}, {"video_type": "voiceover"},
     {"video_type": "screen_recording"}, {"text_hook": "A title"},
+    {"top_text": "whole"},
 ])
 def test_horizontal_request_refuses_unsupported_choices(workspace, extra):
     with pytest.raises(ValidationError):
         bridge.create_request(workspace, "edit", {
             "shape": "horizontal", "video_type": "talking_head", "broll_sources": [], **extra,
         })
+
+
+def test_horizontal_request_allows_chosen_opening(workspace):
+    payload = {"shape": "horizontal", "video_type": "talking_head", "broll_sources": [],
+               "top_text": "opening", "text_hook": "Make the story clear"}
+    request = bridge.create_request(workspace, "edit", payload)
+    assert request["payload"] == {**payload, "captions": False}
 
 
 def test_final_wait_and_ack_cli(story_workspace, capsys):

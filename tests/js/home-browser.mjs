@@ -108,7 +108,14 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
       if (width === 1440) await click('[role=switch]');
       await next('#new/make');
       assert.equal(await page.$('#text-hook'), null);
-      assert.equal(await page.$('#top-text-choice'), null);
+      assert.deepEqual(await page.$$eval('#top-text-choice option', (options) =>
+        options.map((option) => option.value)), ['', 'none', 'opening']);
+      await page.select('#top-text-choice', 'opening');
+      await page.waitForSelector('#text-hook');
+      assert.equal(await page.$eval('label[for="text-hook"]', (label) => label.textContent),
+        'Opening title');
+      await page.select('#top-text-choice', '');
+      await page.waitForFunction(() => !document.getElementById('text-hook'));
       const sent = page.waitForResponse((response) => response.url().includes('/api/requests')
         && response.request().method() === 'POST');
       await click('#make');

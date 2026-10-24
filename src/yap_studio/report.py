@@ -90,6 +90,7 @@ _CHECK_LABELS = {
     "platform.duration": "Platform duration",
     "platform.resolution": "Platform resolution",
     "platform.fps": "Platform frame rate",
+    "platform.chapters": "YouTube chapters",
     "taste.rules": "Approved taste rules",
 }
 

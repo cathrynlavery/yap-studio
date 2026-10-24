@@ -682,6 +682,22 @@ def save_version(
                 if not isinstance(report, dict):
                     raise InputError("qa/report.json", "expected a JSON object")
                 qa["status"] = report.get("status")
+            if project.shape == "horizontal" and source_ref.startswith("final/"):
+                final_receipt = read_receipt(root / "final") or {}
+                bound = (final_receipt.get("status") == "verified"
+                         and any(row.get("path") == source_ref and row.get("sha256") == source_hash
+                                 for row in final_receipt.get("outputs", [])))
+                final_report = final_receipt.get("verify", {}) if bound else {}
+                text = final_report.get("youtube_chapters")
+                report = dict(report if qa else final_report)
+                report.pop("youtube_chapters", None)
+                if text:
+                    report["youtube_chapters"] = text
+                if qa or text:
+                    report_path = temporary / "qa-report.json"
+                    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+                    qa = {"file": "qa-report.json", "sha256": sha256_file(report_path),
+                          "status": report.get("status")}
             value = now() if now is not None else datetime.now(UTC)
             if value.tzinfo is None:
                 value = value.replace(tzinfo=UTC)

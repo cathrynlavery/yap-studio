@@ -1,0 +1,212 @@
+"""Wide title geometry, chapter navigation, and real alpha layers."""
+
+import json
+from dataclasses import replace
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from test_stage_captions import layer_project as layer_project
+from test_stage_captions import set_elements
+
+from yap_studio import ffmpeg, paths
+from yap_studio.canvas import require_supported
+from yap_studio.errors import ValidationError, YapError
+from yap_studio.faces.clearance import gap_px, head_box
+from yap_studio.faces.model import Box
+from yap_studio.stages.captions import render_layer_plan
+from yap_studio.style.loader import ResolvedStyle, resolve_style_data
+from yap_studio.wide_titles import wide_layer_plan
+from yap_studio.youtube_chapters import chapter_list
+
+
+def style():
+    data = resolve_style_data({"schema_version": 1, "name": "Wide sample",
+                               "hook": {"style": "quiet_serif", "font": "Inter"},
+                               "chapters": {"style": "title_card"}})
+    return ResolvedStyle(data["name"], "test", data)
+
+
+@pytest.mark.parametrize("kind", ["title", "chapter", "name_tag"])
+@pytest.mark.parametrize("face", [Box(300, 240, 320, 350), Box(1240, 240, 320, 350),
+                                  Box(800, 240, 320, 350)])
+def test_wide_plans_clear_faces_and_stay_title_safe(kind, face):
+    plan, evidence = wide_layer_plan(kind, {"title": "Cutting the rambling",
+                                           "name": "Sam Porter", "role": "Writer and founder"},
+                                     style(), frames=48, faces=[[face]], number=2, total=4)
+    assert (plan.width, plan.height, plan.shape) == (1920, 1080, "horizontal")
+    box = Box(**evidence["box"])
+    assert 96 <= box.x < box.x1 <= 1824
+    assert 108 <= box.y < box.y1 <= 972
+    assert gap_px(box, head_box(face)) >= 24
+    assert evidence["status"] == "clear"
+    if kind == "chapter":
+        assert (box.x > face.x) == (face.x < 800)
+
+
+def test_wide_title_balances_lines_and_keeps_brand():
+    chosen = style()
+    chosen.data["hook"]["font"] = "Gelasio"
+    chosen.data["graphics"]["accent_color"] = "#AB1256"
+    plan, _ = wide_layer_plan("title", {"title": "How I edit a twenty minute video "
+                                             "without opening an editor"},
+                              chosen, frames=60)
+    lines = json.loads(plan.variables["lines"])
+    assert 1 <= len(lines) <= 2
+    assert all(len(line.split()) >= 2 for line in lines)
+    assert plan.variables["font_name"] == "Gelasio"
+    assert plan.variables["accent_color"] == "#AB1256"
+    with pytest.raises(ValidationError, match="shorten"):
+        wide_layer_plan("title", {"title": "W" * 300}, chosen, frames=60)
+
+
+def test_chapter_bar_done_current_later():
+    for number in range(1, 5):
+        plan, _ = wide_layer_plan("chapter", {"title": "The next step"}, style(),
+                                  frames=48, number=number, total=4)
+        assert json.loads(plan.variables["states"]) == (
+            ["done"] * (number - 1) + ["current"] + ["later"] * (4 - number))
+
+
+def chapter(seconds, title):
+    return {"start_frame": round(seconds * 30), "title": title}
+
+
+def test_youtube_chapters_format_and_opening():
+    rows = [chapter(15, "Plan the story"), chapter(75, "Make the cut"), chapter(3610, "Publish")]
+    text, warning = chapter_list(rows, 3620 * 30, opening="Opening title")
+    assert warning is None
+    assert text == "0:00 Opening title\n0:15 Plan the story\n1:15 Make the cut\n1:00:10 Publish\n"
+    text, warning = chapter_list([chapter(0, "Start"), chapter(10, "Middle"),
+                                 chapter(20, "End")], 900)
+    assert warning is None and text == "0:00 Start\n0:10 Middle\n0:20 End\n"
+
+
+@pytest.mark.parametrize("rows,duration,fix", [
+    ([chapter(0, "Only one")], 900, "three"),
+    ([chapter(5, "Early"), chapter(20, "Next"), chapter(40, "Last")], 1800, "10 seconds"),
+    ([chapter(0, "Start"), chapter(10, "Middle"), chapter(20, "End")], 899, "10 seconds"),
+    ([chapter(0, "Start"), chapter(0, "Duplicate"), chapter(20, "End")], 1200, "10 seconds"),
+])
+def test_youtube_invalid_chapters_offer_only_a_plain_fix(rows, duration, fix):
+    text, warning = chapter_list(rows, duration)
+    assert text is None and fix in warning
+
+
+def test_no_chapters_offer_nothing():
+    assert chapter_list([], 18000) == (None, None)
+
+
+@pytest.mark.parametrize("kind,payload", [("title", {}), ("chapter", {}),
+                                         ("graphic", {"template": "name_tag"})])
+def test_horizontal_refusal_lifts_only_supported_layers(tmp_path, kind, payload):
+    from test_landscape import _context
+
+    from yap_studio.project.model import Anchor, Element
+
+    context = _context(tmp_path)
+    item = Element("agent-test", kind, Anchor(time=0), fields=payload)
+    require_supported(context, {"agent": SimpleNamespace(elements=[item], lane="agent")})
+    item = replace(item, kind="graphic", fields={"template": "steps"})
+    with pytest.raises(YapError, match="graphic"):
+        require_supported(context, {"agent": SimpleNamespace(elements=[item], lane="agent")})
+
+
+@pytest.mark.render
+@pytest.mark.parametrize("kind", ["title", "chapter", "name_tag"])
+def test_real_wide_layer_at_delivery_size(tmp_path: Path, kind):
+    plan, evidence = wide_layer_plan(kind, {"title": "Cutting the rambling", "name": "Sam Porter",
+                                           "role": "Writer and founder"}, style(), frames=30,
+                                     number=2, total=4)
+    with paths.operation():
+        result = render_layer_plan(plan, tmp_path / "work", tmp_path / "layer.mov")
+    info = ffmpeg.probe(result.path)
+    assert (info.width, info.height, info.video_frames) == (1920, 1080, 30)
+    raw = ffmpeg.run(["ffmpeg", "-v", "error", "-ss", "0.5", "-i", str(result.path),
+                      "-frames:v", "1", "-pix_fmt", "rgba", "-f", "rawvideo", "pipe:1"],
+                     binary=True, timeout_s=30).stdout
+    import numpy as np
+
+    pixels = np.frombuffer(raw, dtype=np.uint8).reshape(1080, 1920, 4)
+    x, y, w, h = (round(evidence["box"][key]) for key in ("x", "y", "w", "h"))
+    assert (pixels[y:y+h, x:x+w, 3] > 240).sum() > 1000
+    assert pixels[0, 0, 3] == 0
+    opaque = pixels[..., 3] > 240
+    opaque[y:y+h, x:x+w] = False
+    if kind == "chapter":
+        opaque[1010:1030, 116:1804] = False
+    assert not opaque.any(), "Opaque content escaped its planned title-safe bounds"
+
+
+def test_wide_snapshot_round_trips_real_timeline_and_receipts(layer_project):
+    from test_stage_captions import republish_cut
+
+    from yap_studio.project.status import ProjectContext
+    from yap_studio.stages.graphics import graphics_snapshot
+
+    project = json.loads((layer_project / "project.json").read_text())
+    project.update(shape="horizontal", word_fixes={})
+    (layer_project / "project.json").write_text(json.dumps(project))
+    (layer_project / "style.json").write_text(json.dumps(style().data))
+    republish_cut(layer_project)
+    set_elements(layer_project,
+                 {"id": "agent-title", "kind": "title", "start": {"time": 0},
+                  "hold_s": .5, "lines": ["Small clear steps"]},
+                 {"id": "agent-chapter", "kind": "chapter", "start": {"time": .6},
+                  "hold_s": 1, "title": "Make it clear"},
+                 {"id": "agent-name", "kind": "graphic", "template": "name_tag",
+                  "slots": {"name": "Sam Porter", "role": "Writer and founder"},
+                  "start": {"time": 1.7}, "end": {"time": 2.7}})
+    snapshot = graphics_snapshot(ProjectContext(layer_project))
+    assert [item.kind for item in snapshot.titles] == ["title", "chapter", "graphic"]
+    restored = graphics_snapshot(ProjectContext(layer_project),
+                                 placements=[item.placement() for item in snapshot.titles])
+    assert restored.inputs == snapshot.inputs
+    blocked = style().data
+    blocked["graphics"]["card_kinds_off"] = ["name_tag"]
+    (layer_project / "style.json").write_text(json.dumps(blocked))
+    with pytest.raises(ValidationError, match="name_tag"):
+        graphics_snapshot(ProjectContext(layer_project))
+
+
+@pytest.mark.render
+@pytest.mark.parametrize("kind,digest", [
+    ("title", "5f6673bf486d0eaaaacfc73f77519959c9ca7654ba037a77d8d2b09c4fa19e89"),
+    ("chapter", "344d8526150233517dba1cf13090ec474faddc9d83f72f85e872c47b8bcdee61"),
+    ("name_tag", "9667561b01a1e88f7a87e443afe49d62ded648cddd3596437372a1b1485f2a0e"),
+])
+def test_vertical_layer_bytes_match_main_5e1876b(tmp_path, kind, digest):
+    """Measured by rendering the same inputs from an untouched archive of main."""
+    from yap_studio import cards, receipt
+    from yap_studio.stages.captions import chapter_layer_plan, title_layer_plan
+
+    chosen = style()
+    if kind == "name_tag":
+        plan = cards.card_layer_plan(kind, {"name": "Sam Porter", "role": "Writer and founder"},
+                                     chosen, frames=30)
+        with paths.operation():
+            result = cards.render_card(plan, tmp_path / "work", tmp_path / "layer.mov")
+    else:
+        plan = (title_layer_plan("Small", "steps", chosen, frames=30) if kind == "title"
+                else chapter_layer_plan("Make it clear", 2, chosen, frames=30))
+        with paths.operation():
+            result = render_layer_plan(plan, tmp_path / "work", tmp_path / "layer.mov")
+    assert receipt.sha256_file(result.path) == digest
+
+
+def test_verify_warns_with_fix_and_no_invalid_list(tmp_path):
+    import synth
+    from test_verify import _ranges
+
+    from yap_studio.verify import verify
+
+    media = synth.calib_source(tmp_path / "source.mov", seconds=1, size="192x108")
+    edl = _ranges(tmp_path / "edit.json", media, [(0, 1)], youtube_chapters={
+        "chapters": [chapter(0, "Start"), chapter(.3, "Middle"), chapter(.6, "End")],
+        "opening": "Opening", "total_frames": 30,
+    })
+    report = verify(str(media), edl=str(edl), asr="none", loudness="note", detail="full")
+    finding, = [item for item in report["findings"] if item["check"] == "platform.chapters"]
+    assert finding["severity"] == "warn" and "10 seconds" in finding["suggested_action"]
+    assert "youtube_chapters" not in report
+    assert report["checks"]["platform.chapters"]["status"] == "warn"

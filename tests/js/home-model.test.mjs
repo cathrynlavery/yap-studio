@@ -98,6 +98,8 @@ test('horizontal drafts ask about B-roll and refuse voiceover until it is suppor
   assert.match(draftProblems({...draft, has_broll: true}, state).what, /Pick where/);
   assert.deepEqual(sourcesToSend({...draft, has_broll: true, broll_sources: ['stock']}), ['stock']);
   assert.deepEqual(sourcesToSend({...draft, has_broll: false, broll_sources: ['stock']}), []);
+  assert.equal(home.topTextChoice({}, {...draft, top_text: 'opening'}), 'opening');
+  assert.equal(home.topTextChoice({}, {...draft, top_text: 'whole'}), '');
   assert.match(draftProblems({...draft, video_type: 'voiceover'}, state).what, /coming soon/);
   assert.deepEqual(parseRoute('#new/shape'), {view: 'new', step: 'shape'});
   assert.deepEqual(parseRoute('#new/sources'), {view: 'new', step: 'sources'});

@@ -442,3 +442,4 @@ dialog p { color: var(--ink-2); }
 body:not(.show-flags) .finding-markers { display: none; }
 body:not(.show-flags) #scrubber { --finding-height: 0px !important; --finding-point-height: 0px !important; }
 .version-note { margin: 10px 0 0; max-width: 70ch; color: var(--ink-2); font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+#youtube-chapters pre { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }

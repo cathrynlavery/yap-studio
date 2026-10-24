@@ -8,8 +8,9 @@ What version 1 does not do yet, and what it never judges.
   `init DIR --take FILE --shape horizontal` (or `"shape": "horizontal"` in project.json).
   Horizontal phase 1 supports horizontal source takes, hard cuts, audio/music, caption gaps
   and fixed lower captions with wider lines and safe margins at 1920 × 1080, plus full-frame
-  B-roll clips and stills and B-roll in explicit boxes; platform is `youtube` or `none`.
-  Portrait and square inserts use blurred, darkened fill. Split B-roll, titles, cards,
+  B-roll clips and stills and B-roll in explicit boxes, opening titles, chapter cards and
+  name tags; platform is `youtube` or `none`. Valid chapters include a copyable YouTube list.
+  Portrait and square inserts use blurred, darkened fill. Split B-roll, video letters, cards,
   zooms, transitions, person effects, 3D captions,
   grades, applied taste preferences, covers and studio export fail with a fix line.
   Style/gallery samples remain vertical. Use the review page for final horizontal playback.

@@ -456,6 +456,8 @@ class ReviewServer:
                              "final": bool(manifest and
                                            manifest.media["source"].startswith("final/")),
                              "report_status": report["status"] if report else None}
+                    value["youtube_chapters"] = (((report or {}).get("qa") or {}).get(
+                        "youtube_chapters") if value["final"] else None)
                     value.update(duration_s=item.media.duration_s, fps=None,
                                  cfr=item.media.cfr, word_map=item.words is not None,
                                  comment_count=len(review.store.comments(item.sha256)))

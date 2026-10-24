@@ -915,6 +915,23 @@ def _verify(
                     findings.extend(taste_check.findings)
                     coverage["taste.rules"] = taste_check.coverage
 
+            youtube_text = None
+            if edl is not None and load_path.suffix == ".json":
+                from yap_studio.youtube_chapters import chapter_list
+
+                chapter_data = json.loads(load_path.read_bytes()).get("youtube_chapters")
+                if chapter_data is not None:
+                    if isinstance(chapter_data, dict):
+                        youtube_text, fix = chapter_list(
+                            chapter_data.get("chapters", []), info.video_frames,
+                            opening=chapter_data.get("opening", "Opening"))
+                    else:
+                        fix = "Give every chapter a name and a valid start time inside the video."
+                    coverage["platform.chapters"] = {"ran": True, "valid": fix is None}
+                    if fix:
+                        findings.append(Finding("platform.chapters", "warn",
+                                                "YouTube chapters need a change.",
+                                                suggested_action=fix))
             ended_at = datetime.now(UTC)
             artifact_outputs = list(
                 dict.fromkeys(
@@ -979,6 +996,8 @@ def _verify(
                 detected=detected,
                 cut_coverage=cut_coverage,
             )
+            if youtube_text is not None:
+                result["youtube_chapters"] = youtube_text
             if report_path is not None:
                 paths.atomic_write_text(
                     report_path,
