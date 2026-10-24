@@ -3079,13 +3079,31 @@ def test_stopped_failed_then_successful_assemble(project: Path,
     assert stage.assemble(project)["status"] == "verified"
 
 
+@pytest.mark.parametrize("with_chapters", [False, True])
 def test_failed_assemble_stales_old_final_and_clears_it_on_success(
-    project: Path, monkeypatch: pytest.MonkeyPatch,
+    project: Path, monkeypatch: pytest.MonkeyPatch, with_chapters: bool,
 ) -> None:
-    stage.assemble(project)
+    chapter_text = "0:00 Start\n0:10 Middle\n0:20 End\n"
+    original_verify = stage.verify
+
+    def verify_with_chapters(*args, **kwargs):
+        return {**original_verify(*args, **kwargs), "youtube_chapters": chapter_text}
+
+    with monkeypatch.context() as patch:
+        if with_chapters:
+            patch.setattr(stage, "verify", verify_with_chapters)
+        assert stage.assemble(project)["status"] == "verified"
     final = project / "final/story.mp4"
     sidecars = [final.with_suffix(suffix) for suffix in
                 (".layout.json", ".contrast.json", ".faces.json", ".taste.json")]
+    chapters = final.with_suffix(".chapters.txt")
+    if with_chapters:
+        assert chapters.read_text() == chapter_text
+        sidecars.append(chapters)
+    expected = {f"story.stale{path.name[len('story'):]}": {
+        "path": f"story.stale{path.name[len('story'):]}",
+        "sha256": receipt.sha256_file(path), "bytes": path.stat().st_size,
+    } for path in [final, *sidecars]}
     with monkeypatch.context() as patch:
         patch.setattr(stage, "verify", lambda *args, **kwargs: {"status": "fail"})
         with pytest.raises(stage.AssemblyError, match="previous final was moved"):
@@ -3095,10 +3113,13 @@ def test_failed_assemble_stales_old_final_and_clears_it_on_success(
     assert not final.exists() and final.with_name("story.stale.mp4").is_file()
     assert all(not path.exists() and path.with_name(
         path.name.replace("story.", "story.stale.")).exists() for path in sidecars)
-    assert {item["path"] for item in manifest["outputs"]} >= {"story.stale.mp4"}
+    assert {item["path"]: item for item in manifest["outputs"]} == expected
+    if with_chapters:
+        assert final.with_suffix(".stale.chapters.txt").read_text() == chapter_text
     assert stage.assemble(project)["status"] == "verified"
     assert final.is_file() and not (project / "final/stale.json").exists()
-    assert not final.with_name("story.stale.mp4").exists()
+    assert all(not (final.parent / name).exists() for name in expected)
+    assert not chapters.exists()
 
 
 @pytest.mark.parametrize("frames", [None, (0, 20)])

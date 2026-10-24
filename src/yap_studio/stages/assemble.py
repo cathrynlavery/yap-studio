@@ -1142,7 +1142,8 @@ def _mark_stale(root: Path, name: str, reason: str) -> str | None:
         manifest = folder / "stale.json"
         stale_path = f"final/{name}.stale.mp4"
         sources = [final, *(final.with_suffix(suffix) for suffix in
-                            (LAYOUT_SUFFIX, CONTRAST_SUFFIX, ".faces.json", ".taste.json"))]
+                            (LAYOUT_SUFFIX, CONTRAST_SUFFIX, ".faces.json", ".taste.json",
+                             ".chapters.txt"))]
         if manifest.exists():
             data = json.loads(manifest.read_bytes())
             expected = {f"{name}.stale{source.name[len(name):]}": source
