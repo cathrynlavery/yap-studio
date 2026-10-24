@@ -352,7 +352,7 @@ function renderWelcome() {
     h('h1', {class: 'title wide', text: "You're set up. Let's make your first video."}),
     h('p', {class: 'lede', text: `You pick what to make, your footage and your look. ${agentName(state)} picks the story from your own words, cuts it and adds captions, cards and music. You watch it, leave comments, and the next version follows.`}),
     h('ol', {class: 'welcome-steps'}, steps),
-    h('p', {class: 'note', text: `Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to ${agentName(state)} (${state?.agent === 'codex' ? 'OpenAI' : 'Anthropic'}), along with the transcript, your notes and the project files ${agentName(state)} reads, as part of your ${agentName(state)} session. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.`}),
+    h('p', {class: 'note', text: `Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to Anthropic in Claude Code and the Claude app's Code tab, or OpenAI in Codex, along with the transcript, your notes, the project files your agent reads and command output, as part of your agent session. On personal ChatGPT plans, OpenAI may train on it unless "Improve the model for everyone" is off. In Cursor, the same data goes to Cursor (Anysphere) and the company running your chosen model; Privacy Mode stops training. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.`}),
     h('div', {class: 'actions'},
       h('button', {type: 'button', class: 'btn primary big', onclick: () => { markWelcomed(); clearDraft(); navigate('#new/what'); },
         text: 'Start my first video'})));

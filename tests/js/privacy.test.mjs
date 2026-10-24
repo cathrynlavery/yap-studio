@@ -7,10 +7,7 @@ import * as timeline from '../../src/yap_studio/review/static/timeline.mjs';
 
 const homeRoot = new URL('../../src/yap_studio/homepage/static/', import.meta.url);
 const reviewRoot = new URL('../../src/yap_studio/review/static/', import.meta.url);
-const disclosure = (agent, provider) => 'Your video files stay on your computer. Still frames from pinned notes and contact sheets of '
-  + `your clips go to ${agent} (${provider}), along with the transcript, your notes and the project files `
-  + `${agent} reads, as part of your ${agent} session. ElevenLabs, WaveSpeed and Pexels get only what `
-  + 'they need, and only if you turn them on.';
+const disclosure = `Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to Anthropic in Claude Code and the Claude app's Code tab, or OpenAI in Codex, along with the transcript, your notes, the project files your agent reads and command output, as part of your agent session. On personal ChatGPT plans, OpenAI may train on it unless "Improve the model for everyone" is off. In Cursor, the same data goes to Cursor (Anysphere) and the company running your chosen model; Privacy Mode stops training. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.`;
 
 class Element {
   constructor() {
@@ -49,10 +46,11 @@ function text(node) {
 test('the first home screen displays the complete disclosure before starting a video', () => {
   const {context} = page(homeRoot, 'home.js', homeModel,
     'globalThis.welcome = renderWelcome();');
-  assert.ok(text(context.welcome).includes(disclosure('Claude Code', 'Anthropic')));
-  vm.runInContext("state = {agent: 'codex'}; globalThis.welcome = renderWelcome();", context);
-  assert.ok(text(context.welcome).includes(disclosure('Codex', 'OpenAI')));
-  assert.equal(text(context.welcome).includes('Anthropic'), false);
+  assert.ok(text(context.welcome).includes(disclosure));
+  for (const agent of ['codex', 'cursor']) {
+    vm.runInContext(`state = {agent: '${agent}'}; globalThis.welcome = renderWelcome();`, context);
+    assert.ok(text(context.welcome).includes(disclosure));
+  }
 });
 
 for (const [via, label] of [['tailscale', 'Encrypted (Tailscale)'],
@@ -121,6 +119,9 @@ test('review copy follows setup, including when Home has no live link', () => {
   context.showAgent('codex');
   assert.equal(get('version-note').textContent, "Codex's notes: A tighter cut");
   assert.match(get('range-note').placeholder, /for Codex/u);
+  context.showAgent('cursor');
+  assert.equal(get('version-note').textContent, "Cursor's notes: A tighter cut");
+  assert.match(get('range-note').placeholder, /for Cursor/u);
   context.showAgent(undefined);
   assert.equal(get('version-note').textContent, "Claude Code's notes: A tighter cut");
   assert.match(get('range-note').placeholder, /for Claude Code/u);
@@ -128,4 +129,6 @@ test('review copy follows setup, including when Home has no live link', () => {
     versions: [{number: 1, final: false}]};
   assert.match(timeline.sendNextText(series, {agent: 'codex', listening: true}).text, /Sent to Codex/u);
   assert.match(timeline.storyCutStep(series, 1, {agent: 'codex'}).hint, /Codex applies/u);
+  assert.match(timeline.sendNextText(series, {agent: 'cursor', listening: true}).text, /Sent to Cursor/u);
+  assert.match(timeline.storyCutStep(series, 1, {agent: 'cursor'}).hint, /Cursor applies/u);
 });

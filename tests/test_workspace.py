@@ -40,6 +40,11 @@ EXPECTED = {
     "Start here.html",
     ".yap-studio-version",
     ".claude/commands/edit.md",
+    ".claude/settings.json",
+    ".codex/config.toml",
+    ".codex/rules/yap-studio.rules",
+    ".cursor/cli.json",
+    ".cursor/permissions.json",
     ".claude/skills/edit-video/SKILL.md",
     ".claude/skills/voiceover-video/SKILL.md",
     "AGENTS.md",
@@ -95,8 +100,11 @@ def _synthetic_wheel(root: Path) -> Path:
 
 def test_start_page_says_to_sign_in_to_claude_code_and_names_homebrew() -> None:
     page = (ROOT / "workspace/Start here.html").read_text(encoding="utf-8")
-    assert "Claude Code, signed in" in page
-    assert "type /login once" in page
+    assert "Pick your app" in page
+    assert "Sign in once with <code>/login</code>" in page
+    for phrase in ("choose Local", "Trust the folder once", "Agent mode on this Mac",
+                   "Privacy Mode is suggested", "Chat apps (Claude Chat, Cowork, ChatGPT chat)"):
+        assert phrase in page
     assert "install Homebrew first, for ffmpeg and Node" in page
 
 
@@ -656,7 +664,8 @@ def test_workspace_video_routing_and_commands_parse():
     guide = (ROOT / "workspace/AGENTS.md").read_text()
     assert "## What are you making?" in guide
     section = guide.split("## What are you making?", 1)[1].split("## Make a voiceover video", 1)[0]
-    for phrase in ("yap-studio video-type show --json", "AskUserQuestion", "not in this version",
+    for phrase in ("yap-studio video-type show --json", "your app's question tool",
+                   "not in this version",
                    "talking_head", "voiceover", "green_screen", "screen_recording",
                    "Behind the speaker", "cover every frame", "using its display dimensions"):
         assert phrase in section
@@ -717,7 +726,7 @@ def test_workspace_asks_for_unchosen_broll_after_type():
 
 def test_setup_questions_are_one_at_a_time_and_saved() -> None:
     guide = (ROOT / "workspace/AGENTS.md").read_text()
-    for phrase in ("yap-studio style questions", "AskUserQuestion", "one question at a time",
+    for phrase in ("yap-studio style questions", "question tool", "one question at a time",
                    "style/answers.json", "yap-studio style from-answers", "Update my style"):
         assert phrase in guide
     assert "`never.other` is a list" in guide
@@ -1201,6 +1210,7 @@ def test_setup_reports_one_command_for_each_missing_piece(
     assert json.loads(capsys.readouterr().out) == {
         "ready": True, "refused": None, "steps": [], "inbox_takes": 0,
         "phone": {"via": None, "tailscale": "missing"}, "home": FAKE_HOME,
+        "engine": str(bin_dir / "yap-studio"),
     }
 
 
@@ -1530,7 +1540,7 @@ def test_setup_json_steps_include_model_and_optional_cutout(
     monkeypatch.setattr(module.subprocess, "run", fake_run)
     assert module.main(["--json"]) == 1
     output = json.loads(capsys.readouterr().out)
-    assert set(output) == {"ready", "refused", "steps"}
+    assert set(output) == {"ready", "refused", "steps", "engine"}
     assert output["ready"] is False and output["refused"] is None
     assert [step["id"] for step in output["steps"]] == [
         "ffmpeg", "node", "renderer", "speech_model", "cutout",
@@ -1794,6 +1804,7 @@ def test_setup_install_commands_match_the_platform(
         assert uv_step["command"] is None
         assert uv_step["page"] == module.OTHER_HINTS["uv"]
     found["uv"] = "/usr/bin/uv"
+    found["yap-studio"] = str(bin_dir / "yap-studio")
     report = {
         "install": {"version": VERSION}, "warnings": [], "problems": ["ffmpeg missing"],
         "ffmpeg": {"available": False, "path": None}, "ffprobe": {"available": False},
@@ -2214,7 +2225,7 @@ def test_setup_homebrew_path_finds_installed_tools(
     module, wheel, engine, report = _build_setup_fixture(tmp_path, monkeypatch)
     folder = tmp_path / "homebrew/bin"
     folder.mkdir(parents=True)
-    for name in ("brew", "uv", "ffmpeg", "ffprobe"):
+    for name in ("brew", "uv", "ffmpeg", "ffprobe", "yap-studio"):
         if missing and name == "ffmpeg":
             continue
         binary = folder / name
@@ -2275,7 +2286,7 @@ def test_setup_mac_finds_homebrew_or_offers_its_page(
         binary.touch()
         binary.chmod(0o755)
         brew = str(binary)
-    found = {"uv": "/usr/bin/uv"}
+    found = {"uv": "/usr/bin/uv", "yap-studio": engine}
     if brew == "PATH":
         found["brew"] = "/opt/homebrew/bin/brew"
     monkeypatch.setattr(module.shutil, "which", found.get)
@@ -2359,8 +2370,16 @@ def test_setup_finds_uv_outside_path(
         subprocess.CompletedProcess(args, 0, f"yap-studio {VERSION}\n", "")
         if args[1:] == ["--version"] else
         subprocess.CompletedProcess(args, 0, json.dumps(report), "")))
-    assert module.main(["--json"]) == 0
-    assert json.loads(capsys.readouterr().out)["ready"] is True
+    assert module.main(["--json"]) == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["ready"] is False
+    assert result["engine"] == engine
+    assert result["steps"] == [{
+        "id": "engine_path",
+        "does": "Lets your agent find the yap-studio command in new sessions.",
+        "command": shlex.join([str(uv.absolute()), "tool", "update-shell"]),
+        "page": None, "optional": False,
+    }]
 
 
 @pytest.mark.parametrize("take_count", [0, 1, 2, 5])
@@ -2403,7 +2422,7 @@ def test_setup_ready_reports_inbox_takes_in_text_and_json(
     assert module.main(["--json"]) == 0
     assert json.loads(capsys.readouterr().out) == {
         "ready": True, "refused": None, "steps": [], "inbox_takes": expected,
-        "phone": {"via": None, "tailscale": "missing"}, "home": FAKE_HOME,
+        "phone": {"via": None, "tailscale": "missing"}, "home": FAKE_HOME, "engine": engine,
     }
 
 
@@ -3038,7 +3057,7 @@ def test_shared_workspace_instructions_resolve_to_one_source():
     assert (workspace / imported[1:]).read_text() == (workspace / "AGENTS.md").read_text()
 
 
-@pytest.mark.parametrize("agent", ["claude-code", "codex"])
+@pytest.mark.parametrize("agent", ["claude-code", "codex", "cursor"])
 def test_setup_records_app_and_preserves_it_without_option(tmp_path, monkeypatch, capsys, agent):
     from yap_studio.homepage.state import HomeState
 
@@ -3068,7 +3087,9 @@ def test_setup_rejects_unknown_app_without_writing(tmp_path, monkeypatch):
     assert not (tmp_path / ".yap-studio").exists()
 
 
-@pytest.mark.parametrize("stored", [None, "{}", '{"agent":"unknown"}', "{broken", "[]"])
+@pytest.mark.parametrize("stored", [
+    None, "{}", '{"agent":"unknown"}', '{"agent":[]}', '{"agent":{}}', "{broken", "[]",
+])
 def test_old_workspace_app_defaults_to_claude_code(tmp_path, stored):
     from yap_studio.homepage.state import HomeState
 
@@ -3078,3 +3099,64 @@ def test_old_workspace_app_defaults_to_claude_code(tmp_path, stored):
         (folder / "setup.json").write_text(stored)
     (tmp_path / "inbox").mkdir()
     assert HomeState(tmp_path).snapshot()["agent"] == "claude-code"
+
+
+def test_workspace_permission_presets():
+    workspace = ROOT / "workspace"
+    config = tomllib.loads((workspace / ".codex/config.toml").read_text())
+    assert config["sandbox_mode"] == "workspace-write"
+    assert config["approval_policy"] == "on-request"
+    sandbox = config["sandbox_workspace_write"]
+    assert sandbox["network_access"] is True
+    assert sandbox["writable_roots"] == [
+        "~/Library/Application Support/yap-studio", "~/Library/Caches/yap-studio",
+        "~/.local/share/yap-studio", "~/.cache/yap-studio",
+    ]
+    rules = []
+    exec((workspace / ".codex/rules/yap-studio.rules").read_text(),
+         {"prefix_rule": lambda **rule: rules.append(rule), "__builtins__": {}})
+    assert [(rule["pattern"], rule["decision"]) for rule in rules] == [
+        (["yap-studio"], "allow"), (["open"], "allow"),
+    ]
+    cursor = json.loads((workspace / ".cursor/permissions.json").read_text())
+    assert cursor["terminalAllowlist"] == ["yap-studio", "open http://127.0.0.1:"]
+    assert json.loads((workspace / ".cursor/cli.json").read_text()) == {
+        "permissions": {"allow": ["Shell(yap-studio)", "Shell(open:http://127.0.0.1*)"],
+                        "deny": []},
+    }
+    assert json.loads((workspace / ".claude/settings.json").read_text()) == {
+        "permissions": {"allow": ["Bash(python3 setup.py *)", "Bash(python3 new_project.py *)",
+                                  "Bash(yap-studio *)", "Bash(open http://*)"]},
+    }
+
+
+@pytest.mark.parametrize("on_path", [False, True])
+def test_setup_engine_path_step(tmp_path, monkeypatch, capsys, on_path):
+    module, wheel, engine, report = _build_setup_fixture(tmp_path, monkeypatch)
+    report["install"]["build"] = module._wheel_build(wheel)
+    monkeypatch.setenv("UV_TOOL_DIR", str(tmp_path / "tools"))
+    monkeypatch.setattr(module.shutil, "which", lambda name:
+                        (engine if on_path else None) if name == "yap-studio"
+                        else "/scratch/uv")
+    monkeypatch.setattr(module.subprocess, "run", lambda args, **kwargs:
+                        subprocess.CompletedProcess(args, 0,
+                            f"yap-studio {VERSION}\n" if args[1:] == ["--version"]
+                            else json.dumps(report), ""))
+    assert module.main(["--json"]) == (0 if on_path else 1)
+    result = json.loads(capsys.readouterr().out)
+    assert result["engine"] == engine
+    assert result["ready"] is on_path
+    assert [step["id"] for step in result["steps"]] == ([] if on_path else ["engine_path"])
+    if not on_path:
+        assert result["steps"][0]["command"] == "/scratch/uv tool update-shell"
+        assert result["steps"][0]["optional"] is False
+
+
+def test_question_and_wait_instructions_are_app_neutral():
+    for name in ["AGENTS.md", ".claude/skills/edit-video/SKILL.md",
+                 ".claude/skills/voiceover-video/SKILL.md"]:
+        guide = (ROOT / "workspace" / name).read_text()
+        assert "AskUserQuestion" not in guide
+        for phrase in ("one question at a time", "recommended choice first", "otherwise in chat",
+                       "--timeout 1", "check again each turn", "pressed a page button"):
+            assert phrase in guide

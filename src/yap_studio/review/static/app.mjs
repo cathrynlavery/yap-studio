@@ -19,7 +19,7 @@ import {
   pictureRect, pinAt, pinPoint, pinText, pinBody, pinInSpan, pinShown, captionAt,
 } from './timeline.mjs';
 
-const agentName = () => review?.agent === 'codex' ? 'Codex' : 'Claude Code';
+const agentName = () => ({codex: 'Codex', cursor: 'Cursor'}[review?.agent] ?? 'Claude Code');
 const $ = (id) => document.getElementById(id);
 const el = {
   fixCaption: $('fix-caption'), captionFix: $('caption-fix'), captionWords: $('caption-words'),

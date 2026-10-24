@@ -555,7 +555,7 @@ export function approvalConfirmation(version, home, hostname) {
 
 /** What happens after notes are sent, when Yap Studio home knows whether the agent is listening. */
 export function sendNextText(series, home) {
-  const agent = home?.agent === 'codex' ? 'Codex' : 'Claude Code';
+  const agent = {codex: 'Codex', cursor: 'Cursor'}[home?.agent] ?? 'Claude Code';
   if (!home || !series?.rounds?.length) return null;
   const sent = series.rounds.filter((round) => round.status === 'sent');
   const latest = sent.at(-1);
@@ -570,7 +570,7 @@ export function sendNextText(series, home) {
 
 /** What the bottom of the player offers: approve a final, or ask for the final after a story cut. */
 export function storyCutStep(series, selected, home) {
-  const agent = home?.agent === 'codex' ? 'Codex' : 'Claude Code';
+  const agent = {codex: 'Codex', cursor: 'Cursor'}[home?.agent] ?? 'Claude Code';
   const version = series?.versions?.find((item) => item.number === selected);
   const approveHint = 'Happy with it? Approving unlocks the download.';
   if (!series?.project || !home || version?.final !== false) {

@@ -109,8 +109,9 @@ def workspace_agent(start: Path) -> str:
                 state = json.loads(saved.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 return "claude-code"
-            return ("codex" if isinstance(state, dict) and state.get("agent") == "codex"
-                    else "claude-code")
+            if isinstance(state, dict) and state.get("agent") in ("codex", "cursor"):
+                return state["agent"]
+            return "claude-code"
         if (root / ".yap-studio-version").is_file():
             break
     return "claude-code"

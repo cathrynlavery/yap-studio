@@ -8,11 +8,15 @@ for unsupported features.
 
 ## Set me up
 
-Identify the app you are running in: Claude Code uses `claude-code`; Codex uses `codex`.
+Identify the app you are running in: Claude Code and the Claude app's Code tab use
+`claude-code`; Codex uses `codex`; Cursor uses `cursor`.
+In the Claude app, use the Code tab with Local selected. In Cursor, use Agent mode
+on this Mac, not a cloud agent. In Codex, ask the creator to trust this folder once
+so its project sandbox settings and command rules can load.
 Run `python3 setup.py --agent AGENT --json` from this folder, substituting your app.
 Pass the same `--agent` on every setup run so Home and review name the right app.
-Where these instructions say AskUserQuestion, use that tool in Claude Code; in Codex,
-use its question tool when available, otherwise ask in chat and wait for the answer.
+Ask one question at a time, recommended choice first, with your app's question tool
+if it has one, otherwise in chat. Wait for the answer.
 If `refused` is set, explain why.
 A synced folder can make video files go missing mid-edit. Low disk means there is not
 enough space. Offer the `move` command if one is given. Run nothing until the creator
@@ -27,6 +31,11 @@ Tailscale is optional; the Wi-Fi link works without it on the same network.
 Offer it once, and if the creator skips it, move on.
 
 After the engine is installed, check `yap-studio doctor --json` for `feedback.mode`.
+Setup prints `engine`, the full path of the yap-studio command. If `command -v yap-studio`
+prints nothing, use that full path wherever these instructions or skills say `yap-studio`.
+After the `engine_path` step, tell the creator the next session will find it by name:
+start a new session, then rerun setup. In the Claude app, start a new session; if it
+still cannot find it, quit and reopen the app.
 During first setup, ask once: "May Yap Studio share short notes about problems so it can
 improve? Nothing private is shared: no footage, words, names, file names or paths."
 Offer ask each time, always share, or keep local. Run `yap-studio feedback setting ask`,
@@ -43,7 +52,9 @@ When the steps are done, run `python3 setup.py --agent AGENT` again. Setup exits
 step is done and Yap Studio home answers its state check. Do not begin an edit before that.
 Use the home link setup prints. Run `open URL` with that link on this Mac. Start
 `yap-studio home wait --workspace . --json` as a background task. Do not run it in the foreground
-or wait for its result. If background tasks are unavailable, use `--timeout 1` and repeat later.
+or wait for its result. If your app can't tell you when a background command finishes
+(Codex, Cursor), use `--timeout 1` and check again each turn, and ask the creator to
+tell you when they pressed a page button.
 Reply in the same turn: "You're set up" with the home link and any phone link. Say "I'm listening
 for your choices on the page" when the background wait runs, or "I'll check the page for your
 choices" when using the short wait. In that reply, say how review links reach their phone:
@@ -63,8 +74,10 @@ do the editing. Setup starts it. When the creator comes back, reopen it this way
    on a phone: say "Same Wi-Fi only" when `phone.via` is `wifi`.
 2. Run `yap-studio home wait --workspace . --json` as a background task, so you are told when the
    creator presses a button that needs you. Never wait for its result before replying in chat.
-   If background tasks are unavailable, use `--timeout 1` and repeat later.
-   Keep exactly one wait running at all times, while you work and while the creator reviews:
+   If your app can't tell you when a background command finishes (Codex, Cursor), use
+   `--timeout 1` and check again each turn, and ask the creator to tell you when they
+   pressed a page button.
+   With background notifications, keep exactly one wait running while you work and review:
    when it returns, start it again first, then handle the event it printed. The page shows
    your app name followed by "is listening" only while a wait runs.
 3. Handle the event it printed:
@@ -180,7 +193,8 @@ or keeps style choices with the answers until a look is saved. Then open the sty
 
 Each video has a type, and the type picks the recipe. When a video starts, run
 `yap-studio video-type show --json`. If `default` is null, ask its `questions` with
-AskUserQuestion: say the question's `note`, then use each choice's `label` and `description`.
+your app's question tool if it has one, otherwise in chat, one question at a time,
+recommended choice first: say the question's `note`, then each choice's `label` and `description`.
 Ask `video_type` first. For a talking head, ask next whether the creator has anything to show on
 top of their video (clips, photos or screenshots), and do not assume they do: if not, record no
 B-roll sources. Only when they do, or for a voiceover, ask `broll_sources`, with several answers

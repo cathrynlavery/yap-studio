@@ -1,4 +1,4 @@
-export const agentName = (state) => state?.agent === 'codex' ? 'Codex' : 'Claude Code';
+export const agentName = (state) => ({codex: 'Codex', cursor: 'Cursor'}[state?.agent] ?? 'Claude Code');
 
 // Pure helpers for Yap Studio home: labels, progress and routing. No DOM here.
 

@@ -3,7 +3,7 @@ name: edit
 description: Edit unused inbox takes in a fresh Yap Studio project
 ---
 
-Use `$ARGUMENTS` as the creator's request in Claude Code; in Codex, use the message
+Use `$ARGUMENTS` as the creator's request in Claude Code or Cursor; in Codex, use the message
 that invokes `$edit`.
 
 Read `AGENTS.md` and start with its What are you making? section. If the type is voiceover,

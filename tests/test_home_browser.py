@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("agent", [None, "codex"])
+@pytest.mark.parametrize("agent", [None, "codex", "cursor"])
 def test_home_shape_phone_and_desktop(tmp_path: Path, agent) -> None:
     workspace = tmp_path / "My videos"
     workspace.mkdir()
@@ -45,7 +45,8 @@ def test_home_shape_phone_and_desktop(tmp_path: Path, agent) -> None:
     try:
         result = subprocess.run([
             "node", str(ROOT / "tests/js/home-browser.mjs"), server.url,
-            str(result_file), shots, "Codex" if agent == "codex" else "Claude Code",
+            str(result_file), shots,
+            {"codex": "Codex", "cursor": "Cursor"}.get(agent, "Claude Code"),
         ], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120, check=False)
         assert result.returncode == 0, result.stdout + result.stderr
         results = json.loads(result_file.read_text())

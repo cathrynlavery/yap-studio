@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Open the workspace in Claude Code, the Claude app's Code tab, Codex or Cursor: shared instructions and skills, settings that let each app run Yap Studio, the app's name on Home and review, and a privacy line for each app.
 - Cutting seeks to each piece instead of decoding the take from the start: on a 20-minute video the cut went from 282 s to 201 s, with identical output.
 - The review Listen browser test records where playback starts and stops inside the page, so slow test machines no longer fail it.
 - Verify tells you long YouTube uploads need a verified account instead of telling you to trim a video over 15 minutes.

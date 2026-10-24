@@ -62,25 +62,34 @@ button:hover { background: #2b2b29; }
 <main class="page">
   <section>
     <h1>Turn a take you filmed into a finished video.</h1>
-    <p class="lede">You pick the look and the footage. Claude Code or Codex edits: the story, captions, cards and music. You watch it and leave comments, and the next version follows.</p>
-    <p class="after">Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to Anthropic when you use Claude Code, or OpenAI when you use Codex, along with the transcript, your notes and the project files your agent reads, as part of your Claude Code or Codex session. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.</p>
+    <p class="lede">You pick the look and the footage. Your agent edits: the story, captions, cards and music. You watch it and leave comments, and the next version follows.</p>
+    <p class="after">Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to Anthropic in Claude Code and the Claude app's Code tab, or OpenAI in Codex, along with the transcript, your notes, the project files your agent reads and command output, as part of your agent session. On personal ChatGPT plans, OpenAI may train on it unless "Improve the model for everyone" is off. In Cursor, the same data goes to Cursor (Anysphere) and the company running your chosen model; Privacy Mode stops training. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.</p>
     <div class="start">
       <h2>Start</h2>
       <ol>
-        <li><div><strong>Open this folder in Claude Code or Codex</strong><p>The folder this page is in. Keep it on this Mac, not in a folder that syncs to the cloud.</p><p class="folder" id="folder" hidden></p></div></li>
-        <li><div><strong>Type this to Claude Code or Codex</strong>
+        <li><div><strong>Open this folder in your app</strong><p>Choose from Pick your app. Keep this folder on this Mac, outside folders that sync to the cloud.</p><p class="folder" id="folder" hidden></p></div></li>
+        <li><div><strong>Type this to your agent</strong>
           <div class="phrase"><code id="phrase">set me up</code><button type="button" id="copy">Copy</button><span class="copied" id="copied" role="status" aria-live="polite"></span></div></div></li>
       </ol>
-      <p class="after">The plain Claude chat app and ChatGPT cannot edit these videos. Use Claude Code or Codex.</p>
-      <p class="after">Claude Code or Codex asks before it installs anything. On a Mac it may ask you to install Homebrew first, for ffmpeg and Node. The first setup downloads the speech model (about 2.5 GB) and the video renderer. When it is done, Yap Studio opens in your browser and takes it from there.</p>
+      <p class="after">Chat apps (Claude Chat, Cowork, ChatGPT chat) can't edit these videos.</p>
+      <p class="after">Your agent asks before it installs anything. On a Mac it may ask you to install Homebrew first, for ffmpeg and Node. The first setup downloads the speech model (about 2.5 GB) and the video renderer. When it is done, Yap Studio opens in your browser and takes it from there.</p>
     </div>
   </section>
   <aside>
     <div class="needs">
+      <h2>Pick your app</h2>
+      <ul>
+        <li><a href="https://code.claude.com/docs/en/quickstart">Claude Code in Terminal</a><span>In this folder, run <code>claude</code>. Sign in once with <code>/login</code>.</span></li>
+        <li><a href="https://claude.com/download">The Claude app</a><span>Click Code, choose Local, then Open folder. Sign in on a paid plan.</span></li>
+        <li><a href="https://chatgpt.com/download">Codex in the ChatGPT app</a> or <a href="https://developers.openai.com/codex/quickstart">Terminal</a><span>Choose Codex, add a project, then Use an existing folder; or run <code>codex</code> here. Trust the folder once.</span></li>
+        <li><a href="https://cursor.com/download">Cursor</a><span>File &gt; Open Folder, then Cmd+I. Choose Agent mode on this Mac. Privacy Mode is suggested.</span></li>
+      </ul>
+    </div>
+    <div class="needs">
       <h2>What you need</h2>
       <ul>
         <li>A Mac or a Linux computer<span>On a Mac, macOS 14 or newer. Apple silicon is the tested setup.</span></li>
-        <li>Claude Code, signed in, or Codex, signed in<span>Install <a href="https://claude.com/product/claude-code">Claude Code</a> and type /login once, or install <a href="https://developers.openai.com/codex/quickstart">Codex</a> and sign in.</span></li>
+        <li>Your chosen app, signed in<span>Use one of the four ways above.</span></li>
         <li>About 10 GB free on this disk<span>Plus room for your videos.</span></li>
         <li>A take filmed upright<span>From your phone or camera. Your originals are never changed.</span></li>
       </ul>
@@ -91,7 +100,7 @@ button:hover { background: #2b2b29; }
         <li><b>1</b>Choose what you're making</li>
         <li><b>2</b>Add your footage</li>
         <li><b>3</b>Pick your look on your own video</li>
-        <li><b>4</b>Claude Code or Codex makes the video</li>
+        <li><b>4</b>Your agent makes the video</li>
         <li><b>5</b>Watch it, comment, approve</li>
       </ol>
     </div>
@@ -110,7 +119,7 @@ button:hover { background: #2b2b29; }
   var status = document.getElementById("copied");
   button.addEventListener("click", function () {
     var text = document.getElementById("phrase").textContent;
-    var done = function () { status.textContent = "Copied. Paste it into Claude Code or Codex."; };
+    var done = function () { status.textContent = "Copied. Paste it into your agent."; };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, function () { status.textContent = "Select the words and copy them."; });
     } else {
@@ -118,7 +127,7 @@ button:hover { background: #2b2b29; }
       range.selectNodeContents(document.getElementById("phrase"));
       var selection = window.getSelection();
       selection.removeAllRanges(); selection.addRange(range);
-      status.textContent = document.execCommand("copy") ? "Copied. Paste it into Claude Code or Codex." : "Select the words and copy them.";
+      status.textContent = document.execCommand("copy") ? "Copied. Paste it into your agent." : "Select the words and copy them.";
     }
   });
 })();

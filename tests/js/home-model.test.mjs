@@ -293,6 +293,7 @@ test('a voiceover inbox takes memos, not videos', () => {
 test('progress and requests name the selected app with a Claude Code default', () => {
   assert.equal(home.agentName(), 'Claude Code');
   assert.equal(home.agentName({agent: 'codex'}), 'Codex');
+  assert.equal(home.agentName({agent: 'cursor'}), 'Cursor');
   assert.equal(phaseInfo('story', 'Codex').title, 'Codex is choosing the story.');
   assert.equal(progressRows({phase: 'story'}, 'Codex')[0].who, 'Codex');
   assert.equal(requestInfo({state: 'pending'}, false, 'Codex').title, 'Waiting for Codex.');

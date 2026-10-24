@@ -23,9 +23,12 @@ from yap_studio.review import phone
 ROOT = Path(__file__).resolve().parents[1]
 DISCLOSURE = (
     "Your video files stay on your computer. Still frames from pinned notes and contact sheets of "
-    "your clips go to Anthropic when you use Claude Code, or OpenAI when you use Codex, along with "
-    "the transcript, your notes and the project files your agent reads, as part of your "
-    "Claude Code or Codex session. ElevenLabs, WaveSpeed and Pexels "
+    "your clips go to Anthropic in Claude Code and the Claude app's Code tab, or OpenAI in Codex, "
+    "along with the transcript, your notes, the project files your agent reads and command output, "
+    "as part of your agent session. On personal ChatGPT plans, OpenAI may train on it unless "
+    '"Improve the model for everyone" is off. In Cursor, the same data goes to Cursor '
+    "(Anysphere) and the company running your chosen model; Privacy Mode stops training. "
+    "ElevenLabs, WaveSpeed and Pexels "
     "get only what they need, and only if you turn them on."
 )
 TRANSPORTS = [
@@ -36,11 +39,13 @@ TRANSPORTS = [
 
 @pytest.mark.parametrize("name", [
     "README.md", "docs/install.md", "workspace/Start here.html",
-    "docs/home.md",
+    "docs/home.md", "workspace/.claude/skills/edit-video/SKILL.md",
 ])
 def test_entry_points_disclose_where_data_goes(name):
     text = (ROOT / name).read_text()
-    expected = DISCLOSURE.split(" ElevenLabs,")[0] if name == "docs/home.md" else DISCLOSURE
+    expected = (DISCLOSURE.split(" ElevenLabs,")[0]
+                if name in {"docs/home.md", "workspace/.claude/skills/edit-video/SKILL.md"}
+                else DISCLOSURE)
     assert expected in " ".join(text.split())
 
 
@@ -155,10 +160,12 @@ def test_creator_copy_names_the_agent_app_precisely():
                      if p.suffix in {".html", ".js", ".mjs", ".css"})
     for file in paths:
         text = file.read_text().replace("plain Claude chat app", "")
+        for phrase in ("the Claude app", "The Claude app", "Claude Chat"):
+            text = text.replace(phrase, "")
         assert re.search(r"\bClaude\b(?! (?:Code|Desktop))", text) is None, file
 
 
-@pytest.mark.parametrize("agent", [None, "codex"])
+@pytest.mark.parametrize("agent", [None, "codex", "cursor"])
 def test_review_retains_setup_app_without_a_running_home(removed_server, agent):
     root = removed_server.videos[0].series.project_dir
     if agent:
