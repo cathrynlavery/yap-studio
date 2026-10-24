@@ -293,6 +293,7 @@ try {
     for (const [screen, grid] of [['opening', 'title-tiles'], ['cards', 'card-style-tiles']]) {
       await page.evaluate(() => document.getElementById('step-more').click());
       await page.waitForFunction(() => document.body.dataset.screen === 'more');
+      await page.$eval(`#choice-${screen}`, (row) => row.scrollIntoView({ block: 'center' }));
       await page.click(`#choice-${screen}`);
       await page.waitForFunction((grid) => document.querySelector(`#${grid} .tile-poster`)?.hidden, {}, grid);
       const crop = await page.$eval(`#${grid} .tile-frame`, (host) => {

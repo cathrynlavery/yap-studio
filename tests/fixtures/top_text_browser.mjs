@@ -72,8 +72,9 @@ try {
     if (id !== 'opening') {
       await page.evaluate(() => location.hash = '#opening');
       await page.waitForSelector('#title-tiles button');
-      for (const [group, name] of [['title-tiles', 'Shimmer'], ['title-tiles', 'Kinetic hook'],
-        ['more-title-tiles', 'Paper card'], ['title-tiles', 'Quiet title']]) {
+      for (const [group, name, openingLook] of [['title-tiles', 'Shimmer', 'shimmer'],
+        ['title-tiles', 'Kinetic hook', 'kinetic'], ['more-title-tiles', 'Paper card', 'paper_title'],
+        ['title-tiles', 'Video in letters', 'video_letters'], ['title-tiles', 'Quiet title', 'quiet_serif']]) {
         await page.$eval(`#${group}`, (group, name) => {
           for (let parent = group.parentElement; parent; parent = parent.parentElement) {
             if (parent.tagName === 'DETAILS') parent.open = true;
@@ -83,8 +84,16 @@ try {
           if (!button) throw new Error(`Missing title look: ${name}`);
           button.click();
         }, name);
+        await page.waitForFunction(look => {
+          const stage = document.getElementById('main-frame')._galleryStage;
+          return stage?.candidate.hook.style === look && stage.frames.every(frame => frame._galleryReady);
+        }, {}, openingLook);
         await page.evaluate(() => location.hash = '#top-text');
         await page.waitForSelector(`#top-text-${id}[aria-pressed="true"]`, {timeout: 3000});
+        await page.waitForFunction(look => {
+          const stage = document.getElementById('main-frame')._galleryStage;
+          return stage?.candidate.hook.style === look && stage.frames.every(frame => frame._galleryReady);
+        }, {}, look);
         await page.evaluate(() => location.hash = '#opening');
         await page.waitForSelector('#title-tiles button');
       }

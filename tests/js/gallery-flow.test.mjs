@@ -290,7 +290,7 @@ async function harness(state = initialState(), hash = '', options = {}) {
   };
 }
 
-test('unanswered top text has no selected answer or main title and Save asks first', async () => {
+test('unanswered top text previews opening looks only on Opening and Save asks first', async () => {
   for (const phone of [false, true]) {
     const state = initialState(); delete state.style.hook.answered;
     const page = await harness(state, '#looks', {phone, layers: true});
@@ -304,6 +304,9 @@ test('unanswered top text has no selected answer or main title and Save asks fir
     await page.go('opening');
     await page.pick('title-tiles', 'Shimmer');
     assert.equal(page.requests.filter(request => request.data?.tile.tab === 'preview')
+      .at(-1).data.style.hook.style, 'shimmer');
+    await page.go('looks');
+    assert.equal(page.requests.filter(request => request.data?.tile.tab === 'preview')
       .at(-1).data.style.hook.style, 'none');
     await page.click('save');
     assert.equal(page.location.hash, '#top-text');
@@ -316,20 +319,30 @@ test('unanswered top text has no selected answer or main title and Save asks fir
   }
 });
 
-test('opening looks remember the look without changing None or whole-video answers', async () => {
+test('opening looks preview and remember the look without changing None or whole-video answers', async () => {
   for (const answer of ['none', 'whole']) {
     for (const [group, label, look] of [['title-tiles', 'Shimmer', 'shimmer'],
-      ['more-title-tiles', 'Paper card', 'paper_title'], ['title-tiles', 'Kinetic hook', 'kinetic']]) {
-      const page = await harness(initialState(), '#top-text');
+      ['more-title-tiles', 'Paper card', 'paper_title'], ['title-tiles', 'Kinetic hook', 'kinetic'],
+      ['title-tiles', 'Video in letters', 'video_letters']]) {
+      const page = await harness(initialState(), '#top-text', { layers: true });
+      const mainHook = () => page.requests.filter(request => request.data?.tile?.tab === 'preview')
+        .at(-1).data.style.hook;
       await page.click(`top-text-${answer}`);
       await page.go('opening');
       await page.pick(group, label);
+      assert.equal(mainHook().style, look);
+      assert.equal(mainHook().answered, true);
+      assert.match(page.$('title-note').textContent, /^Shows for the first [\d.]+ seconds\.$/);
       await page.save();
       assert.equal(savePayload(page).hook.style, answer === 'none' ? 'none' : 'text_hook');
       assert.equal(savePayload(page).hook.answered, true);
       await page.click('update');
       await page.go('top-text');
+      assert.equal(mainHook().style, answer === 'none' ? 'none' : 'text_hook');
       assert.equal(page.$(`top-text-${answer}`).getAttribute('aria-pressed'), 'true');
+      await page.go('opening');
+      assert.equal(mainHook().style, look);
+      await page.go('top-text');
       await page.click('top-text-opening');
       await page.save();
       assert.equal(savePayload(page).hook.style, look);

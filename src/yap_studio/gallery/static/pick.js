@@ -338,7 +338,8 @@ async function renderMain(retried = false) {
     $("main-frame").replaceChildren();
   }
   const candidate = copy(style);
-  if (!candidate.hook.answered) candidate.hook.style = "none";
+  if (activeStep === "opening") candidate.hook.style = openingLook;
+  else if (!candidate.hook.answered) candidate.hook.style = "none";
   const drawing = mainDrawing(activeStep, candidate);
   previewControls(drawing);
   if (drawing) {
@@ -1617,9 +1618,10 @@ function renderControls({ replaceColors = false } = {}) {
   $("size-note").textContent = "Exact size is under Fine-tune.";
   $("caption-position").value = style.captions.top_px;
   $("look-selected").textContent = baseStyle.name;
-  $("title-note").textContent = style.hook.style === "none" ? "Your video starts straight on you, with no title."
-    : style.hook.style === "text_hook" ? "Stays on screen for the whole video."
-    : style.hook.style === "video_letters" ? "Shows for the first few seconds."
+  const titleLook = activeStep === "opening" ? openingLook : style.hook.style;
+  $("title-note").textContent = titleLook === "none" ? "Your video starts straight on you, with no title."
+    : titleLook === "text_hook" ? "Stays on screen for the whole video."
+    : titleLook === "video_letters" ? "Shows for the first few seconds."
     : `Shows for the first ${Number(style.hook.duration_s.toFixed(1))} seconds.`;
   const music = sectionValues(style, "music");
   $("music").value = music.level;
