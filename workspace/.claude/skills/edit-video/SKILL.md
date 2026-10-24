@@ -11,8 +11,15 @@ Put the files you write in `DIR/plans/`. When unsure what comes next, run
 
 ## Rules
 
-Still frames from pinned notes and contact sheets of the creator's clips go to Claude
-(Anthropic), along with the transcript, notes and project files you read in this session.
+Your video files stay on your computer. Still frames from pinned notes and contact sheets of
+your clips go to Anthropic in Claude Code and the Claude app's Code tab, or OpenAI in Codex,
+along with the transcript, your notes, the project files your agent reads and command output,
+as part of your agent session. On personal ChatGPT plans, OpenAI may train on it unless
+"Improve the model for everyone" is off. In Cursor, the same data goes to Cursor (Anysphere)
+and the company running your chosen model; Privacy Mode stops training.
+
+Ask one question at a time, recommended choice first, with your app's question tool if it
+has one, otherwise in chat.
 
 - Never write to, move, or rename the original in `inbox/`. Work only in DIR.
 - On-screen words come from the creator's words or facts they supplied. Ask before naming a
@@ -21,7 +28,7 @@ Still frames from pinned notes and contact sheets of the creator's clips go to C
   as an `assets/` or media folder they point to, stock clips they approve (see Stock below),
   or generated pictures they approve (see Generated pictures below). Their own media and
   stock come only from the sources in this video's `broll_sources`; `yap-studio status DIR`
-  shows them (What are you making? in `CLAUDE.md`). Never invent screens or images, and
+  shows them (What are you making? in `AGENTS.md`). Never invent screens or images, and
   never download or generate anything they have not approved.
 - Use a feature only where the story calls for it. Most videos need a few, not all.
 - Run `yap-studio feedback "..." --step STEP` whenever a step fails, needs a retry or a
@@ -36,7 +43,7 @@ Still frames from pinned notes and contact sheets of the creator's clips go to C
 
 ## Text at the top
 
-Before making the cut, follow Text at the top in `CLAUDE.md`. If `hook.answered`
+Before making the cut, follow Text at the top in `AGENTS.md`. If `hook.answered`
 is missing or false, ask once in plain words and wait. There is no default. A home's
 `top_text` answer overrides the saved choice for this video only. None needs no text.
 
@@ -94,7 +101,8 @@ It uses moving copies from later in the same take, sized to the room on each sid
 Moments follow the active colour grade.
 If assembly refuses it, follow the fix or drop it.
 
-Every version note is shown to the creator as Claude's notes on that version. Where a step below
+Every version note is shown to the creator under your app's name, such as Claude Code's notes or
+Codex's notes. Where a step below
 gives a note such as "Story cut", "Notes from bN" or "Final", start with those words and add one to
 three plain sentences on what this version changes and why, for example `--note "Story cut. Took
 out the um after your opening line. Kept the doubled you at 0:07, because cutting it clipped the
@@ -108,9 +116,11 @@ Read `phone.url` and `phone.via` from its JSON output. Say "Same Wi-Fi only" for
 Studio home is open, it shows a Watch button for the review on its own, so say the review is ready
 there. Keep `yap-studio home wait --workspace . --json` running as a background task while you
 stop for the creator: their notes and their approval arrive through it (see Yap Studio home in
-`CLAUDE.md`).
+`AGENTS.md`). If your app can't tell you when a background command finishes (Codex,
+Cursor), use `--timeout 1` and check again each turn, and ask the creator to tell you
+when they pressed a page button.
 
-1. If setup is incomplete, follow Set me up in `CLAUDE.md`: one step at a time, asking first.
+1. If setup is incomplete, follow Set me up in `AGENTS.md`: one step at a time, asking first.
    When setup succeeds, reply "You're set up" with the home link in the same turn. Start the
    home wait as a background task and say you are listening. Do not wait for a page request
    before replying.
@@ -132,7 +142,7 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    topic of one to three words and run `python3 new_project.py --name DIR TOPIC`. Use the
    DIR it prints from then on.
    Run `yap-studio status DIR`; its first line names the video type and B-roll sources. If the
-   type or B-roll is not chosen yet, ask as in What are you making? in `CLAUDE.md` and record it
+   type or B-roll is not chosen yet, ask as in What are you making? in `AGENTS.md` and record it
    with `yap-studio video-type set DIR --type TYPE --broll SOURCE ...`. If only B-roll is not
    chosen yet, ask only `broll_sources` and record it with
    `yap-studio video-type set DIR --broll SOURCE ...`. For `green_screen` and
@@ -200,7 +210,7 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    Then run `yap-studio review --versions DIR --phone --json --detach` again. Repeat until
    the creator is happy with the story. They say so with Make the final
    video on the review page or Yap Studio home, which arrives as a `final` request (see Yap
-   Studio home in `CLAUDE.md`), or in chat.
+   Studio home in `AGENTS.md`), or in chat.
 5. Build the picture. Plans read `DIR/cut/cut-words.json` and take `--frames N`, the cut's
    frame count (`plan.total_frames` in `DIR/cut/receipt.json`). Pass `--style` the `style`
    value from `DIR/project.json`; a `styles/...` value is a path inside DIR.
@@ -242,15 +252,17 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
      catalog ids you looked at and rejected). Run `yap-studio stock search DIR/plans/stock.json
      --cut-words DIR/cut/cut-words.json --style STYLE --json`. If `status` is `unavailable`, tell the
      creator its `message` in one line and carry on with their own footage. Otherwise run `open` on
-     its `html` path and ask with AskUserQuestion, one question per phrase from `ask`
-     (four at a time at most). Run `yap-studio stock get DIR --pick CODE ... --yes --json` only for the
+     its `html` path and ask one question at a time from `ask`, recommended choice first,
+     with your app's question tool if it has one, otherwise in chat.
+     Run `yap-studio stock get DIR --pick CODE ... --yes --json` only for the
      codes they chose, and only after they answer. Add each returned `request` to
      `DIR/plans/broll.json`. `yap-studio stock credits DIR` prints the credits for the video's
      description.
    - Generated pictures. Only when the style's `broll.generated_pictures` is `ask`, this video
      has B-roll (its sources are not none), and a line still needs a picture neither their media
      nor an approved stock clip covers. Ask first, once per video: run `yap-studio pictures
-     question DIR --json`. If `answer` is null, ask its `question` with AskUserQuestion in its
+     question DIR --json`. If `answer` is null, ask one question with your app's question tool
+     if it has one, otherwise in chat, in its
      exact words, "Do you want me to create imagery for this video?", with Yes and No and
      neither marked recommended. Record the answer with `yap-studio pictures answer DIR yes` or
      `yap-studio pictures answer DIR no`. On no, write no picture sheet, run no price check, and
@@ -262,7 +274,8 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
      `unavailable`, tell the creator its `message` in one line and carry on. When WaveSpeed is
      not set up, the message ends with the WaveSpeed sign-up link
      https://littlemight.com/recommends/wavespeed; say it is an affiliate link. Otherwise `open`
-     its `html` and ask with AskUserQuestion from `ask`, four at a time at most. Say each cost
+     its `html` and ask one question at a time from `ask`, recommended choice first,
+     with your app's question tool if it has one, otherwise in chat. Say each cost
      and the total. Only after they answer, run `yap-studio pictures make DIR --pick N ...
      --max-cost TOTAL --yes --json` for approved lines, at most three. TOTAL is the sum of those
      lines on the sheet. Show the pictures and what they cost before asking about more. Add each

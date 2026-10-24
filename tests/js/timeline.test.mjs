@@ -2039,7 +2039,7 @@ test('review names the project, links home and says what happens after sending',
   assert.equal(timelineHelpers.sendNextText(series, {...home, listening: false}).state, 'waiting');
   const got = timelineHelpers.sendNextText(series, {...home, listening: false, delivered: ['b4']});
   assert.equal(got.state, 'listening', 'a delivered batch counts even while the listener restarts');
-  assert.match(got.text, /Claude has your notes/);
+  assert.match(got.text, /Claude Code has your notes/);
   assert.equal(timelineHelpers.sendNextText({newest: 3, rounds: series.rounds}, home), null);
   assert.equal(timelineHelpers.sendNextText({newest: 2, rounds: [{version: 2, status: 'failed'}]}, home), null);
 });

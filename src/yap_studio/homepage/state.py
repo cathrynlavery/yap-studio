@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from yap_studio import background, ffmpeg, video_type
+from yap_studio import background, ffmpeg, install_info, video_type
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.feedback.versions import VersionManifest, load_versions
 from yap_studio.homepage import bridge
@@ -424,6 +424,7 @@ class HomeState:
         result = {
             "schema": "yap-studio/home@1",
             "workspace": self.workspace.name,
+            "agent": install_info.workspace_agent(self.workspace),
             "listening": bridge.listening(self.workspace),
             "on_this_mac": on_this_mac,
             "first_run": not projects and not style_path.exists() and not answer_path.exists(),

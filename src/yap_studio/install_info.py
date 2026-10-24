@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.metadata
+import json
 import re
 import tomllib
 from collections.abc import Sequence
@@ -97,6 +98,23 @@ def checkout_version(start: Path) -> tuple[Path, str] | None:
             version = project.get("version")
             return (root, version) if isinstance(version, str) else None
     return None
+
+
+def workspace_agent(start: Path) -> str:
+    """Read the setup app even when Home is stopped; old workspaces use Claude Code."""
+    for root in (start, *start.parents):
+        saved = root / ".yap-studio/setup.json"
+        if saved.is_file():
+            try:
+                state = json.loads(saved.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return "claude-code"
+            if isinstance(state, dict) and state.get("agent") in ("codex", "cursor"):
+                return state["agent"]
+            return "claude-code"
+        if (root / ".yap-studio-version").is_file():
+            break
+    return "claude-code"
 
 
 def workspace_version(start: Path) -> tuple[Path, str] | None:

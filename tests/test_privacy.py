@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
 
@@ -22,8 +23,12 @@ from yap_studio.review import phone
 ROOT = Path(__file__).resolve().parents[1]
 DISCLOSURE = (
     "Your video files stay on your computer. Still frames from pinned notes and contact sheets of "
-    "your clips go to Claude (Anthropic), along with the transcript, your notes and the project "
-    "files Claude reads, as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels "
+    "your clips go to Anthropic in Claude Code and the Claude app's Code tab, or OpenAI in Codex, "
+    "along with the transcript, your notes, the project files your agent reads and command output, "
+    "as part of your agent session. On personal ChatGPT plans, OpenAI may train on it unless "
+    '"Improve the model for everyone" is off. In Cursor, the same data goes to Cursor '
+    "(Anysphere) and the company running your chosen model; Privacy Mode stops training. "
+    "ElevenLabs, WaveSpeed and Pexels "
     "get only what they need, and only if you turn them on."
 )
 TRANSPORTS = [
@@ -34,13 +39,14 @@ TRANSPORTS = [
 
 @pytest.mark.parametrize("name", [
     "README.md", "docs/install.md", "workspace/Start here.html",
-    "src/yap_studio/homepage/static/home.js",
+    "docs/home.md", "workspace/.claude/skills/edit-video/SKILL.md",
 ])
 def test_entry_points_disclose_where_data_goes(name):
     text = (ROOT / name).read_text()
-    if name.endswith("home.js"):
-        text = text.split("function renderWelcome()", 1)[1].split("function stepHeader", 1)[0]
-    assert DISCLOSURE in " ".join(text.split())
+    expected = (DISCLOSURE.split(" ElevenLabs,")[0]
+                if name in {"docs/home.md", "workspace/.claude/skills/edit-video/SKILL.md"}
+                else DISCLOSURE)
+    assert expected in " ".join(text.split())
 
 
 @pytest.mark.parametrize("via,label", TRANSPORTS)
@@ -142,3 +148,30 @@ def test_review_list_labels_each_phone_link(removed_server, via, label):
     assert body.decode().count(label) == 2
     assert b"v/1/?t=test-token" in body
     assert b"v/2/?t=second-only-token" in body
+
+
+def test_creator_copy_names_the_agent_app_precisely():
+    paths = [ROOT / "README.md", *sorted((ROOT / "docs").rglob("*.md")),
+             ROOT / "workspace/Start here.html", ROOT / "workspace/setup.py",
+             ROOT / "workspace/new_project.py", ROOT / "workspace/AGENTS.md",
+             *sorted((ROOT / "workspace/.claude").rglob("*.md"))]
+    for directory in ("homepage", "gallery", "review"):
+        paths.extend(p for p in (ROOT / f"src/yap_studio/{directory}/static").iterdir()
+                     if p.suffix in {".html", ".js", ".mjs", ".css"})
+    for file in paths:
+        text = file.read_text().replace("plain Claude chat app", "")
+        for phrase in ("the Claude app", "The Claude app", "Claude Chat"):
+            text = text.replace(phrase, "")
+        assert re.search(r"\bClaude\b(?! (?:Code|Desktop))", text) is None, file
+
+
+@pytest.mark.parametrize("agent", [None, "codex", "cursor"])
+def test_review_retains_setup_app_without_a_running_home(removed_server, agent):
+    root = removed_server.videos[0].series.project_dir
+    if agent:
+        folder = root / ".yap-studio"
+        folder.mkdir(exist_ok=True)
+        (folder / "setup.json").write_text(json.dumps({"agent": agent}))
+    code, _, body = _in_process_request(removed_server, "GET", "/api/review")
+    assert code == 200
+    assert json.loads(body)["agent"] == (agent or "claude-code")

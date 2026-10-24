@@ -1,0 +1,14 @@
+# Yap Studio settings for Codex. Codex reads this only after you trust this folder.
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+[sandbox_workspace_write]
+# Setup downloads models and the renderer; review pages are served on this computer.
+network_access = true
+# Where Yap Studio keeps its data and cache (macOS defaults, then Linux defaults).
+writable_roots = [
+  "~/Library/Application Support/yap-studio",
+  "~/Library/Caches/yap-studio",
+  "~/.local/share/yap-studio",
+  "~/.cache/yap-studio",
+]

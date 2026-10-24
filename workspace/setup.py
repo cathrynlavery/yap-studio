@@ -169,9 +169,12 @@ def _inbox_take_count() -> int:
 def _result(
     ready: bool, refused: dict | None, steps: list[dict], json_output: bool, *,
     inbox_takes: int = 0, phone: dict | None = None, home: dict | None = None,
+    engine: Path | None = None,
 ) -> int:
     if json_output:
         result = {"ready": ready, "refused": refused, "steps": steps}
+        if engine is not None:
+            result["engine"] = str(engine)
         if ready:
             result["inbox_takes"] = inbox_takes
             result["phone"] = phone
@@ -476,6 +479,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_homebrew_path()
     parser = argparse.ArgumentParser(description="Set up the Yap Studio workspace")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--agent", choices=("claude-code", "codex", "cursor"),
+                        help="App running setup; saved for Home and review")
     parser.add_argument(
         "--check", action="store_true",
         help="Install and check the bundled wheel without model or renderer downloads",
@@ -503,6 +508,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Only {free_gb:.1f} GB free; setup needs {MIN_FREE_GB} GB free.")
         return _result(False, {"reason": "disk", "service": None, "move": None},
                        [], args.json)
+    if args.agent and not args.check:
+        folder = ROOT / ".yap-studio"
+        saved = folder / "setup.json"
+        try:
+            state = json.loads(saved.read_text()) if saved.exists() else {}
+            if not isinstance(state, dict):
+                raise ValueError("setup state must be an object")
+            state["agent"] = args.agent
+            folder.mkdir(exist_ok=True)
+            temporary = folder / "setup.json.tmp"
+            temporary.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            temporary.replace(saved)
+        except (OSError, ValueError) as exc:
+            print(f"Could not save the setup app: {exc}", file=sys.stderr)
+            return 1
     wheels = list((ROOT / "wheels").glob("yap_studio-*.whl"))
     if len(wheels) != 1:
         if not args.json:
@@ -595,6 +615,11 @@ def main(argv: list[str] | None = None) -> int:
         return _result(False, {"reason": "engine build", "service": None, "move": None},
                        [], args.json)
     steps = _homebrew_steps(_missing_steps(report, hints, engine, wheel, uv))
+    if shutil.which("yap-studio") is None:
+        steps.append(_step(
+            "engine_path", "Lets your agent find the yap-studio command in new sessions.",
+            _shell_join([str(Path(uv).absolute()), "tool", "update-shell"]),
+        ))
     phone = {"via": report.get("phone", {}).get("via"),
              "tailscale": report.get("phone", {}).get("tailscale", "missing")}
     if not args.json:
@@ -651,7 +676,8 @@ def main(argv: list[str] | None = None) -> int:
                 print("Put a take in inbox/, then say 'edit this video'.")
         else:
             print("Not ready to edit yet. Run the commands above, then run this setup again.")
-    return _result(ready, None, steps, args.json, inbox_takes=takes, phone=phone, home=home)
+    return _result(ready, None, steps, args.json, inbox_takes=takes, phone=phone, home=home,
+                   engine=engine.absolute())
 
 
 if __name__ == "__main__":

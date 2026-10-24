@@ -96,7 +96,7 @@ def test_changelog_describes_top_text_choice():
 
 
 def test_pick_my_look_guidance_lists_current_steps():
-    guide = (Path(__file__).parents[1] / "workspace/CLAUDE.md").read_text()
+    guide = (Path(__file__).parents[1] / "workspace/AGENTS.md").read_text()
     guidance = guide.split("## Pick my look\n", 1)[1].split("\n## ", 1)[0]
     assert "Font, Captions, Colors, Text at the top, then" in guidance
 

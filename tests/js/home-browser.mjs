@@ -3,7 +3,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {join} from 'node:path';
 
-async function run(url, resultFile, shots) {
+async function run(url, resultFile, shots, agent = 'Claude Code') {
   const puppeteer = createRequire(import.meta.url)(process.env.YAP_STUDIO_PUPPETEER);
   const browser = await puppeteer.launch({executablePath: process.env.YAP_STUDIO_CHROME,
     pipe: true, headless: true, args: ['--no-sandbox']});
@@ -15,8 +15,17 @@ async function run(url, resultFile, shots) {
       page.on('pageerror', (error) => errors.push(error.message));
       await page.setViewport({width, height: width === 390 ? 844 : 900,
         isMobile: width === 390, hasTouch: width === 390});
+      await page.goto(url);
+      await page.waitForSelector('.welcome');
+      const disclosure = await page.$eval('.welcome .note', (el) => el.textContent);
+      for (const phrase of ["Anthropic in Claude Code and the Claude app's Code tab",
+        'OpenAI in Codex', 'Improve the model for everyone', 'Cursor (Anysphere)',
+        'Privacy Mode stops training', 'command output']) assert.ok(disclosure.includes(phrase));
+      await mkdir(shots, {recursive: true});
+      await page.screenshot({path: join(shots, `welcome-${width}.png`), fullPage: true});
       await page.goto(`${url}#new/what`);
       await page.waitForSelector('.tile');
+      assert.ok(await page.$eval('#listener', (el, name) => el.textContent.includes(name), agent));
       const settle = () => page.evaluate(async () => {
         await Promise.allSettled(document.getAnimations().filter((animation) =>
           animation.effect.getTiming().iterations !== Infinity).map((animation) => animation.finished));

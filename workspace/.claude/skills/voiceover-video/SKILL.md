@@ -14,6 +14,10 @@ root. Before DIR exists, keep your notes in `drafts/TOPIC/`; after, put the file
 ## Rules
 
 - Follow the Rules in `.claude/skills/edit-video/SKILL.md`. They all apply here.
+- Ask one question at a time, recommended choice first, with your app's question tool if
+  it has one, otherwise in chat. If your app can't tell you when a background command
+  finishes (Codex, Cursor), use `--timeout 1` and check again each turn, and ask the creator
+  to tell you when they pressed a page button.
 - For Text hook, follow Text hook there too. Wait for the creator's text before rendering it.
 - Never change the creator's media. Work from FOLDER and from copies.
 - The script says only what the footage shows or what the creator told you. Never invent a
@@ -32,7 +36,7 @@ Reviews use `--detach` and the phone link exactly as in edit-video.
 1. Media in.
    - Use only this video's B-roll sources: `yap-studio video-type show --json` before DIR exists,
      `yap-studio status DIR` after. If B-roll is not chosen yet, ask only the B-roll question as
-     in What are you making? in `CLAUDE.md`. `album` is a Photos album, `folder` a folder. With
+     in What are you making? in `AGENTS.md`. `album` is a Photos album, `folder` a folder. With
      `stock`, fill moments their media cannot cover with Stock as in edit-video step 5. For a screen
      recording told in voice only, the screen recording is the picture: put it in FOLDER and
      cover every frame with it, a later `in_s` for each line.

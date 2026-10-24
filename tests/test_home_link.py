@@ -34,6 +34,7 @@ def test_link_only_live_containing_workspace(tmp_path, monkeypatch):
         "url": "http://127.0.0.1:42/",
         "phone_url": "https://phone.test/",
         "phone_via": "tailscale",
+        "agent": "claude-code",
         "listening": False,
         "delivered": [],
         "final_requested": False,

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 setup.py *)",
+      "Bash(python3 new_project.py *)",
+      "Bash(yap-studio *)",
+      "Bash(open http://*)"
+    ]
+  }
+}

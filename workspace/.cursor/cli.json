@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(yap-studio)",
+      "Shell(open:http://127.0.0.1*)"
+    ],
+    "deny": []
+  }
+}

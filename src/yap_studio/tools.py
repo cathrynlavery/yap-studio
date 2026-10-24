@@ -113,7 +113,18 @@ def find_tool(name: str) -> str | None:
         if pair is not None:
             return pair[0] if name == "node" else pair[1]
         return None
-    return shutil.which(name)
+    found = shutil.which(name)
+    if found is None and name == "osxphotos":
+        folders = [os.environ.get("UV_TOOL_BIN_DIR"), os.environ.get("XDG_BIN_HOME"),
+                   str(Path(os.environ["XDG_DATA_HOME"]) / "../bin")
+                   if os.environ.get("XDG_DATA_HOME") else None,
+                   str(Path.home() / ".local/bin"), *HOMEBREW_BIN_DIRS]
+        for folder in folders:
+            if folder:
+                binary = Path(folder).expanduser().absolute() / name
+                if binary.is_file() and os.access(binary, os.X_OK):
+                    return str(binary)
+    return found
 
 
 def _missing_tool(name: str) -> DependencyError:

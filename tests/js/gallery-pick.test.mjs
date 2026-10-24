@@ -118,7 +118,7 @@ test('schema requirements and injected slots reveal optional screens in order', 
 });
 
 test('workspace instructions name the optional step shown on the page', () => {
-  const instructions = readFileSync(new URL('../../workspace/CLAUDE.md', import.meta.url), 'utf8');
+  const instructions = readFileSync(new URL('../../workspace/AGENTS.md', import.meta.url), 'utf8');
   assert.ok(instructions.includes('More choices'));
 });
 

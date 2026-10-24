@@ -529,3 +529,30 @@ def test_speech_backend_keeps_error_mapping_on_shared_spawn(
     assert caught.value.returncode == (4 if failure == "exit" else -1)
     if failure == "exit":
         assert caught.value.full_stderr == "engine failure"
+
+
+@pytest.mark.parametrize("location", ["override", "xdg-bin", "xdg-data/../bin", ".local/bin",
+                                      "homebrew/bin"])
+def test_osxphotos_outside_app_path(tmp_path, monkeypatch, location, _no_real_osxphotos):
+    monkeypatch.setattr(tools.Path, "home", lambda: tmp_path)
+    monkeypatch.setenv("PATH", str(tmp_path / "preferred"))
+    monkeypatch.setenv("UV_TOOL_BIN_DIR", str(tmp_path / "override"))
+    monkeypatch.setenv("XDG_BIN_HOME", str(tmp_path / "xdg-bin"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg-data"))
+    (tmp_path / "xdg-data").mkdir()
+    monkeypatch.setattr(tools, "HOMEBREW_BIN_DIRS", (str(tmp_path / "homebrew/bin"),))
+    binary = tmp_path / location / "osxphotos"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    binary.write_text("#!/bin/sh\nprintf 'photos found'\n")
+    _no_real_osxphotos(binary)
+    binary.chmod(0o644)
+    assert tools.find_tool("osxphotos") is None
+    binary.chmod(0o755)
+    assert Path(tools.find_tool("osxphotos")).resolve() == binary.resolve()
+    assert tools.run_tool("osxphotos", [], timeout_s=5).stdout == "photos found"
+    preferred = tmp_path / "preferred/osxphotos"
+    preferred.parent.mkdir()
+    preferred.write_text("#!/bin/sh\n")
+    preferred.chmod(0o755)
+    _no_real_osxphotos(preferred)
+    assert tools.find_tool("osxphotos") == str(preferred)

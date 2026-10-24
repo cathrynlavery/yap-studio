@@ -1,0 +1,13 @@
+# Run the Yap Studio engine and the browser opener outside the sandbox without asking.
+prefix_rule(
+    pattern = ["yap-studio"],
+    decision = "allow",
+    justification = "Yap Studio writes its data, downloads models and serves the review pages",
+    match = ["yap-studio home --workspace . --phone --no-open --detach --json"],
+)
+prefix_rule(
+    pattern = ["open"],
+    decision = "allow",
+    justification = "Open the Yap Studio page in the browser",
+    match = ["open http://127.0.0.1:8765/"],
+)

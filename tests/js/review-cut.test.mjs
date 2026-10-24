@@ -510,6 +510,6 @@ test('a final requested from Yap Studio home updates an open story-cut review', 
   assert.equal(element('make-final').textContent, 'Make the final video');
   state.home = {...state.home, final_requested: true};
   await evaluate('refreshReview()');
-  assert.equal(element('make-final').textContent, 'Claude is making the final');
+  assert.equal(element('make-final').textContent, 'Claude Code is making the final');
   assert.equal(element('make-final').disabled, true);
 });

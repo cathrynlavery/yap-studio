@@ -588,7 +588,8 @@ class HomeServer:
                             (
                                 '<!doctype html><html lang="en"><meta charset="utf-8">'
                                 "<title>Yap Studio</title><p>This page needs its private link. "
-                                f"Ask Claude to open Yap Studio for you.</p>{local_link}</html>"
+                                "Ask your agent to open Yap Studio for you.</p>"
+                                f"{local_link}</html>"
                             ).encode(),
                             "text/html; charset=utf-8",
                         )

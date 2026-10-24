@@ -40,9 +40,18 @@ EXPECTED = {
     "Start here.html",
     ".yap-studio-version",
     ".claude/commands/edit.md",
+    ".claude/settings.json",
+    ".codex/config.toml",
+    ".codex/rules/yap-studio.rules",
+    ".cursor/cli.json",
+    ".cursor/permissions.json",
     ".claude/skills/edit-video/SKILL.md",
     ".claude/skills/voiceover-video/SKILL.md",
+    "AGENTS.md",
     "CLAUDE.md",
+    ".agents/skills/edit-video/SKILL.md",
+    ".agents/skills/voiceover-video/SKILL.md",
+    ".agents/skills/edit/SKILL.md",
     "LICENSE",
     "NOTICE",
     "brand/fonts/README.md",
@@ -91,8 +100,11 @@ def _synthetic_wheel(root: Path) -> Path:
 
 def test_start_page_says_to_sign_in_to_claude_code_and_names_homebrew() -> None:
     page = (ROOT / "workspace/Start here.html").read_text(encoding="utf-8")
-    assert "Claude Code, signed in" in page
-    assert "type /login once" in page
+    assert "Pick your app" in page
+    assert "Sign in once with <code>/login</code>" in page
+    for phrase in ("choose Local", "Trust the folder once", "Agent mode on this Mac",
+                   "Privacy Mode is suggested", "Chat apps (Claude Chat, Cowork, ChatGPT chat)"):
+        assert phrase in page
     assert "install Homebrew first, for ffmpeg and Node" in page
 
 
@@ -111,7 +123,7 @@ def test_workspace_zip_uses_staged_content(tmp_path: Path) -> None:
         shutil.copy2(ROOT / relative, target)
     for args in (["git", "init"], ["git", "add", "-A"]):
         subprocess.run(args, cwd=repository, capture_output=True, check=True)
-    guidance = repository / "workspace/CLAUDE.md"
+    guidance = repository / "workspace/AGENTS.md"
     staged = guidance.read_bytes()
     guidance.write_bytes(b"Unstaged synthetic workspace guidance.\n")
     license_file = repository / "LICENSES/Apache-2.0.txt"
@@ -132,7 +144,8 @@ def test_workspace_zip_uses_staged_content(tmp_path: Path) -> None:
     bundle = Path(result.stdout.strip().splitlines()[-1])
     assert bundle.name == f"yap-studio-workspace-{VERSION}.zip"
     with zipfile.ZipFile(bundle) as archive:
-        assert archive.read("CLAUDE.md") == staged
+        assert archive.read("AGENTS.md") == staged
+        assert archive.read("CLAUDE.md") == b"@AGENTS.md\n"
         assert archive.read("LICENSES/Apache-2.0.txt") == staged_license
         assert archive.read(".yap-studio-version") == f"{VERSION}\n".encode()
         with zipfile.ZipFile(archive.open(f"wheels/{WHEEL}")) as wheel:
@@ -181,6 +194,12 @@ def test_workspace_zip_exact_files_and_clean_contents(tmp_path: Path) -> None:
     assert bundle == tmp_path / f"yap-studio-workspace-{VERSION}.zip"
     with zipfile.ZipFile(bundle) as archive:
         assert set(archive.namelist()) == expected
+        for skill in ("edit-video", "voiceover-video"):
+            member = f".agents/skills/{skill}/SKILL.md"
+            assert archive.read(member) == archive.read(f".claude/skills/{skill}/SKILL.md")
+            assert archive.getinfo(member).external_attr >> 16 & 0o170000 != 0o120000
+        assert (archive.read(".agents/skills/edit/SKILL.md")
+                == archive.read(".claude/commands/edit.md"))
         assert archive.read(".yap-studio-version") == f"{VERSION}\n".encode()
         wheel_file = tmp_path / WHEEL
         wheel_file.write_bytes(archive.read(f"wheels/{WHEEL}"))
@@ -642,10 +661,11 @@ def test_new_project_refuses_video_flags_with_name_or_add(mode, flags, capsys):
 
 
 def test_workspace_video_routing_and_commands_parse():
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
     assert "## What are you making?" in guide
     section = guide.split("## What are you making?", 1)[1].split("## Make a voiceover video", 1)[0]
-    for phrase in ("yap-studio video-type show --json", "AskUserQuestion", "not in this version",
+    for phrase in ("yap-studio video-type show --json", "your app's question tool",
+                   "not in this version",
                    "talking_head", "voiceover", "green_screen", "screen_recording",
                    "Behind the speaker", "cover every frame", "using its display dimensions"):
         assert phrase in section
@@ -656,7 +676,7 @@ def test_workspace_video_routing_and_commands_parse():
     assert "yap-studio timeline add FRAGMENT DIR --lane agent" in guide
     skill = (ROOT / "workspace/.claude/skills/edit-video/SKILL.md").read_text()
     assert "broll_sources" in skill and "`stock` is in this video's B-roll sources" in skill
-    files = ["workspace/CLAUDE.md", "workspace/.claude/skills/edit-video/SKILL.md",
+    files = ["workspace/AGENTS.md", "workspace/.claude/skills/edit-video/SKILL.md",
              "workspace/.claude/skills/voiceover-video/SKILL.md",
              "workspace/.claude/commands/edit.md"]
     substitutions = {"DIR": "project", "TYPE": "talking_head", "SOURCE": "folder",
@@ -690,7 +710,7 @@ def test_workspace_video_routing_and_commands_parse():
 
 
 def test_workspace_asks_for_unchosen_broll_after_type():
-    guide = " ".join((ROOT / "workspace/CLAUDE.md").read_text().split())
+    guide = " ".join((ROOT / "workspace/AGENTS.md").read_text().split())
     assert ("If `yap-studio status DIR` says B-roll is not chosen yet, ask only `broll_sources` "
             "for this video and record it with "
             "`yap-studio video-type set DIR --broll SOURCE ...`.") in guide
@@ -701,12 +721,12 @@ def test_workspace_asks_for_unchosen_broll_after_type():
     voiceover = " ".join(
         (ROOT / "workspace/.claude/skills/voiceover-video/SKILL.md").read_text().split())
     assert ("If B-roll is not chosen yet, ask only the B-roll question as in "
-            "What are you making? in `CLAUDE.md`.") in voiceover
+            "What are you making? in `AGENTS.md`.") in voiceover
 
 
 def test_setup_questions_are_one_at_a_time_and_saved() -> None:
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
-    for phrase in ("yap-studio style questions", "AskUserQuestion", "one question at a time",
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
+    for phrase in ("yap-studio style questions", "question tool", "one question at a time",
                    "style/answers.json", "yap-studio style from-answers", "Update my style"):
         assert phrase in guide
     assert "`never.other` is a list" in guide
@@ -1190,6 +1210,7 @@ def test_setup_reports_one_command_for_each_missing_piece(
     assert json.loads(capsys.readouterr().out) == {
         "ready": True, "refused": None, "steps": [], "inbox_takes": 0,
         "phone": {"via": None, "tailscale": "missing"}, "home": FAKE_HOME,
+        "engine": str(bin_dir / "yap-studio"),
     }
 
 
@@ -1519,7 +1540,7 @@ def test_setup_json_steps_include_model_and_optional_cutout(
     monkeypatch.setattr(module.subprocess, "run", fake_run)
     assert module.main(["--json"]) == 1
     output = json.loads(capsys.readouterr().out)
-    assert set(output) == {"ready", "refused", "steps"}
+    assert set(output) == {"ready", "refused", "steps", "engine"}
     assert output["ready"] is False and output["refused"] is None
     assert [step["id"] for step in output["steps"]] == [
         "ffmpeg", "node", "renderer", "speech_model", "cutout",
@@ -1657,8 +1678,8 @@ def test_skill_rechecks_the_whole_story_after_notes() -> None:
 
 
 def test_workspace_setup_asks_before_each_json_step() -> None:
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
-    assert "python3 setup.py --json" in guide
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
+    assert "python3 setup.py --agent AGENT --json" in guide
     assert "For each step" in guide
     assert "Ask before running its `command`" in guide
     assert "a `page` and no `command`" in guide
@@ -1783,6 +1804,7 @@ def test_setup_install_commands_match_the_platform(
         assert uv_step["command"] is None
         assert uv_step["page"] == module.OTHER_HINTS["uv"]
     found["uv"] = "/usr/bin/uv"
+    found["yap-studio"] = str(bin_dir / "yap-studio")
     report = {
         "install": {"version": VERSION}, "warnings": [], "problems": ["ffmpeg missing"],
         "ffmpeg": {"available": False, "path": None}, "ffprobe": {"available": False},
@@ -2203,7 +2225,7 @@ def test_setup_homebrew_path_finds_installed_tools(
     module, wheel, engine, report = _build_setup_fixture(tmp_path, monkeypatch)
     folder = tmp_path / "homebrew/bin"
     folder.mkdir(parents=True)
-    for name in ("brew", "uv", "ffmpeg", "ffprobe"):
+    for name in ("brew", "uv", "ffmpeg", "ffprobe", "yap-studio"):
         if missing and name == "ffmpeg":
             continue
         binary = folder / name
@@ -2264,7 +2286,7 @@ def test_setup_mac_finds_homebrew_or_offers_its_page(
         binary.touch()
         binary.chmod(0o755)
         brew = str(binary)
-    found = {"uv": "/usr/bin/uv"}
+    found = {"uv": "/usr/bin/uv", "yap-studio": engine}
     if brew == "PATH":
         found["brew"] = "/opt/homebrew/bin/brew"
     monkeypatch.setattr(module.shutil, "which", found.get)
@@ -2348,8 +2370,16 @@ def test_setup_finds_uv_outside_path(
         subprocess.CompletedProcess(args, 0, f"yap-studio {VERSION}\n", "")
         if args[1:] == ["--version"] else
         subprocess.CompletedProcess(args, 0, json.dumps(report), "")))
-    assert module.main(["--json"]) == 0
-    assert json.loads(capsys.readouterr().out)["ready"] is True
+    assert module.main(["--json"]) == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["ready"] is False
+    assert result["engine"] == engine
+    assert result["steps"] == [{
+        "id": "engine_path",
+        "does": "Lets your agent find the yap-studio command in new sessions.",
+        "command": shlex.join([str(uv.absolute()), "tool", "update-shell"]),
+        "page": None, "optional": False,
+    }]
 
 
 @pytest.mark.parametrize("take_count", [0, 1, 2, 5])
@@ -2392,7 +2422,7 @@ def test_setup_ready_reports_inbox_takes_in_text_and_json(
     assert module.main(["--json"]) == 0
     assert json.loads(capsys.readouterr().out) == {
         "ready": True, "refused": None, "steps": [], "inbox_takes": expected,
-        "phone": {"via": None, "tailscale": "missing"}, "home": FAKE_HOME,
+        "phone": {"via": None, "tailscale": "missing"}, "home": FAKE_HOME, "engine": engine,
     }
 
 
@@ -2757,7 +2787,7 @@ def test_setup_engine_step_is_posix_shell_text_on_every_platform(
 
 
 def test_guide_opens_the_style_page_in_the_background() -> None:
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
     assert "yap-studio style pick --workspace . --inbox inbox --phone --no-open --detach --json" \
         in guide
     assert "yap-studio style pick --stop" in guide
@@ -3018,3 +3048,115 @@ def test_setup_refuses_invalid_inbox_ledger_like_project_start(
     assert result["refused"]["error"] == str(error.value)
     if contents is not None:
         assert ledger.read_bytes() == contents
+
+
+def test_shared_workspace_instructions_resolve_to_one_source():
+    workspace = ROOT / "workspace"
+    imported = (workspace / "CLAUDE.md").read_text().strip()
+    assert imported == "@AGENTS.md"
+    assert (workspace / imported[1:]).read_text() == (workspace / "AGENTS.md").read_text()
+
+
+@pytest.mark.parametrize("agent", ["claude-code", "codex", "cursor"])
+def test_setup_records_app_and_preserves_it_without_option(tmp_path, monkeypatch, capsys, agent):
+    from yap_studio.homepage.state import HomeState
+
+    module = _module(ROOT / "workspace/setup.py", "workspace_setup_agent")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    monkeypatch.setattr(module, "_synced_service", lambda _: None)
+    monkeypatch.setattr(module, "_free_disk_gb", lambda _: 100)
+    folder = tmp_path / ".yap-studio"
+    folder.mkdir()
+    saved = folder / "setup.json"
+    saved.write_text(json.dumps({"other": "preserved"}))
+    # No wheel: recording the app must work before the first installation.
+    assert module.main(["--agent", agent, "--json"]) == 1
+    assert json.loads(saved.read_text()) == {"other": "preserved", "agent": agent}
+    assert module.main(["--json"]) == 1
+    (tmp_path / "inbox").mkdir()
+    assert HomeState(tmp_path).snapshot()["agent"] == agent
+    assert json.loads(saved.read_text())["agent"] == agent
+    capsys.readouterr()
+
+
+def test_setup_rejects_unknown_app_without_writing(tmp_path, monkeypatch):
+    module = _module(ROOT / "workspace/setup.py", "workspace_setup_bad_agent")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    with pytest.raises(SystemExit):
+        module.main(["--agent", "unknown"])
+    assert not (tmp_path / ".yap-studio").exists()
+
+
+@pytest.mark.parametrize("stored", [
+    None, "{}", '{"agent":"unknown"}', '{"agent":[]}', '{"agent":{}}', "{broken", "[]",
+])
+def test_old_workspace_app_defaults_to_claude_code(tmp_path, stored):
+    from yap_studio.homepage.state import HomeState
+
+    if stored is not None:
+        folder = tmp_path / ".yap-studio"
+        folder.mkdir()
+        (folder / "setup.json").write_text(stored)
+    (tmp_path / "inbox").mkdir()
+    assert HomeState(tmp_path).snapshot()["agent"] == "claude-code"
+
+
+def test_workspace_permission_presets():
+    workspace = ROOT / "workspace"
+    config = tomllib.loads((workspace / ".codex/config.toml").read_text())
+    assert config["sandbox_mode"] == "workspace-write"
+    assert config["approval_policy"] == "on-request"
+    sandbox = config["sandbox_workspace_write"]
+    assert sandbox["network_access"] is True
+    assert sandbox["writable_roots"] == [
+        "~/Library/Application Support/yap-studio", "~/Library/Caches/yap-studio",
+        "~/.local/share/yap-studio", "~/.cache/yap-studio",
+    ]
+    rules = []
+    exec((workspace / ".codex/rules/yap-studio.rules").read_text(),
+         {"prefix_rule": lambda **rule: rules.append(rule), "__builtins__": {}})
+    assert [(rule["pattern"], rule["decision"]) for rule in rules] == [
+        (["yap-studio"], "allow"), (["open"], "allow"),
+    ]
+    cursor = json.loads((workspace / ".cursor/permissions.json").read_text())
+    assert cursor["terminalAllowlist"] == ["yap-studio", "open http://127.0.0.1:"]
+    assert json.loads((workspace / ".cursor/cli.json").read_text()) == {
+        "permissions": {"allow": ["Shell(yap-studio)", "Shell(open:http://127.0.0.1*)"],
+                        "deny": []},
+    }
+    assert json.loads((workspace / ".claude/settings.json").read_text()) == {
+        "permissions": {"allow": ["Bash(python3 setup.py *)", "Bash(python3 new_project.py *)",
+                                  "Bash(yap-studio *)", "Bash(open http://*)"]},
+    }
+
+
+@pytest.mark.parametrize("on_path", [False, True])
+def test_setup_engine_path_step(tmp_path, monkeypatch, capsys, on_path):
+    module, wheel, engine, report = _build_setup_fixture(tmp_path, monkeypatch)
+    report["install"]["build"] = module._wheel_build(wheel)
+    monkeypatch.setenv("UV_TOOL_DIR", str(tmp_path / "tools"))
+    monkeypatch.setattr(module.shutil, "which", lambda name:
+                        (engine if on_path else None) if name == "yap-studio"
+                        else "/scratch/uv")
+    monkeypatch.setattr(module.subprocess, "run", lambda args, **kwargs:
+                        subprocess.CompletedProcess(args, 0,
+                            f"yap-studio {VERSION}\n" if args[1:] == ["--version"]
+                            else json.dumps(report), ""))
+    assert module.main(["--json"]) == (0 if on_path else 1)
+    result = json.loads(capsys.readouterr().out)
+    assert result["engine"] == engine
+    assert result["ready"] is on_path
+    assert [step["id"] for step in result["steps"]] == ([] if on_path else ["engine_path"])
+    if not on_path:
+        assert result["steps"][0]["command"] == "/scratch/uv tool update-shell"
+        assert result["steps"][0]["optional"] is False
+
+
+def test_question_and_wait_instructions_are_app_neutral():
+    for name in ["AGENTS.md", ".claude/skills/edit-video/SKILL.md",
+                 ".claude/skills/voiceover-video/SKILL.md"]:
+        guide = (ROOT / "workspace" / name).read_text()
+        assert "AskUserQuestion" not in guide
+        for phrase in ("one question at a time", "recommended choice first", "otherwise in chat",
+                       "--timeout 1", "check again each turn", "pressed a page button"):
+            assert phrase in guide

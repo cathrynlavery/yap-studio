@@ -179,7 +179,7 @@ test('progress follows the project phase and never claims more than it knows', (
   assert.equal(phaseInfo('cut_ready').tone, 'turn');
 });
 
-test('request copy depends on whether Claude is listening', () => {
+test('request copy depends on whether Claude Code is listening', () => {
   assert.equal(requestInfo({state: 'pending'}, true).tone, 'working');
   assert.equal(requestInfo({state: 'pending'}, false).title, 'Waiting for Claude Code.');
   assert.equal(requestInfo({state: 'claimed', ack: {message: 'Copying IMG_0002.mp4'}}, true).lede,
@@ -198,8 +198,8 @@ test('a stalled request keeps its recovery buttons even when its project exists'
   const h = (tag, attrs, ...children) => ({tag, ...attrs, children: children.flat(Infinity).filter(Boolean)});
   const sent = [], redirects = [];
   let refreshes = 0;
-  const render = new Function('state', 'h', 'requestInfo', 'typeLabel', 'takesText', 'api', 'toast',
-    'refresh', 'queueMicrotask', `${renderSource}; return renderRequest;`)(state, h, requestInfo,
+  const render = new Function('agentName', 'state', 'h', 'requestInfo', 'typeLabel', 'takesText', 'api', 'toast',
+    'refresh', 'queueMicrotask', `${renderSource}; return renderRequest;`)(home.agentName, state, h, requestInfo,
       typeLabel, takesText, async (url, data) => sent.push([url, data]), () => {},
       async () => { refreshes++; }, (fn) => redirects.push(fn));
   const card = render({id: request.id});
@@ -287,4 +287,14 @@ test('a voiceover inbox takes memos, not videos', () => {
   assert.equal(isVideoFile('clip', 'video/quicktime'), true);
   assert.equal(isVideoFile('memo.m4a', 'audio/x-m4a'), false);
   assert.equal(isVideoFile('voice.wav'), false);
+});
+
+
+test('progress and requests name the selected app with a Claude Code default', () => {
+  assert.equal(home.agentName(), 'Claude Code');
+  assert.equal(home.agentName({agent: 'codex'}), 'Codex');
+  assert.equal(home.agentName({agent: 'cursor'}), 'Cursor');
+  assert.equal(phaseInfo('story', 'Codex').title, 'Codex is choosing the story.');
+  assert.equal(progressRows({phase: 'story'}, 'Codex')[0].who, 'Codex');
+  assert.equal(requestInfo({state: 'pending'}, false, 'Codex').title, 'Waiting for Codex.');
 });

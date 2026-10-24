@@ -1,0 +1,15 @@
+{
+  "terminalAllowlist": [
+    "yap-studio",
+    "open http://127.0.0.1:"
+  ],
+  "autoRun": {
+    "allow_instructions": [
+      "This folder is a Yap Studio video workspace. The yap-studio command is expected here. It writes to ~/Library/Application Support/yap-studio and ~/Library/Caches/yap-studio, downloads the renderer and speech model, starts a local page on this Mac and reads the Photos album or media folder the creator names."
+    ],
+    "block_instructions": [
+      "Ask before running python3 setup.py or python3 new_project.py because the agent can edit these files.",
+      "Ask before any command that deletes, moves or renames anything in inbox/."
+    ]
+  }
+}

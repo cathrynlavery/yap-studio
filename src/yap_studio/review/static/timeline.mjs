@@ -553,22 +553,24 @@ export function approvalConfirmation(version, home, hostname) {
   };
 }
 
-/** What happens after notes are sent, when Yap Studio home knows whether Claude is listening. */
+/** What happens after notes are sent, when Yap Studio home knows whether the agent is listening. */
 export function sendNextText(series, home) {
+  const agent = {codex: 'Codex', cursor: 'Cursor'}[home?.agent] ?? 'Claude Code';
   if (!home || !series?.rounds?.length) return null;
   const sent = series.rounds.filter((round) => round.status === 'sent');
   const latest = sent.at(-1);
   if (!latest || latest.version < series.newest) return null;
   if ((home.delivered ?? []).includes(latest.batch)) {
-    return {state: 'listening', text: 'Claude has your notes and is making the next version. It shows up in Yap Studio when it is ready.'};
+    return {state: 'listening', text: `${agent} has your notes and is making the next version. It shows up in Yap Studio when it is ready.`};
   }
   return home.listening
-    ? {state: 'listening', text: 'Sent to Claude. It picks your notes up in a moment.'}
-    : {state: 'waiting', text: "Your notes are saved. Claude Code isn't listening right now: open this folder in Claude Code and type continue."};
+    ? {state: 'listening', text: `Sent to ${agent}. It picks your notes up in a moment.`}
+    : {state: 'waiting', text: `Your notes are saved. ${agent} isn't listening right now: open this folder in ${agent} and type continue.`};
 }
 
 /** What the bottom of the player offers: approve a final, or ask for the final after a story cut. */
 export function storyCutStep(series, selected, home) {
+  const agent = {codex: 'Codex', cursor: 'Cursor'}[home?.agent] ?? 'Claude Code';
   const version = series?.versions?.find((item) => item.number === selected);
   const approveHint = 'Happy with it? Approving unlocks the download.';
   if (!series?.project || !home || version?.final !== false) {
@@ -577,10 +579,10 @@ export function storyCutStep(series, selected, home) {
   const newest = selected === series.newest;
   if (home.final_requested) {
     return {hideApprove: true, offerFinal: newest, requested: true,
-      hint: 'Claude is applying your chosen look, then rendering and checking the final. It shows up in Yap Studio when it is ready.'};
+      hint: `${agent} is applying your chosen look, then rendering and checking the final. It shows up in Yap Studio when it is ready.`};
   }
   return {hideApprove: true, offerFinal: newest, requested: false,
     hint: newest
-      ? 'This is the story cut. Happy with the order? Claude applies your chosen look, then renders the final.'
+      ? `This is the story cut. Happy with the order? ${agent} applies your chosen look, then renders the final.`
       : 'This is an earlier story cut. Pick the newest version to go on.'};
 }
