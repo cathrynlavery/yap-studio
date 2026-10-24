@@ -167,6 +167,39 @@ def test_selected_audio_has_owned_portable_verification_reference(project: Path)
     assert final_stage(project)["state"] == "done"
 
 
+def test_fully_gapped_captions_assemble_without_a_layer(project: Path, capsys) -> None:
+    from yap_studio.review.findings import findings_for_media
+
+    set_elements(project, {"id": "agent-gap", "kind": "caption_gap",
+                           "start": {"time": 0}, "hold_s": 4.0})
+    result = captions(project)
+    assert result["layer"] is None
+    assert not (project / "captions/captions.mov").exists()
+    snapshot = stage.assembly_snapshot(ProjectContext(project))
+    assert snapshot.caption_layer is None
+    assert "captions/captions.mov" not in snapshot.media
+    assert not stage.verification_edl(snapshot, base=project / "final")["overlays"]
+    assembled = stage.assemble(project)
+    record = read_receipt(project / "final")
+    assert record["status"] == "verified" and record["verify"]["status"] != "fail"
+    assert record["caption_contrast"]["measured"]
+    assert record["caption_contrast"]["captions"] == 0
+    assert "captions.mov" not in json.dumps(record["picture"])
+    assert ffmpeg.probe(project / assembled["out"]).video_frames == 128
+    assert final_stage(project)["state"] == "done"
+    assert stage.assemble(project)["noop"]
+    final = project / assembled["out"]
+    review = findings_for_media(final, receipt.sha256_file(final), project_dir=project)
+    assert not review.get("layer_stale")
+    assert cli.main(["captions", str(project), "--force"]) == 0
+    assert "No caption phrases; skipped caption layer." in capsys.readouterr().out
+    set_elements(project)
+    with pytest.raises(stage.StaleStageError):
+        stage.assembly_snapshot(ProjectContext(project))
+    assert captions(project)["layer"] is not None
+    assert (project / "captions/captions.mov").is_file()
+
+
 def test_editorial_override_cannot_bypass_keyed_clone_flash(project: Path) -> None:
     style_file = project / "assembly-style.json"
     style = json.loads(style_file.read_text())

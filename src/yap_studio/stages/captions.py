@@ -1203,11 +1203,7 @@ def _empty_camera_snapshot(context: ProjectContext, retained: CameraSnapshot) ->
     style = context.render_style()
     settings = caption_layout_settings(style.data["captions"], style.data["brand"])
     assets = layer_assets("captions", style.data["captions"]["font"], context)
-    inputs = {**retained.inputs, "empty_layer": projection_sha256({
-        "fonts": assets.font_identity(),
-        "renderer": assets.template_identity(workers=hyperframes.CAPTION_WORKERS,
-                                              browser_gpu=hyperframes.CAPTION_BROWSER_GPU),
-    })}
+    inputs = {**retained.inputs, "empty_layer": projection_sha256({"render": False})}
     plan = caption_layer_plan((), style, frames=retained.frames, caption_settings=settings,
                               backing=())
     return CaptionSnapshot(plan, (), assets, inputs, settings, retained.vocabulary)
@@ -1326,6 +1322,8 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
         inputs["picture:faces"] = projection_sha256([
             inputs["picture:faces"], {key: layout.to_dict() for key, layout in layouts.items()},
         ])
+    if not phrases:
+        inputs["empty_layer"] = projection_sha256({"render": False})
     return CaptionSnapshot(plan, tuple(phrases), assets, inputs, settings, vocabulary,
                            backing, auto, windows)
 
@@ -1401,8 +1399,9 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
             return camera_captions(context, force=force, retained=snapshot)
         root = context.project_dir
         run = StageRun(root, "captions")
-        layer = snapshot.plan.placement("captions/captions.mov")
-        result = {"status": "verified", "out": layer["path"], "frames": snapshot.plan.frames,
+        layer = snapshot.plan.placement("captions/captions.mov") if snapshot.phrases else None
+        result = {"status": "verified", "out": layer["path"] if layer else None,
+                  "frames": snapshot.plan.frames,
                   "phrases": len(snapshot.phrases), "layer": layer,
                   "srt": "captions/captions.srt", "layout": "captions/layout.json",
                   "receipt": "captions/receipt.json",
@@ -1417,6 +1416,29 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
             work = Path(folder)
             for name, digest in snapshot.inputs.items():
                 run.record_inputs(name, digest)
+            if not snapshot.phrases:
+                from yap_studio.stages.captions_3d import retire_outputs
+
+                layout = {"schema": LAYOUT_SCHEMA, "width": frame.width, "height": frame.height,
+                          "measured": True, "reason": None, "elements": [], "captions": []}
+                documents = {"phrases.json": {"schema": "yap-studio/phrases@1",
+                             "time_base": "output", "fps": 30, "layer": None, "phrases": []},
+                             "layout.json": layout}
+                for name, document in documents.items():
+                    staged = work / name
+                    staged.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+                    run.replace_output(root / "captions" / name, staged)
+                subtitles = work / "captions.srt"
+                subtitles.write_text("", encoding="utf-8")
+                run.replace_output(root / "captions/captions.srt", subtitles)
+                retire_outputs(root, run, previous,
+                               ("captions.mov", "camera3d.mp4", "camera3d.json"))
+                run.finish(extra={"layer": None, "phrases": 0,
+                                  "caption_spelling": result["caption_spelling"],
+                                  "caption_layout": {"measured": True, "reason": None,
+                                                     "captions": 0},
+                                  "taste": context.taste_application().pin()})
+                return {**result, "noop": False}
             style = context.render_style()
             timeline = context.resolved_timeline()
             layouts = split_layouts(root, timeline)
@@ -1493,9 +1515,9 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                 run.replace_output(root / "captions" / name, staged)
             if any((root / "captions" / name).exists()
                    for name in ("camera3d.mp4", "camera3d.json")):
-                from yap_studio.stages.captions_3d import retire_picture
+                from yap_studio.stages.captions_3d import retire_outputs
 
-                retire_picture(root, run, previous)
+                retire_outputs(root, run, previous, ("camera3d.mp4", "camera3d.json"))
             run.finish(extra={"layer": layer, "phrases": len(snapshot.phrases),
                               "caption_spelling": result["caption_spelling"],
                               "layer_checks": rendered.checks,

@@ -330,7 +330,7 @@ class AssemblySnapshot:
     """All small file bytes and media identities used by a single final render."""
 
     timeline: ResolvedTimeline
-    caption_layer: dict[str, Any]
+    caption_layer: dict[str, Any] | None
     title_layers: list[dict[str, Any]]
     spans: dict[str, Any]
     bed: str | None
@@ -607,6 +607,10 @@ def assembly_snapshot(context: ProjectContext, *, allow_violations: bool = False
     if bleep.enabled(style_data) and "captions/phrases.json" not in small:
         raise AssemblyError("captions has no verified words; run captions first.")
     caption = copy.deepcopy(stage_receipts["captions"]["layer"])
+    if caption is None and (stage_receipts["captions"].get("phrases") != 0 or
+                            json.loads(small["captions/layout.json"]).get("captions") != [] or
+                            not json.loads(small["captions/layout.json"]).get("measured")):
+        raise AssemblyError("captions has no layer or verified empty layout; run captions first.")
     picture = stage_receipts["captions"].get("picture")
     if picture is not None:
         if picture != "captions/camera3d.mp4" or "captions/camera3d.json" not in small:
@@ -645,6 +649,8 @@ def assembly_snapshot(context: ProjectContext, *, allow_violations: bool = False
     if any(item.kind == "background" and uses_look(item.payload) for item in timeline.elements):
         inputs["picture:green_screen"] = projection_sha256(rule_constants())
     for placement in [caption, *titles]:
+        if placement is None:
+            continue
         retain(placement["path"], context.project_dir / placement["path"])
         for window in placement.get("windows", []):
             source = window["source"]
@@ -780,6 +786,8 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
     picture = getattr(snapshot, "picture", None)
     overlays = []
     for placement in [*snapshot.title_layers, snapshot.caption_layer]:
+        if placement is None:
+            continue
         if picture and placement is snapshot.caption_layer:
             layout = json.loads(snapshot.small_files["captions/layout.json"])
             for caption in layout["captions"]:
@@ -1018,6 +1026,9 @@ def _measure_contrast(snapshot: AssemblySnapshot, retained: Path, picture: Path,
 
             document = measure_contrast(picture, json.loads(
                 snapshot.small_files["captions/camera3d.json"]), layout, grade=snapshot.grade)
+        elif snapshot.caption_layer is None:
+            # A verified empty layout returns before contrast reads a layer or placement.
+            document = measure_caption_contrast(picture, picture, {}, layout)
         else:
             document = measure_caption_contrast(
                 picture, retained / snapshot.caption_layer["path"], snapshot.caption_layer, layout,

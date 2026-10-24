@@ -53,14 +53,15 @@ class CameraSnapshot:
     frames: int
 
 
-def retire_picture(root: Path, run: StageRun, previous: dict | None) -> None:
-    """Retire owned camera outputs when publishing a flat caption look."""
+def retire_outputs(root: Path, run: StageRun, previous: dict | None,
+                   names: Sequence[str]) -> None:
+    """Retire owned caption outputs that the new result no longer needs."""
     with project_lock(root):
         records = [read_pending(run.stage_dir) or {}]
         if previous and previous.get("status") == "verified":
             records.append(previous)
         owned = {item["path"] for record in records for item in record.get("outputs", [])}
-        for name in ("camera3d.mp4", "camera3d.json"):
+        for name in names:
             target = root / "captions" / name
             if f"captions/{name}" in owned and (target.exists() or target.is_symlink()):
                 old = receipt.sha256_file(target)

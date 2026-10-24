@@ -888,6 +888,7 @@ def _captions(args: argparse.Namespace) -> int:
                   f"Run yap-studio run {args.clip} to render the final.")
     elif project_mode:
         print("Captions unchanged." if result["noop"] else
+              "No caption phrases; skipped caption layer." if result["layer"] is None else
               f"Wrote {result['out']}: {result['frames']} frames, {result['phrases']} phrases.")
         print(f"SRT: {result['srt']}")
         print(f"Receipt: {result['receipt']}")

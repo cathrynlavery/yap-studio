@@ -279,6 +279,8 @@ def _export_project(project_dir: Path) -> Path:
                                for path in receipt_output_paths(context.project_dir, layer_record)})
             assert snapshot is not None
             if stage == "captions":
+                if layer_record["layer"] is None:
+                    continue
                 plans = [("captions", "captions", snapshot.plan, snapshot.assets,
                           layer_record["layer"])]
             else:

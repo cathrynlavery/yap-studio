@@ -561,7 +561,7 @@ def test_camera_big_number_refuses_before_the_matte(
 
 
 @pytest.mark.parametrize("owned_picture", [False, True])
-def test_camera_gaps_hiding_every_word_publish_the_empty_flat_layer(
+def test_camera_gaps_hiding_every_word_publish_without_a_layer(
     layer_project: Path, monkeypatch, fake_layers, checked_layers, owned_picture,
 ) -> None:
     from yap_studio.stages import captions_3d
@@ -599,7 +599,7 @@ def test_camera_gaps_hiding_every_word_publish_the_empty_flat_layer(
     assert result["layer"] == flat["layer"]
     assert "picture" not in result and "picture" not in record
     assert {item["path"] for item in record["outputs"]} == {
-        "captions/captions.mov", "captions/phrases.json", "captions/captions.srt",
+        "captions/phrases.json", "captions/captions.srt",
         "captions/layout.json"}
     for name, contents in empty.items():
         assert (layer_project / "captions" / name).read_bytes() == contents
@@ -607,9 +607,8 @@ def test_camera_gaps_hiding_every_word_publish_the_empty_flat_layer(
     assert not (layer_project / "captions/camera3d.json").exists()
     assert record["inputs"] == captions_inputs(ProjectContext(layer_project))
     assert state(layer_project, "captions")["state"] == "done"
-    assert captions(layer_project)["noop"] and len(fake_layers) == 2
-    plan = caption_snapshot(ProjectContext(layer_project)).plan
-    assert _alpha_frames(layer_project / result["out"], plan).max() == 0
+    assert captions(layer_project)["noop"] and not fake_layers
+    assert result["out"] is None and not (layer_project / "captions/captions.mov").exists()
     set_elements(layer_project, gaps[0])
     assert state(layer_project, "captions")["state"] == "stale"
 
@@ -2044,6 +2043,44 @@ def test_consumed_inputs_stale_and_rerender_captions(
     assert len(fake_layers) == 2 and state(layer_project, "captions")["state"] == "done"
 
 
+@pytest.mark.parametrize("shape", ["vertical", "horizontal"])
+@pytest.mark.parametrize("empty_words", [False, True])
+def test_empty_captions_publish_without_rendering_or_faces(
+    layer_project: Path, monkeypatch, fake_layers, shape: str, empty_words: bool,
+) -> None:
+    document = json.loads((layer_project / "project.json").read_bytes())
+    document["shape"] = shape
+    write(layer_project / "project.json", document)
+    previous = read_receipt(layer_project / "cut")
+    words = json.loads((layer_project / "cut/cut-words.json").read_bytes())
+    if empty_words:
+        words["words"] = []
+    staged = write(layer_project / "empty-words.json", words)
+    with StageRun(layer_project, "cut") as run:
+        for name, digest in cut_inputs(ProjectContext(layer_project)).items():
+            run.record_inputs(name, digest)
+        run.outputs.update({item["path"]: item for item in previous["outputs"]})
+        run.replace_output(layer_project / "cut/cut-words.json", staged)
+        run.finish(extra={"plan": previous["plan"]})
+    if not empty_words:
+        set_elements(layer_project, {"id": "agent-gap", "kind": "caption_gap",
+                                    "start": {"time": 0}, "hold_s": 3.0})
+    monkeypatch.setattr(caption_stage, "cut_faces", lambda *a, **kw: pytest.fail(
+        "No caption phrases need face placement"))
+    result = captions(layer_project)
+    record = read_receipt(layer_project / "captions")
+    assert result["out"] is None and result["layer"] is None
+    assert record["layer"] is None and record["phrases"] == 0
+    assert not fake_layers and not (layer_project / "captions/captions.mov").exists()
+    assert {item["path"] for item in record["outputs"]} == {
+        "captions/phrases.json", "captions/captions.srt", "captions/layout.json"}
+    assert json.loads((layer_project / "captions/phrases.json").read_bytes())["phrases"] == []
+    layout = Layout.from_dict(json.loads((layer_project / "captions/layout.json").read_bytes()))
+    assert layout.measured and not layout.captions
+    assert state(layer_project, "captions")["state"] == "done"
+    assert captions(layer_project)["noop"]
+
+
 @pytest.mark.parametrize("start,hold,count", [(0.2, 0.1, 1), (2.9, 0.1, 2), (0.0, 3.0, 0)])
 def test_whole_phrases_touching_caption_gaps_are_absent(
     layer_project: Path, fake_layers: list[dict], start: float, hold: float, count: int,
@@ -2051,8 +2088,11 @@ def test_whole_phrases_touching_caption_gaps_are_absent(
     set_elements(layer_project, {"id": "agent-gap", "kind": "caption_gap",
                                 "start": {"time": start}, "hold_s": hold})
     result = captions(layer_project)
-    slots = json.loads(fake_layers[0]["variables"]["phrases"])
     document = json.loads((layer_project / "captions/phrases.json").read_bytes())
+    if count == 0:
+        assert not fake_layers and result["layer"] is None and document["phrases"] == []
+        return
+    slots = json.loads(fake_layers[0]["variables"]["phrases"])
     assert len(slots) == len(document["phrases"]) == result["phrases"] == count
     alpha = _alpha_frames(layer_project / result["out"], caption_snapshot(
         ProjectContext(layer_project)).plan)
@@ -2064,6 +2104,20 @@ def test_whole_phrases_touching_caption_gaps_are_absent(
         assert ("More words." in (layer_project / "captions/captions.srt").read_text()) == (
             start == 2.9
         )
+
+
+def test_empty_captions_refuse_to_retire_a_hand_edited_layer(
+    layer_project: Path, fake_layers,
+) -> None:
+    captions(layer_project)
+    target = layer_project / "captions/captions.mov"
+    target.write_bytes(b"hand edited caption layer")
+    set_elements(layer_project, {"id": "agent-gap", "kind": "caption_gap",
+                                "start": {"time": 0}, "hold_s": 3})
+    with pytest.raises(OutputPathError):
+        captions(layer_project)
+    assert target.read_bytes() == b"hand edited caption layer"
+    assert len(fake_layers) == 1
 
 
 def test_force_renders_but_refuses_a_hand_edited_layer(

@@ -12,6 +12,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from fractions import Fraction
 from pathlib import Path
+from types import EllipsisType
 from typing import Any
 
 import numpy as np
@@ -1070,7 +1071,7 @@ def render_picture(
     project_dir: Path, out: Path, *, work_dir: Path,
     timeline: ResolvedTimeline | None = None,
     title_layers: list[dict[str, Any]] | None = None,
-    caption_layer: dict[str, Any] | None = None,
+    caption_layer: dict[str, Any] | None | EllipsisType = ...,
     transition_layers: list[dict[str, Any]] | None = None,
     smooth_layers: list[dict[str, Any]] | None = None,
     letters_layers: list[dict[str, Any]] | None = None,
@@ -1096,6 +1097,7 @@ def render_picture(
     With ``frames``, the same graph is trimmed to that inclusive output window before
     encoding, so a pilot's frames are the full render's pixels.
     ``frame`` supplies horizontal delivery geometry without reading project settings.
+    An explicit ``caption_layer=None`` skips captions; omission resolves the stage result.
     """
     with paths.operation():
         root = Path(project_dir).resolve()
@@ -1107,7 +1109,7 @@ def render_picture(
             camera_captions = captions(root)
             if camera_captions.get("picture"):
                 base_picture = root / camera_captions["picture"]
-            if caption_layer is None:
+            if caption_layer is Ellipsis:
                 caption_layer = camera_captions["layer"]
         commands: list[tuple[str, ...]] = []
         conversions: list[dict[str, Any]] = []
@@ -1171,7 +1173,7 @@ def render_picture(
         if (behind_ids or backgrounds) and (cut.info.variable_frame_rate or cut.info.fps != FPS):
             raise CutMatteError("Behind graphics and backgrounds need a constant-rate 30 fps cut.",
                                 timing=True)
-        caption_layer = captions(root)["layer"] if caption_layer is None else caption_layer
+        caption_layer = captions(root)["layer"] if caption_layer is Ellipsis else caption_layer
         rendered = {placement.get("id") for placement in title_layers}
         missing = [item.id for item in timeline.elements
                    if item.kind in {"graphic", "title", "chapter"} and item.id not in rendered]
@@ -1396,6 +1398,8 @@ def render_picture(
                                      item.start_frame, item.end_frame, x=x, y=y)
                 decode_seconds += inserts[item.id].info.video_duration_s or 0
         for placement in [*ordered, caption_layer]:
+            if placement is None:
+                continue
             base, window_seconds = _card_windows(graph, base, placement, window_sources,
                                                  cube=cube, matches=matches)
             decode_seconds += window_seconds

@@ -16,6 +16,9 @@ The next `run` or `assemble` rebuilds captions and titles that use the fixes.
 Project captions write `captions/captions.mov`, `captions/captions.srt`,
 `captions/phrases.json` and a receipt. A phrase overlapping a caption gap is hidden
 whole. The last phrase keeps its normal tail and ends before trailing footage.
+If every phrase is hidden, or there are no words, captions writes the SRT, phrases,
+layout and receipt with `layer: null`. It skips rendering a layer, and assembly skips
+the caption overlay.
 The layer ends at the cut's last frame; assembly freezes that frame for
 the silent end hold. With `captions.position: bottom`, `top_px` sets a one-line
 caption's line-box top. Wrapped phrases grow upward, keeping their last line at

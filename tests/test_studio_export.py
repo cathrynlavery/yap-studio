@@ -455,6 +455,21 @@ def test_verified_empty_graphics_stage_is_included(project: Path, fake_renderer:
     assert not (target / "layers").exists()
 
 
+def test_verified_empty_captions_are_included_without_a_layer(
+    project: Path, fake_renderer: Path,
+) -> None:
+    from test_stage_captions import set_elements
+
+    from yap_studio.stages.captions import captions
+
+    set_elements(project, {"id": "agent-gap", "kind": "caption_gap",
+                           "start": {"time": 0}, "hold_s": 3})
+    assert captions(project)["layer"] is None
+    target = studio.export_project(project)
+    assert summary(target)["stages"]["captions"]["included"]
+    assert not (target / "layers").exists()
+
+
 def test_export_uses_shared_resolution_and_only_writes_allowed_bookkeeping(
     project: Path, fake_renderer: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
