@@ -339,6 +339,64 @@ def test_probe_rotation_and_stream_facts(synth_media: object) -> None:
     assert info.to_dict()["audio_index"] == 1
 
 
+@pytest.mark.parametrize(("chunks", "expected"), [
+    ([b"0.06", b"6733,\n"], 0.066733),
+    ([b"0.000000\n"], 0.0),
+    ([b"N/A\n"], None),
+    ([b"\n"], None),
+    ([b"invalid\n"], None),
+    ([], None),
+])
+def test_first_video_timestamp_stops_and_closes_stream(
+    monkeypatch: pytest.MonkeyPatch, chunks: list[bytes], expected: float | None,
+) -> None:
+    closed = []
+
+    def stream(command, **kwargs):
+        assert command[command.index("-select_streams") + 1] == "2"
+        try:
+            yield from chunks
+            if chunks:
+                pytest.fail("read past the first decoded frame")
+        finally:
+            closed.append(True)
+
+    monkeypatch.setattr(ffmpeg, "run_stream", stream)
+    assert ffmpeg._first_video_frame_time(Path("source.mov"), 2) == expected
+    assert closed == [True]
+
+
+@pytest.mark.parametrize("error", [
+    InputError("source.mov", "unreadable frame"),
+    ProcessingError("ffprobe", -1, "timed out", code="ffmpeg_timeout"),
+])
+def test_first_video_timestamp_failure_disables_seek(
+    monkeypatch: pytest.MonkeyPatch, error: Exception,
+) -> None:
+    def stream(command, **kwargs):
+        raise error
+
+    monkeypatch.setattr(ffmpeg, "run_stream", stream)
+    assert ffmpeg._first_video_frame_time(Path("source.mov"), 0) is None
+
+
+def test_probe_first_frame_is_opt_in(synth_media, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = synth_media.path("calib")
+    calls = []
+
+    def first_frame(source, index):
+        calls.append((source, index))
+        return 0.0
+
+    monkeypatch.setattr(ffmpeg, "_first_video_frame_time", first_frame)
+    assert probe(path).video_first_frame_s is None
+    assert calls == []
+    info = probe(path, first_frame=True)
+    assert info.video_first_frame_s == info.video_start_s == 0.0
+    assert info.to_dict()["video_first_frame_s"] == 0.0
+    assert calls == [(Path(path), info.video_index)]
+
+
 def test_probe_clock_offset(synth_media: object) -> None:
     path = synth_media.path("clean_shift_start")  # type: ignore[attr-defined]
     info = probe(path)

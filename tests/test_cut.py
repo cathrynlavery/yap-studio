@@ -7,6 +7,7 @@ import os
 import shutil
 import wave
 from collections import Counter
+from dataclasses import replace
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
@@ -1308,15 +1309,50 @@ def test_check_without_identity_cache_writes_nothing(tmp_path: Path, calibration
 
 @pytest.mark.parametrize("case", [
     "30/1", "60/1", "30000/1001", "vfr", "long-gop", "video-offset",
-    "hlg", "pq", "hlg-90", "pq-90",
+    "hlg", "pq", "hlg-90", "pq-90", "b-frame-avi", "discontinuous-ts",
+    "missing-first-frame", "mismatched-first-frame",
 ])
 def test_picture_seek_matches_decode_from_start(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str,
 ) -> None:
     seconds = 21 if case == "long-gop" else 7
     is_hdr = case.startswith(("hlg", "pq"))
+    fallback = case in {"b-frame-avi", "discontinuous-ts"}
+    unsafe_clock = case in {"missing-first-frame", "mismatched-first-frame"}
     source = tmp_path / "source.mov"
-    if case == "vfr":
+    if fallback:
+        source = tmp_path / ("source.avi" if case == "b-frame-avi" else "source.ts")
+        parts = []
+        for offset in ([0] if case == "b-frame-avi" else [0, 22]):
+            part = tmp_path / f"part-{offset}{source.suffix}"
+            ffmpeg.run([
+                "ffmpeg", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+                "testsrc2=size=96x64:rate=" + (
+                    "30000/1001:duration=8" if case == "b-frame-avi" else "30:duration=2"
+                ),
+                "-f", "lavfi", "-i", "sine=sample_rate=48000:duration=" + (
+                    "8" if case == "b-frame-avi" else "2"
+                ),
+                "-c:v", "libx264", "-bf", "2" if case == "b-frame-avi" else "0",
+                "-g", "30", "-c:a", "pcm_s16le" if case == "b-frame-avi" else "aac",
+                *([] if case == "b-frame-avi" else [
+                    "-mpegts_copyts", "1", "-muxdelay", "0", "-avoid_negative_ts", "disabled",
+                    "-output_ts_offset", str(offset),
+                ]), str(part),
+            ], timeout_s=60)
+            parts.append(part.read_bytes())
+        source.write_bytes(b"".join(parts))
+        timestamps = json.loads(ffmpeg.run([
+            "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_frames",
+            "-show_entries", "frame=best_effort_timestamp_time", "-of", "json", str(source),
+        ], timeout_s=60).stdout)["frames"]
+        times = [float(frame["best_effort_timestamp_time"]) for frame in timestamps
+                 if "best_effort_timestamp_time" in frame]
+        if case == "b-frame-avi":
+            assert times[0] == pytest.approx(0.066733)
+        else:
+            assert times[59:61] == pytest.approx([1.966667, 22.0])
+    elif case == "vfr":
         synth.vfr_source(source, seconds=seconds, size="96x64")
     elif case == "long-gop" or is_hdr:
         transfer = "arib-std-b67" if case.startswith("hlg") else "smpte2084"
@@ -1336,7 +1372,7 @@ def test_picture_seek_matches_decode_from_start(
         ], timeout_s=60)
     else:
         synth.calib_source(source, seconds=seconds, size="96x64",
-                           fps="30/1" if case == "video-offset" else case)
+                           fps="30/1" if case == "video-offset" or unsafe_clock else case)
     if case == "long-gop" or is_hdr:
         frames = json.loads(ffmpeg.run([
             "ffprobe", "-v", "error", "-select_streams", "v:0", "-skip_frame", "nokey",
@@ -1344,27 +1380,43 @@ def test_picture_seek_matches_decode_from_start(
         ], timeout_s=60).stdout)["frames"]
         expected_keys = [0, 10, 20] if case == "long-gop" else list(range(seconds))
         assert [float(frame["pts_time"]) for frame in frames] == expected_keys
-    shifted = tmp_path / "shifted.mov"
-    ffmpeg.run([
-        "ffmpeg", "-v", "error", "-itsoffset", "0.1",
-        *(["-display_rotation", "90"] if case.endswith("-90") else []), "-i", str(source),
-        *(["-itsoffset", "0.237", "-i", str(source)] if case == "video-offset" else []),
-        "-map", "1:v:0" if case == "video-offset" else "0:v:0", "-map", "0:a:0",
-        "-c", "copy", str(shifted),
-    ], timeout_s=60)
+    shifted = source if fallback else tmp_path / "shifted.mov"
+    if not fallback:
+        ffmpeg.run([
+            "ffmpeg", "-v", "error", "-itsoffset", "0.1",
+            *(["-display_rotation", "90"] if case.endswith("-90") else []), "-i", str(source),
+            *(["-itsoffset", "0.237", "-i", str(source)] if case == "video-offset" else []),
+            "-map", "1:v:0" if case == "video-offset" else "0:v:0", "-map", "0:a:0",
+            "-c", "copy", str(shifted),
+        ], timeout_s=60)
     root = make_project(tmp_path / "project", [shifted], word_rows=[[]])
     end = ffmpeg.probe(shifted).video_duration_s
     assert end is not None
     ranges = [(0.1, 0.3), (3.1, 3.4), (seconds - 0.3, min(seconds, end))]
+    if fallback:
+        ranges = [(3.1, 4.0)]
     if case == "long-gop":
         ranges.extend([(5.1, 5.3), (10 + 1 / 30, 10.3), (10 - 1 / 30, 10.2)])
     write_edit(root, [time_segment(f"s{i}", "t1", first, last)
                       for i, (first, last) in enumerate(ranges)])
     plan = resolve_cut(root)
     assert len(plan.pieces) == len(ranges)
-    assert plan.pieces[2].src_f1 == seconds * 30
+    assert plan.pieces[0 if fallback else 2].src_f1 == (120 if fallback else seconds * 30)
     info = plan.media["t1"]
-    assert info.video_start_s is not None and info.video_start_s > 0
+    if fallback:
+        assert info.video_start_s == 0
+        assert info.video_first_frame_s == pytest.approx(
+            0.066733 if case == "b-frame-avi" else 0
+        )
+    else:
+        assert info.video_start_s is not None and info.video_start_s > 0
+        assert info.video_first_frame_s == info.video_start_s
+    if unsafe_clock:
+        info = plan.media["t1"] = replace(
+            info, video_first_frame_s=(
+                None if case == "missing-first-frame" else info.video_start_s + 1 / 30
+            ),
+        )
     if case == "video-offset":
         assert info.video_offset_s > 0
         assert info.audio_start_s is not None and info.audio_start_s < info.video_start_s
@@ -1387,7 +1439,7 @@ def test_picture_seek_matches_decode_from_start(
         cut_stage._picture(piece, plan, target, selected)
         command = commands[-1].copy()
         seek = max(0, piece.src_f0 // 30 - 1)
-        if seek:
+        if "-ss" in command:
             at = command.index("-ss")
             assert at < command.index("-i")
             assert command[at + 1:at + 4] == [
@@ -1408,6 +1460,13 @@ def test_picture_seek_matches_decode_from_start(
         run(command, timeout_s=60)
         assert ffmpeg.probe(target).video_frames == piece.n_frames
         assert target.read_bytes() == reference.read_bytes(), (case, piece.src_f0, piece.src_f1)
+        assert ("-ss" in commands[-1]) == (bool(seek) and not (fallback or unsafe_clock))
+        if fallback:
+            hashes = run([
+                "ffmpeg", "-v", "error", "-i", str(target), "-f", "framemd5", "-",
+            ], timeout_s=60).stdout.splitlines()
+            assert len({line.rsplit(",", 1)[-1] for line in hashes
+                        if line and not line.startswith("#")}) == 27
 
 
 def test_picture_offset_and_sample_clock_are_verified(tmp_path: Path, calibration: Path) -> None:

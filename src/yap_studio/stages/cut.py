@@ -534,7 +534,7 @@ def _resolve(context: ProjectContext) -> CutPlan:
     for take_id in sorted({segment.take for segment in edit.segments}):
         source = paths.validate_input(context.take_path(take_id))
         sources[take_id] = source
-        info = media[take_id] = ffmpeg.probe(source)
+        info = media[take_id] = ffmpeg.probe(source, first_frame=True)
         if context.project.shape == "horizontal" and info.orientation != "horizontal":
             unsupported(f"non-horizontal take {take_id}", "Use horizontal source takes")
         if not info.has_video or not info.fps or info.video_duration_s is None:
@@ -867,8 +867,12 @@ def _picture(piece: Piece, plan: CutPlan, target: Path, hdr: HdrConversion | Non
              "force_divisible_by=2:out_range=tv")
     if hdr is None and info.color_space in {"bt470bg", "smpte170m"}:
         scale += ":in_color_matrix=bt601:out_color_matrix=bt709"
+    # Other containers may correct discontinuities; stream start can precede decoded picture.
+    can_seek = ("mov" in (info.format_name or "").split(",")
+                and info.video_start_s is not None
+                and info.video_first_frame_s == info.video_start_s)
     # Keep keyframe preroll and absolute timestamps so seeking preserves the source FPS grid.
-    seek = max(0, piece.src_f0 // 30 - 1) if info.video_start_s is not None else 0
+    seek = max(0, piece.src_f0 // 30 - 1) if can_seek else 0
     first, last = piece.src_f0 - seek * 30, piece.src_f1 - seek * 30
     filters = [] if hdr is None else [hdr.filter_prefix]
     filters.extend(

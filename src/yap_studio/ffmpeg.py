@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Generator, Iterable
+from contextlib import closing
 from dataclasses import asdict, dataclass, field
 from fractions import Fraction
 from pathlib import Path
@@ -227,6 +228,7 @@ class MediaInfo:
     color_range: str | None = None
     format_tags: dict[str, str] | None = field(default=None, hash=False)
     nominal_fps: Fraction | None = None
+    video_first_frame_s: float | None = None
 
     @property
     def variable_frame_rate(self) -> bool:
@@ -326,7 +328,29 @@ def _packet_count(path: Path, stream_index: int) -> int | None:
     return _optional_int(streams[0].get("nb_read_packets")) if streams else None
 
 
-def probe(path: str | os.PathLike[str], *, count_frames: bool = True) -> MediaInfo:
+def _first_video_frame_time(path: Path, stream_index: int) -> float | None:
+    """Read the decoder's first timestamp, then stop without scanning the source."""
+    command = [
+        "ffprobe", "-v", "error", "-select_streams", str(stream_index),
+        "-show_frames", "-show_entries", "frame=best_effort_timestamp_time:frame_side_data=",
+        "-of", "csv=p=0", str(path),
+    ]
+    try:
+        with closing(run_stream(command, timeout_s=PROBE_TIMEOUT_S)) as chunks:
+            first = b""
+            for chunk in chunks:
+                first += chunk
+                if b"\n" in first:
+                    row = first.split(b"\n", 1)[0]
+                    return _optional_float(row.split(b",", 1)[0].decode("ascii").strip())
+    except (InputError, ProcessingError):
+        pass
+    return None
+
+
+def probe(
+    path: str | os.PathLike[str], *, count_frames: bool = True, first_frame: bool = False,
+) -> MediaInfo:
     """Probe container, stream, display rotation, and stream clock facts."""
     source = Path(path)
     if not source.is_file():
@@ -419,6 +443,10 @@ def probe(path: str | os.PathLike[str], *, count_frames: bool = True) -> MediaIn
         color_range=video.get("color_range") if video else None,
         format_tags=format_data.get("tags"),
         nominal_fps=_frame_rate({"r_frame_rate": video.get("r_frame_rate")}) if video else None,
+        video_first_frame_s=(
+            _first_video_frame_time(source, video_index)
+            if first_frame and video_index is not None else None
+        ),
     )
 
 
