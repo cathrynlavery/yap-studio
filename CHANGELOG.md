@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add horizontal talking-head videos at 1920x1080 with hard cuts and captions; other features are refused with a fix.
 - Cards fit ordinary framing, notes can be closed in a later version, review controls stay on screen, and Home and review use honest labels.
 - Pin the renderer to HyperFrames 0.8.188.
 - Record scrubbed product feedback locally, with consent settings, repeat grouping and optional sharing.

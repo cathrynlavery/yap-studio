@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from yap_studio.stages.timeline import ResolvedTimeline
 
 _TEMPLATES = Path(__file__).parents[1] / "templates"
+_HORIZONTAL_CAPTION_PATTERN = r"\b{}(?=\b|px)"
 _HOOK_TOP = {"headroom": 300, "top": 150, "center": 760}
 CAPTION_LINE_HEIGHT = 1.12
 HALO_PATH = ".yap/caption-halo.json"
@@ -1096,7 +1097,7 @@ def prepare_layer_plan(
             # shortcut: adapt the shipped portrait template, replace with shape tokens when shared.
             for old, new in (("1080", frame.width), ("940", frame.caption_width),
                              ("70", frame.caption_inset)):
-                source = re.sub(rf"\b{old}(?=\b|px)", str(new), source)
+                source = re.sub(_HORIZONTAL_CAPTION_PATTERN.format(old), str(new), source)
         parser = _RootParser()
         parser.feed(source)
         if parser.root is None:

@@ -70,7 +70,7 @@ def require_supported(context: ProjectContext,
                     "Set moves.jump_cuts to hard and moves.opening_push to false in the style")
     if style["hook"]["style"] == "text_hook":
         unsupported("text hooks", "Choose a style without text_hook")
-    grade = context.project.grade or style.get("grade", {})
+    grade = context.project.grade if context.project.grade is not None else style.get("grade", {})
     if grade.get("look", "none") != "none":
         unsupported("grading", "Set grade.look to none")
     if context.taste_application().applied:

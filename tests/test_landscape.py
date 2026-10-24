@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,6 +24,8 @@ from yap_studio.project.receipts import StageRun, read_receipt
 from yap_studio.project.status import ProjectContext, cut_inputs, ingest_inputs
 from yap_studio.stages.assemble import assemble, assembly_snapshot, verification_edl
 from yap_studio.stages.captions import (
+    _HORIZONTAL_CAPTION_PATTERN,
+    _TEMPLATES,
     caption_layer_plan,
     caption_layout,
     captions,
@@ -118,6 +121,19 @@ def test_unsupported_settings_fail_before_media(tmp_path: Path, settings: dict,
     assert not (tmp_path / "cut").exists()
 
 
+@pytest.mark.parametrize("grade", [{}, None])
+def test_horizontal_grade_override(tmp_path: Path, grade: dict | None) -> None:
+    settings = {} if grade is None else {"grade": grade}
+    context = _context(tmp_path, style={"grade": {"look": "film"}}, **settings)
+    assert context.project.grade == grade
+    if grade is None:
+        with pytest.raises(YapError, match="grading") as caught:
+            require_supported(context)
+        assert caught.value.code == "horizontal_unsupported"
+    else:
+        require_supported(context)
+
+
 @pytest.mark.parametrize("kind", ["title", "chapter", "graphic", "insert", "overlay",
                                    "background", "zoom", "transition", "moment"])
 def test_visual_lanes_refused_even_with_rule_override(tmp_path: Path, kind: str) -> None:
@@ -136,6 +152,14 @@ def _phrases(style):
     return build_phrases([CaptionWord("t1:0", "Keep", .1, .3),
                           CaptionWord("t1:1", "this", .3, .5),
                           CaptionWord("t1:2", "vertical.", .5, .8)], style.data["captions"])
+
+
+@pytest.mark.parametrize("literal,count", [("1080", 12), ("940", 8), ("70", 3)])
+def test_horizontal_caption_template_literal_counts(literal: str, count: int) -> None:
+    source = (_TEMPLATES / "captions" / "template.html").read_text(encoding="utf-8")
+    assert len(re.findall(_HORIZONTAL_CAPTION_PATTERN.format(literal), source)) == count, (
+        f"Template gained or lost a {literal} match; check the horizontal caption rewrite."
+    )
 
 
 def test_vertical_caption_plan_and_html_match_baseline_bytes(tmp_path: Path) -> None:
