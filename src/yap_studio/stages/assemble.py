@@ -862,7 +862,8 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
                     if grade is not None and grade.active else {})
     from yap_studio.youtube_chapters import timeline_chapters
 
-    youtube = timeline_chapters(timeline) if frame.width > frame.height else None
+    youtube = (timeline_chapters(timeline, snapshot.title_layers)
+               if frame.width > frame.height else None)
     return {"sources": sources, "fps": "30/1", "composite": True, **grade_record,
             **({"youtube_chapters": youtube} if youtube else {}),
             "ranges": copy.deepcopy(snapshot.spans.get("ranges", snapshot.spans.get("segments"))),
@@ -1701,6 +1702,7 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                             run._journal_output({"path": str(chapter_path.relative_to(root)),
                                                  "old_sha256": old, "new_sha256": None})
                             chapter_path.unlink()
+                            run.outputs.pop(str(chapter_path.relative_to(root)), None)
                 run.replace_output((root / out).with_suffix(LAYOUT_SUFFIX), layout_path)
                 run.replace_output((root / out).with_suffix(CONTRAST_SUFFIX), contrast_path)
                 run.replace_output((root / out).with_suffix(".faces.json"), faces_path)

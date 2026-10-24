@@ -87,11 +87,11 @@ def chapter(seconds, title):
 
 def test_youtube_chapters_format_and_opening():
     rows = [chapter(15, "Plan the story"), chapter(75, "Make the cut"), chapter(3610, "Publish")]
-    text, warning = chapter_list(rows, 3620 * 30, opening="Opening title")
+    text, warning = chapter_list(rows, 3620 * 30, fps=30, opening="Opening title")
     assert warning is None
     assert text == "0:00 Opening title\n0:15 Plan the story\n1:15 Make the cut\n1:00:10 Publish\n"
     text, warning = chapter_list([chapter(0, "Start"), chapter(10, "Middle"),
-                                 chapter(20, "End")], 900)
+                                 chapter(20, "End")], 900, fps=30)
     assert warning is None and text == "0:00 Start\n0:10 Middle\n0:20 End\n"
 
 
@@ -102,12 +102,12 @@ def test_youtube_chapters_format_and_opening():
     ([chapter(0, "Start"), chapter(0, "Duplicate"), chapter(20, "End")], 1200, "10 seconds"),
 ])
 def test_youtube_invalid_chapters_offer_only_a_plain_fix(rows, duration, fix):
-    text, warning = chapter_list(rows, duration)
+    text, warning = chapter_list(rows, duration, fps=30)
     assert text is None and fix in warning
 
 
 def test_no_chapters_offer_nothing():
-    assert chapter_list([], 18000) == (None, None)
+    assert chapter_list([], 18000, fps=30) == (None, None)
 
 
 @pytest.mark.parametrize("kind,payload", [("title", {}), ("chapter", {}),
@@ -251,6 +251,48 @@ def test_vertical_layer_bytes_match_main_5e1876b(tmp_path, kind, digest):
         with paths.operation():
             result = render_layer_plan(plan, tmp_path / "work", tmp_path / "layer.mov")
     assert receipt.sha256_file(result.path) == digest
+
+
+@pytest.mark.parametrize("mask", [False, True])
+def test_chapter_evidence_uses_retained_graphics_text(layer_project, mask):
+    from test_stage_captions import republish_cut
+
+    from yap_studio.project.status import ProjectContext
+    from yap_studio.stages.assemble import verification_edl
+    from yap_studio.stages.graphics import graphics_snapshot
+
+    project = json.loads((layer_project / "project.json").read_text())
+    project.update(shape="horizontal", word_fixes={})
+    (layer_project / "project.json").write_text(json.dumps(project))
+    chosen = style().data
+    chosen["music"].update(bleep_swears=mask, bleep_words_add=["rambling"])
+    (layer_project / "style.json").write_text(json.dumps(chosen))
+    republish_cut(layer_project)
+    set_elements(layer_project,
+                 {"id": "agent-title", "kind": "title", "start": {"time": 0},
+                  "hold_s": .5, "lines": ["Twenty rambling steps"]},
+                 {"id": "agent-chapter", "kind": "chapter", "start": {"time": 1},
+                  "hold_s": 1, "title": "Less rambling"})
+    context = ProjectContext(layer_project)
+    rendered = graphics_snapshot(context)
+    placements = [item.placement() for item in rendered.titles]
+    expected = ["20 r******* steps", "Less r*******"] if mask else [
+        "20 rambling steps", "Less rambling"]
+    assert [" ".join(item["display_text"]) for item in placements] == expected
+    assert [" ".join(json.loads(item.plan.variables["lines"]))
+            for item in rendered.titles] == expected
+    # Later lane and style edits cannot rewrite this delivery's retained snapshot.
+    snapshot = SimpleNamespace(timeline=context.resolved_timeline(), title_layers=placements,
+                               caption_layer=None, grade=None, media={}, sources={},
+                               spans={"ranges": []}, small_files={
+                                   "project.json": json.dumps(project).encode()})
+    set_elements(layer_project)
+    chosen["music"]["bleep_swears"] = not mask
+    (layer_project / "style.json").write_text(json.dumps(chosen))
+    evidence = verification_edl(snapshot, base=layer_project / "final")["youtube_chapters"]
+    assert evidence["opening"] == expected[0]
+    assert evidence["chapters"] == [{"start_frame": 30, "title": expected[1]}]
+    assert evidence["fps"] == "30/1"
 
 
 def test_verify_warns_with_fix_and_no_invalid_list(tmp_path):

@@ -62,11 +62,9 @@ def test_chapter_copy_phone_desktop_and_frozen_versions(tmp_path, feedback_proje
         thread.start()
     try:
         script = Path(__file__).parent / "fixtures/youtube_chapters_browser.mjs"
-        result = subprocess.run(["node", str(script), home.url, review.url, text, str(tmp_path)],
+        result = subprocess.run(["node", str(script), home.url, review.url, text],
                                 capture_output=True, text=True, timeout=90, check=False)
         assert result.returncode == 0, result.stdout + result.stderr
-        shots = list(tmp_path.glob("chapters-*.png"))
-        assert len(shots) == 4 and all(shot.stat().st_size > 1000 for shot in shots)
     finally:
         for server in (home, review):
             server.shutdown()

@@ -9,6 +9,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Literal
 
@@ -916,15 +917,29 @@ def _verify(
                     coverage["taste.rules"] = taste_check.coverage
 
             youtube_text = None
+            coverage["platform.chapters"] = {"ran": False, "reason": "no chapters in this video"}
             if edl is not None and load_path.suffix == ".json":
                 from yap_studio.youtube_chapters import chapter_list
 
-                chapter_data = json.loads(load_path.read_bytes()).get("youtube_chapters")
-                if chapter_data is not None:
+                edit_data = json.loads(load_path.read_bytes())
+                chapter_data = edit_data.get("youtube_chapters")
+                if chapter_data is not None and not (
+                    isinstance(chapter_data, dict) and not chapter_data.get("chapters")
+                ):
                     if isinstance(chapter_data, dict):
-                        youtube_text, fix = chapter_list(
-                            chapter_data.get("chapters", []), info.video_frames,
-                            opening=chapter_data.get("opening", "Opening"))
+                        try:
+                            edit_fps = Fraction(str(edit_data.get(
+                                "fps", edit_list.fps or info.fps)))
+                            chapter_fps = Fraction(str(chapter_data.get("fps", edit_fps)))
+                            if chapter_fps != info.fps or chapter_fps != edit_fps:
+                                raise ValueError
+                        except (ValueError, ZeroDivisionError):
+                            fix = ("Use chapter evidence with the same frame rate "
+                                   "as the video and edit list.")
+                        else:
+                            youtube_text, fix = chapter_list(
+                                chapter_data.get("chapters", []), info.video_frames,
+                                fps=chapter_fps, opening=chapter_data.get("opening", "Opening"))
                     else:
                         fix = "Give every chapter a name and a valid start time inside the video."
                     coverage["platform.chapters"] = {"ran": True, "valid": fix is None}

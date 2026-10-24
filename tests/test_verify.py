@@ -1197,8 +1197,11 @@ def test_verify_without_audio_runs_picture_structure_and_platform(
             "status": "skipped",
             "reason": "no audio in the render",
         }
-    platform_checks = [check for check in result["checks"] if check.startswith("platform.")]
+    platform_checks = [check for check in result["checks"]
+                       if check.startswith("platform.") and check != "platform.chapters"]
     assert all(result["checks"][check]["ran"] for check in platform_checks)
+    assert result["checks"]["platform.chapters"] == {
+        "ran": False, "status": "skipped", "reason": "no chapters in this video"}
     if with_edit_list:
         assert result["checks"]["plan.picture"]["ran"] is True
         assert result["checks"]["join.frames"]["ran"] is True

@@ -167,6 +167,54 @@ def test_selected_audio_has_owned_portable_verification_reference(project: Path)
     assert final_stage(project)["state"] == "done"
 
 
+@pytest.mark.parametrize("prior_sidecar,interrupt", [(False, False), (True, False),
+                                                    (True, "before"), (True, "after")])
+def test_remove_chapter_sidecar_and_recover(project, monkeypatch, prior_sidecar, interrupt):
+    original_verify = stage.verify
+
+    def with_chapters(*args, **kwargs):
+        return {**original_verify(*args, **kwargs),
+                "youtube_chapters": "0:00 Start\n0:10 Middle\n0:20 End\n"}
+
+    with monkeypatch.context() as patch:
+        if prior_sidecar:
+            patch.setattr(stage, "verify", with_chapters)
+        stage.assemble(project)
+    sidecar = project / "final/story.chapters.txt"
+    assert sidecar.exists() == prior_sidecar
+    if interrupt:
+        original_journal = StageRun._journal_output
+        original_replace = StageRun.replace_output
+
+        def stop_before_delete(run, entry):
+            original_journal(run, entry)
+            if entry.get("new_sha256") is None:
+                raise KeyboardInterrupt
+
+        def stop_after_delete(run, target, staged):
+            if target == (project / "final/story.mp4").with_suffix(".layout.json"):
+                raise KeyboardInterrupt
+            original_replace(run, target, staged)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(stage, "_mark_stale", lambda *args: None)
+            if interrupt == "before":
+                patch.setattr(StageRun, "_journal_output", stop_before_delete)
+            else:
+                patch.setattr(StageRun, "replace_output", stop_after_delete)
+            with pytest.raises(KeyboardInterrupt):
+                stage.assemble(project, force=True)
+        assert sidecar.exists() == (interrupt == "before")
+        assert (project / "final/receipt.pending.json").exists()
+    result = stage.assemble(project, force=True)
+    record = read_receipt(project / "final")
+    assert result["status"] == record["status"] == "verified"
+    assert not sidecar.exists()
+    assert not any(item["path"].endswith(".chapters.txt") for item in record["outputs"])
+    assert not (project / "final/receipt.pending.json").exists()
+    assert stage.assemble(project)["noop"]
+
+
 def test_fully_gapped_captions_assemble_without_a_layer(project: Path, capsys) -> None:
     from yap_studio.review.findings import findings_for_media
 

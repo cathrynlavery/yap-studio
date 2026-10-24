@@ -470,13 +470,17 @@ def graphics_snapshot(
             if placement_record is not None:
                 clearance = placement_record["clearance"]
             wide_assets = layer_assets("wide_titles", plan.variables["font_name"], context)
+            display_text = (tuple(json.loads(plan.variables["lines"]))
+                            if kind != "name_tag" else None)
             digest = projection_sha256({
                 "element": element.to_dict(), "variables": plan.variables, "clearance": clearance,
                 "fonts": wide_assets.font_identity(),
                 "template": wide_assets.template_identity(workers=hyperframes.RENDER_WORKERS),
+                **({"display_text": display_text} if display_text is not None else {}),
                 **bleep_input,
             })
-            titles.append(TitleSnapshot(element.id, "front", plan, digest, clearance, wide_assets))
+            titles.append(TitleSnapshot(element.id, "front", plan, digest, clearance, wide_assets,
+                                        display_text=display_text))
             continue
         if element.kind == "chapter":
             chapter_title = (bleep.mask_text(element.payload["title"], bleep_words)

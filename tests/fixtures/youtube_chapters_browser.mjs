@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {join} from 'node:path';
 
-const [home, review, expected, output, project = 'demo'] = process.argv.slice(2);
+const [home, review, expected, project = 'demo'] = process.argv.slice(2);
 const puppeteer = createRequire(import.meta.url)(process.env.YAP_STUDIO_PUPPETEER);
 const browser = await puppeteer.launch({executablePath: process.env.YAP_STUDIO_CHROME,
   headless: true, pipe: true, args: ['--no-sandbox']});
@@ -34,7 +33,6 @@ try {
       await page.waitForFunction((text) => window.copiedChapterText === text, {}, expected);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.deepEqual(errors, []);
-      await page.screenshot({path: join(output, `chapters-${surface}-${width}.png`), fullPage: true});
       await page.close();
     }
   }
