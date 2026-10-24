@@ -1642,6 +1642,25 @@ def test_other_renderer_failures_keep_tool_error(
     assert caught.value.full_stderr == stderr
 
 
+@pytest.mark.parametrize("stream", ["stdout", "stderr"])
+def test_page_error_with_successful_exit_refuses_output(
+    tmp_path: Path, fake_renderer: Callable[[str], RendererInstall], stream: str,
+) -> None:
+    renderer = fake_renderer(
+        "import sys\nfrom pathlib import Path\n"
+        "Path(sys.argv[sys.argv.index('-o') + 1]).write_bytes(b'partial render')\n"
+        f"sys.{stream}.write('[Browser:PAGEERROR] injected script failure\\n')\n"
+    )
+    comp = _composition(tmp_path / "page-error")
+    out = tmp_path / "out.mov"
+    with pytest.raises(YapError, match="injected script failure") as caught:
+        render_layer(comp, out, frames=30, variables={}, install=renderer, checks=False)
+    assert caught.value.code == "renderer_script_error"
+    assert not out.exists()
+    assert not list(comp.glob("*.mov"))
+    assert not (comp / "variables.json").exists()
+
+
 @pytest.mark.parametrize("checks", [True, False])
 @pytest.mark.parametrize("error", _LOCAL_SERVER_ERRORS)
 def test_render_retries_once_when_local_server_answers_with_another_program(
@@ -2473,6 +2492,26 @@ def test_real_pinned_renderer_checks_text_layout(tmp_path: Path) -> None:
         else:
             assert result["passes"]["layout"]["status"] == "passed", result
             assert all(item["errors"] == 0 for item in result["passes"].values()), result
+
+
+@pytest.mark.render
+def test_real_pinned_renderer_script_error_refuses_output(tmp_path: Path) -> None:
+    comp = _gsap_composition(tmp_path / "throwing", frames=3)
+    html = comp / "index.html"
+    source = html.read_text()
+    injected = source.replace(
+        "<script>window.__timelines",
+        "<script>throw new Error('injected script failure'); window.__timelines", 1,
+    )
+    assert injected != source
+    html.write_text(injected)
+    out = tmp_path / "throwing.mov"
+    with pytest.raises(YapError, match="injected script failure"):
+        render_layer(comp, out, frames=3, variables={}, checks=False)
+    assert not out.exists()
+    assert not list(comp.glob("*.mov"))
+    assert not (comp / "variables.json").exists()
+    assert not (comp / GSAP_SCRIPT).exists()
 
 
 @pytest.mark.render
