@@ -27,14 +27,23 @@ async function run(url, resultFile, shots) {
       for (const [index, button] of buttons.entries()) {
         assert.equal(await button.evaluate((node) => node.textContent), 'Listen');
         await button.evaluate((node) => node.scrollIntoView({block: 'center'}));
+        await page.$eval('#video', (node) => {
+          const sample = window.joinPlayback = {start: null, end: null};
+          const recordStart = () => {
+            sample.start = node.currentTime;
+            node.removeEventListener('seeked', recordStart);
+            node.removeEventListener('playing', recordStart);
+          };
+          node.addEventListener('seeked', recordStart);
+          node.addEventListener('playing', recordStart);
+          node.addEventListener('pause', () => { sample.end = node.currentTime; }, {once: true});
+        });
         await button.click();
-        await page.waitForFunction(() => !document.querySelector('#video').paused);
-        const start = await page.$eval('#video', (node) => node.currentTime);
-        assert.ok(Math.abs(start - (index ? 35 / 30 : 0)) < 0.3);
-        await page.waitForFunction(() => document.querySelector('#video').paused);
-        const end = await page.$eval('#video', (node) => node.currentTime);
-        // Hosted runners pause a few frames late; 0.15 s still catches playing on into the next words.
-        assert.ok(Math.abs(end - (index ? 119.5 / 30 : 84.5 / 30)) < 0.15);
+        await page.waitForFunction(() => window.joinPlayback.start !== null && window.joinPlayback.end !== null);
+        const {start, end} = await page.evaluate(() => window.joinPlayback);
+        // Capture event times in-page; allow less than two frames at 30 fps.
+        assert.ok(Math.abs(start - (index ? 35 / 30 : 0)) < 0.06, `Listen ${index} start: ${start}`);
+        assert.ok(Math.abs(end - (index ? 119.5 / 30 : 84.5 / 30)) < 0.06, `Listen ${index} end: ${end}`);
         played.push({start, end});
       }
       assert.deepEqual(writes, []);
