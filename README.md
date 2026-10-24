@@ -6,7 +6,7 @@
 
 For people with more to say than time to edit. 30 card types. Every cut checked. No timeline.
 
-Drop in your raw takes, stumbles and all. An agent in Claude Code cuts the dead air and the
+Drop in your raw takes, stumbles and all. An agent in Claude Code or Codex cuts the dead air and the
 restarts, adds your captions, cards, B-roll and music, and checks the video before you see it.
 You leave notes from your phone, and the next version follows them.
 
@@ -34,8 +34,9 @@ walks you through each video, and the notes you approve become taste rules, so t
 starts closer to how you like it.
 
 Your video files stay on your computer. Still frames from pinned notes and contact sheets of
-your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
-Claude reads, as part of your Claude Code session.
+your clips go to Anthropic when you use Claude Code, or OpenAI when you use Codex, along with
+the transcript, your notes and the project files your agent reads, as part of your Claude Code
+or Codex session.
 ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.
 Notes about problems with the tool stay on your computer until you agree to share them.
 
@@ -45,17 +46,22 @@ If you build software, the engine is Python with a command line. Skip to
 ## Three steps, then you talk
 
 You need a Mac with macOS 14 or newer and about 10 GB free on a local disk.
-Install [Claude Code](https://claude.com/product/claude-code) and sign in once with `/login`.
-Claude runs setup one step at a time and asks before each install. On a Mac, it uses Homebrew
+Install [Claude Code](https://claude.com/product/claude-code) and sign in with `/login`,
+or install [Codex](https://developers.openai.com/codex/quickstart) and sign in.
+Claude Code or Codex runs setup one step at a time and asks before each install. On a Mac, it uses Homebrew
 and offers to install Homebrew first if needed.
 
 1. Download `yap-studio-workspace-<version>.zip` from the
    [latest release](https://github.com/cathrynlavery/yap-studio/releases/latest) and unzip it
    into a local folder, not a synced one.
-2. Open that folder in Claude Code and say "set me up". The first setup downloads the speech
+2. Open that folder in Claude Code or Codex and say "set me up". The first setup downloads the speech
    model (about 2.5 GB) and the video renderer, then opens Yap Studio home in your browser.
 3. Choose what you're making, add your footage, pick your look on a still from your own take,
    and press Make my video.
+
+To open it from a terminal, change to the unzipped folder and run `claude` for Claude Code
+or `codex` for Codex. In either app, paste `set me up`. The plain Claude chat app and
+ChatGPT cannot edit these videos.
 
 After that, you watch the story cut and then the finished video, leave notes on any moment, and
 approve the version you keep. [docs/home.md](docs/home.md) explains how the page and the agent
@@ -70,7 +76,7 @@ presenter with a slow push, reading a short script in the Mac's built-in voice.
 <tr>
 <td width="50%"><img src="docs/images/journey/1-start-here.jpg" alt="Start here page: what you need, and the phrase to type in Claude Code"><br>
 <b>1. Start here.</b> The workspace opens with a page that lists what you need and the one
-phrase to type in Claude Code. Claude asks before it installs anything.</td>
+phrase to type in Claude Code or Codex. The agent asks before it installs anything.</td>
 <td width="50%"><img src="docs/images/journey/2-what.jpg" alt="What are you making: talking head or voiceover, and whether there is anything to show on top"><br>
 <b>2. What you're making.</b> Talking head or voiceover. A talking head asks whether you have
 anything to show on top before asking where it is.</td>
@@ -84,16 +90,16 @@ the inbox and never changes the originals.</td>
 </tr>
 <tr>
 <td><img src="docs/images/journey/5-make.jpg" alt="Make it: a summary of the choices and the Make my video button"><br>
-<b>5. Make it.</b> Press Make my video. Claude picks it up without you typing anything.</td>
-<td><img src="docs/images/journey/6-progress.jpg" alt="Progress while Claude works, with Claude's notes on the version"><br>
-<b>6. While Claude works.</b> The page shows each step as it happens. Claude's notes say what
-each version changed, and you can message Claude from the page.</td>
+<b>5. Make it.</b> Press Make my video. Claude Code or Codex picks it up without you typing anything.</td>
+<td><img src="docs/images/journey/6-progress.jpg" alt="Progress while Claude Code or Codex works, with your agent's notes on the version"><br>
+<b>6. While Claude Code or Codex works.</b> The page shows each step as it happens. Your agent's notes say what
+each version changed, and you can message Claude Code or Codex from the page.</td>
 </tr>
 <tr>
 <td><img src="docs/images/journey/7-review.jpg" alt="Review page with a marked stretch, a note box, and Cut this, Change this and Keep this"><br>
 <b>7. Watch and comment.</b> Mark a stretch and say Cut this, Change this or Keep this, with a
 note. When the story is right, press Make the final video.</td>
-<td><img src="docs/images/journey/8-done.jpg" alt="Your video is ready: Open, Show in Finder and Download, and Claude's reply to a question"><br>
+<td><img src="docs/images/journey/8-done.jpg" alt="Your video is ready: Open, Show in Finder and Download, and your agent's reply to a question"><br>
 <b>8. Done.</b> Approve the final, then open it on your Mac, show it in Finder, or download it.</td>
 </tr>
 </table>
@@ -101,7 +107,7 @@ note. When the story is right, press Make the final video.</td>
 <p align="center"><img src="docs/images/journey/9-phone.jpg" alt="The finished video, the video type question and the footage step on a phone" width="100%"></p>
 
 The same pages work on a phone over the same Wi-Fi or Tailscale. Anything paid, such as
-generated music, still goes through Claude in chat, and Claude asks first.
+generated music, still goes through Claude Code or Codex in chat, and Claude Code or Codex asks first.
 
 ## Made with Yap Studio
 
@@ -193,7 +199,7 @@ your phone. Each round of comments makes a new version.
 
 ## Four kinds of video
 
-The home page asks for a talking head or a voiceover. For the other two, tell Claude in chat.
+The home page asks for a talking head or a voiceover. For the other two, tell Claude Code or Codex in chat.
 
 - Talking head, from one or more takes to camera. That is the quick start above.
 - Voiceover, from a voice memo and your own photos and clips of a project or a day. This one
@@ -201,7 +207,7 @@ The home page asks for a talking head or a voiceover. For the other two, tell Cl
   and [the first test](https://x.com/cathrynlavery/status/2110819344745923004).
 - Green screen, with you cut out over a page, screenshot, photo or clip that fills the frame
   (macOS). You can sit full size, along the bottom or in a corner. See
-  [the workspace guide](workspace/CLAUDE.md#what-are-you-making).
+  [the workspace guide](workspace/AGENTS.md#what-are-you-making).
 - Screen recording, with your screen as the picture and your voice recorded with it or in a
   separate memo. You in a corner over the screen is not in this version yet.
 

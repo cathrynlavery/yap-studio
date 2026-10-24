@@ -65,9 +65,14 @@ def test_review_pin_phone_and_desktop(tmp_path: Path) -> None:
         server.server_close()
 
 
-def test_review_join_listens_phone_and_desktop(join_project, tmp_path):
+@pytest.mark.parametrize("agent", [None, "codex"])
+def test_review_join_listens_phone_and_desktop(join_project, tmp_path, agent):
     root, _, _ = join_project
-    save_version(root)
+    if agent:
+        folder = root / ".yap-studio"
+        folder.mkdir(exist_ok=True)
+        (folder / "setup.json").write_text(json.dumps({"agent": agent}))
+    save_version(root, note="Story cut. Tightened the opening.")
     store = ReviewStore(tmp_path / "store")
     video = version_video([str(root)], store, lambda _: [])
     server = ReviewServer(video.media, video.sha256, None, store, series=video.series)
@@ -77,7 +82,8 @@ def test_review_join_listens_phone_and_desktop(join_project, tmp_path):
     shots = tmp_path / "join-shots"
     try:
         result = subprocess.run(["node", str(ROOT / "tests/js/review-join-browser.mjs"),
-                                 server.url, str(result_file), str(shots)],
+                                 server.url, str(result_file), str(shots),
+                                 "Codex" if agent == "codex" else "Claude Code"],
                                 stdin=subprocess.DEVNULL, capture_output=True, text=True,
                                 timeout=120, check=False)
         assert result.returncode == 0, result.stdout + result.stderr

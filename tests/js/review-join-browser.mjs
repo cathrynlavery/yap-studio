@@ -3,7 +3,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {join} from 'node:path';
 
-async function run(url, resultFile, shots) {
+async function run(url, resultFile, shots, agent = 'Claude Code') {
   const puppeteer = createRequire(import.meta.url)(process.env.YAP_STUDIO_PUPPETEER);
   const browser = await puppeteer.launch({executablePath: process.env.YAP_STUDIO_CHROME,
     pipe: true, headless: true, args: ['--no-sandbox']});
@@ -18,6 +18,8 @@ async function run(url, resultFile, shots) {
         isMobile: mobile, hasTouch: mobile});
       await page.goto(url);
       await page.waitForFunction(() => document.querySelector('#findings-count').textContent === '2');
+      assert.ok(await page.$eval('#range-note', (el, name) => el.placeholder.includes(name), agent));
+      assert.ok(await page.$eval('#version-note', (el, name) => el.textContent.startsWith(name), agent));
       await page.$eval('#findings-section', (node) => { node.open = true; });
       const buttons = await page.$$('#findings-list .finding-actions button:first-child');
       assert.equal(buttons.length, 2);

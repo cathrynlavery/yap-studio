@@ -3,7 +3,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {join} from 'node:path';
 
-async function run(url, resultFile, shots) {
+async function run(url, resultFile, shots, agent = 'Claude Code') {
   const puppeteer = createRequire(import.meta.url)(process.env.YAP_STUDIO_PUPPETEER);
   const browser = await puppeteer.launch({executablePath: process.env.YAP_STUDIO_CHROME,
     pipe: true, headless: true, args: ['--no-sandbox']});
@@ -17,6 +17,7 @@ async function run(url, resultFile, shots) {
         isMobile: width === 390, hasTouch: width === 390});
       await page.goto(`${url}#new/what`);
       await page.waitForSelector('.tile');
+      assert.ok(await page.$eval('#listener', (el, name) => el.textContent.includes(name), agent));
       const settle = () => page.evaluate(async () => {
         await Promise.allSettled(document.getAnimations().filter((animation) =>
           animation.effect.getTiming().iterations !== Infinity).map((animation) => animation.finished));

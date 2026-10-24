@@ -14,8 +14,8 @@ test('a fresh tab and a request route follow a claimed final to its project', ()
   assert.equal(home.defaultRoute(state, true), '#video/demo');
   const code = source.slice(source.indexOf('function renderRequest('), source.indexOf('function finalRequested('));
   const redirects = [];
-  const render = new Function('state', 'h', 'requestInfo', 'typeLabel', 'takesText', 'queueMicrotask',
-    `${code}; return renderRequest;`)(state, h, home.requestInfo, home.typeLabel, home.takesText,
+  const render = new Function('agentName', 'state', 'h', 'requestInfo', 'typeLabel', 'takesText', 'queueMicrotask',
+    `${code}; return renderRequest;`)(home.agentName, state, h, home.requestInfo, home.typeLabel, home.takesText,
       (fn) => redirects.push(fn));
   render({id: 'r2'});
   assert.equal(redirects.length, 1);
@@ -29,8 +29,8 @@ for (const status of ['failed', 'cancelled']) {
       const state = {requests: [request], projects: [{name: 'demo', dir: 'projects/demo'}]};
       const code = source.slice(source.indexOf('function renderRequest('), source.indexOf('function finalRequested('));
       const redirects = [];
-      const render = new Function('state', 'h', 'requestInfo', 'typeLabel', 'takesText', 'queueMicrotask',
-        `${code}; return renderRequest;`)(state, h, home.requestInfo, home.typeLabel, home.takesText,
+      const render = new Function('agentName', 'state', 'h', 'requestInfo', 'typeLabel', 'takesText', 'queueMicrotask',
+        `${code}; return renderRequest;`)(home.agentName, state, h, home.requestInfo, home.typeLabel, home.takesText,
           (fn) => redirects.push(fn));
       const tree = nodes(render({id: 'r2'}));
       assert.equal(redirects.length, 0);
@@ -43,9 +43,9 @@ for (const status of ['failed', 'cancelled']) {
 test('make and building copy promise only the chosen look', () => {
   const state = {style: {saved: true, name: 'Just you'}, listening: true};
   const code = source.slice(source.indexOf('function stepMake('), source.indexOf('// ---------- Request'));
-  const make = new Function('state', 'h', 'typeLabel', 'brollText', 'sourcesToSend', 'draftTakes',
+  const make = new Function('agentName', 'state', 'h', 'typeLabel', 'brollText', 'sourcesToSend', 'draftTakes',
     'stepHeader', 'busy', 'shapeProblem', 'topTextChoice', 'topTextAnswers',
-    `${code}; return stepMake;`)(state, h, home.typeLabel, home.brollText,
+    `${code}; return stepMake;`)(home.agentName, state, h, home.typeLabel, home.brollText,
       home.sourcesToSend, () => ['take.mp4'], () => [], false, home.shapeProblem,
       home.topTextChoice, home.topTextAnswers);
   const text = nodes(make({video_type: 'talking_head', has_broll: false}, {}))

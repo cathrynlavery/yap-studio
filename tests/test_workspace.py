@@ -42,7 +42,11 @@ EXPECTED = {
     ".claude/commands/edit.md",
     ".claude/skills/edit-video/SKILL.md",
     ".claude/skills/voiceover-video/SKILL.md",
+    "AGENTS.md",
     "CLAUDE.md",
+    ".agents/skills/edit-video/SKILL.md",
+    ".agents/skills/voiceover-video/SKILL.md",
+    ".agents/skills/edit/SKILL.md",
     "LICENSE",
     "NOTICE",
     "brand/fonts/README.md",
@@ -111,7 +115,7 @@ def test_workspace_zip_uses_staged_content(tmp_path: Path) -> None:
         shutil.copy2(ROOT / relative, target)
     for args in (["git", "init"], ["git", "add", "-A"]):
         subprocess.run(args, cwd=repository, capture_output=True, check=True)
-    guidance = repository / "workspace/CLAUDE.md"
+    guidance = repository / "workspace/AGENTS.md"
     staged = guidance.read_bytes()
     guidance.write_bytes(b"Unstaged synthetic workspace guidance.\n")
     license_file = repository / "LICENSES/Apache-2.0.txt"
@@ -132,7 +136,8 @@ def test_workspace_zip_uses_staged_content(tmp_path: Path) -> None:
     bundle = Path(result.stdout.strip().splitlines()[-1])
     assert bundle.name == f"yap-studio-workspace-{VERSION}.zip"
     with zipfile.ZipFile(bundle) as archive:
-        assert archive.read("CLAUDE.md") == staged
+        assert archive.read("AGENTS.md") == staged
+        assert archive.read("CLAUDE.md") == b"@AGENTS.md\n"
         assert archive.read("LICENSES/Apache-2.0.txt") == staged_license
         assert archive.read(".yap-studio-version") == f"{VERSION}\n".encode()
         with zipfile.ZipFile(archive.open(f"wheels/{WHEEL}")) as wheel:
@@ -181,6 +186,12 @@ def test_workspace_zip_exact_files_and_clean_contents(tmp_path: Path) -> None:
     assert bundle == tmp_path / f"yap-studio-workspace-{VERSION}.zip"
     with zipfile.ZipFile(bundle) as archive:
         assert set(archive.namelist()) == expected
+        for skill in ("edit-video", "voiceover-video"):
+            member = f".agents/skills/{skill}/SKILL.md"
+            assert archive.read(member) == archive.read(f".claude/skills/{skill}/SKILL.md")
+            assert archive.getinfo(member).external_attr >> 16 & 0o170000 != 0o120000
+        assert (archive.read(".agents/skills/edit/SKILL.md")
+                == archive.read(".claude/commands/edit.md"))
         assert archive.read(".yap-studio-version") == f"{VERSION}\n".encode()
         wheel_file = tmp_path / WHEEL
         wheel_file.write_bytes(archive.read(f"wheels/{WHEEL}"))
@@ -642,7 +653,7 @@ def test_new_project_refuses_video_flags_with_name_or_add(mode, flags, capsys):
 
 
 def test_workspace_video_routing_and_commands_parse():
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
     assert "## What are you making?" in guide
     section = guide.split("## What are you making?", 1)[1].split("## Make a voiceover video", 1)[0]
     for phrase in ("yap-studio video-type show --json", "AskUserQuestion", "not in this version",
@@ -656,7 +667,7 @@ def test_workspace_video_routing_and_commands_parse():
     assert "yap-studio timeline add FRAGMENT DIR --lane agent" in guide
     skill = (ROOT / "workspace/.claude/skills/edit-video/SKILL.md").read_text()
     assert "broll_sources" in skill and "`stock` is in this video's B-roll sources" in skill
-    files = ["workspace/CLAUDE.md", "workspace/.claude/skills/edit-video/SKILL.md",
+    files = ["workspace/AGENTS.md", "workspace/.claude/skills/edit-video/SKILL.md",
              "workspace/.claude/skills/voiceover-video/SKILL.md",
              "workspace/.claude/commands/edit.md"]
     substitutions = {"DIR": "project", "TYPE": "talking_head", "SOURCE": "folder",
@@ -690,7 +701,7 @@ def test_workspace_video_routing_and_commands_parse():
 
 
 def test_workspace_asks_for_unchosen_broll_after_type():
-    guide = " ".join((ROOT / "workspace/CLAUDE.md").read_text().split())
+    guide = " ".join((ROOT / "workspace/AGENTS.md").read_text().split())
     assert ("If `yap-studio status DIR` says B-roll is not chosen yet, ask only `broll_sources` "
             "for this video and record it with "
             "`yap-studio video-type set DIR --broll SOURCE ...`.") in guide
@@ -701,11 +712,11 @@ def test_workspace_asks_for_unchosen_broll_after_type():
     voiceover = " ".join(
         (ROOT / "workspace/.claude/skills/voiceover-video/SKILL.md").read_text().split())
     assert ("If B-roll is not chosen yet, ask only the B-roll question as in "
-            "What are you making? in `CLAUDE.md`.") in voiceover
+            "What are you making? in `AGENTS.md`.") in voiceover
 
 
 def test_setup_questions_are_one_at_a_time_and_saved() -> None:
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
     for phrase in ("yap-studio style questions", "AskUserQuestion", "one question at a time",
                    "style/answers.json", "yap-studio style from-answers", "Update my style"):
         assert phrase in guide
@@ -1657,8 +1668,8 @@ def test_skill_rechecks_the_whole_story_after_notes() -> None:
 
 
 def test_workspace_setup_asks_before_each_json_step() -> None:
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
-    assert "python3 setup.py --json" in guide
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
+    assert "python3 setup.py --agent AGENT --json" in guide
     assert "For each step" in guide
     assert "Ask before running its `command`" in guide
     assert "a `page` and no `command`" in guide
@@ -2757,7 +2768,7 @@ def test_setup_engine_step_is_posix_shell_text_on_every_platform(
 
 
 def test_guide_opens_the_style_page_in_the_background() -> None:
-    guide = (ROOT / "workspace/CLAUDE.md").read_text()
+    guide = (ROOT / "workspace/AGENTS.md").read_text()
     assert "yap-studio style pick --workspace . --inbox inbox --phone --no-open --detach --json" \
         in guide
     assert "yap-studio style pick --stop" in guide
@@ -3018,3 +3029,52 @@ def test_setup_refuses_invalid_inbox_ledger_like_project_start(
     assert result["refused"]["error"] == str(error.value)
     if contents is not None:
         assert ledger.read_bytes() == contents
+
+
+def test_shared_workspace_instructions_resolve_to_one_source():
+    workspace = ROOT / "workspace"
+    imported = (workspace / "CLAUDE.md").read_text().strip()
+    assert imported == "@AGENTS.md"
+    assert (workspace / imported[1:]).read_text() == (workspace / "AGENTS.md").read_text()
+
+
+@pytest.mark.parametrize("agent", ["claude-code", "codex"])
+def test_setup_records_app_and_preserves_it_without_option(tmp_path, monkeypatch, capsys, agent):
+    from yap_studio.homepage.state import HomeState
+
+    module = _module(ROOT / "workspace/setup.py", "workspace_setup_agent")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    monkeypatch.setattr(module, "_synced_service", lambda _: None)
+    monkeypatch.setattr(module, "_free_disk_gb", lambda _: 100)
+    folder = tmp_path / ".yap-studio"
+    folder.mkdir()
+    saved = folder / "setup.json"
+    saved.write_text(json.dumps({"other": "preserved"}))
+    # No wheel: recording the app must work before the first installation.
+    assert module.main(["--agent", agent, "--json"]) == 1
+    assert json.loads(saved.read_text()) == {"other": "preserved", "agent": agent}
+    assert module.main(["--json"]) == 1
+    (tmp_path / "inbox").mkdir()
+    assert HomeState(tmp_path).snapshot()["agent"] == agent
+    assert json.loads(saved.read_text())["agent"] == agent
+    capsys.readouterr()
+
+
+def test_setup_rejects_unknown_app_without_writing(tmp_path, monkeypatch):
+    module = _module(ROOT / "workspace/setup.py", "workspace_setup_bad_agent")
+    monkeypatch.setattr(module, "ROOT", tmp_path)
+    with pytest.raises(SystemExit):
+        module.main(["--agent", "unknown"])
+    assert not (tmp_path / ".yap-studio").exists()
+
+
+@pytest.mark.parametrize("stored", [None, "{}", '{"agent":"unknown"}', "{broken", "[]"])
+def test_old_workspace_app_defaults_to_claude_code(tmp_path, stored):
+    from yap_studio.homepage.state import HomeState
+
+    if stored is not None:
+        folder = tmp_path / ".yap-studio"
+        folder.mkdir()
+        (folder / "setup.json").write_text(stored)
+    (tmp_path / "inbox").mkdir()
+    assert HomeState(tmp_path).snapshot()["agent"] == "claude-code"

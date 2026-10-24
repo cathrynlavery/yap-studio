@@ -317,7 +317,7 @@ details.fold > summary span { color: var(--muted); font-weight: 400; font-size: 
   .tile, .btn { transition: none; }
 }
 
-/* Claude's notes and the message thread */
+/* Agent notes and the message thread */
 .version-notes { display: grid; gap: 10px; max-width: 680px; margin-top: 12px; }
 .version-notes li { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .version-notes strong { font-size: 14px; }

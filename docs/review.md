@@ -59,7 +59,7 @@ yap-studio review --versions my-video
 
 When three ideas are ready, a Text hook panel appears above the comments. Tap an
 idea or write your own, then press Use this. The panel shows your chosen text and
-adds a note. Send notes passes it to Claude. Text that needs more than two balanced
+adds a note. Send notes passes it to Claude Code or Codex. Text that needs more than two balanced
 lines is refused. Nothing is rendered until you choose.
 
 ## Keep it running

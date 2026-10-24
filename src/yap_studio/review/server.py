@@ -522,6 +522,7 @@ class ReviewServer:
 
             def _review_json(self) -> dict:
                 from yap_studio.homepage.link import for_path
+                from yap_studio.install_info import workspace_agent
 
                 facts, comments = self._current()
                 reviewer = review.store.reviewer()
@@ -563,6 +564,9 @@ class ReviewServer:
                         path=path, query=query, fragment="",
                     ).geturl()}
                 return {
+                    "agent": workspace_agent(self._video.series.project_dir)
+                    if self._video.series is not None and self._video.series.project_dir is not None
+                    else "claude-code",
                     "media_changed": self._selected._media_changed(),
                     "text_hook": self._text_hook(),
                     "phone": phone,

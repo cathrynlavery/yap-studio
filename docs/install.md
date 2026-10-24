@@ -1,6 +1,6 @@
 # Install
 
-There are two ways in. The creator workspace is a folder you open in Claude Code; the agent
+There are two ways in. The creator workspace is a folder you open in Claude Code or Codex; the agent
 sets it up and edits from there. A source install is for development, or for running the
 commands yourself.
 
@@ -8,7 +8,7 @@ commands yourself.
 
 - A Mac with macOS 14 or newer.
 - For the workspace, install [Claude Code](https://claude.com/product/claude-code) and sign in
-  once with `/login`. On a Mac, setup uses Homebrew for ffmpeg and Node and offers to install
+  with `/login`, or install [Codex](https://developers.openai.com/codex/quickstart) and sign in. On a Mac, setup uses Homebrew for ffmpeg and Node and offers to install
   Homebrew when it is missing.
 - Python 3.11 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/).
   The checkout uses Python 3.12 by default; uv can install it for you.
@@ -22,8 +22,9 @@ commands yourself.
   downloads. Editing uses local files after those dependencies are cached.
 
 Your video files stay on your computer. Still frames from pinned notes and contact sheets of
-your clips go to Claude (Anthropic), along with the transcript, your notes and the project files
-Claude reads, as part of your Claude Code session.
+your clips go to Anthropic when you use Claude Code, or OpenAI when you use Codex, along with
+the transcript, your notes and the project files your agent reads, as part of your Claude Code
+or Codex session.
 ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.
 Product feedback stays local until you agree to share it, with private values scrubbed.
 
@@ -123,13 +124,16 @@ From [Releases](https://github.com/cathrynlavery/yap-studio/releases), download
 local folder and open a terminal there. The zip contains setup scripts, agent edit
 instructions, an inbox, a font folder and the matching engine wheel. The repository's
 `workspace/` directory alone has no bundled wheel.
-Install Claude Code and sign in with `/login` before opening this folder in it.
+Install Claude Code or Codex and sign in before opening this folder in it.
 On a Mac, setup uses Homebrew for ffmpeg and Node and offers to install Homebrew first.
 
 ```console
-python3 setup.py --json
-python3 setup.py
+python3 setup.py --agent claude-code --json
+python3 setup.py --agent claude-code
 ```
+
+For Codex, use `--agent codex` instead. The agent passes its own identity during "set me up".
+The choice is saved in `.yap-studio/setup.json`; older workspaces default to Claude Code.
 
 The JSON mode lists steps without installing the engine. Read those steps first.
 Text mode installs or replaces the bundled engine when needed, includes the speech
@@ -139,17 +143,30 @@ are optional; phone review works on the same Wi-Fi without Tailscale.
 When setup finishes, it prints "Setup complete" and the home link after the page answers.
 It prints a phone link too when one is available.
 
-Put your own takes in `inbox/`. With an agent, open this folder in Claude Code and
+Put your own takes in `inbox/`. With an agent, open this folder in Claude Code or Codex and
 ask it to edit the video; the workspace instructions guide story and final review.
 For manual editing, run `python3 new_project.py --newest 1` to copy an unused take
 into a fresh project, then use the project directory it prints with the commands in
 [Edit from the command line](editing.md). The inbox originals stay intact.
 
+To open it from a terminal, change to the unzipped folder and run `claude` for Claude Code
+or `codex` for Codex. In either app, paste `set me up`. The plain Claude chat app and
+ChatGPT cannot edit these videos.
+
+The workspace instructions live in `AGENTS.md`, which Codex reads directly.
+`CLAUDE.md` imports the same file with `@AGENTS.md` for Claude Code.
+The zip contains regular copies of the two editing skills under `.claude/skills/` and
+`.agents/skills/`, built from the single source in `workspace/.claude/skills/`.
+Claude Code keeps `/edit`; Codex uses the `$edit` skill (or plain "edit this video").
+Codex project skills replace custom prompts, which are deprecated and only load from
+the user's Codex home. See [Codex skills](https://developers.openai.com/codex/skills)
+and [custom prompts](https://developers.openai.com/codex/custom-prompts).
+
 ### Update
 
 Download the new workspace zip from [Releases](https://github.com/cathrynlavery/yap-studio/releases)
 and unzip it into a new local folder. Copy your `projects/`, `inbox/`, `brand/` and `style/`
-folders from the old workspace into it. Open the new folder in Claude Code and say "set me up"
+folders from the old workspace into it. Open the new folder in Claude Code or Codex and say "set me up"
 to install the matching engine. Keep the old folder until you have checked your projects in
 the new one.
 

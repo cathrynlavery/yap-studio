@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from yap_studio import background
+from yap_studio import background, install_info
 from yap_studio.homepage.bridge import ACTIVE, events, listening, requests
 
 
@@ -80,6 +80,7 @@ def for_path(path: str | Path | None) -> dict | None:
         if phone_url
         else None,
         "phone_via": (document.get("phone") or {}).get("via"),
+        "agent": install_info.workspace_agent(workspace),
         "listening": listening(workspace),
         "delivered": delivered,
         "final_requested": final_requested,

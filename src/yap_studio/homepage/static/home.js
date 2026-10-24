@@ -1,5 +1,5 @@
 import {
-  NEW_STEPS, OFFERED_TYPES, TYPE_COPY, answersPayload, answersSummary, brollText, connectionMessage, connectionUpdate, defaultRoute,
+  agentName, NEW_STEPS, OFFERED_TYPES, TYPE_COPY, answersPayload, answersSummary, brollText, connectionMessage, connectionUpdate, defaultRoute,
   draftFromDefault, draftProblems, findProject, firstOpenStep, formatBytes, formatDuration, formatWhen, hasFinal, isVideoFile, linkFor,
   parseRoute, phaseInfo, phoneLinkLabel, plural, progressRows, requestInfo, shapeProblem, sourcesToSend, suggestedShape, takesText, textHookProblem, typeLabel,
   topTextAnswers, topTextChoice, topTextSummary,
@@ -219,7 +219,7 @@ function render() {
 }
 
 function claudeWorking() {
-  // A request Claude has picked up but not finished means it is busy, not gone.
+  // A request the agent has picked up but not finished means it is busy, not gone.
   return (state?.requests ?? []).some((request) => !request.stalled && ['delivered', 'claimed'].includes(request.state));
 }
 
@@ -228,7 +228,7 @@ function renderListener() {
   const lost = Boolean(connectionMessage(connection));
   const mode = lost ? 'off' : state.listening ? 'on' : claudeWorking() ? 'working' : 'off';
   el.replaceChildren(h('span', {class: 'dot', 'aria-hidden': 'true'}),
-    lost ? 'Connection lost' : {on: 'Claude is listening', working: 'Claude is working', off: "Claude Code isn't listening"}[mode]);
+    lost ? 'Connection lost' : {on: `${agentName(state)} is listening`, working: `${agentName(state)} is working`, off: `${agentName(state)} isn't listening`}[mode]);
   el.className = `listener ${mode}`;
   const phoneLink = $('phone-link');
   phoneLink.hidden = !state.phone;
@@ -240,8 +240,8 @@ function renderListener() {
 
 function notListening() {
   return h('div', {class: 'banner turn'},
-    h('strong', {text: "Claude Code isn't listening right now."}),
-    h('span', {text: 'Your choices are saved. Open this folder in Claude Code and type this, so Claude picks up where you are:'}),
+    h('strong', {text: `${agentName(state)} isn't listening right now.`}),
+    h('span', {text: `Your choices are saved. Open this folder in ${agentName(state)} and type this, so ${agentName(state)} picks up where you are:`}),
     h('div', {class: 'row'}, h('code', {text: 'continue'}), copyButton('continue')));
 }
 
@@ -290,7 +290,7 @@ function renderRail(route) {
   } else if (route.view === 'video') {
     const project = shown(state.projects.find((item) => item.name === route.name));
     if (project) {
-      const rows = progressRows(project);
+      const rows = progressRows(project, agentName(state));
       const turn = rows.find((row) => row.status === 'turn');
       const approved = project.phase === 'approved';
       const making = !approved && !turn;
@@ -298,7 +298,7 @@ function renderRail(route) {
         railStep(1, NEW_STEPS[0].label, typeLabel(project.video?.type), 'done'),
         railStep(2, NEW_STEPS[1].label, takesText(project.takes), 'done'),
         railStep(3, NEW_STEPS[2].label, project.shape === 'horizontal' ? 'Simple horizontal' : state.style?.saved ? state.style.name : 'Default look', 'done'),
-        railStep(4, NEW_STEPS[3].label, making ? phaseInfo(project.phase).label : 'Done',
+        railStep(4, NEW_STEPS[3].label, making ? phaseInfo(project.phase, agentName(state)).label : 'Done',
           making ? 'now' : 'done', null, making),
         railStep(5, NEW_STEPS[4].label, approved ? 'Approved' : turn ? 'Your turn' : 'Next',
           approved ? 'done' : turn ? 'turn' : '', null, Boolean(turn)),
@@ -308,7 +308,7 @@ function renderRail(route) {
   if (state.projects.length) {
     blocks.push(h('div', {class: 'rail-block-videos'}, h('h2', {text: 'Your videos'}),
       h('div', {class: 'rail-videos'}, state.projects.slice(0, 6).map(shown).map((project) => {
-        const info = phaseInfo(project.phase);
+        const info = phaseInfo(project.phase, agentName(state));
         return h('a', {class: 'rail-video', href: `#video/${encodeURIComponent(project.name)}`,
           'aria-current': route.view === 'video' && route.name === project.name ? 'page' : null},
         h('span', {class: 'name', text: project.title || project.name}), h('span', {class: `phase ${info.tone}`, text: info.label}));
@@ -347,12 +347,12 @@ function startNew(event) {
 
 function renderWelcome() {
   const steps = NEW_STEPS.map((step, index) => h('li', {}, h('b', {text: String(index + 1)}), step.label,
-    step.id === 'make' ? h('small', {text: 'Claude edits'}) : h('span')));
+    step.id === 'make' ? h('small', {text: `${agentName(state)} edits`}) : h('span')));
   return h('section', {class: 'welcome'},
     h('h1', {class: 'title wide', text: "You're set up. Let's make your first video."}),
-    h('p', {class: 'lede', text: 'You pick what to make, your footage and your look. Claude picks the story from your own words, cuts it and adds captions, cards and music. You watch it, leave comments, and the next version follows.'}),
+    h('p', {class: 'lede', text: `You pick what to make, your footage and your look. ${agentName(state)} picks the story from your own words, cuts it and adds captions, cards and music. You watch it, leave comments, and the next version follows.`}),
     h('ol', {class: 'welcome-steps'}, steps),
-    h('p', {class: 'note', text: 'Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to Claude (Anthropic), along with the transcript, your notes and the project files Claude reads, as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.'}),
+    h('p', {class: 'note', text: `Your video files stay on your computer. Still frames from pinned notes and contact sheets of your clips go to ${agentName(state)} (${state?.agent === 'codex' ? 'OpenAI' : 'Anthropic'}), along with the transcript, your notes and the project files ${agentName(state)} reads, as part of your ${agentName(state)} session. ElevenLabs, WaveSpeed and Pexels get only what they need, and only if you turn them on.`}),
     h('div', {class: 'actions'},
       h('button', {type: 'button', class: 'btn primary big', onclick: () => { markWelcomed(); clearDraft(); navigate('#new/what'); },
         text: 'Start my first video'})));
@@ -446,9 +446,9 @@ function stepSources(draft, problems) {
         }}),
         h('span', {}, h('strong', {text: choice.label}), h('span', {text: choice.description}),
           choice.value === 'stock' && checked ? h('span', {class: 'extra',
-            text: 'Stock clips need a free Pexels key. Claude shows you a pick sheet and uses only the clips you choose. Nothing is downloaded before you pick.'}) : null,
+            text: `Stock clips need a free Pexels key. ${agentName(state)} shows you a pick sheet and uses only the clips you choose. Nothing is downloaded before you pick.`}) : null,
           choice.value === 'album' && checked ? h('span', {class: 'extra',
-            text: 'Claude exports the album with osxphotos. Your Photos library is only read, never changed.'}) : null));
+            text: `${agentName(state)} exports the album with osxphotos. Your Photos library is only read, never changed.`}) : null));
     }));
     if (draft.video_type === 'talking_head') {
       const answer = (value) => h('label', {class: 'check-row'},
@@ -456,18 +456,18 @@ function stepSources(draft, problems) {
           saveDraft({...loadDraft(), has_broll: value, broll_sources: value ? (loadDraft().broll_sources ?? []) : []}); render();
         }}),
         h('span', {}, h('strong', {text: value ? 'Yes, I have some' : 'No, just me talking'}),
-          h('span', {text: value ? 'Clips, photos or screenshots to show over you or between your shots.' : 'Claude edits your take with captions and cards, and nothing else on top.'})));
+          h('span', {text: value ? 'Clips, photos or screenshots to show over you or between your shots.' : `${agentName(state)} edits your take with captions and cards, and nothing else on top.`})));
       content.push(h('div', {class: 'section'},
         h('h2', {text: 'Anything to show on top of your video?'}),
         h('p', {class: 'hint', text: 'Clips, photos or screenshots that appear over you or between your shots. Editors call this B-roll.'}),
         h('div', {class: 'checks', role: 'radiogroup', 'aria-label': 'Anything to show on top of your video?'}, answer(true), answer(false))));
       if (draft.has_broll) {
         content.push(h('div', {class: 'section'}, h('h2', {text: 'Where are they?'}),
-          h('p', {class: 'hint', text: 'Pick everything Claude may use. It uses nothing else.'}), sourceRows()));
+          h('p', {class: 'hint', text: `Pick everything ${agentName(state)} may use. It uses nothing else.`}), sourceRows()));
       }
     } else {
       content.push(h('div', {class: 'section'}, h('h2', {text: 'Where are your photos and clips?'}),
-        h('p', {class: 'hint', text: 'Pick everything Claude may use. It uses nothing else.'}), sourceRows()));
+        h('p', {class: 'hint', text: `Pick everything ${agentName(state)} may use. It uses nothing else.`}), sourceRows()));
     }
   }
   content.push(h('div', {class: 'actions'},
@@ -490,23 +490,23 @@ function stepFootage(draft, problems) {
   const takes = unusedTakes().filter((take) => take.kind === kind);
   const chosen = new Set(draftTakes(draft));
   const content = [...stepHeader('footage', voice ? 'Your photos, clips and voice' : 'Your footage',
-    voice ? 'Claude tells the story in your voice over your own photos and clips.' : 'Add the takes for this video. Yap Studio copies them into a new project. Your originals never change.')];
+    voice ? `${agentName(state)} tells the story in your voice over your own photos and clips.` : 'Add the takes for this video. Yap Studio copies them into a new project. Your originals never change.')];
   if (voice) {
     if (sourcesToSend(draft).includes('album')) {
       content.push(h('div', {class: 'section'}, h('div', {class: 'field'},
         h('label', {for: 'album', text: 'Photos album name'}),
         h('input', {id: 'album', type: 'text', value: draft.album ?? '', maxlength: '200', autocomplete: 'off',
           placeholder: 'For example: Kitchen rebuild', oninput: (event) => saveDraft({...loadDraft(), album: event.target.value})}),
-        h('span', {class: 'sub', text: 'Leave it empty and Claude asks you which album.'}))));
+        h('span', {class: 'sub', text: `Leave it empty and ${agentName(state)} asks you which album.`}))));
     }
     if (sourcesToSend(draft).includes('folder')) {
-      content.push(h('p', {class: 'note', text: 'Clips and photos from a folder: Claude asks you which folder when it starts.'}));
+      content.push(h('p', {class: 'note', text: `Clips and photos from a folder: ${agentName(state)} asks you which folder when it starts.`}));
     }
   }
   content.push(h('div', {class: 'section'},
     h('h2', {text: voice ? 'Your voice' : 'Add footage'}),
     h('p', {class: 'hint', text: voice
-      ? 'Already recorded it? Add the memo here. If not, Claude writes the script from your photos first, then you record it with Voice Memos.'
+      ? `Already recorded it? Add the memo here. If not, ${agentName(state)} writes the script from your photos first, then you record it with Voice Memos.`
       : draft.shape === 'horizontal' ? 'Film sideways (16:9). One take or several.' : 'Film upright (9:16). One take or several.'}),
     dropZone(voice), uploadList()));
   content.push(h('div', {class: 'section'},
@@ -517,7 +517,7 @@ function stepFootage(draft, problems) {
       saveDraft({...loadDraft(), takes: [...next]}); render();
     })))
       : h('div', {class: 'empty'}, h('strong', {text: voice ? 'No memos yet' : 'No takes yet'}),
-        voice ? 'That is fine: Claude writes the script first.' : 'Add a take above. It shows up here as soon as it is copied.')));
+        voice ? `That is fine: ${agentName(state)} writes the script first.` : 'Add a take above. It shows up here as soon as it is copied.')));
   if (!voice) {
     const suggestion = suggestedShape({...draft, takes: [...chosen]}, state);
     content.push(h('div', {class: 'section'}, h('h2', {text: 'Video shape'}),
@@ -588,7 +588,7 @@ function upload(file) {
   const id = ++uploadSeq;
   if (loadDraft().video_type === 'voiceover' && isVideoFile(file.name, file.type)) {
     uploads.set(id, {id, name: file.name, total: file.size, sent: 0, xhr: null, file, queued: false,
-      error: 'This is a video. Add your voice memo here; Claude asks which folder has your clips.'});
+      error: `This is a video. Add your voice memo here; ${agentName(state)} asks which folder has your clips.`});
     render();
     return;
   }
@@ -667,7 +667,7 @@ function stepLook(draft) {
     h('div', {class: 'look'}, h('span', {class: 'frame', 'aria-hidden': 'true'}),
       h('span', {class: 'info'}, h('strong', {text: saved ? state.style.name : 'No look yet'}),
         h('span', {text: `Text at the top: ${topTextSummary(state.style)}`}),
-        h('span', {text: saved ? `Saved ${formatWhen(state.style.updated_at)}` : 'Claude uses the default look until you pick one.'})),
+        h('span', {text: saved ? `Saved ${formatWhen(state.style.updated_at)}` : `${agentName(state)} uses the default look until you pick one.`})),
       h('button', {type: 'button', class: `btn${saved ? '' : ' primary'}`, id: 'open-style', onclick: openStylePage,
         text: saved ? 'Change look' : 'Choose a look'}))));
   content.push(h('div', {class: 'actions'},
@@ -730,13 +730,13 @@ function answersCard() {
         field('answer-website', 'Your website', answerPicks.website, {'data-key': 'website', type: 'url', inputmode: 'url', placeholder: 'yourwebsite.com', autocomplete: 'url'},
           'Yap Studio pulls an accent color from it.'),
         field('answer-about', 'What your videos are about, and who they are for', answerPicks.about, {'data-key': 'about', maxlength: '200'},
-          'Claude uses this for titles and what to keep.'),
+          `${agentName(state)} uses this for titles and what to keep.`),
         field('answer-fixes', 'Words the transcript gets wrong', answerPicks.fixes, {'data-key': 'fixes', placeholder: 'yap studio -> Yap Studio'},
           'One per line: as heard -> correct.', true),
-        field('answer-other', 'Anything else Claude should never do', answerPicks.other, {'data-key': 'other'}, 'One rule per line.', true),
+        field('answer-other', `Anything else ${agentName(state)} should never do`, answerPicks.other, {'data-key': 'other'}, 'One rule per line.', true),
         h('div', {class: 'field'}, h('label', {text: 'Videos you have already made'}),
-          h('span', {class: 'sub', text: 'Claude can learn your style from finished videos. It asks you which folder in Claude Code.'}),
-          h('div', {}, h('button', {type: 'button', class: 'btn', onclick: requestLearn, text: 'Ask Claude to learn from them'}))))),
+          h('span', {class: 'sub', text: `${agentName(state)} can learn your style from finished videos. It asks you which folder in ${agentName(state)}.`}),
+          h('div', {}, h('button', {type: 'button', class: 'btn', onclick: requestLearn, text: `Ask ${agentName(state)} to learn from them`}))))),
     state.answers.saved
       ? h('div', {class: 'actions inline'},
         h('button', {type: 'button', class: 'btn', id: 'save-answers', onclick: saveAnswers, text: 'Save these answers'}))
@@ -766,7 +766,7 @@ async function requestLearn(event) {
   event.target.disabled = true;
   try {
     await api('/api/requests', {kind: 'learn'});
-    toast(state.listening ? 'Claude will ask you for the folder in Claude Code.' : 'Saved. Claude asks for the folder when Claude Code is open.');
+    toast(state.listening ? `${agentName(state)} will ask you for the folder in ${agentName(state)}.` : `Saved. ${agentName(state)} asks for the folder when ${agentName(state)} is open.`);
     await refresh();
   } catch (error) { toast(error.message, true); event.target.disabled = false; }
 }
@@ -821,18 +821,18 @@ function stepMake(draft, problems) {
   const rows = [
     ["What", typeLabel(draft.video_type), '#new/what'],
     ['Shape', horizontal ? 'Horizontal (YouTube)' : 'Vertical (Shorts, Reels, TikTok)', '#new/shape'],
-    [voice ? 'Voice' : 'Footage', takes.length ? takes.join(', ') : voice ? 'Claude writes the script first' : 'Not chosen', '#new/footage'],
+    [voice ? 'Voice' : 'Footage', takes.length ? takes.join(', ') : voice ? `${agentName(state)} writes the script first` : 'Not chosen', '#new/footage'],
     voice ? ['Pictures', draft.album ? `Photos album: ${draft.album}` : brollText(sourcesToSend(draft)), '#new/sources'] : ['On top', !horizontal && draft.has_broll ? brollText(sourcesToSend(draft)) : horizontal ? 'No B-roll' : 'Nothing, just you talking', horizontal ? '#new/shape' : '#new/sources'],
     ['Look', horizontal ? `Simple, captions ${draft.captions === true ? 'on' : 'off'}` : state.style?.saved ? state.style.name : 'Default look', '#new/look'],
   ];
   const next = voice
-    ? ['Claude looks through your photos and clips and writes a short script for you to approve.',
+    ? [`${agentName(state)} looks through your photos and clips and writes a short script for you to approve.`,
       'You record it with Voice Memos and add the memo here.',
-      'Claude cuts your voice and lays your shots over it. You watch the story first, then the final.']
-    : ['Claude listens to your take, picks the story from your own words and cuts it.',
+      `${agentName(state)} cuts your voice and lays your shots over it. You watch the story first, then the final.`]
+    : [`${agentName(state)} listens to your take, picks the story from your own words and cuts it.`,
       'You watch the story cut first and leave notes.',
-      horizontal ? `Claude makes the horizontal final with captions ${draft.captions === true ? 'on' : 'off'} and checks it. You watch it again and approve.`
-        : 'Claude applies your chosen look, renders the final and checks it. You watch it again and approve.'];
+      horizontal ? `${agentName(state)} makes the horizontal final with captions ${draft.captions === true ? 'on' : 'off'} and checks it. You watch it again and approve.`
+        : `${agentName(state)} applies your chosen look, renders the final and checks it. You watch it again and approve.`];
   return h('section', {},
     ...stepHeader('make', 'Make it', null),
     h('dl', {class: 'summary'}, rows.map(([label, value, href]) => h('div', {}, h('dt', {text: label}), h('dd', {text: value}),
@@ -840,7 +840,7 @@ function stepMake(draft, problems) {
     topText, hookField,
     shapeProblem({...draft, takes}, state) ? h('p', {class: 'note', role: 'alert', text: shapeProblem({...draft, takes}, state)}) : null,
     h('div', {class: 'section'}, h('h2', {text: 'What happens next'}), h('ol', {class: 'next-list'}, next.map((line) => h('li', {text: line})))),
-    h('p', {class: 'note', text: 'Rendering the final can take a while for a long video. You can close this page; it picks up where things are when you come back. Generated music uses your own ElevenLabs credits, and Claude asks before it spends any.'}),
+    h('p', {class: 'note', text: `Rendering the final can take a while for a long video. You can close this page; it picks up where things are when you come back. Generated music uses your own ElevenLabs credits, and ${agentName(state)} asks before it spends any.`}),
     state.listening || claudeWorking() ? null : notListening(),
     h('div', {class: 'actions'},
       h('a', {class: 'link', href: '#new/look', text: 'Back'}), h('span', {class: 'spacer'}),
@@ -876,8 +876,8 @@ function renderRequest(route) {
   if (project && !request.stalled && !['failed', 'cancelled'].includes(request.state)) {
     queueMicrotask(() => location.replace(`#video/${encodeURIComponent(project.name)}`));
   }
-  const info = requestInfo(request, state.listening);
-  const kind = {learn: 'Learn from your finished videos', final: 'Make the final video', message: 'Message to Claude'}[request.kind]
+  const info = requestInfo(request, state.listening, agentName(state));
+  const kind = {learn: 'Learn from your finished videos', final: 'Make the final video', message: `Message to ${agentName(state)}`}[request.kind]
     ?? `${typeLabel(request.payload?.video_type)} · ${takesText(request.payload?.takes ?? [])}`;
   return h('section', {},
     h('p', {class: 'step-count', text: kind}),
@@ -885,10 +885,10 @@ function renderRequest(route) {
     info.lede ? h('p', {class: 'lede', text: info.lede}) : null,
     !request.stalled ? h('ol', {class: 'progress'},
       h('li', {class: request.state === 'pending' ? 'now' : 'done'}, h('span', {class: 'mark'}),
-        h('strong', {text: request.state === 'pending' ? 'Sending to Claude' : 'Claude has it'}), h('span', {class: 'who', text: 'Claude'})),
+        h('strong', {text: request.state === 'pending' ? `Sending to ${agentName(state)}` : `${agentName(state)} has it`}), h('span', {class: 'who', text: agentName(state)})),
       h('li', {class: request.state === 'claimed' ? 'now' : request.state === 'failed' ? 'stopped' : ''}, h('span', {class: 'mark'}),
-        h('strong', {text: 'Copying your footage into a project'}), h('span', {class: 'who', text: 'Claude'}))) : null,
-    request.state === 'failed' ? h('div', {class: 'banner error'}, h('strong', {text: 'Open Claude Code to see what it needs.'})) : null,
+        h('strong', {text: 'Copying your footage into a project'}), h('span', {class: 'who', text: agentName(state)}))) : null,
+    request.state === 'failed' ? h('div', {class: 'banner error'}, h('strong', {text: `Open ${agentName(state)} to see what it needs.`})) : null,
     !state.listening && request.state === 'pending' ? notListening() : null,
     h('div', {class: request.stalled ? 'actions inline' : 'actions'},
       request.stalled ? h('button', {type: 'button', class: 'btn primary', onclick: async () => {
@@ -910,13 +910,13 @@ async function makeFinal(project, button) {
   button.disabled = true;
   try {
     await api('/api/requests', {kind: 'final', project: project.dir});
-    toast(state.listening ? 'Sent to Claude.' : 'Saved. Claude starts when Claude Code is open.');
+    toast(state.listening ? `Sent to ${agentName(state)}.` : `Saved. ${agentName(state)} starts when ${agentName(state)} is open.`);
     await refresh();
   } catch (error) { toast(error.message, true); button.disabled = false; }
 }
 
 function shown(project) {
-  // Once the final is asked for, show it as under way before Claude's first receipt lands.
+  // Once the final is asked for, show it as under way before the agent's first receipt lands.
   return project && project.phase === 'cut_ready' && finalRequested(project)
     ? {...project, phase: 'building', step: 'Starting the final'} : project;
 }
@@ -937,7 +937,7 @@ function renderVideo(route) {
   const stalledRequest = state.requests.find((request) => request.stalled
     && request.ack?.project === project.dir);
   if (stalledRequest) return renderRequest({id: stalledRequest.id});
-  const info = phaseInfo(project.phase);
+  const info = phaseInfo(project.phase, agentName(state));
   const review = linkFor(project.review, location.hostname);
   const phoneLabel = review && review === project.review?.phone_url ? phoneLinkLabel(project.review.phone_via) : '';
   const reviewLabel = phoneLabel ? ` · ${phoneLabel}` : '';
@@ -965,39 +965,39 @@ function renderVideo(route) {
   }
   content.push(h('h1', {class: 'title', text: info.title}));
   const lede = {
-    cut_ready: 'Watch the story cut and leave notes on any moment. When you send them, Claude makes the next version.',
+    cut_ready: `Watch the story cut and leave notes on any moment. When you send them, ${agentName(state)} makes the next version.`,
     final_ready: 'Watch the whole video. Leave notes for another version, or approve it to download it.',
-    revising: 'Your notes reached Claude. The next version shows up here when it is ready.',
+    revising: `Your notes reached ${agentName(state)}. The next version shows up here when it is ready.`,
     building: 'Your chosen look goes on, then the video renders and every check runs.',
-    story: 'Claude reads your words and picks the order that tells the story best. It keeps your words and your meaning.',
+    story: `${agentName(state)} reads your words and picks the order that tells the story best. It keeps your words and your meaning.`,
     transcribing: 'Your speech is turned into words on this Mac. Nothing is uploaded.',
-    starting: 'Claude is copying your footage into a new project.',
-    cutting: 'Claude cuts your take to the story and checks every join for clipped words.',
-    stopped: project.message || 'Open Claude Code to see what it needs.',
+    starting: `${agentName(state)} is copying your footage into a new project.`,
+    cutting: `${agentName(state)} cuts your take to the story and checks every join for clipped words.`,
+    stopped: project.message || `Open ${agentName(state)} to see what it needs.`,
   }[project.phase];
   if (lede) content.push(h('p', {class: 'lede', text: lede}));
   if (['cut_ready', 'final_ready'].includes(project.phase)) {
     content.push(h('div', {class: 'actions inline'},
       review ? h('a', {class: 'btn primary big', href: review, text: (project.phase === 'cut_ready' ? 'Watch the story cut' : 'Watch and approve') + reviewLabel})
-        : h('p', {class: 'note', text: 'Claude is opening the review page. The button shows up here in a moment.'}),
+        : h('p', {class: 'note', text: `${agentName(state)} is opening the review page. The button shows up here in a moment.`}),
       project.phase === 'cut_ready' ? h('button', {type: 'button', class: 'btn big', id: 'make-final',
         onclick: (event) => makeFinal(project, event.target), text: 'Make the final video'}) : null));
     if (project.phase === 'cut_ready') {
       content.push(h('p', {class: 'note', text: project.shape === 'horizontal'
         ? 'Happy with the order of the story? Make the horizontal final with your caption choice. Want changes first? Leave notes on the review page.'
-        : 'Happy with the order of the story? Make the final video: Claude applies your chosen look, renders it and checks it. Want changes first? Leave notes on the review page.'}));
+        : `Happy with the order of the story? Make the final video: ${agentName(state)} applies your chosen look, renders it and checks it. Want changes first? Leave notes on the review page.`}));
     }
   }
-  content.push(h('ol', {class: 'progress'}, progressRows(project).map((row) => h('li', {class: row.status},
+  content.push(h('ol', {class: 'progress'}, progressRows(project, agentName(state)).map((row) => h('li', {class: row.status},
     h('span', {class: 'mark', 'aria-hidden': 'true'}),
     h('span', {}, h('strong', {text: row.label}), row.sub ? h('small', {text: row.sub}) : null,
       h('span', {class: 'sr-only', text: {done: ', done', now: ', in progress', turn: ', your turn', stopped: ', stopped', next: ''}[row.status]})),
     h('span', {class: 'who', text: row.who})))));
   const notes = (state.events ?? []).find((event) => event.kind === 'notes' && event.project === project.dir);
   if (notes && project.phase === 'revising') {
-    content.push(h('div', {class: 'banner done'}, notes.delivered_at ? 'Claude has your notes.' : 'Your notes are waiting for Claude.'));
+    content.push(h('div', {class: 'banner done'}, notes.delivered_at ? `${agentName(state)} has your notes.` : `Your notes are waiting for ${agentName(state)}.`));
   }
-  if (project.phase === 'stopped') content.push(h('div', {class: 'banner error'}, h('strong', {text: 'Open Claude Code to see what it needs.'})));
+  if (project.phase === 'stopped') content.push(h('div', {class: 'banner error'}, h('strong', {text: `Open ${agentName(state)} to see what it needs.`})));
   const claudesTurn = !['cut_ready', 'final_ready'].includes(project.phase);
   if (!state.listening && !claudeWorking() && claudesTurn) content.push(notListening());
   content.push(versionNotes(project), messagesSection(project));
@@ -1005,14 +1005,14 @@ function renderVideo(route) {
 }
 
 function versionNotes(project) {
-  // Claude's own account of each version: what changed and why.
+  // the agent's own account of each version: what changed and why.
   const versions = [...(project.versions ?? [])].reverse();
   if (!versions.length) return null;
   const [latest, ...earlier] = versions;
   const entry = (version) => h('li', {}, h('strong', {text: `Version ${version.number}${version.final ? ' · final' : ' · story cut'}`}),
     h('span', {class: 'when', text: formatWhen(version.created_at)}),
     h('p', {text: version.note || 'No notes for this version.'}));
-  return h('div', {class: 'section'}, h('h2', {text: "Claude's notes"}),
+  return h('div', {class: 'section'}, h('h2', {text: `${agentName(state)}'s notes`}),
     h('ol', {class: 'version-notes'}, entry(latest)),
     earlier.length ? fold(`notes-${project.name}`, h('summary', {}, `Earlier versions `, h('span', {text: plural(earlier.length, 'version')})),
       h('ol', {class: 'version-notes fold-body'}, earlier.map(entry))) : null);
@@ -1030,23 +1030,23 @@ function messagesSection(project) {
       await api('/api/requests', {kind: 'message', project: project.dir, text});
       box.value = '';
       draftMessages.delete(id);
-      toast(state.listening ? 'Sent to Claude.' : 'Saved. Claude reads it when Claude Code is open.');
+      toast(state.listening ? `Sent to ${agentName(state)}.` : `Saved. ${agentName(state)} reads it when ${agentName(state)} is open.`);
       await refresh();
     } catch (error) { toast(error.message, true); }
     finally { event.target.disabled = false; }
   };
   return h('div', {class: 'section'},
-    h('h2', {text: 'Talk to Claude about this video'}),
+    h('h2', {text: `Talk to ${agentName(state)} about this video`}),
     h('p', {class: 'hint', text: 'Ask a question or say what you want changed. For a note on one moment, the review page is quicker.'}),
     messages.length ? h('ol', {class: 'messages'}, messages.map((message) => h('li', {},
       h('p', {class: 'mine', text: message.text}),
-      message.reply ? h('p', {class: 'reply'}, h('strong', {text: 'Claude: '}), message.reply)
-        : h('p', {class: 'waiting', text: message.state === 'pending' ? (state.listening ? 'Sending to Claude…' : 'Waiting for Claude Code.') : 'Claude is on it.'})))) : null,
+      message.reply ? h('p', {class: 'reply'}, h('strong', {text: `${agentName(state)}: `}), message.reply)
+        : h('p', {class: 'waiting', text: message.state === 'pending' ? (state.listening ? `Sending to ${agentName(state)}…` : `Waiting for ${agentName(state)}.`) : `${agentName(state)} is on it.`})))) : null,
     h('div', {class: 'field message-field'},
-      h('label', {class: 'sr-only', for: id, text: 'Message to Claude'}),
+      h('label', {class: 'sr-only', for: id, text: `Message to ${agentName(state)}`}),
       h('textarea', {id, rows: '3', maxlength: '2000', placeholder: 'For example: Can the captions sit a little lower?',
         oninput: (event) => draftMessages.set(id, event.target.value)}, draftMessages.get(id) ?? ''),
-      h('div', {}, h('button', {type: 'button', class: 'btn', onclick: send, text: 'Send to Claude'}))));
+      h('div', {}, h('button', {type: 'button', class: 'btn', onclick: send, text: `Send to ${agentName(state)}`}))));
 }
 
 const draftMessages = new Map();
@@ -1062,9 +1062,9 @@ function renderVideos() {
       waiting.map((request) => h('a', {class: 'video-row', href: `#request/${request.id}`},
         h('span', {}, h('strong', {text: `${typeLabel(request.payload?.video_type)} · ${takesText(request.payload?.takes ?? [])}`}),
           h('span', {text: `Asked ${formatWhen(request.created_at)}`})),
-        h('span', {class: `state ${requestInfo(request, state.listening).tone}`, text: request.stalled ? 'Stopped' : requestInfo(request, state.listening).title.replace(/\.$/, '')}))),
+        h('span', {class: `state ${requestInfo(request, state.listening, agentName(state)).tone}`, text: request.stalled ? 'Stopped' : requestInfo(request, state.listening, agentName(state)).title.replace(/\.$/, '')}))),
       state.projects.map(shown).map((project) => {
-        const info = phaseInfo(project.phase);
+        const info = phaseInfo(project.phase, agentName(state));
         return h('a', {class: 'video-row', href: `#video/${encodeURIComponent(project.name)}`},
           h('span', {}, h('strong', {text: project.title || project.name}),
             h('span', {text: `${typeLabel(project.video?.type)} · ${takesText(project.takes)} · started ${formatWhen(project.created_at)}`})),

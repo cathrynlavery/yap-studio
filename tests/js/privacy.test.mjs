@@ -7,9 +7,9 @@ import * as timeline from '../../src/yap_studio/review/static/timeline.mjs';
 
 const homeRoot = new URL('../../src/yap_studio/homepage/static/', import.meta.url);
 const reviewRoot = new URL('../../src/yap_studio/review/static/', import.meta.url);
-const disclosure = 'Your video files stay on your computer. Still frames from pinned notes and contact sheets of '
-  + 'your clips go to Claude (Anthropic), along with the transcript, your notes and the project files '
-  + 'Claude reads, as part of your Claude Code session. ElevenLabs, WaveSpeed and Pexels get only what '
+const disclosure = (agent, provider) => 'Your video files stay on your computer. Still frames from pinned notes and contact sheets of '
+  + `your clips go to ${agent} (${provider}), along with the transcript, your notes and the project files `
+  + `${agent} reads, as part of your ${agent} session. ElevenLabs, WaveSpeed and Pexels get only what `
   + 'they need, and only if you turn them on.';
 
 class Element {
@@ -49,7 +49,10 @@ function text(node) {
 test('the first home screen displays the complete disclosure before starting a video', () => {
   const {context} = page(homeRoot, 'home.js', homeModel,
     'globalThis.welcome = renderWelcome();');
-  assert.ok(text(context.welcome).includes(disclosure));
+  assert.ok(text(context.welcome).includes(disclosure('Claude Code', 'Anthropic')));
+  vm.runInContext("state = {agent: 'codex'}; globalThis.welcome = renderWelcome();", context);
+  assert.ok(text(context.welcome).includes(disclosure('Codex', 'OpenAI')));
+  assert.equal(text(context.welcome).includes('Anthropic'), false);
 });
 
 for (const [via, label] of [['tailscale', 'Encrypted (Tailscale)'],
@@ -110,3 +113,19 @@ for (const [via, label] of [['tailscale', 'Encrypted (Tailscale)'],
     }
   });
 }
+
+
+test('review copy follows setup, including when Home has no live link', () => {
+  const {context, get} = page(reviewRoot, 'app.mjs', timeline,
+    'globalThis.showAgent = (agent) => {review = {agent, series: {project: true, versions: [{number: null, note: "A tighter cut"}]}, media: {name: "sample.mp4", duration_s: 2}, comments: []}; renderHeader();};');
+  context.showAgent('codex');
+  assert.equal(get('version-note').textContent, "Codex's notes: A tighter cut");
+  assert.match(get('range-note').placeholder, /for Codex/u);
+  context.showAgent(undefined);
+  assert.equal(get('version-note').textContent, "Claude Code's notes: A tighter cut");
+  assert.match(get('range-note').placeholder, /for Claude Code/u);
+  const series = {project: true, newest: 1, rounds: [{status: 'sent', version: 1, batch: 'b1'}],
+    versions: [{number: 1, final: false}]};
+  assert.match(timeline.sendNextText(series, {agent: 'codex', listening: true}).text, /Sent to Codex/u);
+  assert.match(timeline.storyCutStep(series, 1, {agent: 'codex'}).hint, /Codex applies/u);
+});

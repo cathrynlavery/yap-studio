@@ -1,3 +1,5 @@
+export const agentName = (state) => state?.agent === 'codex' ? 'Codex' : 'Claude Code';
+
 // Pure helpers for Yap Studio home: labels, progress and routing. No DOM here.
 
 export const OFFERED_TYPES = ['talking_head', 'voiceover'];
@@ -103,42 +105,44 @@ export function takesText(takes) {
   return takes.length === 1 ? takes[0] : plural(takes.length, 'take');
 }
 
-const PHASES = {
-  starting: {label: 'Starting', tone: 'working', title: 'Claude is setting up your video.'},
+const phases = (agent) => ({
+  starting: {label: 'Starting', tone: 'working', title: `${agent} is setting up your video.`},
   transcribing: {label: 'Listening to your take', tone: 'working',
-    title: 'Claude is listening to your take.'},
-  story: {label: 'Choosing the story', tone: 'working', title: 'Claude is choosing the story.'},
-  cutting: {label: 'Cutting the story', tone: 'working', title: 'Claude is cutting the story.'},
+    title: `${agent} is listening to your take.`},
+  story: {label: 'Choosing the story', tone: 'working', title: `${agent} is choosing the story.`},
+  cutting: {label: 'Cutting the story', tone: 'working', title: `${agent} is cutting the story.`},
   cut_ready: {label: 'Story cut ready', tone: 'turn', title: 'Your story cut is ready.'},
   revising: {label: 'Working on your notes', tone: 'working',
-    title: 'Claude is working on your notes.'},
-  building: {label: 'Building the video', tone: 'working', title: 'Claude is building your video.'},
+    title: `${agent} is working on your notes.`},
+  building: {label: 'Building the video', tone: 'working', title: `${agent} is building your video.`},
   final_ready: {label: 'Ready to watch', tone: 'turn', title: 'Your video is ready to watch.'},
   approved: {label: 'Done', tone: 'done', title: 'Your video is ready.'},
-  stopped: {label: 'Stopped', tone: 'stopped', title: 'Claude stopped.'},
-};
+  stopped: {label: 'Stopped', tone: 'stopped', title: `${agent} stopped.`},
+});
 
-export function phaseInfo(phase) {
-  return PHASES[phase] ?? PHASES.starting;
+export function phaseInfo(phase, agent = 'Claude Code') {
+  const labels = phases(agent);
+  return labels[phase] ?? labels.starting;
 }
 
 export function hasFinal(project) {
   return (project?.versions ?? []).some((version) => version.final);
 }
 
-const ROWS = [
-  {key: 'copied', label: 'Copied your footage into a project', who: 'Claude'},
-  {key: 'listen', label: 'Listening to your take', done: 'Listened to your take', who: 'Claude'},
-  {key: 'story', label: 'Choosing the story', done: 'Chose the story', who: 'Claude'},
+const rows = (agent) => [
+  {key: 'copied', label: 'Copied your footage into a project', who: agent},
+  {key: 'listen', label: 'Listening to your take', done: 'Listened to your take', who: agent},
+  {key: 'story', label: 'Choosing the story', done: 'Chose the story', who: agent},
   {key: 'cut', label: 'Story cut ready to watch', done: 'You watched the story cut', who: 'You'},
   {key: 'build', label: 'Building your final video', done: 'Built your final video',
-    who: 'Claude'},
+    who: agent},
   {key: 'final', label: 'Final video ready to watch', done: 'You watched the final', who: 'You'},
   {key: 'approve', label: 'Approve it', done: 'Approved', who: 'You'},
 ];
 
 /** The rows of the progress list, with the current row taken from the project phase. */
-export function progressRows(project) {
+export function progressRows(project, agent = 'Claude Code') {
+  const ROWS = rows(agent);
   const final = hasFinal(project);
   const phase = project?.phase ?? 'starting';
   let current = 0;
@@ -158,7 +162,7 @@ export function progressRows(project) {
       current = final || (project?.stages ?? []).some((stage) =>
         ['captions', 'graphics', 'assemble'].includes(stage.name) && stage.state !== 'missing') ? 4 : 2;
       status = 'stopped';
-      sub = project?.message || 'Open Claude Code to see what it needs.';
+      sub = project?.message || `Open ${agent} to see what it needs.`;
       break;
     default: current = 0;
   }
@@ -173,29 +177,29 @@ export function progressRows(project) {
 }
 
 /** What to say about a request that has not become a project yet. */
-export function requestInfo(request, listening) {
+export function requestInfo(request, listening, agent = 'Claude Code') {
   const message = request?.ack?.message || null;
-  if (request?.stalled) return {tone: 'stopped', title: 'Claude Code stopped before finishing.',
+  if (request?.stalled) return {tone: 'stopped', title: `${agent} stopped before finishing.`,
     lede: 'Send it again to pick up where it stopped.'};
   switch (request?.state) {
     case 'pending':
       return listening
-        ? {tone: 'working', title: 'Sending this to Claude.', lede: 'Claude picks it up in a moment.'}
-        : {tone: 'turn', title: 'Waiting for Claude Code.',
-          lede: 'Your choices are saved. Claude starts as soon as Claude Code is open in this folder.'};
+        ? {tone: 'working', title: `Sending this to ${agent}.`, lede: `${agent} picks it up in a moment.`}
+        : {tone: 'turn', title: `Waiting for ${agent}.`,
+          lede: `Your choices are saved. ${agent} starts as soon as ${agent} is open in this folder.`};
     case 'delivered':
-      return {tone: 'working', title: 'Claude has it.', lede: 'It is copying your footage into a new project.'};
+      return {tone: 'working', title: `${agent} has it.`, lede: 'It is copying your footage into a new project.'};
     case 'claimed':
-      return {tone: 'working', title: 'Claude is starting your video.', lede: message ?? 'This takes a moment.'};
+      return {tone: 'working', title: `${agent} is starting your video.`, lede: message ?? 'This takes a moment.'};
     case 'failed':
-      return {tone: 'stopped', title: "Claude couldn't start this video.",
-        lede: message ?? 'Open Claude Code to see what it needs.'};
+      return {tone: 'stopped', title: `${agent} couldn't start this video.`,
+        lede: message ?? `Open ${agent} to see what it needs.`};
     case 'cancelled':
       return {tone: 'stopped', title: 'Cancelled.', lede: 'This request was cancelled.'};
     case 'done':
       return {tone: 'done', title: 'Started.', lede: message ?? 'Opening your video.'};
     default:
-      return {tone: 'working', title: 'Sending this to Claude.', lede: ''};
+      return {tone: 'working', title: `Sending this to ${agent}.`, lede: ''};
   }
 }
 

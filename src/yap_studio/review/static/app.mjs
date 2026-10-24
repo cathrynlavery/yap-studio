@@ -19,6 +19,7 @@ import {
   pictureRect, pinAt, pinPoint, pinText, pinBody, pinInSpan, pinShown, captionAt,
 } from './timeline.mjs';
 
+const agentName = () => review?.agent === 'codex' ? 'Codex' : 'Claude Code';
 const $ = (id) => document.getElementById(id);
 const el = {
   fixCaption: $('fix-caption'), captionFix: $('caption-fix'), captionWords: $('caption-words'),
@@ -153,11 +154,11 @@ let mapGeneration = 0;
 let suppressMatchUntil = 0;
 let openingReplyEvidence = false;
 let replyEvidenceTime = null;
-const mediaChangedMessage = 'This video changed after the page opened. Ask Claude to open the review again to see the new one.';
+const mediaChangedMessage = () => `This video changed after the page opened. Ask ${agentName()} to open the review again to see the new one.`;
 
 function showStatus(message) {
   refreshStatusError = false;
-  el.status.textContent = review?.media_changed ? mediaChangedMessage : message;
+  el.status.textContent = review?.media_changed ? mediaChangedMessage() : message;
 }
 
 function errorMessage(error) {
@@ -889,6 +890,7 @@ function fitDesktopPlayer() {
 }
 
 function renderHeader() {
+  if (el.rangeNote) el.rangeNote.placeholder = `Add a note for ${agentName()}. Needed for Change this; optional for Cut and Keep.`;
   const media = review.media;
   const title = review.series?.project ? (review.series.title || projectTitle(media.name)) : media.name;
   el.name.textContent = title;
@@ -900,7 +902,7 @@ function renderHeader() {
   const note = review.series?.project ? seriesVersion(selectedVersion)?.note : null;
   if (el.versionNote) {
     el.versionNote.hidden = !note;
-    el.versionNote.textContent = note ? `Claude's notes: ${note}` : '';
+    el.versionNote.textContent = note ? `${agentName()}'s notes: ${note}` : '';
   }
   const home = homeUrl(review.home, location.hostname);
   if (el.homeLink) {
@@ -968,7 +970,7 @@ function renderVersions() {
   if (el.makeFinal) {
     el.makeFinal.hidden = !story.offerFinal;
     el.makeFinal.disabled = Boolean(story.requested);
-    el.makeFinal.textContent = story.requested ? 'Claude is making the final' : 'Make the final video';
+    el.makeFinal.textContent = story.requested ? `${agentName()} is making the final` : 'Make the final video';
   }
   if (el.approveHint) el.approveHint.textContent = approved
     ? 'This version is approved. Your download is ready.' : story.hint;

@@ -25,6 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_FILES = {
     "workspace/Start here.html": "Start here.html",
+    "workspace/AGENTS.md": "AGENTS.md",
     "workspace/CLAUDE.md": "CLAUDE.md",
     "workspace/inbox/README.md": "inbox/README.md",
     "workspace/brand/fonts/README.md": "brand/fonts/README.md",
@@ -35,6 +36,12 @@ WORKSPACE_FILES = {
     "workspace/new_project.py": "new_project.py",
     "LICENSE": "LICENSE",
     "NOTICE": "NOTICE",
+}
+# Regular files in the zip keep discovery independent of unzip's symlink support.
+WORKSPACE_COPIES = {
+    ".agents/skills/edit-video/SKILL.md": "workspace/.claude/skills/edit-video/SKILL.md",
+    ".agents/skills/voiceover-video/SKILL.md": "workspace/.claude/skills/voiceover-video/SKILL.md",
+    ".agents/skills/edit/SKILL.md": "workspace/.claude/commands/edit.md",
 }
 BUILD_FILES = {"pyproject.toml", "README.md", "LICENSE", "NOTICE"}
 
@@ -96,6 +103,8 @@ def build(output_dir: Path) -> Path:
             raise ValueError(f"expected one wheel; found {len(built)}")
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for relative, member in sorted(workspace_files.items()):
+                archive.write(source / relative, member)
+            for member, relative in sorted(WORKSPACE_COPIES.items()):
                 archive.write(source / relative, member)
             archive.writestr(".yap-studio-version", version + "\n")
             archive.write(built[0], f"wheels/{built[0].name}")

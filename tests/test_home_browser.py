@@ -21,9 +21,14 @@ pytestmark = pytest.mark.skipif(
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_home_shape_phone_and_desktop(tmp_path: Path) -> None:
+@pytest.mark.parametrize("agent", [None, "codex"])
+def test_home_shape_phone_and_desktop(tmp_path: Path, agent) -> None:
     workspace = tmp_path / "My videos"
     workspace.mkdir()
+    if agent:
+        folder = workspace / ".yap-studio"
+        folder.mkdir()
+        (folder / "setup.json").write_text(json.dumps({"agent": agent}))
     inbox = workspace / "inbox"
     inbox.mkdir()
     for name, size in [("computer.mp4", "320x180"), ("phone.mp4", "180x320")]:
@@ -40,7 +45,7 @@ def test_home_shape_phone_and_desktop(tmp_path: Path) -> None:
     try:
         result = subprocess.run([
             "node", str(ROOT / "tests/js/home-browser.mjs"), server.url,
-            str(result_file), shots,
+            str(result_file), shots, "Codex" if agent == "codex" else "Claude Code",
         ], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120, check=False)
         assert result.returncode == 0, result.stdout + result.stderr
         results = json.loads(result_file.read_text())

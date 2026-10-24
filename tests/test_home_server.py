@@ -631,7 +631,8 @@ def test_cookie_redirect_and_private_link_help(home):
     assert body == b""
     code, headers, body = request(home, route="/", auth=False)
     assert code == 403 and headers["Content-Type"].startswith("text/html")
-    assert b"This page needs its private link. Ask Claude to open Yap Studio for you." in body
+    assert (b"This page needs its private link. "
+            b"Ask Claude Code or Codex to open Yap Studio for you.") in body
     assert b"<script" not in body and b"style=" not in body
     assert home.token.encode() not in body
     assert "unsafe-inline" not in headers["Content-Security-Policy"]

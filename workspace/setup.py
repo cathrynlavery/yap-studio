@@ -476,6 +476,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_homebrew_path()
     parser = argparse.ArgumentParser(description="Set up the Yap Studio workspace")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--agent", choices=("claude-code", "codex"),
+                        help="App running setup; saved for Home and review")
     parser.add_argument(
         "--check", action="store_true",
         help="Install and check the bundled wheel without model or renderer downloads",
@@ -503,6 +505,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Only {free_gb:.1f} GB free; setup needs {MIN_FREE_GB} GB free.")
         return _result(False, {"reason": "disk", "service": None, "move": None},
                        [], args.json)
+    if args.agent and not args.check:
+        folder = ROOT / ".yap-studio"
+        saved = folder / "setup.json"
+        try:
+            state = json.loads(saved.read_text()) if saved.exists() else {}
+            if not isinstance(state, dict):
+                raise ValueError("setup state must be an object")
+            state["agent"] = args.agent
+            folder.mkdir(exist_ok=True)
+            temporary = folder / "setup.json.tmp"
+            temporary.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            temporary.replace(saved)
+        except (OSError, ValueError) as exc:
+            print(f"Could not save the setup app: {exc}", file=sys.stderr)
+            return 1
     wheels = list((ROOT / "wheels").glob("yap_studio-*.whl"))
     if len(wheels) != 1:
         if not args.json:

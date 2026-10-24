@@ -11,8 +11,9 @@ Put the files you write in `DIR/plans/`. When unsure what comes next, run
 
 ## Rules
 
-Still frames from pinned notes and contact sheets of the creator's clips go to Claude
-(Anthropic), along with the transcript, notes and project files you read in this session.
+Still frames from pinned notes and contact sheets of the creator's clips go to Anthropic
+when you use Claude Code, or OpenAI when you use Codex, along with the transcript, notes and
+project files you read in this session.
 
 - Never write to, move, or rename the original in `inbox/`. Work only in DIR.
 - On-screen words come from the creator's words or facts they supplied. Ask before naming a
@@ -21,7 +22,7 @@ Still frames from pinned notes and contact sheets of the creator's clips go to C
   as an `assets/` or media folder they point to, stock clips they approve (see Stock below),
   or generated pictures they approve (see Generated pictures below). Their own media and
   stock come only from the sources in this video's `broll_sources`; `yap-studio status DIR`
-  shows them (What are you making? in `CLAUDE.md`). Never invent screens or images, and
+  shows them (What are you making? in `AGENTS.md`). Never invent screens or images, and
   never download or generate anything they have not approved.
 - Use a feature only where the story calls for it. Most videos need a few, not all.
 - Run `yap-studio feedback "..." --step STEP` whenever a step fails, needs a retry or a
@@ -36,7 +37,7 @@ Still frames from pinned notes and contact sheets of the creator's clips go to C
 
 ## Text at the top
 
-Before making the cut, follow Text at the top in `CLAUDE.md`. If `hook.answered`
+Before making the cut, follow Text at the top in `AGENTS.md`. If `hook.answered`
 is missing or false, ask once in plain words and wait. There is no default. A home's
 `top_text` answer overrides the saved choice for this video only. None needs no text.
 
@@ -94,7 +95,8 @@ It uses moving copies from later in the same take, sized to the room on each sid
 Moments follow the active colour grade.
 If assembly refuses it, follow the fix or drop it.
 
-Every version note is shown to the creator as Claude's notes on that version. Where a step below
+Every version note is shown to the creator under your app's name, such as Claude Code's notes or
+Codex's notes. Where a step below
 gives a note such as "Story cut", "Notes from bN" or "Final", start with those words and add one to
 three plain sentences on what this version changes and why, for example `--note "Story cut. Took
 out the um after your opening line. Kept the doubled you at 0:07, because cutting it clipped the
@@ -108,9 +110,9 @@ Read `phone.url` and `phone.via` from its JSON output. Say "Same Wi-Fi only" for
 Studio home is open, it shows a Watch button for the review on its own, so say the review is ready
 there. Keep `yap-studio home wait --workspace . --json` running as a background task while you
 stop for the creator: their notes and their approval arrive through it (see Yap Studio home in
-`CLAUDE.md`).
+`AGENTS.md`).
 
-1. If setup is incomplete, follow Set me up in `CLAUDE.md`: one step at a time, asking first.
+1. If setup is incomplete, follow Set me up in `AGENTS.md`: one step at a time, asking first.
    When setup succeeds, reply "You're set up" with the home link in the same turn. Start the
    home wait as a background task and say you are listening. Do not wait for a page request
    before replying.
@@ -132,7 +134,7 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    topic of one to three words and run `python3 new_project.py --name DIR TOPIC`. Use the
    DIR it prints from then on.
    Run `yap-studio status DIR`; its first line names the video type and B-roll sources. If the
-   type or B-roll is not chosen yet, ask as in What are you making? in `CLAUDE.md` and record it
+   type or B-roll is not chosen yet, ask as in What are you making? in `AGENTS.md` and record it
    with `yap-studio video-type set DIR --type TYPE --broll SOURCE ...`. If only B-roll is not
    chosen yet, ask only `broll_sources` and record it with
    `yap-studio video-type set DIR --broll SOURCE ...`. For `green_screen` and
@@ -200,7 +202,7 @@ stop for the creator: their notes and their approval arrive through it (see Yap 
    Then run `yap-studio review --versions DIR --phone --json --detach` again. Repeat until
    the creator is happy with the story. They say so with Make the final
    video on the review page or Yap Studio home, which arrives as a `final` request (see Yap
-   Studio home in `CLAUDE.md`), or in chat.
+   Studio home in `AGENTS.md`), or in chat.
 5. Build the picture. Plans read `DIR/cut/cut-words.json` and take `--frames N`, the cut's
    frame count (`plan.total_frames` in `DIR/cut/receipt.json`). Pass `--style` the `style`
    value from `DIR/project.json`; a `styles/...` value is a path inside DIR.
