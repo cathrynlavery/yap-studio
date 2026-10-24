@@ -29,16 +29,20 @@ async function run(url, resultFile, shots, agent = 'Claude Code') {
       for (const [index, button] of buttons.entries()) {
         assert.equal(await button.evaluate((node) => node.textContent), 'Listen');
         await button.evaluate((node) => node.scrollIntoView({block: 'center'}));
+        // The previous Listen ends with a seek; its late seeked event must not count as this start.
+        await page.waitForFunction(() => {
+          const video = document.querySelector('#video');
+          return video.paused && !video.seeking;
+        });
         await page.$eval('#video', (node) => {
           const sample = window.joinPlayback = {start: null, end: null};
-          const recordStart = () => {
-            sample.start = node.currentTime;
-            node.removeEventListener('seeked', recordStart);
-            node.removeEventListener('playing', recordStart);
+          node.addEventListener('playing', () => { sample.start = node.currentTime; }, {once: true});
+          const recordEnd = () => {
+            if (sample.start === null) return;
+            sample.end = node.currentTime;
+            node.removeEventListener('pause', recordEnd);
           };
-          node.addEventListener('seeked', recordStart);
-          node.addEventListener('playing', recordStart);
-          node.addEventListener('pause', () => { sample.end = node.currentTime; }, {once: true});
+          node.addEventListener('pause', recordEnd);
         });
         await button.click();
         await page.waitForFunction(() => window.joinPlayback.start !== null && window.joinPlayback.end !== null);
