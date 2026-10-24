@@ -170,21 +170,21 @@
       "upstream_path": "registry/blocks/whip-pan/whip-pan.html",
       "upstream_sha256": "97a690de11f6dcebd6356bea84cba1af6ae61bfe03b9b7cc75a81368c93a12c9",
       "yap_path": "src/yap_studio/templates/transition_whip_pan/template.html",
-      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks."
+      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks. Let initial draw failures reach the renderer as unhandled page errors."
     },
     {
       "item": "cinematic-zoom",
       "upstream_path": "registry/blocks/cinematic-zoom/cinematic-zoom.html",
       "upstream_sha256": "72b3a83d5de6a56fd389044aa15e785dbb40d5402cea6b95684b6b9cec0e4aba",
       "yap_path": "src/yap_studio/templates/transition_cinematic_zoom/template.html",
-      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks."
+      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks. Let initial draw failures reach the renderer as unhandled page errors."
     },
     {
       "item": "light-leak",
       "upstream_path": "registry/blocks/light-leak/light-leak.html",
       "upstream_sha256": "018575074693864c3f0f71380f85f089c172f73717b80787640b2da3615345be",
       "yap_path": "src/yap_studio/templates/transition_light_leak/template.html",
-      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks."
+      "changes": "Kept the fragment shader and replaced scene capture and timed animation with local frame sequences and deterministic frame seeks. Let initial draw failures reach the renderer as unhandled page errors."
     },
     {
       "item": "hw-pipeline",

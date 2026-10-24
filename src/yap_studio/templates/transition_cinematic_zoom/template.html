@@ -101,6 +101,6 @@ canvas { display: block; width: 1080px; height: 1920px; }
     time = seekTime;
     event.detail.waitUntil(ready.then(() => draw(seekTime)));
   });
-  ready.then(() => draw(time)).catch(error => { console.error(error); });
+  ready.then(() => draw(time));
 })();
 </script></body></html>

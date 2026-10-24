@@ -2515,6 +2515,41 @@ def test_real_pinned_renderer_script_error_refuses_output(tmp_path: Path) -> Non
 
 
 @pytest.mark.render
+@pytest.mark.parametrize("look", ["whip_pan", "cinematic_zoom", "light_leak"])
+def test_real_pinned_renderer_transition_draw_error_refuses_output(
+    tmp_path: Path, look: str,
+) -> None:
+    import synth
+
+    from yap_studio.stages import transitions
+
+    comp = tmp_path / "throwing-transition"
+    comp.mkdir()
+    cut = synth.picture_source(tmp_path / "cut.mov", "color=c=red:s=1080x1920:r=30", 6)
+    transitions._extract(cut, comp / "from", 0, 3)
+    transitions._extract(cut, comp / "to", 3, 3)
+    source = transitions.template_file(look).read_text().replace(
+        'data-duration="0.399"', f'data-duration="{layer_duration_s(6)}"',
+    )
+    # Only the initial draw fails; seek draws must not mask a swallowed startup error.
+    injected = source.replace(
+        "  function draw(time) {",
+        "  let firstDraw = true;\n  function draw(time) {\n"
+        "    if (firstDraw) { firstDraw = false; "
+        "throw new Error('injected transition draw failure'); }", 1,
+    )
+    assert injected != source
+    (comp / "index.html").write_text(injected)
+    out = tmp_path / "throwing-transition.mov"
+    with pytest.raises(YapError, match="injected transition draw failure") as caught:
+        render_layer(comp, out, frames=6, variables={"frames": 6, "fps": 30}, checks=False)
+    assert caught.value.code == "renderer_script_error"
+    assert not out.exists()
+    assert not list(comp.glob("*.mov"))
+    assert not (comp / "variables.json").exists()
+
+
+@pytest.mark.render
 def test_real_pinned_renderer_one_second(tmp_path: Path) -> None:
     """Opt-in real installation and Chrome render, keeping the configured cache."""
     install = ensure_installed()
