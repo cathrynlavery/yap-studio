@@ -77,7 +77,7 @@ async function run(reviewUrl, homeUrl, shots, resultFile) {
       home.on('pageerror', (error) => errors.push(error.message));
       await home.setViewport({width, height: mobile ? 844 : 900, isMobile: mobile, hasTouch: mobile});
       await home.goto(homeUrl);
-      await home.waitForFunction(() => document.querySelector('#main .title')?.textContent === 'Claude is building your video.');
+      await home.waitForFunction(() => document.querySelector('#main .title')?.textContent === 'Claude Code is building your video.');
       check(`fresh home follows claimed final ${width}`, () => assert.equal(new URL(home.url()).hash, '#video/demo'));
       const progress = await home.$eval('#main', (node) => node.textContent);
       check(`building copy respects the choices ${width}`, () => {
