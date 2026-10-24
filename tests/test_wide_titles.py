@@ -151,6 +151,50 @@ def test_real_wide_layer_at_delivery_size(tmp_path: Path, kind):
     assert not opaque.any(), "Opaque content escaped its planned title-safe bounds"
 
 
+@pytest.mark.parametrize("kind,text,expected", [
+    ("name_tag", {"name": "Shit Porter", "role": "Writer"}, ["S*** Porter", "Writer"]),
+    ("name_tag", {"name": "Sam Porter", "role": "Shit happens"}, ["Sam Porter", "S*** happens"]),
+    ("title", {"lines": ["Shit happens"]}, ["S*** happens"]),
+    ("chapter", {"title": "Shit happens"}, ["S*** happens"]),
+])
+def test_wide_masked_layers_pass_bleep_check(layer_project, kind, text, expected):
+    import numpy as np
+    from test_stage_captions import republish_cut
+
+    from yap_studio.project.status import ProjectContext
+    from yap_studio.sfx import bleep
+    from yap_studio.stages.graphics import graphics_snapshot
+
+    project = json.loads((layer_project / "project.json").read_text())
+    project.update(shape="horizontal", word_fixes={})
+    (layer_project / "project.json").write_text(json.dumps(project))
+    chosen = style().data
+    chosen["music"]["bleep_swears"] = True
+    (layer_project / "style.json").write_text(json.dumps(chosen))
+    republish_cut(layer_project)
+    payload = {"template": kind, "slots": text} if kind == "name_tag" else text
+    set_elements(layer_project, {"id": "agent-masked", "kind": "graphic"
+                                 if kind == "name_tag" else kind,
+                                 "start": {"time": 0}, "hold_s": 1, **payload})
+    context = ProjectContext(layer_project)
+    snapshot = graphics_snapshot(context)
+    layer, = snapshot.titles
+    drawn = ([layer.plan.variables["name"], layer.plan.variables["role"]]
+             if kind == "name_tag" else json.loads(layer.plan.variables["lines"]))
+    assert drawn == expected
+    placements = [layer.placement()]
+    audio = np.zeros((3 * bleep.RATE, 1), dtype=np.float32)
+    result = bleep.check([], music=chosen["music"], voice=audio, original_voice=audio,
+                         tone_stem=None, phrases={}, title_layers=placements,
+                         timeline=context.resolved_timeline())
+    assert result["unmasked"] == []
+    assert result["pass"]
+    assert placements[0]["display_text"] == expected
+    restored = graphics_snapshot(ProjectContext(layer_project), placements=placements)
+    assert restored.titles[0].placement()["display_text"] == expected
+    assert restored.inputs == snapshot.inputs
+
+
 @pytest.mark.parametrize("captions", ["on", "off", "partial_gap"])
 def test_wide_snapshot_round_trips_real_timeline_and_receipts(layer_project, captions):
     from test_stage_captions import republish_cut

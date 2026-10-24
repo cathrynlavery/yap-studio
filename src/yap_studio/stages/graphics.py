@@ -471,7 +471,8 @@ def graphics_snapshot(
                 clearance = placement_record["clearance"]
             wide_assets = layer_assets("wide_titles", plan.variables["font_name"], context)
             display_text = (tuple(json.loads(plan.variables["lines"]))
-                            if kind != "name_tag" else None)
+                            if kind != "name_tag" else (plan.variables["name"],
+                                                       plan.variables["role"]))
             digest = projection_sha256({
                 "element": element.to_dict(), "variables": plan.variables, "clearance": clearance,
                 "fonts": wide_assets.font_identity(),
