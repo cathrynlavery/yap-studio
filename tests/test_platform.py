@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
@@ -107,6 +108,43 @@ def test_injected_short_duration_limits_fail_and_warn(synth_media) -> None:
     warning = _finding(check_platform(info, preset, name="test"), "platform.duration")
     assert warning.severity == "warn"
     assert warning.evidence["rule"] == preset["duration"]["warn_rule"]
+
+
+@pytest.mark.parametrize(("name", "duration_s", "severity", "action"), [
+    ("youtube", 900, None, None),
+    ("youtube", 1731.97, "warn",
+     "Uploads longer than 15 minutes need a verified YouTube account. "
+     "Verify your account, or trim the video to 15 minutes or less if you cannot verify."),
+    ("youtube", 43201, "fail", "Trim the video to 12 hours or less."),
+    ("tiktok", 1801, "warn", "Trim the video to 30 minutes or less."),
+    ("reels", 181, "warn", "Trim the video to 3 minutes or less."),
+])
+def test_duration_actions(synth_media, name, duration_s, severity, action) -> None:
+    info = replace(ffmpeg.probe(synth_media.path("clean")), duration_s=duration_s)
+    preset = load_presets()[name]
+    finding = _finding(check_platform(info, preset, name=name), "platform.duration")
+    if severity is None:
+        assert finding is None
+        return
+    assert finding.severity == severity
+    assert finding.suggested_action == action
+    assert finding.evidence["source_url"] == preset["duration"].get(
+        "warn_source_url", preset["duration"]["source_url"]
+    )
+
+
+def test_verify_summary_uses_duration_warning_action(synth_media, monkeypatch) -> None:
+    presets = load_presets()
+    presets["youtube"]["duration"]["warn_over_s"] = 3
+    action = "Verify your YouTube account for longer uploads."
+    presets["youtube"]["duration"]["warn_action"] = action
+    monkeypatch.setattr("yap_studio.verify.load_presets", lambda: presets)
+    result = verify(str(synth_media.path("clean")), asr="none", platform="youtube")
+    warning = next(row for row in result["findings"] if row["check"] == "platform.duration")
+    assert warning["severity"] == "warn"
+    assert warning["suggested_action"] == action
+    assert action in " ".join(result["summary"]["text"].split())
+    assert "Trim the video" not in result["summary"]["text"]
 
 
 def test_reels_warns_for_twenty_four_fps(synth_media) -> None:

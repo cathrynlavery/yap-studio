@@ -112,6 +112,9 @@ def _duration_finding(info: MediaInfo, rule: dict[str, Any], label: str) -> Find
         use_warning_rule = True
     else:
         return None
+    action = f"Trim the video to {_duration(limit)} or less."
+    if use_warning_rule:
+        action = rule.get("warn_action", action)
     return Finding(
         check="platform.duration",
         severity=severity,
@@ -119,7 +122,7 @@ def _duration_finding(info: MediaInfo, rule: dict[str, Any], label: str) -> Find
             f"This video is {_duration(info.duration_s)} long. "
             f"{_citation(rule, warning=use_warning_rule)}"
         ),
-        suggested_action=f"Trim the video to {_duration(limit)} or less.",
+        suggested_action=action,
         evidence=_evidence(rule, warning=use_warning_rule),
     )
 

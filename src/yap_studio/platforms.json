@@ -18,6 +18,7 @@
         "warn_over_s": 900,
         "rule": "The maximum upload is 12 hours or 256 GB, whichever is less.",
         "warn_rule": "By default, uploads can be up to 15 minutes; verified accounts can upload longer videos.",
+        "warn_action": "Uploads longer than 15 minutes need a verified YouTube account. Verify your account, or trim the video to 15 minutes or less if you cannot verify.",
         "source_url": "https://support.google.com/youtube/answer/71673",
         "checked": "2026-09-28"
       },

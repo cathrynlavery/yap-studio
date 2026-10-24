@@ -130,7 +130,7 @@ Each finding gives the time on the output, the problem and a fix.
 | `captions.words` | A word heard in the final has no caption, a caption word is not heard, or several confidently matched words consistently start over 0.5 s before or after the speech (warning). The check transcribes the final's voice with the project's speech engine and caches the result for that audio. | Listen at the time. Restore missing spoken words, fix caption text, or align caption word starts with the speech. Then render and run again. |
 | `detect.cuts` | Lists the clear cuts found without an edit list. Jump cuts inside one take may be missed. | Nothing to fix. Add `--edl` for a full check, including sync and words. |
 | `platform.shape` | The video shape does not fit the platform. | Render the required horizontal or vertical version. |
-| `platform.duration` | The video is too long for the selected format. | Shorten it or choose another format. |
+| `platform.duration` | The video exceeds a duration limit or warning threshold for the selected format. | For YouTube uploads over 15 minutes, verify your YouTube account; trim only if you cannot verify. Above the hard limit, shorten it or choose another format. |
 | `platform.resolution` | The frame size misses a platform rule. | Render at a supported size. |
 | `platform.fps` | The frame rate misses a platform rule. | Render at a supported frame rate. |
 | `taste.rules` | The finished picture breaks an approved taste rule applied to this render, or its receipt names a different style. Rules that could not be measured have a reason. | Render again with the approved style, or revoke the rule if it no longer holds. |

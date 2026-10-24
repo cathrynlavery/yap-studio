@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Verify tells you long YouTube uploads need a verified account instead of telling you to trim a video over 15 minutes.
 - Text at the top is a style page step with no default for new creators; Home lets you change it per video, and the agent waits for a pick.
 - Captions no longer fail when a caption phrase has no length, which showed up on a 30-minute video, and internal caption errors keep their own message.
 - Home asks vertical or horizontal for each video, with horizontal captions off by default.
