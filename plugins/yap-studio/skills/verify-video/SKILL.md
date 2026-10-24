@@ -59,7 +59,7 @@ The JSON report always lists every finding and every check. Add `--detail full` 
 | `picture.flash` | One or two stray frames flash at a cut: the picture changes into them and out again within two frames of the join. With an edit list, frames that are in the source at that point are not counted. | Render the cut again so the outgoing segment's last frame meets the incoming segment's first frame. |
 | `detect.cuts` | Lists the clear cuts found without an edit list. Jump cuts inside one take may be missed. | Nothing to fix. Add `--edl` for a full check, including sync and words. |
 | `platform.shape` | The video shape does not fit the platform. | Render the required horizontal or vertical version. |
-| `platform.duration` | The video is too long for the selected format. | Shorten it or choose another format. |
+| `platform.duration` | The video is over the platform's length limit, or over a default limit an account can lift (YouTube past 15 minutes needs a verified account). | Follow the report's suggested action: verify the account when it says so, otherwise shorten it or choose another format. |
 | `platform.resolution` | The frame size misses a platform rule. | Render at a supported size. |
 | `platform.fps` | The frame rate misses a platform rule. | Render at a supported frame rate. |
 | `taste.rules` | The finished picture breaks an approved taste rule applied to this render, or its receipt names a different style. Rules that could not be measured have a reason. | Render again with the approved style, or revoke the rule if it no longer holds. |
