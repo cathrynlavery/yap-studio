@@ -68,6 +68,19 @@ def test_chapter_bar_done_current_later():
             ["done"] * (number - 1) + ["current"] + ["later"] * (4 - number))
 
 
+def test_chapter_uses_fitting_wide_card_before_narrow_fallback():
+    plan, evidence = wide_layer_plan(
+        "chapter", {"title": "Understanding the fundamentals of editing"}, style(), frames=48)
+    assert evidence["box"]["w"] == 640
+    assert plan.variables["size_px"] == 46
+    assert json.loads(plan.variables["lines"]) == ["Understanding the", "fundamentals of editing"]
+
+
+def test_chapter_with_no_fitting_width_offers_plain_fix():
+    with pytest.raises(ValidationError, match="shorten"):
+        wide_layer_plan("chapter", {"title": "W" * 300}, style(), frames=48)
+
+
 def chapter(seconds, title):
     return {"start_frame": round(seconds * 30), "title": title}
 
@@ -138,10 +151,12 @@ def test_real_wide_layer_at_delivery_size(tmp_path: Path, kind):
     assert not opaque.any(), "Opaque content escaped its planned title-safe bounds"
 
 
-def test_wide_snapshot_round_trips_real_timeline_and_receipts(layer_project):
+@pytest.mark.parametrize("captions", ["on", "off", "partial_gap"])
+def test_wide_snapshot_round_trips_real_timeline_and_receipts(layer_project, captions):
     from test_stage_captions import republish_cut
 
     from yap_studio.project.status import ProjectContext
+    from yap_studio.stages.captions import caption_layer_plan
     from yap_studio.stages.graphics import graphics_snapshot
 
     project = json.loads((layer_project / "project.json").read_text())
@@ -149,16 +164,27 @@ def test_wide_snapshot_round_trips_real_timeline_and_receipts(layer_project):
     (layer_project / "project.json").write_text(json.dumps(project))
     (layer_project / "style.json").write_text(json.dumps(style().data))
     republish_cut(layer_project)
-    set_elements(layer_project,
-                 {"id": "agent-title", "kind": "title", "start": {"time": 0},
+    elements = [{"id": "agent-title", "kind": "title", "start": {"time": 0},
                   "hold_s": .5, "lines": ["Small clear steps"]},
                  {"id": "agent-chapter", "kind": "chapter", "start": {"time": .6},
                   "hold_s": 1, "title": "Make it clear"},
                  {"id": "agent-name", "kind": "graphic", "template": "name_tag",
                   "slots": {"name": "Sam Porter", "role": "Writer and founder"},
-                  "start": {"time": 1.7}, "end": {"time": 2.7}})
+                  "start": {"time": 1.7}, "end": {"time": 2.7}}]
+    if captions != "on":
+        elements.append({"id": "agent-gap", "kind": "caption_gap", "start": {"time": 0},
+                         "hold_s": 3 if captions == "off" else .5})
+    set_elements(layer_project, *elements)
     snapshot = graphics_snapshot(ProjectContext(layer_project))
     assert [item.kind for item in snapshot.titles] == ["title", "chapter", "graphic"]
+    chosen = ProjectContext(layer_project).render_style()
+    band = caption_layer_plan([], chosen, frames=90, shape="horizontal")
+    for item, old_top in zip(snapshot.titles, (863, 300, 776), strict=True):
+        box = Box(**item.clearance["box"])
+        if captions == "off":
+            assert box.y == old_top
+        else:
+            assert box.y1 + chosen.data["graphics"]["caption_gap_px"] <= band.y
     restored = graphics_snapshot(ProjectContext(layer_project),
                                  placements=[item.placement() for item in snapshot.titles])
     assert restored.inputs == snapshot.inputs
@@ -167,6 +193,39 @@ def test_wide_snapshot_round_trips_real_timeline_and_receipts(layer_project):
     (layer_project / "style.json").write_text(json.dumps(blocked))
     with pytest.raises(ValidationError, match="name_tag"):
         graphics_snapshot(ProjectContext(layer_project))
+
+
+@pytest.mark.render
+def test_wide_layers_with_captions_pass_final_clearance(tmp_path, monkeypatch):
+    from test_landscape import _render_project
+
+    from yap_studio.faces import detect
+    from yap_studio.project.receipts import read_receipt
+    from yap_studio.stages.assemble import assemble
+    from yap_studio.stages.captions import captions
+    from yap_studio.stages.graphics import graphics
+
+    monkeypatch.setattr(detect, "unavailable_reason", lambda: "Synthetic fixture")
+    root = _render_project(tmp_path, "horizontal")
+    chosen = json.loads((root / "style.json").read_text())
+    chosen.update(hook={"style": "quiet_serif", "font": "Inter"},
+                  chapters={"style": "title_card"})
+    (root / "style.json").write_text(json.dumps(chosen))
+    set_elements(root,
+                 {"id": "agent-title", "kind": "title", "start": {"time": 0},
+                  "hold_s": .6, "lines": ["Small clear steps"]},
+                 {"id": "agent-chapter", "kind": "chapter", "start": {"time": .7},
+                  "hold_s": 1, "title": "Understanding the fundamentals of editing"},
+                 {"id": "agent-name", "kind": "graphic", "template": "name_tag",
+                  "slots": {"name": "Sam Porter", "role": "Writer and founder"},
+                  "start": {"time": 1.8}, "end": {"time": 2.8}})
+    captions(root)
+    graphics(root)
+    result = assemble(root)
+    assert result["status"] == "verified", result
+    report = read_receipt(root / "final")["verify"]
+    assert report["checks"]["captions.cards"]["status"] == "pass"
+    assert not any(item["check"] == "captions.cards" for item in report["findings"])
 
 
 @pytest.mark.render

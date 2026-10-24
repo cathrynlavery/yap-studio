@@ -38,13 +38,16 @@ def wide_layer_plan(
     kind: str, text: dict, style: ResolvedStyle, *, frames: int, start_frame: int = 0,
     faces: Sequence[Sequence[Box]] | None = None, reason: str | None = None,
     number: int = 1, total: int = 1,
-    saved_box: Box | None = None,
+    saved_box: Box | None = None, caption_top: int | None = None,
 ) -> tuple[LayerPlan, dict]:
     """Keep content title-safe; translucent fades and navigation are decorative."""
     frame = canvas("horizontal")
     graphics = style.data["graphics"]
     font = graphics["font"] if kind == "name_tag" else style.data["hook"]["font"]
     margin = face_clearance_px(style.data)
+    ceiling = frame.height - 108
+    if caption_top is not None:
+        ceiling = min(ceiling, caption_top - graphics["caption_gap_px"])
     heads = [head_box(face) for row in faces or [] for face in row]
     variables = {"kind": kind, "font_name": font, "font_family": fonts.font_stack(font),
                  "paper_color": graphics["paper_color"], "ink_color": graphics["ink_color"],
@@ -68,13 +71,18 @@ def wide_layer_plan(
                        < frame.width / 2)
         candidates = []
         for width in (640, 600, 560):
-            lines, size = _lines(text["title"], font, width - 104, 64, min_words=1)
+            try:
+                lines, size = _lines(text["title"], font, width - 104, 64, min_words=1)
+            except ValidationError:
+                continue
             height = 44 + 30 + 150 + 14 + math.ceil(len(lines) * size * 1.08) + 52
             positions = [frame.width - 150 - width, 120]
             if not right_first:
                 positions.reverse()
             candidates.extend(Box(x, 300, width, height) for x in positions)
             candidates.extend(Box(x, 300, width, height) for x in (96, frame.width - 96 - width))
+        if not candidates:
+            raise ValidationError("chapter", "Please shorten the text to fit two balanced lines.")
     elif kind == "name_tag":
         if not variables["name"].strip() or not variables["role"].strip():
             raise ValidationError("name_tag", "Supply a name and one short line.")
@@ -89,12 +97,14 @@ def wide_layer_plan(
         raise ValidationError("wide title", "Choose title, chapter or name_tag.")
     if saved_box is not None:
         candidates = [saved_box]
+    else:
+        candidates = [Box(box.x, min(box.y, ceiling - box.h), box.w, box.h) for box in candidates]
     box = next((box for box in candidates if 96 <= box.x and box.x1 <= frame.width - 96
-                and 108 <= box.y and box.y1 <= frame.height - 108
+                and 108 <= box.y and box.y1 <= ceiling
                 and all(gap_px(box, head) >= margin for head in heads)), None)
     if box is None:
-        raise ValidationError(kind, "Text would cover the face. Shorten it or choose a shot "
-                              "with more room.")
+        raise ValidationError(kind, "Text needs more room clear of faces and captions. "
+                              "Shorten it or choose a shot with more room.")
     if kind == "chapter":
         lines, size = _lines(text["title"], font, int(box.w) - 104, 64, min_words=1)
         variables.update(lines=json.dumps(lines), size_px=size)

@@ -462,6 +462,10 @@ def graphics_snapshot(
                 number=numbers.get(element.id, 1), total=len(chapters),
                 saved_box=Box(**placement_record["clearance"]["box"])
                 if placement_record is not None else None,
+                caption_top=None if any(
+                    item.kind == "caption_gap" and item.start_frame == 0
+                    and item.end_frame >= timeline.total_frames for item in timeline.elements
+                ) else _caption_top(context, style, element.start_frame, element.end_frame),
             )
             if placement_record is not None:
                 clearance = placement_record["clearance"]
