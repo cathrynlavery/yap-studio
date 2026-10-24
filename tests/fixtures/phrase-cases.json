@@ -1463,15 +1463,6 @@
     "phrases": [
       {
         "ids": [
-          "t1:0"
-        ],
-        "text": "First",
-        "start": 0.5,
-        "end": 0.5,
-        "stress": "t1:0"
-      },
-      {
-        "ids": [
           "t1:1"
         ],
         "text": "next.",

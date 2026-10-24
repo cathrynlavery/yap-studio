@@ -161,7 +161,7 @@
         ids: group.map((word) => word.id), text: group.map((word) => word.text).join(' '),
         start: milliseconds(start), end: milliseconds(end), stress: stress(group, options.stress_ids || []),
       };
-    });
+    }).filter((phrase) => phrase.end > phrase.start);
   }
 
   const api = {buildPhrases};

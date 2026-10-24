@@ -99,6 +99,52 @@ def test_run_walks_every_stage_in_order(tmp_path: Path, monkeypatch: pytest.Monk
     assert result["next"].startswith("yap-studio review --versions ")
 
 
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize("error", [ValueError("backing count mismatch"),
+                                 OSError("caption layer write failed")])
+def test_run_caption_failure_matches_captions_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    json_output: bool, error: Exception,
+) -> None:
+    calls: list[str] = []
+    _fake_stages(monkeypatch, calls, {"captions": error})
+    root = _shell(tmp_path)
+    options = ["--json"] if json_output else []
+    assert cli.main(["captions", str(root), *options]) == 2
+    caption_output = capsys.readouterr().err
+    assert cli.main(["run", str(root), *options]) == 2
+    output = capsys.readouterr()
+    assert calls == ["captions", "ingest", "fillers", "cut", "music", "captions"]
+    if json_output:
+        stopped = json.loads(output.out)["stopped"]
+        assert stopped["step"] == "captions" and stopped["exit"] == 2
+        assert {key: value for key, value in stopped.items() if key not in {"step", "exit"}} == (
+            json.loads(caption_output)["error"]
+        )
+        assert stopped["code"] == "caption_failed"
+        assert stopped["type"] == "processing_error"
+        assert stopped["message"] == str(error)
+    else:
+        assert f"stopped at captions: {error}" in output.err
+        assert "Report this caption failure" in caption_output and (
+            "Report this caption failure" in output.err
+        )
+        assert "Cannot read input" not in output.err
+
+
+def test_run_preserves_missing_caption_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    from yap_studio.errors import InputError
+
+    error = InputError("cut/cut-words.json")
+    _fake_stages(monkeypatch, [], {"captions": error})
+    root = _shell(tmp_path)
+    assert cli.main(["run", str(root), "--json"]) == 2
+    stopped = json.loads(capsys.readouterr().out)["stopped"]
+    assert stopped == {"step": "captions", **error.to_dict(), "exit": 2}
+
+
 def test_run_prints_music_setup_notice_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:

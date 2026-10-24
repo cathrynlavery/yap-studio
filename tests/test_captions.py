@@ -178,6 +178,17 @@ def test_empty_and_fully_hidden_input_produce_no_phrases() -> None:
     assert _named("hidden input") == []
 
 
+@pytest.mark.parametrize("next_start", [0.1, 0.1001])
+def test_zero_length_phrases_drop_after_rounding(next_start: float) -> None:
+    phrases = build_phrases(
+        [CaptionWord("a", "Empty.", 0.1, 0.2),
+         CaptionWord("b", "Visible.", next_start, 0.3)],
+        {"max_words_per_phrase": 1, "max_characters_per_phrase": 30},
+    )
+    assert [phrase.text for phrase in phrases] == ["Visible."]
+    assert all(phrase.start < phrase.end for phrase in phrases)
+
+
 def test_text_rules_keep_merged_number_sources_and_manual_marks() -> None:
     words = [CaptionWord("a", "twenty", 0, 0.2),
              CaptionWord("hidden", "um", 0.21, 0.3, hidden=True),

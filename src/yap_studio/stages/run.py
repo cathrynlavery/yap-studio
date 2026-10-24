@@ -305,7 +305,8 @@ def run(
                 unchanged, detail = _HANDLERS[name](root, state)
         except (YapError, OSError, ValueError) as exc:
             if not isinstance(exc, YapError):
-                exc = InputError(str(project_dir), f"{name} cannot read or write: {exc}")
+                exc = (captions_stage.caption_error(exc) if name == "captions" else
+                       InputError(str(project_dir), f"{name} cannot read or write: {exc}"))
             state["notices"].extend(getattr(exc, "notices", []))
             stopped = {"step": name, **exc.to_dict(), "exit": exit_status(exc)}
             step = {"name": name, "state": "failed", "detail": exc.message}

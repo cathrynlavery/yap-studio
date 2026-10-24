@@ -493,4 +493,4 @@ def build_phrases(
                 index, group, _milliseconds(start), _milliseconds(end), _stress(group, stress_ids)
             )
         )
-    return phrases
+    return [phrase for phrase in phrases if phrase.end > phrase.start]

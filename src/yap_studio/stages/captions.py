@@ -151,6 +151,13 @@ class CaptionRefusal(YapError):
         )
 
 
+def caption_error(exc: OSError | ValueError) -> YapError:
+    """Preserve an internal caption failure without input-file recovery advice."""
+    return YapError(str(exc), error_type="processing_error", code="caption_failed",
+                    suggested_action="Report this caption failure with the error message "
+                    "and the command you ran.")
+
+
 @dataclass(frozen=True)
 class LayerPlan:
     """A composition box, placement, frame window, and declared variables."""
@@ -1251,7 +1258,7 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
         phrases = clip_layout_phrases(phrases, green_layouts)
     duration = timeline.total_frames / 30
     phrases = [replace(phrase, start=max(0.0, phrase.start), end=min(duration, phrase.end))
-               for phrase in phrases if min(duration, phrase.end) > max(0.0, phrase.start)]
+               for phrase in phrases if phrase.start < duration and phrase.end > 0]
     gaps = [item for item in timeline.elements if item.kind == "caption_gap"]
     phrases = [phrase for phrase in phrases if not any(
         phrase.start < gap.end_s and phrase.end > gap.start_s for gap in gaps

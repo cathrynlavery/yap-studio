@@ -835,6 +835,7 @@ def _captions(args: argparse.Namespace) -> int:
         _publish_lock,
         back_weak_captions,
         caption_clip,
+        caption_error,
         captions,
     )
     from yap_studio.taste.render import render_style, write_taste_record
@@ -864,9 +865,7 @@ def _captions(args: argparse.Namespace) -> int:
             result["taste"] = application.pin()
     except (YapError, OSError, ValueError) as exc:
         if not isinstance(exc, YapError):
-            exc = YapError(str(exc), error_type="processing_error", code="caption_failed",
-                           suggested_action="Report this caption failure with the error message "
-                           "and the command you ran.")
+            exc = caption_error(exc)
         if args.json:
             print(json.dumps({"error": exc.to_dict()}), file=sys.stderr)
         else:

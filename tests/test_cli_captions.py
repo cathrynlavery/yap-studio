@@ -842,6 +842,43 @@ def test_trailing_phrases_share_clipped_slots_srt_and_count(
     )
 
 
+@pytest.mark.parametrize("placement", ["fixed", "avoid_face"])
+def test_standalone_zero_length_phrases_share_slots_srt_and_count(
+    clip: Path, words: Path, tmp_path: Path, fake_layers: list[dict],
+    monkeypatch: pytest.MonkeyPatch, placement: str,
+) -> None:
+    from yap_studio.faces import detect
+    from yap_studio.faces.model import FacesData, VideoIdentity
+
+    Transcript([Word("Empty.", 0.1, 0.2), Word("Visible.", 0.1, 0.3)]).save(words)
+    source = tmp_path / "style.json"
+    source.write_text(json.dumps({"schema_version": 1, "captions": {
+        "placement": placement, "max_words_per_phrase": 1,
+    }}))
+
+    def no_faces(video: Path, *, every: int) -> FacesData:
+        info = ffmpeg.probe(video)
+        frames = tuple(() for _ in range(info.video_frames))
+        return FacesData("measured", None,
+                         VideoIdentity(video.name, "a" * 64, info.video_frames,
+                                       Fraction(30), 1080, 1920),
+                         {}, {}, frames, tuple(detect.find_gaps(frames)))
+
+    monkeypatch.setattr(detect, "detect_faces", no_faces)
+    out = tmp_path / "captioned.mp4"
+    result = captions.caption_clip(clip, style=resolve(str(source)), out=out, words=words,
+                                   srt=True, title=None, force=False)
+    slots = json.loads(fake_layers[0]["variables"]["phrases"])
+    assert result["phrases"] == len(slots) == 1
+    assert [word["text"] for word in slots[0]["words"]] == ["Visible."]
+    assert out.with_suffix(".srt").read_text() == (
+        "1\n00:00:00,100 --> 00:00:01,267\nVisible.\n\n"
+    )
+    record = json.loads(out.with_suffix(".receipt.json").read_text())
+    if placement == "avoid_face":
+        assert len(record["caption_placement"]["phrases"]) == 1
+
+
 def test_force_refuses_unowned_media(
     clip: Path,
     words: Path,
