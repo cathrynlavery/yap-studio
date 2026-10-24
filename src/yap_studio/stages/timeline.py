@@ -505,12 +505,13 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
     hold_s = edit.end_hold_s if edit.end_hold_s is not None else style["internal"]["end_hold_s"]
     hold_frames = snap_frame(Fraction(str(hold_s)), FPS)
     text_hook = style["hook"]["style"] == "text_hook"
-    if text_hook:
-        from yap_studio.project.model import TextHook
-
+    if text_hook or (style["hook"]["style"] == "none" and style["hook"]["answered"]):
         lanes = {lane: replace(document, elements=tuple(
             item for item in document.elements if item.kind != "title"))
             for lane, document in lanes.items()}
+    if text_hook:
+        from yap_studio.project.model import TextHook
+
         try:
             choice = cast(TextHook, parse_document("text-hook",
                                                   context.json("plans/text-hook.json")))

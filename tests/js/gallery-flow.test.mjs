@@ -316,6 +316,27 @@ test('unanswered top text has no selected answer or main title and Save asks fir
   }
 });
 
+test('opening looks remember the look without changing None or whole-video answers', async () => {
+  for (const answer of ['none', 'whole']) {
+    for (const [group, label, look] of [['title-tiles', 'Shimmer', 'shimmer'],
+      ['more-title-tiles', 'Paper card', 'paper_title'], ['title-tiles', 'Kinetic hook', 'kinetic']]) {
+      const page = await harness(initialState(), '#top-text');
+      await page.click(`top-text-${answer}`);
+      await page.go('opening');
+      await page.pick(group, label);
+      await page.save();
+      assert.equal(savePayload(page).hook.style, answer === 'none' ? 'none' : 'text_hook');
+      assert.equal(savePayload(page).hook.answered, true);
+      await page.click('update');
+      await page.go('top-text');
+      assert.equal(page.$(`top-text-${answer}`).getAttribute('aria-pressed'), 'true');
+      await page.click('top-text-opening');
+      await page.save();
+      assert.equal(savePayload(page).hook.style, look);
+    }
+  }
+});
+
 test('grade tiles, strength, candidate stills and Reset follow the chosen grade', async () => {
   const state = initialState();
   delete state.style.grade;

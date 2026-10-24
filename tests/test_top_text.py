@@ -2,6 +2,7 @@
 
 import copy
 import json
+from pathlib import Path
 
 import pytest
 from test_feedback_batch import feedback_project as feedback_project
@@ -14,11 +15,12 @@ from test_stage_captions import set_elements
 from test_text_hook import choice
 from test_timeline import write
 
+from yap_studio.brand_words import set_words
 from yap_studio.errors import ValidationError
 from yap_studio.project.model import parse_document
 from yap_studio.project.status import ProjectContext
 from yap_studio.stages.captions import title_layer_plan
-from yap_studio.stages.graphics import graphics
+from yap_studio.stages.graphics import graphics, graphics_snapshot
 from yap_studio.style import ResolvedStyle, resolve_style_data
 from yap_studio.text_hook import require_top_text
 
@@ -29,6 +31,62 @@ def test_old_styles_keep_their_look_and_are_unanswered():
         assert hook["style"] == look and hook["answered"] is False
     with pytest.raises(ValidationError):
         resolve_style_data({"schema_version": 1, "hook": {"answered": "yes"}})
+
+
+@pytest.mark.parametrize("raw,displayed", [
+    ("Twenty dollars", "$20"), ("sparrowlight", "SparrowLight"),
+    ("spoiler", "s******"),
+])
+def test_opening_choice_checks_displayed_words(layer_project, raw, displayed):
+    data = json.loads((layer_project / "style.json").read_bytes())
+    data["hook"]["answered"] = True
+    if raw == "spoiler":
+        data["music"] = {"bleep_swears": True, "bleep_words_add": ["spoiler"]}
+    write(layer_project / "style.json", data)
+    set_words(["SparrowLight"])
+    set_elements(layer_project, {"id": "agent-title", "kind": "title",
+                                "start": {"time": 0}, "hold_s": 1, "lines": [raw]})
+    write(layer_project / "plans/text-hook.json", {
+        **choice(raw, "typed"), "kind": "opening",
+    })
+    with pytest.raises(ValidationError, match="Use the chosen opening text"):
+        require_top_text(ProjectContext(layer_project))
+    write(layer_project / "plans/text-hook.json", {
+        **choice(displayed, "typed"), "kind": "opening",
+    })
+    context = ProjectContext(layer_project)
+    require_top_text(context)
+    title, = graphics_snapshot(context).titles
+    assert json.loads(title.plan.variables["lines"]) == [displayed]
+
+
+def test_none_omits_existing_titles_without_editing_timeline(layer_project):
+    set_elements(layer_project, {"id": "agent-title", "kind": "title",
+                                "start": {"time": 0}, "hold_s": 1, "lines": ["Small steps."]})
+    timelines = {file: file.read_bytes() for file in layer_project.glob("timeline/*.json")}
+    assert timelines
+    data = json.loads((layer_project / "style.json").read_bytes())
+    data["hook"].update(style="none", answered=True)
+    write(layer_project / "style.json", data)
+    context = ProjectContext(layer_project)
+    require_top_text(context)
+    assert not any(item.kind == "title" for item in context.resolved_timeline().elements)
+    assert graphics(layer_project)["elements"] == []
+    assert all(file.read_bytes() == content for file, content in timelines.items())
+
+
+def test_changelog_describes_top_text_choice():
+    unreleased = (Path(__file__).parents[1] / "CHANGELOG.md").read_text().split(
+        "## Unreleased\n", 1)[1].split("\n## ", 1)[0]
+    entry, = [line for line in unreleased.splitlines() if "Text at the top" in line]
+    for phrase in ("style page", "no default", "Home", "waits for a pick"):
+        assert phrase in entry
+
+
+def test_pick_my_look_guidance_lists_current_steps():
+    guide = (Path(__file__).parents[1] / "workspace/CLAUDE.md").read_text()
+    guidance = guide.split("## Pick my look\n", 1)[1].split("\n## ", 1)[0]
+    assert "Font, Captions, Colors, Text at the top, then" in guidance
 
 
 @pytest.mark.parametrize("look", [

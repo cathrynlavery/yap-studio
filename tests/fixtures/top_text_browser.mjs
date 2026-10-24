@@ -69,6 +69,28 @@ try {
       return stage?.candidate.hook.style === look && stage.frames.every(frame => frame._galleryReady);
     }, {}, look);
     assert.equal(await page.$eval(`#top-text-${id}`, button => button.getAttribute('aria-pressed')), 'true');
+    if (id !== 'opening') {
+      await page.evaluate(() => location.hash = '#opening');
+      await page.waitForSelector('#title-tiles button');
+      for (const [group, name] of [['title-tiles', 'Shimmer'], ['title-tiles', 'Kinetic hook'],
+        ['more-title-tiles', 'Paper card'], ['title-tiles', 'Quiet title']]) {
+        await page.$eval(`#${group}`, (group, name) => {
+          for (let parent = group.parentElement; parent; parent = parent.parentElement) {
+            if (parent.tagName === 'DETAILS') parent.open = true;
+          }
+          const button = [...group.querySelectorAll('button')].find(button =>
+            button.querySelector('.tile-label')?.firstChild.textContent === name);
+          if (!button) throw new Error(`Missing title look: ${name}`);
+          button.click();
+        }, name);
+        await page.evaluate(() => location.hash = '#top-text');
+        await page.waitForSelector(`#top-text-${id}[aria-pressed="true"]`, {timeout: 3000});
+        await page.evaluate(() => location.hash = '#opening');
+        await page.waitForSelector('#title-tiles button');
+      }
+      await page.evaluate(() => location.hash = '#top-text');
+      await page.waitForSelector(`#top-text-${id}[aria-pressed="true"]`);
+    }
   }
   await page.click('#save');
   await page.waitForSelector('#save-sheet[open]');

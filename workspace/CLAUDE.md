@@ -112,6 +112,10 @@ to their title look, and The whole video to `hook.style: text_hook`. Keep an exi
 title look; if none is saved, use `quiet_serif`. Older styles keep their look until
 they answer. Do not render top text while waiting.
 
+With None chosen (`hook.style: none`, `hook.answered: true`), existing title elements
+are left out of the resolved timeline and render. Keep the creator's timeline files
+as they are; do not delete their titles. Choosing an opening again restores them.
+
 A home request's `top_text` (`none`, `opening`, `whole`) overrides that choice for
 this project only. Set the project's `hook.answered: true` and map it the same way.
 The saved style stays as it was. Its optional `text_hook` is the creator's chosen
@@ -152,7 +156,7 @@ It prints the link and returns while the page keeps serving. Do not run it as a 
 Running it again with the same options returns the same link.
 Give the creator `phone.url` from its JSON and say it opens on
 their phone. The page opens on looks under their video, with saved styles first. Tap a look
-and Save style, or choose Customize to go step by step: Font, Captions, Colors, then the
+and Save style, or choose Customize to go step by step: Font, Captions, Colors, Text at the top, then the
 optional More choices list (Grade, Opening, Cards, B-roll, Moves, Moments, Sound). Back to
 looks returns to the grid. Fine-tuning stays inside closed More folds. Describe it that way and
 do not list other screens. They press Save style when done. Wait until

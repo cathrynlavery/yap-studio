@@ -996,7 +996,13 @@ function clearGradeColor() {
 }
 function selectStyle(candidate) {
   clearGradeColor();
-  if (!["none", "text_hook"].includes(candidate.hook.style)) openingLook = candidate.hook.style;
+  if (!["none", "text_hook"].includes(candidate.hook.style)) {
+    openingLook = candidate.hook.style;
+    if (activeStep === "opening" && ["none", "text_hook"].includes(style.hook.style)) {
+      candidate = copy(candidate);
+      candidate.hook.style = style.hook.style;
+    }
+  }
   style = candidate;
   changed();
 }
@@ -1151,11 +1157,11 @@ function renderSteps() {
       if (main.includes(look) || ["none", "text_hook"].includes(look)) continue;
       const candidate = copy(style); candidate.hook.style = look;
       tile($("more-title-tiles"), labels[look],
-        style.hook.style === look, { tab: "title" }, candidate, () => selectStyle(candidate));
+        openingLook === look, { tab: "title" }, candidate, () => selectStyle(candidate));
     }
     for (const look of main) {
       const candidate = copy(style); candidate.hook.style = look;
-      tile($("title-tiles"), look === "none" ? "No title" : labels[look], style.hook.style === look,
+      tile($("title-tiles"), look === "none" ? "No title" : labels[look], openingLook === look,
         { tab: "title" }, candidate, () => selectStyle(candidate), false,
         look === baseStyle.hook.style ? `${baseStyle.name}'s title` : {
           calm_card: "A simple title card", headline_slam: "A bold opening", shimmer: "A soft sweep of light",
@@ -1269,7 +1275,9 @@ function renderSlots(parent, entries, screen) {
     const candidate = entry.apply(copy(style), true, schema);
     const request = entry.preview ?? (drawnScreen(screen) ? screen : { tab: screen === "opening" ? "title" : screen === "cards" ? "cards" : "captions" });
     if (screen === "cards" && entry.card && !entry.preview) request.card = entry.card;
-    const button = tile(parent, entry.name, entry.selected(style, schema), request, candidate,
+    const selected = screen === "opening" && entry.requires?.[0] === "hook.style"
+      ? openingLook === entry.requires[1] : entry.selected(style, schema);
+    const button = tile(parent, entry.name, selected, request, candidate,
       () => selectStyle(candidate), false, entry.note);
     button.id = `slot-${screen}-${entry.id}`;
   }

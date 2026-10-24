@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Text at the top is a style page step with no default for new creators; Home lets you change it per video, and the agent waits for a pick.
 - Home asks vertical or horizontal for each video, with horizontal captions off by default.
 - Add horizontal talking-head videos at 1920x1080 with hard cuts and captions; other features are refused with a fix.
 - Cards fit ordinary framing, notes can be closed in a later version, review controls stay on screen, and Home and review use honest labels.
