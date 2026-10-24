@@ -19,7 +19,7 @@ from test_render import fake_renderer as fake_renderer
 
 from yap_studio import ffmpeg, paths
 from yap_studio.captions import CaptionWord, build_phrases
-from yap_studio.errors import ProcessingError, ValidationError
+from yap_studio.errors import ProcessingError, ValidationError, YapError
 from yap_studio.render import fonts, hyperframes
 from yap_studio.stages import captions as caption_stage
 from yap_studio.stages.captions import (
@@ -1044,6 +1044,30 @@ def test_caption_layout_restores_animation_times_when_measurement_raises() -> No
         for animation in node["animations"]:
             assert animation["currentTime"] == animation["initialTime"]
             assert animation["timeWrites"][-1] == animation["initialTime"]
+
+
+@pytest.mark.render
+@pytest.mark.parametrize("checks", [False, True])
+def test_real_caption_layout_error_refuses_output(tmp_path: Path, checks: bool) -> None:
+    plan = _pilot_plan(_style(highlight="slam"))
+    comp = caption_stage.prepare_layer_plan(plan, tmp_path / "throwing")
+    html = comp / "index.html"
+    source = html.read_text()
+    injected = source.replace("const rect = span.getBoundingClientRect();",
+                              "throw new Error('injected caption layout failure');", 1)
+    assert injected != source
+    html.write_text(injected)
+    out = tmp_path / "throwing.mov"
+    # Exercise render itself even when the advisory preflight checks are disabled.
+    with pytest.raises(YapError, match="injected caption layout failure") as caught:
+        hyperframes.render_layer(
+            comp, out, frames=plan.frames, variables=plan.variables, checks=checks,
+            workers=hyperframes.CAPTION_WORKERS, browser_gpu=hyperframes.CAPTION_BROWSER_GPU,
+        )
+    assert caught.value.code == "renderer_script_error"
+    assert not out.exists()
+    assert not list(comp.glob("*.mov"))
+    assert not (comp / "variables.json").exists()
 
 
 def test_caption_layout_skips_only_zero_size_word_boxes() -> None:

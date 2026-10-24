@@ -281,6 +281,15 @@ def _run_renderer(executable: Path, args: list[str], *, timeout_s: float) -> str
                 suggested_action="Declare each variable on the composition's html element.",
             ) from exc
         raise
+    # Strict rendering can still exit 0 after an unhandled page script error.
+    for line in ((result.stderr or "") + "\n" + (result.stdout or "")).splitlines():
+        if "[Browser:PAGEERROR]" in line:
+            raise YapError(
+                f"Renderer reported a script error: {line.strip()}",
+                error_type="processing_error",
+                code="renderer_script_error",
+                suggested_action="Fix the layer's composition script and render again.",
+            )
     return result.stdout
 
 
