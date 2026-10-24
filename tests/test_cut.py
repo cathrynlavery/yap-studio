@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 import synth
 
-from yap_studio import audio, ffmpeg, receipt, transcript, video
+from yap_studio import audio, ffmpeg, hdr, receipt, transcript, video
 from yap_studio.edl import load_edit_list
 from yap_studio.errors import DependencyError, ValidationError
 from yap_studio.project import status as project_status
@@ -1304,6 +1304,110 @@ def test_check_without_identity_cache_writes_nothing(tmp_path: Path, calibration
     assert edit_check(root)["total_frames"] == 72
     assert snapshot(root) == before
     assert not (root / ".yap").exists()
+
+
+@pytest.mark.parametrize("case", [
+    "30/1", "60/1", "30000/1001", "vfr", "long-gop", "video-offset",
+    "hlg", "pq", "hlg-90", "pq-90",
+])
+def test_picture_seek_matches_decode_from_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str,
+) -> None:
+    seconds = 21 if case == "long-gop" else 7
+    is_hdr = case.startswith(("hlg", "pq"))
+    source = tmp_path / "source.mov"
+    if case == "vfr":
+        synth.vfr_source(source, seconds=seconds, size="96x64")
+    elif case == "long-gop" or is_hdr:
+        transfer = "arib-std-b67" if case.startswith("hlg") else "smpte2084"
+        codec = (["-c:v", "libx265", "-preset", "ultrafast", "-x265-params",
+                  "pools=1:frame-threads=1:log-level=error:keyint=30:min-keyint=30:"
+                  "scenecut=0:colorprim=bt2020:"
+                  f"transfer={transfer}:colormatrix=bt2020nc",
+                  "-pix_fmt", "yuv420p10le", "-colorspace", "bt2020nc",
+                  "-color_primaries", "bt2020", "-color_trc", transfer] if is_hdr else
+                 ["-c:v", "libx264", "-g", "300", "-keyint_min", "300",
+                  "-sc_threshold", "0", "-pix_fmt", "yuv420p"])
+        ffmpeg.run([
+            "ffmpeg", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+            f"testsrc2=size=96x64:rate=30:duration={seconds}",
+            "-f", "lavfi", "-i", f"sine=sample_rate=48000:duration={seconds}",
+            *codec, "-c:a", "pcm_s16le", str(source),
+        ], timeout_s=60)
+    else:
+        synth.calib_source(source, seconds=seconds, size="96x64",
+                           fps="30/1" if case == "video-offset" else case)
+    if case == "long-gop" or is_hdr:
+        frames = json.loads(ffmpeg.run([
+            "ffprobe", "-v", "error", "-select_streams", "v:0", "-skip_frame", "nokey",
+            "-show_frames", "-show_entries", "frame=pts_time", "-of", "json", str(source),
+        ], timeout_s=60).stdout)["frames"]
+        expected_keys = [0, 10, 20] if case == "long-gop" else list(range(seconds))
+        assert [float(frame["pts_time"]) for frame in frames] == expected_keys
+    shifted = tmp_path / "shifted.mov"
+    ffmpeg.run([
+        "ffmpeg", "-v", "error", "-itsoffset", "0.1",
+        *(["-display_rotation", "90"] if case.endswith("-90") else []), "-i", str(source),
+        *(["-itsoffset", "0.237", "-i", str(source)] if case == "video-offset" else []),
+        "-map", "1:v:0" if case == "video-offset" else "0:v:0", "-map", "0:a:0",
+        "-c", "copy", str(shifted),
+    ], timeout_s=60)
+    root = make_project(tmp_path / "project", [shifted], word_rows=[[]])
+    end = ffmpeg.probe(shifted).video_duration_s
+    assert end is not None
+    ranges = [(0.1, 0.3), (3.1, 3.4), (seconds - 0.3, min(seconds, end))]
+    if case == "long-gop":
+        ranges.extend([(5.1, 5.3), (10 + 1 / 30, 10.3), (10 - 1 / 30, 10.2)])
+    write_edit(root, [time_segment(f"s{i}", "t1", first, last)
+                      for i, (first, last) in enumerate(ranges)])
+    plan = resolve_cut(root)
+    assert len(plan.pieces) == len(ranges)
+    assert plan.pieces[2].src_f1 == seconds * 30
+    info = plan.media["t1"]
+    assert info.video_start_s is not None and info.video_start_s > 0
+    if case == "video-offset":
+        assert info.video_offset_s > 0
+        assert info.audio_start_s is not None and info.audio_start_s < info.video_start_s
+    selected = hdr.conversion(info)
+    if is_hdr:
+        assert info.pix_fmt == "yuv420p10le"
+        assert selected is not None and selected.filter_prefix
+        assert info.rotation == (90 if case.endswith("-90") else 0)
+    commands = []
+    run = ffmpeg.run
+
+    def record(command, **kwargs):
+        if command[0] == "ffmpeg":
+            commands.append(command.copy())
+        return run(command, **kwargs)
+
+    monkeypatch.setattr(ffmpeg, "run", record)
+    for i, piece in enumerate(plan.pieces):
+        target = tmp_path / f"seek-{i}.mp4"
+        cut_stage._picture(piece, plan, target, selected)
+        command = commands[-1].copy()
+        seek = max(0, piece.src_f0 // 30 - 1)
+        if seek:
+            at = command.index("-ss")
+            assert at < command.index("-i")
+            assert command[at + 1:at + 4] == [
+                str(seek + info.video_offset_s), "-noaccurate_seek", "-copyts",
+            ]
+            del command[at:at + 4]
+        else:
+            assert "-ss" not in command
+        at = command.index("-vf") + 1
+        prefix = selected.filter_prefix + "," if selected else ""
+        assert command[at].startswith(prefix)
+        # Keep HDR conversion (including its commas) before the original full-decode clock.
+        tail = command[at][len(prefix):].split(",", 3)[3]
+        command[at] = (prefix + "setpts=PTS-STARTPTS,fps=30:start_time=0:round=near,"
+                       f"trim=start_frame={piece.src_f0}:end_frame={piece.src_f1}," + tail)
+        reference = tmp_path / f"full-decode-{i}.mp4"
+        command[-1] = str(reference)
+        run(command, timeout_s=60)
+        assert ffmpeg.probe(target).video_frames == piece.n_frames
+        assert target.read_bytes() == reference.read_bytes(), (case, piece.src_f0, piece.src_f1)
 
 
 def test_picture_offset_and_sample_clock_are_verified(tmp_path: Path, calibration: Path) -> None:

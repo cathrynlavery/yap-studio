@@ -867,12 +867,15 @@ def _picture(piece: Piece, plan: CutPlan, target: Path, hdr: HdrConversion | Non
              "force_divisible_by=2:out_range=tv")
     if hdr is None and info.color_space in {"bt470bg", "smpte170m"}:
         scale += ":in_color_matrix=bt601:out_color_matrix=bt709"
+    # Keep keyframe preroll and absolute timestamps so seeking preserves the source FPS grid.
+    seek = max(0, piece.src_f0 // 30 - 1) if info.video_start_s is not None else 0
+    first, last = piece.src_f0 - seek * 30, piece.src_f1 - seek * 30
     filters = [] if hdr is None else [hdr.filter_prefix]
     filters.extend(
         [
-            "setpts=PTS-STARTPTS",
-            "fps=30:start_time=0:round=near",
-            f"trim=start_frame={piece.src_f0}:end_frame={piece.src_f1}",
+            f"setpts=PTS-round({info.video_start_s}/TB)" if seek else "setpts=PTS-STARTPTS",
+            f"fps=30:start_time={seek}:round=near",
+            f"trim=start_frame={first}:end_frame={last}",
             "setpts=PTS-STARTPTS",
             scale,
             f"crop={frame.width}:{frame.height}:x=(iw-ow)*{take.crop_x:.9f}:y=(ih-oh)/2",
@@ -887,6 +890,8 @@ def _picture(piece: Piece, plan: CutPlan, target: Path, hdr: HdrConversion | Non
             "-v",
             "error",
             *(hdr.input_args if hdr else []),
+            *(["-ss", str(seek + info.video_offset_s), "-noaccurate_seek", "-copyts"]
+              if seek else []),
             "-i",
             str(plan.sources[piece.take]),
             "-map",

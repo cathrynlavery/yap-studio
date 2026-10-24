@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Cutting seeks to each piece instead of decoding the take from the start: on a 20-minute video the cut went from 282 s to 201 s, with identical output.
 - Verify tells you long YouTube uploads need a verified account instead of telling you to trim a video over 15 minutes.
 - With captions off for the whole video, captions skip rendering an empty layer and the final skips the overlay: on a 10-minute video, captions went from 243 s to 1 s and the final from 259 s to 161 s.
 - Text at the top is a style page step with no default for new creators; Home lets you change it per video, and the agent waits for a pick.
