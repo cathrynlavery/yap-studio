@@ -276,7 +276,7 @@ def _number_blocks(clean: dict[str, str], style: dict,
     paper = style["graphics"]["paper_color"]
     ink = style["graphics"]["ink_color"]
     try:
-        accent = readable_accent(style, paper)
+        accent = readable_accent(style, paper, allow_tint=False)
     except ValidationError:
         accent = None
     number_color = accent if accent and _contrast(accent, paper) >= 3 else ink
@@ -503,15 +503,30 @@ def check_contrast(mask: np.ndarray, backdrop: np.ndarray, color: str, *,
     return measured
 
 
-def readable_accent(style: dict, backdrop: str) -> str:
-    """Choose the first style accent readable on a given ground."""
+def readable_accent(style: dict, backdrop: str, *, allow_tint: bool = True) -> str:
+    """Choose a readable style accent, tinting the first candidate if needed."""
     candidates = ((style.get("brand") or {}).get("accent_color"),
                   style["captions"].get("highlight_color"),
                   style["hook"].get("accent_color"),
                   style["graphics"].get("accent_color"))
     chosen = next((color for color in candidates if color and _contrast(color, backdrop) >= 3),
                   None)
-    if chosen is None:
-        raise ValidationError("accent", "no style accent reaches 3:1 contrast; "
-                              "choose another look or style")
-    return chosen
+    if chosen is not None:
+        return chosen
+    first = next((color for color in candidates if color), None)
+    if first and allow_tint:
+        channels = [int(first[i:i + 2], 16) for i in (1, 3, 5)]
+        ground = [int(backdrop[i:i + 2], 16) for i in (1, 3, 5)]
+        target = 255 if _contrast("#FFFFFF", backdrop) > _contrast("#000000", backdrop) else 0
+        for step in range(1, 21):
+            mixed = [round(c + (target - c) * step / 20) for c in channels]
+            tint = "#" + "".join(f"{c:02X}" for c in mixed)
+            # Match the wide renderer's 80% stroke cores and 0.4 contrast margin.
+            visible = "#" + "".join(f"{round(c * .8 + b * .2):02X}"
+                                   for c, b in zip(mixed, ground, strict=True))
+            if _contrast(visible, backdrop) >= 3.4:
+                return tint
+    error = ValidationError("accent", "no style accent reaches 3:1 contrast")
+    error.suggested_action = (
+        "Remove the *accent* marks or set a brand accent colour on the style page.")
+    raise error

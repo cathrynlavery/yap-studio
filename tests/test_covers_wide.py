@@ -48,6 +48,14 @@ def test_wide_looks_clear_face_safe_area_and_badge(look, side):
         assert any(b.get('accent_start', -1) >= 0 for b in headlines)
 
 
+def test_default_wide_long_headline_has_actionable_fix():
+    with pytest.raises(ValidationError, match='orphan') as error:
+        plan_blocks('photo', {'headline': 'Small *choices* matter.'}, resolve().data,
+                    face_box=(170, 220, 280, 330), shape='horizontal')
+    assert error.value.suggested_action == (
+        'Shorten the headline to fit the thumbnail without a one-word line.')
+
+
 def test_wide_refuses_long_copy_instead_of_shrinking_to_illegibility():
     with pytest.raises(ValidationError, match='shorten|orphan'):
         plan_blocks('photo', {'headline': 'WWWWWWWWW WWWWWWWWW WWWWWWWWW WWWWWWWWW'},
@@ -174,13 +182,18 @@ def test_wide_extract_and_assets_keep_landscape(tmp_path):
     *COPY.items(), ('number', {'number': '12', 'label': 'build better daily habits'}),
 ])
 @pytest.mark.parametrize('side', ['left', 'right'])
-def test_wide_renders_checked_photo_at_1280x720(tmp_path, look, values, side):
+@pytest.mark.parametrize('style_spec', [None, 'preset:editorial_serif'])
+def test_wide_renders_checked_photo_at_1280x720(tmp_path, look, values, side, style_spec):
+    if style_spec is None and look == 'photo':
+        values = {'headline': 'Make *room* for work'}
+    elif style_spec is None and look == 'number':
+        values = {**values, 'label': 'daily wins'}
     frame = tmp_path / 'frame.png'
     ffmpeg.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
                 'color=c=gray:s=1280x720:r=30', '-frames:v', '1', str(frame)], timeout_s=60)
     face = (170, 220, 280, 330) if side == 'left' else (830, 220, 280, 330)
     assets = CoverAssets(frame, face_box=face, shape='horizontal')
-    result = render_cover(tmp_path, assets, resolve('preset:editorial_serif'), look, values)
+    result = render_cover(tmp_path, assets, resolve(style_spec), look, values)
     info = ffmpeg.probe(result.png)
     assert (info.width, info.height) == (1280, 720)
     assert result.checks['geometry']['passed']
@@ -195,7 +208,9 @@ def test_wide_renders_checked_photo_at_1280x720(tmp_path, look, values, side):
         cap_height = number[3] - number[1]
         gap = labels[0][1] - number[3]
         assert 1 <= len(labels) <= 2
-        assert gap == pytest.approx(cap_height / 4, abs=8)
+        assert gap > 0
+        if style_spec is not None:
+            assert gap == pytest.approx(cap_height / 4, abs=8)
         for label in labels:
             assert (number[0] + number[2]) / 2 == pytest.approx(
                 (label[0] + label[2]) / 2, abs=8)
@@ -317,9 +332,9 @@ def test_wide_plain_headline_does_not_resolve_unused_accent():
     plan = plan_blocks('photo', {'headline': 'Good work'}, style,
                        face_box=(170, 220, 280, 330), shape='horizontal')
     assert all(b['color'] == style['captions']['text_color'] for b in plan.blocks)
-    with pytest.raises(ValidationError, match='accent'):
-        plan_blocks('photo', {'headline': 'Good *work*'}, style,
-                    face_box=(170, 220, 280, 330), shape='horizontal')
+    accented = plan_blocks('photo', {'headline': 'Good *work*'}, style,
+                           face_box=(170, 220, 280, 330), shape='horizontal')
+    assert accented.blocks[0]['accent_color'] != '#101010'
 
 
 @pytest.mark.parametrize(('window_count', 'midpoint_count', 'end_count'), [

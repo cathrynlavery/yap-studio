@@ -15,12 +15,57 @@ from yap_studio.covers.layout import (
     check_geometry,
     parse_accent,
     plan_blocks,
+    readable_accent,
     validate_text,
 )
 from yap_studio.errors import ValidationError
 from yap_studio.faces.clearance import head_box
 from yap_studio.faces.model import Box
 from yap_studio.style import resolve
+
+
+@pytest.mark.parametrize("backdrop", ["#101010", "#000000", "#FFFFFF"])
+def test_readable_accent_tints_first_candidate(backdrop: str) -> None:
+    from yap_studio.cards import _contrast
+
+    style = resolve().data
+    original = "#DDDDDD" if backdrop == "#FFFFFF" else "#365A58"
+    style["brand"] = {"accent_color": original}
+    for section, key in (("captions", "highlight_color"), ("hook", "accent_color"),
+                         ("graphics", "accent_color")):
+        style[section][key] = original
+    accent = readable_accent(style, backdrop)
+    assert accent == ("#6E6E6E" if backdrop == "#FFFFFF" else "#688382")
+    assert _contrast(accent, backdrop) >= 3
+    assert style["brand"]["accent_color"] == original
+    assert readable_accent(style, backdrop) == accent
+
+
+def test_readable_accent_keeps_first_readable_candidate_exactly() -> None:
+    style = resolve().data
+    style["brand"] = {"accent_color": "#F34e3f"}
+    assert readable_accent(style, "#101010") == "#F34e3f"
+    style["brand"]["accent_color"] = "#101010"
+    style["captions"]["highlight_color"] = "#F34e3f"
+    assert readable_accent(style, "#101010") == "#F34e3f"
+
+
+def test_vertical_number_keeps_existing_ink_fallback() -> None:
+    style = resolve().data
+    for section, key in (("captions", "highlight_color"), ("hook", "accent_color"),
+                         ("graphics", "accent_color")):
+        style[section][key] = style["graphics"]["paper_color"]
+    plan = plan_blocks("number", {"number": "5", "label": "better nights"}, style,
+                       face_box=(450, 350, 500, 700))
+    assert plan.blocks[0]["color"] == style["graphics"]["ink_color"]
+
+
+def test_readable_accent_missing_colors_has_actionable_fix() -> None:
+    style = {"captions": {}, "hook": {}, "graphics": {}}
+    with pytest.raises(ValidationError) as error:
+        readable_accent(style, "#101010")
+    assert error.value.suggested_action == (
+        "Remove the *accent* marks or set a brand accent colour on the style page.")
 
 
 @pytest.mark.parametrize("on", [False, True])
