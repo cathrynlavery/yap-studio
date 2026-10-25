@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Covers tint low-contrast style accents so default-style starred headlines, numbers and before/after looks render in both orientations.
 - Continuous ranges from the same take no longer count as cuts or receive join fades or Listen prompts; failed cuts print each verifier problem and its fix with the report path, and workspace doc links open the public documentation.
 - Wide videos get 1280x720 YouTube thumbnails from `yap-studio cover`: a face-first frame from the finished edit, the headline, number and before/after looks on the open side of the shot with no box, clear of YouTube's duration badge and checked for legibility at 168x94.
 - The join Listen browser test reads the start position when the review page presses play, after its seek has settled, so a slow test machine can no longer make a correct start look late. Its 8x CPU-throttled variant runs in local gates only.

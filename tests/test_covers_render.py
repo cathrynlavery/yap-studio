@@ -79,7 +79,8 @@ def test_second_line_accent_selects_vignette(monkeypatch: pytest.MonkeyPatch) ->
 
 @pytest.mark.render
 @pytest.mark.parametrize("look", ("photo", "number", "hook", "before-after"))
-def test_four_looks_render(tmp_path: Path, look: str) -> None:
+@pytest.mark.parametrize("style_spec", (None, "preset:editorial_serif"))
+def test_four_looks_render(tmp_path: Path, look: str, style_spec: str | None) -> None:
     from synth import cover_assets
 
     assets = cover_assets(tmp_path)
@@ -87,7 +88,7 @@ def test_four_looks_render(tmp_path: Path, look: str) -> None:
             "number": {"number": "5", "label": "better nights"},
             "hook": {"headline": "A *better* night", "label": "A real result"},
             "before-after": {"before": "8 hours", "after": "2 hours"}}[look]
-    style = resolve("preset:editorial_serif")
+    style = resolve(style_spec)
     result = render_cover(tmp_path, assets, style, look, text)
     assert result.png.is_file()
     assert result.checks["geometry"]["passed"]

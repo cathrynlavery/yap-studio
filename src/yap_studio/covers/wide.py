@@ -166,6 +166,9 @@ def _lines(role: str, text: str, font: str, table: dict, *, maximum: int | None 
     error = ValidationError(role, 'shorten text to fit the thumbnail without an orphan word')
     if forbidden_breaks:
         error.suggested_action = 'Shorten the headline or mark a shorter accent phrase.'
+    else:
+        error.suggested_action = (
+            f'Shorten the {role} to fit the thumbnail without a one-word line.')
     raise error
 
 
@@ -229,6 +232,9 @@ def plan_wide(look: str, clean: dict, style: dict, face: tuple | None,
         nonlocal y
         block = _block(role, text, x, y, table['width'], size, ink,
                        small_font if caps else font, small_caps=caps, strike=strike)
+        if look == 'number' and font == 'Gelasio':
+            # Gelasio's deeper baseline and descenders need the full line box.
+            block['height'] = math.ceil(size * 1.2)
         block['text_inset'] = 24
         if look == 'number':
             block['text_inset'] = round((table['width'] - _width(text, font, size)) / 2)
