@@ -39,6 +39,7 @@ class CoverAssets:
     inset: Path | None = None
     face_box: tuple[float, float, float, float] | None = None
     shape: str = "vertical"
+    face_boxes: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -130,6 +131,7 @@ def prepare_assets(
     inset: Path | None = None,
     face_box: tuple[float, float, float, float] | None = None,
     shape: str = "vertical",
+    face_boxes: tuple = (),
 ) -> CoverAssets:
     """Extract the overlay-free frame, lossless matte, and look backgrounds."""
     from yap_studio.covers.pick import extract_frame
@@ -145,6 +147,7 @@ def prepare_assets(
                                   "choose another frame")
         info = ffmpeg.probe(cut)
         face = thumbnail_face(Box(*face_box), info.width, info.height)
+        heads = [thumbnail_face(Box(*box), info.width, info.height) for box in face_boxes]
         inset_image = None
         if inset is not None:
             inset_image = work / "inset.png"
@@ -152,7 +155,7 @@ def prepare_assets(
                         "scale=600:600:force_original_aspect_ratio=increase,crop=600:600",
                         "-frames:v", "1", str(inset_image)], timeout_s=120)
         return CoverAssets(picture, inset=inset_image, face_box=(face.x, face.y, face.w, face.h),
-                           shape=shape)
+                           shape=shape, face_boxes=tuple((b.x, b.y, b.w, b.h) for b in heads))
     picture = extract_frame(cut, frame, work / "frame.png")
     matte = (matte_provider or _default_matte)(picture, work)
     cutout = None
@@ -280,13 +283,18 @@ def _predicted_contrast(frame: np.ndarray, blocks: list[dict],
             foreground = np.array([int(color[i:i + 2], 16) for i in (1, 3, 5)]) / 255
             glyph_opacity = block["opacity"] * (
                 .8 if block["role"] in {"kicker", "label", "proof"} else 1)
+            if horizontal and first == start and start >= 0:
+                # Italic stroke cores cover less of a browse pixel than solid type.
+                glyph_opacity *= .8
             visible = foreground * glyph_opacity + back * (1 - glyph_opacity)
             a = _linear(visible) @ weights
             b = _linear(back) @ weights
             ratios.append(((np.maximum(a, b) + .05) / (np.minimum(a, b) + .05)).ravel())
         if not ratios:
             raise ValidationError("text", f"{block['role']} has no measurable glyph area")
-        results[str(index)] = round(float(np.percentile(np.concatenate(ratios), 10)), 3)
+        results[str(index)] = round(float(min(np.percentile(span, 10) for span in ratios)
+                                         if horizontal else
+                                         np.percentile(np.concatenate(ratios), 10)), 3)
     return results
 
 
@@ -316,7 +324,7 @@ def _config(assets: CoverAssets, style: ResolvedStyle, look: str,
             values: dict[str, str]) -> dict:
     if assets.shape == "horizontal":
         plan = plan_blocks(look, values, style.data, face_box=assets.face_box,
-                           shape=assets.shape)
+                           shape=assets.shape, face_boxes=assets.face_boxes)
         blocks = [{**block, "font_stack": fonts.font_stack(block["font"])}
                   for block in plan.blocks]
         vignette, veil_css, predicted = _vignette(
@@ -408,12 +416,21 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
     full = work / "cover.png"
     backdrop = work / "backdrop.png"
     text = work / "text.png"
+    accent_clip = work / "accent.mov"
+    accent_image = work / "accent.png"
     try:
         for index, out in enumerate((full, backdrop, text)):
             _frame_png(clip, index, out)
         only_text = _rgba(text, (1280, 720)) if wide else _rgba(text)
         behind = _rgba(backdrop, (1280, 720)) if wide else _rgba(backdrop)
         blocks = config["blocks"]
+        accent_text = None
+        if wide and any(block.get('accent_start', -1) >= 0 for block in blocks):
+            hyperframes.render_layer(composition, accent_clip, frames=3,
+                                     variables={"config": json.dumps(
+                                         {**config, "accent_only": True})}, fps=30)
+            _frame_png(accent_clip, 2, accent_image)
+            accent_text = _rgba(accent_image, (1280, 720))
         if look == "number" and not wide:
             overlap = speaker_overlap(only_text[:, :, 3], _rgba(assets.cutout)[:, :, 3],
                                       config["speaker_shift_px"], blocks)
@@ -461,6 +478,8 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
                             "color": block["color"], "contrast_p10": round(p10, 3),
                             "predicted_contrast_p10": config["predicted_contrast"].get(
                                 str(len(checked))), "minimum": minimum})
+            if wide and block.get('accent_start', -1) >= 0:
+                checked[-1]['accent_color'] = block['accent_color']
             accent = (block.get("accent_color") if block.get("accent_start", -1) >= 0
                       else block["color"] if block["role"] in {"after", "number"} else None)
             if accent:
@@ -472,10 +491,15 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
                                "p10": min(item["contrast_p10"] for item in checked),
                                "accent_pixels": accent_pixels}}
         if wide:
-            from yap_studio.covers.wide import check_face, check_legibility
+            from yap_studio.covers.wide import check_faces, check_legibility
 
-            checks["legibility"] = check_legibility(checked, only_text, behind, look=look)
-            checks["face_clearance"] = check_face(blocks, assets.face_box)
+            checks["legibility"] = check_legibility(checked, only_text, behind, look=look,
+                                                     accent_text=accent_text)
+            occupied = list(blocks)
+            if config['inset']:
+                x, y, width, height = config['inset_box']
+                occupied.append(dict(x=x, y=y, width=width, height=height))
+            checks["face_clearance"] = check_faces(occupied, assets.face_box, assets.face_boxes)
         if look == "number" and not wide:
             checks["speaker_clearance"] = {"shift_px": config["speaker_shift_px"],
                                            "overlap_px": 0}
@@ -492,4 +516,6 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
         backdrop.unlink(missing_ok=True)
         text.unlink(missing_ok=True)
         clip.unlink(missing_ok=True)
+        accent_clip.unlink(missing_ok=True)
+        accent_image.unlink(missing_ok=True)
     return RenderedCover(full, checks, hyperframes.HYPERFRAMES_VERSION)

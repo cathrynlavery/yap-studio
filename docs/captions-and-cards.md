@@ -476,13 +476,16 @@ accent phrase. The saved style supplies the fonts and colors. `--frame N` choose
 the frame; otherwise the command picks a sharp, open-eyed face.
 
 The default `photo` look needs `--headline` and accepts `--kicker` and `--inset IMAGE`.
-`number` needs `--number` and `--label`. `hook` needs `--headline` and a proof `--label`
+`number` needs `--number` and `--label`. Vertical-only `hook` needs `--headline` and a proof `--label`
 and accepts `--kicker`. `before-after` needs `--before` and `--after` and accepts
 `--label` and `--kicker`. Vertical covers check the centered 3:4 profile-grid crop;
-horizontal thumbnails check face clearance, safe margins, the duration-badge corner,
-and glyph height at 168×94. Wide copy sits directly on the photo with a soft fade,
+horizontal thumbnails support `photo`, `number` and `before-after` and check every
+visible head, safe margins, the duration-badge corner, and surviving strokes and
+contrast at 168×94, including the marked accent phrase separately.
+Wide copy sits directly on the photo with a soft fade,
 on the opposite side from the face. Automatic wide picking samples up to 120 moments
-across the edit, ranking eye openness, sharpness, lighting and room for text.
+across the edit, including the start, midpoint and last frame of speaker windows
+within that budget, ranking eye openness, sharpness, lighting and room for text.
 Existing Vision data does not measure mouth openness. The command
 writes `covers/<name>-<look>.png` plus `covers/<name>-<look>.json`.
 

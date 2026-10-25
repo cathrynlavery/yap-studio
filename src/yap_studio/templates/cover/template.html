@@ -75,7 +75,7 @@ html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; backgro
     node.style.height = `${block.height}px`;
     node.style.paddingLeft = `${block.text_inset || 0}px`;
     node.style.fontSize = `${block.font_size}px`;
-    node.style.color = block.color;
+    node.style.color = c.accent_only ? 'transparent' : block.color;
     node.style.fontFamily = block.font_stack;
     if (block.italic) node.style.fontStyle = 'italic';
     node.style.opacity = block.opacity;

@@ -113,7 +113,7 @@ def test_wide_pick_prefers_open_lit_sharp_face_with_headline_room():
                                   .01 if '00030' in p.name else .4, 0, 0, 1)] for p in images]
     picked = pick_frame(None, faces, TimelineSnapshot(60, 0, ()), shape='horizontal',
                         image_loader=image, landmark_detector=Detector())
-    assert picked.frame == 45
+    assert picked.frame == 29
     rows = {r['frame']: r for r in picked.candidates}
     assert rows[45]['headline_room'] > rows[0]['headline_room']
     assert rows[15]['face_luma'] < rows[45]['face_luma']
@@ -128,7 +128,7 @@ def test_wide_pick_checks_later_batches(monkeypatch):
     monkeypatch.setattr('yap_studio.gallery.still._sharpness', lambda *_: 100.)
     picked = pick_frame(None, faces, TimelineSnapshot(375, 0, ()), shape='horizontal',
                         image_loader=lambda _: np.full((720, 1280), 130, np.uint8))
-    assert picked.frame == 360 and len(picked.candidates) == 25
+    assert picked.frame == 360 and len(picked.candidates) == 27
 
 
 def test_long_wide_pick_samples_the_whole_edit_with_bounded_decodes(monkeypatch):
@@ -160,9 +160,12 @@ def test_wide_extract_and_assets_keep_landscape(tmp_path):
     assert picture.read_bytes() == expected.read_bytes()
     assets = prepare_assets(clip, 0, tmp_path / 'assets', 'number', shape='horizontal',
                             face_box=(250, 240, 350, 400),
+                            face_boxes=((250, 240, 350, 400), (1200, 240, 300, 350)),
                             matte_provider=lambda *_: pytest.fail('wide needs no matte'))
     assert assets.face_box == pytest.approx((250 * 2/3, 160, 350 * 2/3, 400 * 2/3))
     assert assets.cutout is None and assets.shape == 'horizontal'
+    assert assets.face_boxes[0] == pytest.approx(assets.face_box)
+    assert assets.face_boxes[1] == pytest.approx((800, 160, 200, 350 * 2/3))
 
 
 @pytest.mark.render
@@ -182,6 +185,9 @@ def test_wide_renders_checked_photo_at_1280x720(tmp_path, look, values, side):
     assert result.checks['geometry']['passed']
     assert result.checks['contrast']['passed']
     assert result.checks['legibility']['passed']
+    if look == 'photo':
+        assert any(row['role'] == 'accent' and row['surviving_pixels'] > 0
+                   for row in result.checks['legibility']['blocks'])
     assert result.checks['face_clearance']['passed']
     if look == 'number':
         number, *labels = [b['measured_box'] for b in result.checks['blocks']]
@@ -230,10 +236,10 @@ def test_wide_pick_tries_requested_layout_on_ranked_candidates(monkeypatch):
                       Fraction(30), 1920, 1080), {}, {},
                       tuple((FaceBox(box, .99, 'detected'),) for box in boxes), ())
     monkeypatch.setattr('yap_studio.gallery.still._sharpness', lambda *_: 100.)
-    def layout(face):
+    def layout(face, **kwargs):
         return plan_blocks('photo', {'headline': 'Good work'},
                            resolve('preset:editorial_serif').data,
-                           face_box=face, shape='horizontal')
+                           face_box=face, shape='horizontal', **kwargs)
     picked = pick_frame(None, faces, TimelineSnapshot(30, 0, ()), shape='horizontal',
                         image_loader=lambda _: np.full((720, 1280), 130, np.uint8),
                         layout=layout)
@@ -323,3 +329,153 @@ def test_wide_sampling_seeds_short_speaker_window():
         ('insert', 0, 15), ('insert', 30, 1801))), shape='horizontal',
         image_loader=lambda _: np.full((720, 1280), 130, np.uint8))
     assert picked.frame == 15
+
+
+@pytest.mark.parametrize('visible', [22, 29])
+def test_short_window_samples_after_faceless_start(visible):
+    face = (FaceBox(Box(375, 375, 225, 360), .99, 'detected'),)
+    frames = tuple(face if i == visible else () for i in range(1801))
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', 1801,
+                      Fraction(30), 1920, 1080), {}, {}, frames,
+                      ((0, visible), (visible + 1, 1801)))
+    decoded = []
+    def image(index):
+        decoded.append(index)
+        return np.full((720, 1280), 130, np.uint8)
+    picked = pick_frame(None, faces, TimelineSnapshot(1801, 0, (
+        ('insert', 0, 15), ('insert', 30, 1801))), shape='horizontal', image_loader=image)
+    assert picked.frame == visible
+    assert len(decoded) <= 120
+
+
+@pytest.mark.parametrize('override', [None, 0])
+def test_two_speakers_must_both_clear_text(monkeypatch, override):
+    left = FaceBox(Box(170, 220, 280, 330), .99, 'detected')
+    right = FaceBox(Box(800, 220, 260, 310), .99, 'detected')
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', 30,
+                      Fraction(30), 1280, 720), {}, {},
+                      ((left, right),) * 15 + ((left,),) * 15, ())
+    monkeypatch.setattr('yap_studio.gallery.still._sharpness', lambda *_: 100.)
+    def layout(face, **kwargs):
+        return plan_blocks('photo', {'headline': 'Good work'},
+                           resolve('preset:editorial_serif').data,
+                           face_box=face, shape='horizontal', **kwargs)
+    kwargs = dict(shape='horizontal', frame=override, layout=layout,
+                  image_loader=lambda _: np.full((720, 1280), 130, np.uint8))
+    if override is not None:
+        with pytest.raises(ValidationError, match='room') as error:
+            pick_frame(None, faces, TimelineSnapshot(30, 0, ()), **kwargs)
+        assert error.value.suggested_action
+    else:
+        picked = pick_frame(None, faces, TimelineSnapshot(30, 0, ()), **kwargs)
+        assert picked.frame >= 15
+        assert any(row.get('placement_error') for row in picked.candidates)
+
+
+def test_two_speakers_with_no_clear_column_refuses(monkeypatch):
+    pair = (FaceBox(Box(170, 220, 280, 330), .99, 'detected'),
+            FaceBox(Box(800, 220, 260, 310), .99, 'detected'))
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', 30,
+                      Fraction(30), 1280, 720), {}, {}, (pair,) * 30, ())
+    monkeypatch.setattr('yap_studio.gallery.still._sharpness', lambda *_: 100.)
+    with pytest.raises(ValidationError, match='no ranked frame has room') as error:
+        pick_frame(None, faces, TimelineSnapshot(30, 0, ()), shape='horizontal',
+                   image_loader=lambda _: np.full((720, 1280), 130, np.uint8),
+                   layout=lambda face, **kwargs: plan_blocks(
+                       'photo', {'headline': 'Good work'},
+                       resolve('preset:editorial_serif').data, face_box=face,
+                       shape='horizontal', **kwargs))
+    assert error.value.suggested_action == 'Shorten the text or choose another speaker frame.'
+
+
+def test_inset_clears_the_second_head():
+    face = (170, 220, 280, 200)
+    style = resolve('preset:editorial_serif').data
+    values = {'headline': 'Make room for work', 'inset': 'other.png'}
+    first = plan_blocks('photo', values, style, face_box=face, shape='horizontal')
+    x, y, w, h = first.inset_box
+    guest = (x + w / 2 - 20, y + h / 2, 40, 40)
+    with pytest.raises(ValidationError, match='omit inset') as error:
+        plan_blocks('photo', values, style, face_box=face, shape='horizontal',
+                    face_boxes=(face, guest))
+    assert error.value.suggested_action == 'Omit --inset or choose another speaker frame.'
+
+
+def test_many_short_windows_still_bound_decodes(monkeypatch):
+    face = (FaceBox(Box(170, 220, 280, 330), .99, 'detected'),)
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', 1801,
+                      Fraction(30), 1280, 720), {}, {}, (face,) * 1801, ())
+    replacements = tuple(('insert', i, i + 5) for i in range(5, 1800, 10))
+    decoded = []
+    monkeypatch.setattr('yap_studio.gallery.still._sharpness', lambda *_: 100.)
+    def image(index):
+        decoded.append(index)
+        return np.full((720, 1280), 130, np.uint8)
+    pick_frame(None, faces, TimelineSnapshot(1801, 0, replacements),
+               shape='horizontal', image_loader=image)
+    assert len(decoded) == 120
+    assert decoded[0] == 0 and decoded[-1] == 1800
+
+
+def test_wide_hook_refused_with_supported_looks():
+    with pytest.raises(ValidationError, match='photo, number or before-after') as error:
+        plan_blocks('hook', {'headline': 'Good work', 'label': 'Real results'},
+                    resolve('preset:editorial_serif').data,
+                    face_box=(170, 220, 280, 330), shape='horizontal')
+    assert error.value.suggested_action
+
+
+@pytest.mark.parametrize('accent_kind', ['thin', 'missing', 'low-contrast', 'readable'])
+def test_plain_strokes_cannot_hide_disappearing_accent(accent_kind):
+    from yap_studio.covers.wide import check_legibility
+    text = np.zeros((720, 1280, 4), np.uint8)
+    text[200:300, 680:790] = 255
+    accent = '#ff8000'
+    if accent_kind != 'missing':
+        width = 1 if accent_kind == 'thin' else 8
+        text[200:300, 800:800 + width] = [255, 128, 0, 255]
+    accent_text = text.copy()
+    accent_text[:, :800] = 0
+    backdrop = np.zeros_like(text)
+    if accent_kind == 'low-contrast':
+        backdrop[:, 795:, :3] = [255, 128, 0]
+    blocks = [{'role': 'headline', 'box': [680, 180, 200, 140],
+               'measured_box': [700, 200, 816, 300], 'color': '#ffffff',
+               'accent_color': accent}]
+    if accent_kind == 'readable':
+        result = check_legibility(blocks, text, backdrop, accent_text=accent_text)
+        assert any(row['role'] == 'accent' for row in result['blocks'])
+    else:
+        with pytest.raises(ValidationError, match='accent') as error:
+            check_legibility(blocks, text, backdrop, accent_text=accent_text)
+        assert error.value.suggested_action
+
+
+@pytest.mark.render
+def test_render_refuses_missing_marked_accent(tmp_path, monkeypatch):
+    from yap_studio.covers import render
+    frame = tmp_path / 'frame.png'
+    ffmpeg.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
+                'color=c=gray:s=1280x720', '-frames:v', '1', str(frame)], timeout_s=60)
+    rgba = render._rgba
+    def missing_accent(path, *args):
+        pixels = rgba(path, *args)
+        return np.zeros_like(pixels) if path.name == 'accent.png' else pixels
+    monkeypatch.setattr(render, '_rgba', missing_accent)
+    with pytest.raises(ValidationError, match='accent') as error:
+        render_cover(tmp_path, CoverAssets(frame, face_box=(170, 220, 280, 330),
+                                          shape='horizontal'),
+                     resolve('preset:editorial_serif'), 'photo', COPY['photo'])
+    assert error.value.suggested_action
+    assert not (tmp_path / 'cover.png').exists()
+
+
+def test_wide_prediction_does_not_dilute_a_small_accent():
+    from yap_studio.covers.layout import _block
+    from yap_studio.covers.render import _predicted_contrast
+    block = _block('headline', 'i' * 40 + 'a', 656, 112, 568, 20,
+                   '#ffffff', 'Instrument Serif')
+    block.update(accent_start=40, accent_end=41, accent_color='#808080')
+    frame = np.full((720, 1280, 4), 128, np.uint8)
+    result = _predicted_contrast(frame, [block], [(0, 0), (1, 0)], horizontal=True)
+    assert result['0'] == 1

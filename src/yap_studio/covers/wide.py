@@ -49,19 +49,32 @@ def check_box(box: Box) -> None:
         raise ValidationError('text', 'wide safe area failed; shorten text or choose another frame')
 
 
-def check_face(blocks: list[dict] | tuple[dict, ...], face: tuple) -> dict:
+def check_face(blocks: list[dict] | tuple[dict, ...], face: tuple, *,
+               require_full_head: bool = True) -> dict:
     """Reserve the head and a little breathing room, including hair."""
     head = head_box(Box(*face))
-    if head.x < -1e-6 or head.y < -1e-6 or head.x1 > 1280 + 1e-6 or head.y1 > 720 + 1e-6:
+    if require_full_head and (head.x < -1e-6 or head.y < -1e-6 or
+                              head.x1 > 1280 + 1e-6 or head.y1 > 720 + 1e-6):
         raise ValidationError('face', 'face or head clipped by canvas; choose another frame')
     clearance = Box(head.x - 24, head.y - 24, head.w + 48, head.h + 48)
     if _overlap(head, BADGE):
         raise ValidationError('face', 'face overlaps the duration badge; choose another frame')
     for block in blocks:
         if _overlap(clearance, Box(*(block[k] for k in ('x', 'y', 'width', 'height')))):
-            raise ValidationError('face', 'headline needs room beside the face; '
-                                  'choose another frame')
+            error = ValidationError('face', 'headline needs room beside every face; '
+                                    'choose another frame')
+            error.suggested_action = 'Shorten the text or choose another speaker frame.'
+            raise error
     return {'passed': True, 'head_box': [head.x, head.y, head.w, head.h]}
+
+
+def check_faces(blocks: list[dict] | tuple[dict, ...], face: tuple,
+                face_boxes: tuple = ()) -> dict:
+    """Keep copy clear of every visible head, including partially cropped guests."""
+    result = check_face(blocks, face)
+    result['heads'] = [check_face(blocks, box, require_full_head=False)['head_box']
+                       for box in (face_boxes or (face,))]
+    return result
 
 
 def _preview(pixels: np.ndarray) -> np.ndarray:
@@ -78,7 +91,7 @@ def _preview(pixels: np.ndarray) -> np.ndarray:
 
 
 def check_legibility(blocks: list[dict], text: np.ndarray, backdrop: np.ndarray, *,
-                     look: str = 'photo') -> dict:
+                     look: str = 'photo', accent_text: np.ndarray | None = None) -> dict:
     """Require measured glyphs to survive reduction to the 168x94 browse size."""
     alpha = text[:, :, 3:4].astype(float) / 255
     back = backdrop[:, :, :3].astype(float) / 255
@@ -95,7 +108,8 @@ def check_legibility(blocks: list[dict], text: np.ndarray, backdrop: np.ndarray,
     rows = []
     for block in blocks:
         height = (block['measured_box'][3] - block['measured_box'][1]) * 94 / 720
-        secondary = block['role'] in {'kicker', 'label', 'proof'}
+        # An isolated italic phrase can have only lowercase x-height, without line capitals.
+        secondary = block['role'] in {'kicker', 'label', 'proof', 'accent'}
         minimum = 4 if secondary and not (look == 'number' and block['role'] == 'label') else 8
         if height < minimum:
             raise ValidationError('text', f"{block['role']} glyph height {height:.1f} px at "
@@ -118,6 +132,22 @@ def check_legibility(blocks: list[dict], text: np.ndarray, backdrop: np.ndarray,
         rows.append({'role': block['role'], 'glyph_height_px': round(height, 2),
                      'minimum': minimum, 'surviving_pixels': int(strokes.sum()),
                      'contrast_p10': round(p10, 3)})
+        if block.get('accent_color'):
+            try:
+                if accent_text is None:
+                    raise ValidationError('accent', 'accent did not render')
+                yy, xx = np.nonzero(accent_text[y:y + h, x:x + w, 3] >= 128)
+                if not len(xx):
+                    raise ValidationError('accent', 'accent did not render')
+                measured = [x + int(xx.min()), y + int(yy.min()),
+                            x + int(xx.max()) + 1, y + int(yy.max()) + 1]
+                result = check_legibility([{**block, 'role': 'accent', 'accent_color': None,
+                                            'measured_box': measured}],
+                                           accent_text, backdrop, look=look)
+                rows.extend(result['blocks'])
+            except ValidationError as error:
+                error.suggested_action = 'Mark a shorter accent phrase or choose a heavier font.'
+                raise
     return {'passed': True, 'preview': [168, 94], 'blocks': rows}
 
 
@@ -139,7 +169,7 @@ def _lines(role: str, text: str, font: str, table: dict, *, maximum: int | None 
     raise error
 
 
-def _inset(face: tuple, blocks: list[dict]) -> dict:
+def _inset(face: tuple, blocks: list[dict], face_boxes: tuple) -> dict:
     # The rotated bounds, rather than its unrotated CSS box, must clear all content.
     angle = math.radians(6)
     for width in (210, 180, 150):
@@ -151,7 +181,7 @@ def _inset(face: tuple, blocks: list[dict]) -> dict:
                 box = Box(x, y, rw, rh)
                 try:
                     check_box(box)
-                    check_face([{'x': x, 'y': y, 'width': rw, 'height': rh}], face)
+                    check_faces([{'x': x, 'y': y, 'width': rw, 'height': rh}], face, face_boxes)
                 except ValidationError:
                     continue
                 if any(_overlap(box, Box(*(b[k] for k in ('x', 'y', 'width', 'height'))))
@@ -164,19 +194,23 @@ def _inset(face: tuple, blocks: list[dict]) -> dict:
                         'inset_scale': width / 300,
                         'inset_side': 'left' if x < 640 else 'right',
                         'inset_box': (x, y, rw, rh)}
-    raise ValidationError('inset', 'inset cannot clear face, text and badge; omit inset')
+    error = ValidationError('inset', 'inset cannot clear face, text and badge; omit inset')
+    error.suggested_action = 'Omit --inset or choose another speaker frame.'
+    raise error
 
 
-def plan_wide(look: str, clean: dict, style: dict, face: tuple | None) -> LayoutPlan:
+def plan_wide(look: str, clean: dict, style: dict, face: tuple | None,
+              face_boxes: tuple = ()) -> LayoutPlan:
     """Lay copy on the open side of an unchanged photo."""
+    if look not in WIDE_LAYOUTS:
+        error = ValidationError('look', 'horizontal thumbnails use photo, number or before-after')
+        error.suggested_action = 'Choose --look photo, --look number or --look before-after.'
+        raise error
     if face is None:
         raise ValidationError('face', 'wide thumbnail needs a face; choose another frame')
-    if look == 'hook':
-        table = WIDE_LAYOUTS['photo']
-    else:
-        table = WIDE_LAYOUTS[look]
+    table = WIDE_LAYOUTS[look]
     plain, phrase, first, last = (_accent_span(clean['headline'])
-                                if look in {'photo', 'hook'} else ('', None, -1, -1))
+                                if look == 'photo' else ('', None, -1, -1))
     if bleep.enabled(style):
         vocabulary = bleep.listed(style['music'])
         plain = bleep.mask_text(plain, vocabulary)
@@ -208,7 +242,7 @@ def plan_wide(look: str, clean: dict, style: dict, face: tuple | None) -> Layout
                            42, 44, small_caps=True)
         add('kicker', kicker, size, caps=True)
         y += 12
-    if look in {'photo', 'hook'}:
+    if look == 'photo':
         first = len(re.sub(r'\s+', ' ', plain[:first])) if phrase else -1
         last = len(re.sub(r'\s+', ' ', plain[:last])) if phrase else -1
         plain = ' '.join(plain.split())
@@ -255,11 +289,11 @@ def plan_wide(look: str, clean: dict, style: dict, face: tuple | None) -> Layout
                 # Small-caps tracking must fit as well as the untracked line breaks.
                 size = _fit_single('label', line, small_font, table['width'] - 40,
                                    42, size, small_caps=True)
-                add('proof' if look == 'hook' else 'label', line, size, caps=True)
+                add('label', line, size, caps=True)
     if y > table['bottom']:
         raise ValidationError('text', 'shorten text to fit the wide safe area')
     for block in blocks:
         check_box(Box(*(block[k] for k in ('x', 'y', 'width', 'height'))))
-    check_face(blocks, face)
-    inset = _inset(face, blocks) if clean.get('inset') else {}
+    check_faces(blocks, face, face_boxes)
+    inset = _inset(face, blocks, face_boxes) if clean.get('inset') else {}
     return LayoutPlan(tuple(blocks), side, **inset)

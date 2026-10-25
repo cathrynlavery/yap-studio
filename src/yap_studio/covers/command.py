@@ -135,8 +135,9 @@ def _run(args: argparse.Namespace) -> int:
             check_owned_output(png, document)
             faces = cut_faces(root, cut)
             chosen = pick_frame(cut, faces, timeline, frame=args.frame, shape=shape,
-                                layout=(lambda box: plan_blocks(args.look, values, style.data,
-                                        face_box=box, shape=shape)) if shape == 'horizontal'
+                                layout=(lambda box, **kwargs: plan_blocks(
+                                    args.look, values, style.data,
+                                    face_box=box, shape=shape, **kwargs)) if shape == 'horizontal'
                                 else None)
             work_root = paths.validate_output_dir(root / ".yap/work")
             with tempfile.TemporaryDirectory(prefix="cover-", dir=work_root) as folder:
@@ -149,7 +150,10 @@ def _run(args: argparse.Namespace) -> int:
                             else None)
                     box = (face.x, face.y, face.w, face.h) if face else None
                 assets = prepare_assets(cut, chosen.frame, work, args.look,
-                                        inset=inset, face_box=box, shape=shape)
+                                        inset=inset, face_box=box, shape=shape,
+                                        face_boxes=tuple((f.box.x, f.box.y, f.box.w, f.box.h)
+                                                         for f in faces.frames[chosen.frame])
+                                        if shape == 'horizontal' else ())
                 rendered = render_cover(work, assets, style, args.look,
                                         {key: value for key, value in values.items()
                                          if value is not None})

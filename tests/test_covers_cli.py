@@ -81,6 +81,8 @@ def test_receipt_fields_and_owned_replacement(
     monkeypatch.setattr(command, "pick_frame", picked)
     def prepared(cut, *_args, **kwargs):
         assert kwargs['face_box'] == selected
+        assert kwargs['face_boxes'] == (((0, 300, 675, 600), (250, 375, 225, 360))
+                                         if shape == 'horizontal' else ())
         return CoverAssets(cut, face_box=(450, 350, 300, 390))
     monkeypatch.setattr(command, "prepare_assets", prepared)
     def rendered(work: Path, *_args) -> RenderedCover:

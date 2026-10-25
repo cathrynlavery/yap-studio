@@ -394,13 +394,13 @@ def _inset_placement(face_box: tuple[float, float, float, float],
 
 def plan_blocks(look: str, values: dict[str, str | None], style: dict, *,
                 face_box: tuple[float, float, float, float] | None = None,
-                shape: str = "vertical") -> LayoutPlan:
+                shape: str = "vertical", face_boxes: tuple = ()) -> LayoutPlan:
     """Compute all text boxes from one style, copy, crop, and face box."""
     clean = _copy(look, values)
     if shape == "horizontal":
         from yap_studio.covers.wide import plan_wide
 
-        return plan_wide(look, clean, style, face_box)
+        return plan_wide(look, clean, style, face_box, face_boxes)
     if bleep.enabled(style):
         vocabulary = bleep.listed(style["music"])
         clean = {key: bleep.mask_text(value, vocabulary) if key not in {"headline", "inset"}

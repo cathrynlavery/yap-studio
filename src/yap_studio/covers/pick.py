@@ -109,7 +109,7 @@ def pick_frame(
     landmark_detector: still.LandmarkDetector | None = None,
     choose_default_detector: bool = True,
     shape: str = "vertical",
-    layout: Callable[[tuple], object] | None = None,
+    layout: Callable[..., object] | None = None,
 ) -> Pick:
     """Rank large faces, then reject closed eyes and soft face crops."""
     if frame is not None:
@@ -132,24 +132,30 @@ def pick_frame(
             target = (mapped.x, mapped.y, mapped.w, mapped.h)
             check_face([], target)
             if layout is not None:
-                layout(target)
+                targets = [thumbnail_face(item.box, faces.video.width, faces.video.height)
+                           for item in faces.frames[frame]]
+                layout(target, face_boxes=tuple((b.x, b.y, b.w, b.h) for b in targets))
         return Pick(frame, "--frame override", [{"frame": frame, "override": True}], box)
     if faces.status != "measured":
         raise ValidationError("faces", f"faces unavailable: {faces.reason}; choose --frame N")
     sampled = []
     count = min(timeline.total_frames, len(faces.frames))
-    # shortcut: 120 wide samples or one per speaker window, batch-decode for denser picks.
+    # shortcut: 120 wide samples, batch-decode when denser speaker-window coverage is needed.
     step = max(15, ((count + 1799) // 1800) * 15) if shape == "horizontal" else 15
     indices = list(range(0, count, step))
     if shape == "horizontal":
-        seeds = []
+        windows = []
         cursor = 0
         for _, start, end in sorted(timeline.replacements, key=lambda window: window[1]):
             if cursor < min(start, count):
-                seeds.append(cursor)
+                windows.append((cursor, min(start, count)))
             cursor = max(cursor, end)
         if cursor < count:
-            seeds.append(cursor)
+            windows.append((cursor, count))
+        seeds = sorted({index for start, end in windows
+                        for index in (start, (start + end - 1) // 2, end - 1)})
+        if len(seeds) > 120:
+            seeds = [seeds[int(i)] for i in np.linspace(0, len(seeds) - 1, 120)]
         rest = [i for i in indices if i not in seeds and eligible_frame(i, timeline) is None]
         budget = max(0, 120 - len(seeds))
         if len(rest) > budget:
@@ -252,11 +258,19 @@ def pick_frame(
                         try:
                             check_face([], box)
                             if layout is not None:
-                                layout(box)
+                                targets = [thumbnail_face(item.box, faces.video.width,
+                                                          faces.video.height)
+                                           for item in faces.frames[chosen['frame']]]
+                                layout(box, face_boxes=tuple((b.x, b.y, b.w, b.h)
+                                                             for b in targets))
                         except ValidationError as exc:
+                            if exc.parameter == 'look':
+                                raise
                             chosen['placement_error'] = exc.message
                             continue
                     return Pick(chosen["frame"], reason, rows, chosen.get('source_face_box'))
-                raise ValidationError("frame", "no ranked frame has room for this layout; "
-                                      "shorten text or choose another frame")
+                error = ValidationError("frame", "no ranked frame has room for this layout; "
+                                        "shorten text or choose another frame")
+                error.suggested_action = 'Shorten the text or choose another speaker frame.'
+                raise error
         raise ValidationError("frame", "no sharp frame with open eyes; try --frame N")
