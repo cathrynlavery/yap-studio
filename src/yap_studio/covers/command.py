@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from yap_studio import paths, receipt
-from yap_studio.canvas import unsupported
 from yap_studio.covers.layout import validate_text
 from yap_studio.covers.pick import TimelineSnapshot, pick_frame
 from yap_studio.covers.render import prepare_assets, render_cover
@@ -110,13 +109,13 @@ def _run(args: argparse.Namespace) -> int:
                 "headline", "kicker", "number", "label", "before", "after", "inset")}
             validate_text(args.look, values, measure=False)
             project_name = root.name
+            shape = "vertical"
             project_file = root / "project.json"
             if project_file.is_file():
                 try:
                     project_data = json.loads(project_file.read_text(encoding="utf-8"))
                     project_name = project_data["name"]
-                    if project_data.get("shape", "vertical") == "horizontal":
-                        unsupported("covers", "Create the horizontal thumbnail separately")
+                    shape = project_data.get("shape", "vertical")
                 except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
                     raise ValidationError("project.json", "readable project name required") from exc
             final, final_receipt = require_finished(root, project_name)
@@ -135,7 +134,7 @@ def _run(args: argparse.Namespace) -> int:
             pending = png.with_name(f"{png.stem}.pending.json")
             check_owned_output(png, document)
             faces = cut_faces(root, cut)
-            chosen = pick_frame(cut, faces, timeline, frame=args.frame)
+            chosen = pick_frame(cut, faces, timeline, frame=args.frame, shape=shape)
             work_root = paths.validate_output_dir(root / ".yap/work")
             with tempfile.TemporaryDirectory(prefix="cover-", dir=work_root) as folder:
                 work = Path(folder)
@@ -145,7 +144,7 @@ def _run(args: argparse.Namespace) -> int:
                         else None)
                 box = (face.x, face.y, face.w, face.h) if face else None
                 assets = prepare_assets(cut, chosen.frame, work, args.look,
-                                        inset=inset, face_box=box)
+                                        inset=inset, face_box=box, shape=shape)
                 rendered = render_cover(work, assets, style, args.look,
                                         {key: value for key, value in values.items()
                                          if value is not None})

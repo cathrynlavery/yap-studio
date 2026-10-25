@@ -222,15 +222,17 @@ def test_shape_change_invalidates_cut_and_portrait_source_is_refused(tmp_path: P
     assert not (root / "cut/cut.mp4").exists()
 
 
-def test_horizontal_covers_and_studio_export_refuse(tmp_path: Path,
-                                                  capsys: pytest.CaptureFixture) -> None:
+def test_horizontal_cover_requires_final_and_studio_export_refuses(
+    tmp_path: Path, capsys: pytest.CaptureFixture,
+) -> None:
     from yap_studio.studio.export import export_project
 
     _context(tmp_path)
     assert cli.main(["cover", str(tmp_path), "--headline", "Horizontal", "--json"]) != 0
     captured = capsys.readouterr()
     output = captured.out + captured.err
-    assert "horizontal_unsupported" in output and "covers" in output
+    assert "finished video or final receipt missing" in output
+    assert "horizontal_unsupported" not in output
     with pytest.raises(YapError, match="studio export"):
         export_project(tmp_path)
     assert not (tmp_path / "covers").exists()

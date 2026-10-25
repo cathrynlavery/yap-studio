@@ -27,7 +27,8 @@ What version 1 does not do yet, and what it never judges.
   options. Explicit card boxes and behind-person floating cards are unavailable.
   Portrait and square inserts use blurred, darkened fill. Split B-roll, video letters,
   zooms, transitions, person effects, 3D captions,
-  grades, applied taste preferences, covers and studio export fail with a fix line.
+  grades, applied taste preferences and studio export fail with a fix line.
+  Finished horizontal projects support 1280x720 YouTube thumbnails with `yap-studio cover`.
   Style/gallery samples remain vertical. Use the review page for final horizontal playback.
   Standalone `verify` also accepts other shapes and can check their platform rules.
 - The word-based filler and restart rules are English only. For other project

@@ -43,10 +43,12 @@ def test_foreign_png_refused(tmp_path: Path) -> None:
         check_owned_output(png, tmp_path / "cover.json")
 
 
+@pytest.mark.parametrize("shape", ["vertical", "horizontal"])
 def test_receipt_fields_and_owned_replacement(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    shape: str,
 ) -> None:
-    (tmp_path / "project.json").write_text('{"name":"sample"}')
+    (tmp_path / "project.json").write_text(json.dumps({"name": "sample", "shape": shape}))
     (tmp_path / "final").mkdir()
     (tmp_path / "cut").mkdir()
     (tmp_path / "final/sample.mp4").write_bytes(b"final")
@@ -67,6 +69,7 @@ def test_receipt_fields_and_owned_replacement(
     def picked(_cut, _faces, timeline, **_kwargs):
         assert isinstance(timeline, TimelineSnapshot)
         assert timeline.total_frames == 90 and timeline.replacements == (("insert", 30, 40),)
+        assert _kwargs.get("shape", "vertical") == shape
         return Pick(3, "override", [{"frame": 3, "score": 1}])
     monkeypatch.setattr(command, "pick_frame", picked)
     monkeypatch.setattr(command, "prepare_assets", lambda cut, *_args, **_kwargs:

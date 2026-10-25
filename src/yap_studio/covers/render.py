@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
@@ -38,6 +38,7 @@ class CoverAssets:
     matte: Path | None = None
     inset: Path | None = None
     face_box: tuple[float, float, float, float] | None = None
+    shape: str = "vertical"
 
 
 @dataclass(frozen=True)
@@ -49,13 +50,14 @@ class RenderedCover:
     renderer_version: str
 
 
-def _rgba(path: Path) -> np.ndarray:
+def _rgba(path: Path, size: tuple[int, int] = (1080, 1920)) -> np.ndarray:
     raw = ffmpeg.run(["ffmpeg", "-v", "error", "-i", str(path), "-frames:v", "1",
                       "-pix_fmt", "rgba", "-f", "rawvideo", "pipe:1"],
                      timeout_s=90, binary=True).stdout
-    if len(raw) != 1080 * 1920 * 4:
-        raise ValidationError("image", "expected a 1080x1920 cover image")
-    return np.frombuffer(raw, dtype=np.uint8).reshape(1920, 1080, 4)
+    width, height = size
+    if len(raw) != width * height * 4:
+        raise ValidationError("image", f"expected a {width}x{height} cover image")
+    return np.frombuffer(raw, dtype=np.uint8).reshape(height, width, 4)
 
 
 def _frame_png(clip: Path, index: int, out: Path) -> None:
@@ -127,11 +129,30 @@ def prepare_assets(
     matte_provider: Callable[[Path, Path], Path | None] | None = None,
     inset: Path | None = None,
     face_box: tuple[float, float, float, float] | None = None,
+    shape: str = "vertical",
 ) -> CoverAssets:
     """Extract the overlay-free frame, lossless matte, and look backgrounds."""
     from yap_studio.covers.pick import extract_frame
 
     paths.validate_output_dir(work)
+    if shape == "horizontal":
+        from yap_studio.covers.wide import thumbnail_face
+        from yap_studio.faces.model import Box
+
+        picture = extract_frame(cut, frame, work / "frame.png", shape=shape)
+        if face_box is None:
+            raise ValidationError("face", "wide thumbnail needs a measured face; "
+                                  "choose another frame")
+        info = ffmpeg.probe(cut)
+        face = thumbnail_face(Box(*face_box), info.width, info.height)
+        inset_image = None
+        if inset is not None:
+            inset_image = work / "inset.png"
+            ffmpeg.run(["ffmpeg", "-y", "-v", "error", "-i", str(inset), "-vf",
+                        "scale=600:600:force_original_aspect_ratio=increase,crop=600:600",
+                        "-frames:v", "1", str(inset_image)], timeout_s=120)
+        return CoverAssets(picture, inset=inset_image, face_box=(face.x, face.y, face.w, face.h),
+                           shape=shape)
     picture = extract_frame(cut, frame, work / "frame.png")
     matte = (matte_provider or _default_matte)(picture, work)
     cutout = None
@@ -205,10 +226,10 @@ def _veil_stops(look: str, strength: float, blocks: list[dict],
             (after_top, .85 * strength), (1, strength)]
 
 
-def _veil_css(stops: list[tuple[float, float]]) -> str:
+def _veil_css(stops: list[tuple[float, float]], direction: str = "bottom") -> str:
     content = ", ".join(f"rgba(0,0,0,{alpha:.4f}) {position * 100:.5f}%"
                         for position, alpha in stops)
-    return f"linear-gradient(to bottom, {content})"
+    return f"linear-gradient(to {direction}, {content})"
 
 
 def _linear(rgb: np.ndarray) -> np.ndarray:
@@ -216,7 +237,8 @@ def _linear(rgb: np.ndarray) -> np.ndarray:
 
 
 def _predicted_contrast(frame: np.ndarray, blocks: list[dict],
-                        stops: list[tuple[float, float]]) -> dict[str, float]:
+                        stops: list[tuple[float, float]], *,
+                        horizontal: bool = False) -> dict[str, float]:
     """Predict glyph contrast from measured text spans and the actual veil profile."""
     positions, alphas = zip(*stops, strict=True)
     weights = np.array([.2126, .7152, .0722])
@@ -251,6 +273,8 @@ def _predicted_contrast(frame: np.ndarray, blocks: list[dict],
                                 min(block["x"] + block["width"], max(x0 + 1, x1)), 3)
             if not len(columns):
                 continue
+            if horizontal:
+                veil = np.interp(columns / 1280, positions, alphas)[None, :, None]
             rgb = frame[np.ix_(rows, columns)][:, :, :3].astype(np.float64) / 255
             back = rgb * (1 - veil)
             foreground = np.array([int(color[i:i + 2], 16) for i in (1, 3, 5)]) / 255
@@ -268,20 +292,39 @@ def _predicted_contrast(frame: np.ndarray, blocks: list[dict],
 
 def _vignette(frame: np.ndarray, blocks: list[dict], look: str,
               face_box: tuple[float, float, float, float] | None,
+              *, side: str | None = None,
               ) -> tuple[float, str, dict[str, float]]:
     """Choose the lightest veil whose predicted block contrasts pass."""
+    # Narrow number strokes need more margin between box samples and measured glyphs.
+    margin = .4 if side is not None and any(b["role"] == "number" for b in blocks) else .2
     for strength in np.arange(0, 1.001, .02):
         stops = _veil_stops(look, float(strength), blocks, face_box)
-        predicted = _predicted_contrast(frame, blocks, stops)
+        if side is not None:
+            stops = [(0, 0), (.38, 0), (.52, float(strength)), (1, float(strength))]
+            if side == "right":
+                stops = [(1 - position, alpha) for position, alpha in reversed(stops)]
+        predicted = _predicted_contrast(frame, blocks, stops, horizontal=side is not None)
         if all(value >= (3 if blocks[int(index)]["role"] in {"headline", "number", "after"}
-                         else 4.5) + .2 for index, value in predicted.items()):
-            return round(float(strength), 2), _veil_css(stops), predicted
+                         else 4.5) + margin for index, value in predicted.items()):
+            return (round(float(strength), 2),
+                    _veil_css(stops, "right" if side is not None else "bottom"), predicted)
     raise ValidationError("contrast", "text contrast cannot reach its minimum; "
                           "choose another frame or look")
 
 
 def _config(assets: CoverAssets, style: ResolvedStyle, look: str,
             values: dict[str, str]) -> dict:
+    if assets.shape == "horizontal":
+        plan = plan_blocks(look, values, style.data, face_box=assets.face_box,
+                           shape=assets.shape)
+        blocks = [{**block, "font_stack": fonts.font_stack(block["font"])}
+                  for block in plan.blocks]
+        vignette, veil_css, predicted = _vignette(
+            _rgba(assets.frame, (1280, 720)), blocks, "photo", assets.face_box,
+            side=plan.speaker_side)
+        return {**asdict(plan), "blocks": blocks, "look": look, "wide": True,
+                "inset": assets.inset is not None, "vignette": vignette,
+                "veil_css": veil_css, "predicted_contrast": predicted, "darkening": None}
     plan = plan_blocks(look, values, style.data, face_box=assets.face_box)
     blocks = [{**block, "font_stack": fonts.font_stack(block["font"])}
               for block in plan.blocks]
@@ -347,6 +390,9 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
     config = _config(assets, style, look, values)
     composition = paths.validate_output_dir(work / "composition")
     source = _TEMPLATE.read_text(encoding="utf-8")
+    wide = assets.shape == "horizontal"
+    if wide:
+        source = source.replace("1080", "1280").replace("1920", "720")
     names = (style.data["hook"]["font"], style.data["graphics"]["font"])
     source = source.replace("/* BUNDLED_FONT_FACES */", fonts.font_face_css(names))
     fonts.copy_fonts(names, composition / "fonts")
@@ -365,10 +411,10 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
     try:
         for index, out in enumerate((full, backdrop, text)):
             _frame_png(clip, index, out)
-        only_text = _rgba(text)
-        behind = _rgba(backdrop)
+        only_text = _rgba(text, (1280, 720)) if wide else _rgba(text)
+        behind = _rgba(backdrop, (1280, 720)) if wide else _rgba(backdrop)
         blocks = config["blocks"]
-        if look == "number":
+        if look == "number" and not wide:
             overlap = speaker_overlap(only_text[:, :, 3], _rgba(assets.cutout)[:, :, 3],
                                       config["speaker_shift_px"], blocks)
             if overlap > 0:
@@ -376,7 +422,8 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
                                       "choose another frame with --frame or another look")
         band = (style.data["internal"]["key_text_top_px"],
                 style.data["internal"]["key_text_bottom_px"])
-        geometry = check_geometry(only_text[:, :, 3], blocks=blocks, band=band)
+        geometry = check_geometry(only_text[:, :, 3], blocks=blocks, band=band,
+                                  shape=assets.shape)
         checked = []
         accent_pixels = 0
         for block in blocks:
@@ -424,7 +471,12 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
                   "contrast": {"passed": True,
                                "p10": min(item["contrast_p10"] for item in checked),
                                "accent_pixels": accent_pixels}}
-        if look == "number":
+        if wide:
+            from yap_studio.covers.wide import check_face, check_legibility
+
+            checks["legibility"] = check_legibility(checked, look=look)
+            checks["face_clearance"] = check_face(blocks, assets.face_box)
+        if look == "number" and not wide:
             checks["speaker_clearance"] = {"shift_px": config["speaker_shift_px"],
                                            "overlap_px": 0}
         if config["inset"]:

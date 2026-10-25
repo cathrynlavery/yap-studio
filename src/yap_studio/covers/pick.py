@@ -71,11 +71,15 @@ def eligible_frame(frame: int, timeline: TimelineSnapshot) -> str | None:
     return None
 
 
-def extract_frame(cut: Path, frame: int, output: Path) -> Path:
+def extract_frame(cut: Path, frame: int, output: Path, *, shape: str = "vertical") -> Path:
     """Save an exact decode-order frame at cover dimensions."""
-    graph = (f"select=eq(n\\,{frame}),"
-             "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920")
-    ffmpeg.run(["ffmpeg", "-y", "-v", "error", "-i", str(cut),
+    size = "1280:720" if shape == "horizontal" else "1080:1920"
+    # Finished cuts are 30 fps; integer-second seeking keeps the frame clock exact.
+    seek = ["-ss", str(frame // 30)] if shape == "horizontal" else []
+    selected = frame % 30 if shape == "horizontal" else frame
+    graph = (f"select=eq(n\\,{selected}),"
+             f"scale={size}:force_original_aspect_ratio=increase,crop={size}")
+    ffmpeg.run(["ffmpeg", "-y", "-v", "error", *seek, "-i", str(cut),
                 "-vf", graph, "-frames:v", "1", "-pix_fmt", "rgb24", str(output)],
                timeout_s=120)
     if not output.is_file():
@@ -84,11 +88,12 @@ def extract_frame(cut: Path, frame: int, output: Path) -> Path:
     return output
 
 
-def _gray(path: Path) -> np.ndarray:
+def _gray(path: Path, *, shape: str = "vertical") -> np.ndarray:
     raw = ffmpeg.run(["ffmpeg", "-v", "error", "-i", str(path), "-frames:v", "1",
                       "-pix_fmt", "gray", "-f", "rawvideo", "pipe:1"], timeout_s=60,
                      binary=True).stdout
-    return np.frombuffer(raw, dtype=np.uint8).reshape(1920, 1080)
+    return np.frombuffer(raw, dtype=np.uint8).reshape(
+        (720, 1280) if shape == "horizontal" else (1920, 1080))
 
 
 def _face(faces: tuple[FaceBox, ...], width: int, height: int) -> FaceBox | None:
@@ -102,6 +107,7 @@ def pick_frame(
     image_loader: Callable[[int], np.ndarray] | None = None,
     landmark_detector: still.LandmarkDetector | None = None,
     choose_default_detector: bool = True,
+    shape: str = "vertical",
 ) -> Pick:
     """Rank large faces, then reject closed eyes and soft face crops."""
     if frame is not None:
@@ -115,7 +121,10 @@ def pick_frame(
     if faces.status != "measured":
         raise ValidationError("faces", f"faces unavailable: {faces.reason}; choose --frame N")
     sampled = []
-    for index in range(0, min(timeline.total_frames, len(faces.frames)), 15):
+    count = min(timeline.total_frames, len(faces.frames))
+    # shortcut: sample at most 120 wide moments; batch-decode if denser picks are needed.
+    step = max(15, ((count + 1799) // 1800) * 15) if shape == "horizontal" else 15
+    for index in range(0, count, step):
         if eligible_frame(index, timeline) is not None:
             continue
         face = _face(faces.frames[index], faces.video.width, faces.video.height)
@@ -129,6 +138,8 @@ def pick_frame(
         detector = still.default_landmark_detector()
     reason = ("face landmarks unavailable; picked by face size and sharpness"
               if detector is None else "largest sharp face with open eyes")
+    if shape == "horizontal":
+        reason += "; ranked lighting and room beside the face across the finished cut"
     with tempfile.TemporaryDirectory(prefix="cover-pick-") as directory:
         folder = Path(directory)
         rows = []
@@ -140,17 +151,26 @@ def pick_frame(
                 if image_loader is None:
                     if cut is None:
                         raise ValueError("cut is needed to extract frames")
-                    extract_frame(cut, index, path)
-                    pixels = _gray(path)
+                    extract_frame(cut, index, path, shape=shape)
+                    pixels = _gray(path, shape=shape)
                 else:
                     pixels = image_loader(index)
                 images.append(path)
                 box = face.box
+                if shape == "horizontal":
+                    from yap_studio.covers.wide import thumbnail_face
+
+                    box = thumbnail_face(box, faces.video.width, faces.video.height)
                 crop = still.FaceLandmarks(box.x, box.y, box.w, box.h, None, None,
                                            None, None, face.confidence)
                 batch.append({"frame": index, "face_box": box.to_dict(),
                               "face_area": round(box.w * box.h, 2),
                               "sharpness": round(still._sharpness(pixels, crop), 3)})
+                if shape == "horizontal":
+                    patch = pixels[max(0, int(box.y)):int(box.y1),
+                                   max(0, int(box.x)):int(box.x1)]
+                    batch[-1].update(face_luma=round(float(np.mean(patch)), 2),
+                                     headline_room=round(max(box.x, 1280 - box.x1) / 1280, 4))
             if detector is not None:
                 found = detector.measure(images)
                 if len(found) != len(batch):
@@ -182,6 +202,12 @@ def pick_frame(
                 row["score"] = round(row["face_area"] / best_area +
                                      (row["sharpness"] / best_sharpness if best_sharpness else 0) -
                                      min(1, abs(row["yaw"] or 0) / 0.5) * 0.25, 4)
+                if shape == "horizontal":
+                    row["well_lit"] = 45 <= row["face_luma"] <= 225
+                    row["score"] = round(row["score"] + 2 * row["headline_room"] +
+                                         (0.5 if row["well_lit"] else -0.5), 4)
+            if shape == "horizontal" and start + 24 < len(sampled):
+                continue
             viable = [row for row in rows if not row["motion_blur"] and
                       row["eyes_open"] is not False]
             if viable:

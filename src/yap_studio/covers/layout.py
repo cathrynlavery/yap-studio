@@ -390,9 +390,14 @@ def _inset_placement(face_box: tuple[float, float, float, float],
 
 
 def plan_blocks(look: str, values: dict[str, str | None], style: dict, *,
-                face_box: tuple[float, float, float, float] | None = None) -> LayoutPlan:
+                face_box: tuple[float, float, float, float] | None = None,
+                shape: str = "vertical") -> LayoutPlan:
     """Compute all text boxes from one style, copy, crop, and face box."""
     clean = _copy(look, values)
+    if shape == "horizontal":
+        from yap_studio.covers.wide import plan_wide
+
+        return plan_wide(look, clean, style, face_box)
     if bleep.enabled(style):
         vocabulary = bleep.listed(style["music"])
         clean = {key: bleep.mask_text(value, vocabulary) if key not in {"headline", "inset"}
@@ -438,12 +443,26 @@ def validate_text(look: str, values: dict[str, str | None], *, font: str = "Inst
 
 def check_geometry(mask: np.ndarray, *, blocks: tuple[dict, ...] | list[dict] | None = None,
                    headline_box: tuple[int, int, int, int] | None = None,
-                   look: str = "photo", band: tuple[int, int] = (280, 640)) -> dict:
+                   look: str = "photo", band: tuple[int, int] = (280, 640),
+                   shape: str = "vertical") -> dict:
     """Reject glyphs outside the planned blocks and the profile crop inset."""
     yy, xx = np.nonzero(mask > 16)
     if not len(xx):
         raise ValidationError("text", "no text rendered; choose another look")
     box = [int(xx.min()), int(yy.min()), int(xx.max()) + 1, int(yy.max()) + 1]
+    if shape == "horizontal":
+        from yap_studio.covers.wide import check_box
+
+        check_box(Box(box[0], box[1], box[2] - box[0], box[3] - box[1]))
+        for block in blocks or ():
+            check_box(Box(*(block[key] for key in ("x", "y", "width", "height"))))
+        covered = np.zeros(mask.shape, dtype=bool)
+        for block in blocks or ():
+            x, y = block["x"], block["y"]
+            covered[y:y + block["height"], x:x + block["width"]] = True
+        if blocks is not None and np.any((mask > 16) & ~covered):
+            raise ValidationError("text", "glyphs escaped a planned block; shorten the text")
+        return {"passed": True, "text_box": box, "badge_clear": True}
     if box[0] < SAFE_X[0] or box[2] > SAFE_X[1] or box[1] < SAFE_Y[0] or box[3] > SAFE_Y[1]:
         raise ValidationError("text", f"3:4 crop safe area failed at {box}; shorten the text")
     if blocks is not None:

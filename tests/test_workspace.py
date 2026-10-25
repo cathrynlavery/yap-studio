@@ -672,6 +672,10 @@ def test_new_project_refuses_video_flags_with_name_or_add(mode, flags, capsys):
 
 def test_workspace_video_routing_and_commands_parse():
     guide = (ROOT / "workspace/AGENTS.md").read_text()
+    for phrase in ("1280x720 YouTube thumbnail", "headline as plain text in chat and wait",
+                   "creator to choose the text before rendering", "168x94 preview",
+                   "bottom-right duration badge", "--look before-after"):
+        assert phrase in guide
     assert "## What are you making?" in guide
     section = guide.split("## What are you making?", 1)[1].split("## Make a voiceover video", 1)[0]
     for phrase in ("yap-studio video-type show --json", "your app's question tool",

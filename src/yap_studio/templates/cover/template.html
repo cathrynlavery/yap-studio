@@ -33,7 +33,9 @@ html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; backgro
     backdrop.append(node);
     return node;
   }
-  if (c.look === 'number') {
+  if (c.wide) {
+    image('frame.png', 'photo');
+  } else if (c.look === 'number') {
     backdrop.style.background = c.paper;
     const person = image('cutout.png', 'person');
     person.style.transform = `translateX(${c.speaker_shift_px}px)`;
@@ -75,6 +77,7 @@ html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; backgro
     node.style.fontSize = `${block.font_size}px`;
     node.style.color = block.color;
     node.style.fontFamily = block.font_stack;
+    if (block.italic) node.style.fontStyle = 'italic';
     node.style.opacity = block.opacity;
     if (block.accent_start >= 0) {
       node.append(document.createTextNode(block.text.slice(0, block.accent_start)));

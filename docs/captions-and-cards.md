@@ -469,15 +469,21 @@ behind graphic or another moment. Titles, front graphics and captions stay above
 
 ## Covers
 
-`yap-studio cover DIR --headline "A *better* night"` makes a 1080×1920 cover from
-the overlay-free cut at a frame of the finished video. Asterisks mark one italic
+`yap-studio cover DIR --headline "A *better* night"` makes a 1080×1920 vertical cover
+or a 1280×720 horizontal YouTube thumbnail from the overlay-free cut at a frame of
+the finished video. Asterisks mark one italic
 accent phrase. The saved style supplies the fonts and colors. `--frame N` chooses
 the frame; otherwise the command picks a sharp, open-eyed face.
 
 The default `photo` look needs `--headline` and accepts `--kicker` and `--inset IMAGE`.
 `number` needs `--number` and `--label`. `hook` needs `--headline` and a proof `--label`
 and accepts `--kicker`. `before-after` needs `--before` and `--after` and accepts
-`--label` and `--kicker`. The command checks the centered 3:4 profile-grid crop and
+`--label` and `--kicker`. Vertical covers check the centered 3:4 profile-grid crop;
+horizontal thumbnails check face clearance, safe margins, the duration-badge corner,
+and glyph height at 168×94. Wide copy sits directly on the photo with a soft fade,
+on the opposite side from the face. Automatic wide picking samples up to 120 moments
+across the edit, ranking eye openness, sharpness, lighting and room for text.
+Existing Vision data does not measure mouth openness. The command
 writes `covers/<name>-<look>.png` plus `covers/<name>-<look>.json`.
 
 ## Stock clips

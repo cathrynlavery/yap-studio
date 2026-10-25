@@ -287,6 +287,18 @@ two moments, quote nearby transcript words and ask which one they mean. Save the
 video as a version and show it for another review, so earlier comments carry over. A passing
 technical check does not replace the creator's approval.
 
+After a horizontal video is finished, offer a 1280x720 YouTube thumbnail with
+`yap-studio cover DIR`. Show the proposed headline as plain text in chat and wait for
+the creator to choose the text before rendering. Use `--look photo --headline "..."`
+for a headline, `--look number --number "..." --label "..."` for a number, or
+`--look before-after --before "..." --after "..."` for a comparison. Mark one key
+phrase with `*` in the headline flag for italic text in the creator's accent colour;
+show the words without those markers when asking for approval. Keep copy short,
+balance lines without orphan words, and keep the face on one side with text on the
+other. Text sits directly on the photo with a soft fade for contrast. Check the
+168x94 preview and keep important content clear of the bottom-right duration badge.
+An optional `--inset PHOTO` adds a tilted Polaroid when it clears the face and copy.
+
 ## Caption gaps
 
 After the cut, save a timeline fragment with one `caption_gap` on the `agent` lane, starting
