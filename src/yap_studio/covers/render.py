@@ -295,8 +295,8 @@ def _vignette(frame: np.ndarray, blocks: list[dict], look: str,
               *, side: str | None = None,
               ) -> tuple[float, str, dict[str, float]]:
     """Choose the lightest veil whose predicted block contrasts pass."""
-    # Narrow number strokes need more margin between box samples and measured glyphs.
-    margin = .4 if side is not None and any(b["role"] == "number" for b in blocks) else .2
+    # Wide glyph cores lose contrast when reduced to the browse preview.
+    margin = .4 if side is not None else .2
     for strength in np.arange(0, 1.001, .02):
         stops = _veil_stops(look, float(strength), blocks, face_box)
         if side is not None:
@@ -474,7 +474,7 @@ def render_cover(work: Path, assets: CoverAssets, style: ResolvedStyle,
         if wide:
             from yap_studio.covers.wide import check_face, check_legibility
 
-            checks["legibility"] = check_legibility(checked, look=look)
+            checks["legibility"] = check_legibility(checked, only_text, behind, look=look)
             checks["face_clearance"] = check_face(blocks, assets.face_box)
         if look == "number" and not wide:
             checks["speaker_clearance"] = {"shift_px": config["speaker_shift_px"],

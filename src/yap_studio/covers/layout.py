@@ -80,6 +80,7 @@ def _accent_span(value: str) -> tuple[str, str | None, int, int]:
 
 def balance_lines(
     words: list[str], width_of: Callable[[str], float], max_width: float, max_lines: int,
+    *, forbidden_breaks: tuple[int, ...] = (),
 ) -> list[str]:
     """Choose the smallest widest line, then the most even line widths."""
     # This can merge with the shared caption text rules later.
@@ -88,6 +89,8 @@ def balance_lines(
     possibilities = []
     for count in range(1, min(max_lines, len(words)) + 1):
         for breaks in itertools.combinations(range(1, len(words)), count - 1):
+            if any(edge in forbidden_breaks for edge in breaks):
+                continue
             edges = (0, *breaks, len(words))
             groups = [words[edges[i]:edges[i + 1]] for i in range(count)]
             if len(words) > 1 and any(len(group) == 1 for group in groups):

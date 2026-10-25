@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from yap_studio import paths, receipt
-from yap_studio.covers.layout import validate_text
+from yap_studio.covers.layout import plan_blocks, validate_text
 from yap_studio.covers.pick import TimelineSnapshot, pick_frame
 from yap_studio.covers.render import prepare_assets, render_cover
 from yap_studio.errors import OutputPathError, ValidationError, YapError
@@ -134,15 +134,20 @@ def _run(args: argparse.Namespace) -> int:
             pending = png.with_name(f"{png.stem}.pending.json")
             check_owned_output(png, document)
             faces = cut_faces(root, cut)
-            chosen = pick_frame(cut, faces, timeline, frame=args.frame, shape=shape)
+            chosen = pick_frame(cut, faces, timeline, frame=args.frame, shape=shape,
+                                layout=(lambda box: plan_blocks(args.look, values, style.data,
+                                        face_box=box, shape=shape)) if shape == 'horizontal'
+                                else None)
             work_root = paths.validate_output_dir(root / ".yap/work")
             with tempfile.TemporaryDirectory(prefix="cover-", dir=work_root) as folder:
                 work = Path(folder)
-                face = (max(faces.frames[chosen.frame],
-                            key=lambda item: item.box.w * item.box.h).box
-                        if chosen.frame < len(faces.frames) and faces.frames[chosen.frame]
-                        else None)
-                box = (face.x, face.y, face.w, face.h) if face else None
+                box = chosen.face_box
+                if shape != 'horizontal':
+                    face = (max(faces.frames[chosen.frame],
+                                key=lambda item: item.box.w * item.box.h).box
+                            if chosen.frame < len(faces.frames) and faces.frames[chosen.frame]
+                            else None)
+                    box = (face.x, face.y, face.w, face.h) if face else None
                 assets = prepare_assets(cut, chosen.frame, work, args.look,
                                         inset=inset, face_box=box, shape=shape)
                 rendered = render_cover(work, assets, style, args.look,

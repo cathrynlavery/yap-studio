@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import math
+import re
+
+import numpy as np
 
 from yap_studio.covers.layout import (
     LayoutPlan,
@@ -49,6 +52,8 @@ def check_box(box: Box) -> None:
 def check_face(blocks: list[dict] | tuple[dict, ...], face: tuple) -> dict:
     """Reserve the head and a little breathing room, including hair."""
     head = head_box(Box(*face))
+    if head.x < -1e-6 or head.y < -1e-6 or head.x1 > 1280 + 1e-6 or head.y1 > 720 + 1e-6:
+        raise ValidationError('face', 'face or head clipped by canvas; choose another frame')
     clearance = Box(head.x - 24, head.y - 24, head.w + 48, head.h + 48)
     if _overlap(head, BADGE):
         raise ValidationError('face', 'face overlaps the duration badge; choose another frame')
@@ -59,8 +64,34 @@ def check_face(blocks: list[dict] | tuple[dict, ...], face: tuple) -> dict:
     return {'passed': True, 'head_box': [head.x, head.y, head.w, head.h]}
 
 
-def check_legibility(blocks: list[dict], *, look: str = 'photo') -> dict:
+def _preview(pixels: np.ndarray) -> np.ndarray:
+    """Area-average pixels, retaining fractional coverage at the browse size."""
+    for axis, size in ((1, 168), (0, 94)):
+        source = np.moveaxis(pixels, axis, 0)
+        edges = np.linspace(0, len(source), size + 1)
+        indices = np.minimum(edges.astype(int), len(source) - 1)
+        sums = np.concatenate((np.zeros_like(source[:1]), np.cumsum(source, axis=0)))
+        integral = sums[indices] + source[indices] * (
+            edges - indices).reshape((-1,) + (1,) * (source.ndim - 1))
+        pixels = np.moveaxis(np.diff(integral, axis=0) / (len(source) / size), 0, axis)
+    return pixels
+
+
+def check_legibility(blocks: list[dict], text: np.ndarray, backdrop: np.ndarray, *,
+                     look: str = 'photo') -> dict:
     """Require measured glyphs to survive reduction to the 168x94 browse size."""
+    alpha = text[:, :, 3:4].astype(float) / 255
+    back = backdrop[:, :, :3].astype(float) / 255
+    visible = _preview(text[:, :, :3] / 255 * alpha + back * (1 - alpha))
+    ground = _preview(back)
+    coverage = _preview(alpha)[:, :, 0]
+
+    def linear(rgb):
+        return np.where(rgb <= .04045, rgb / 12.92, ((rgb + .055) / 1.055) ** 2.4)
+
+    weights = np.array([.2126, .7152, .0722])
+    a, b = linear(visible) @ weights, linear(ground) @ weights
+    contrast = (np.maximum(a, b) + .05) / (np.minimum(a, b) + .05)
     rows = []
     for block in blocks:
         height = (block['measured_box'][3] - block['measured_box'][1]) * 94 / 720
@@ -69,23 +100,43 @@ def check_legibility(blocks: list[dict], *, look: str = 'photo') -> dict:
         if height < minimum:
             raise ValidationError('text', f"{block['role']} glyph height {height:.1f} px at "
                                   f'168x94 is below {minimum}; shorten text')
+        x, y, w, h = block['box']
+        x0, y0 = math.floor(x * 168 / 1280), math.floor(y * 94 / 720)
+        x1, y1 = math.ceil((x + w) * 168 / 1280), math.ceil((y + h) * 94 / 720)
+        mask = coverage[y0:y1, x0:x1]
+        strokes = mask >= .5
+        yy, _ = np.nonzero(strokes)
+        if not len(yy) or yy.max() - yy.min() + 1 < minimum:
+            raise ValidationError('text', f"{block['role']} strokes vanish at 168x94; "
+                                  'shorten text or choose a heavier font')
+        # Measure stroke cores; antialiased edges blend into the backdrop by design.
+        cores = mask >= max(.5, .9 * float(mask.max()))
+        p10 = float(np.percentile(contrast[y0:y1, x0:x1][cores], 10))
+        if p10 < 3:
+            raise ValidationError('text', f"{block['role']} contrast {p10:.2f}:1 at 168x94 "
+                                  'is below 3:1; choose another frame or heavier font')
         rows.append({'role': block['role'], 'glyph_height_px': round(height, 2),
-                     'minimum': minimum})
+                     'minimum': minimum, 'surviving_pixels': int(strokes.sum()),
+                     'contrast_p10': round(p10, 3)})
     return {'passed': True, 'preview': [168, 94], 'blocks': rows}
 
 
 def _lines(role: str, text: str, font: str, table: dict, *, maximum: int | None = None,
            minimum: int | None = None, lines: int | None = None,
-           height: int = 720) -> tuple[list[str], int]:
+           height: int = 720, forbidden_breaks: tuple[int, ...] = ()) -> tuple[list[str], int]:
     for size in range(maximum or table['maximum'], (minimum or table['minimum']) - 1, -1):
         try:
             result = balance_lines(text.split(), lambda line, size=size: _width(line, font, size),
-                                   table['width'] - 40, lines or table['lines'])
+                                   table['width'] - 40, lines or table['lines'],
+                                   forbidden_breaks=forbidden_breaks)
             if len(result) * math.ceil(size * 1.12) <= height:
                 return result, size
         except ValidationError:
             continue
-    raise ValidationError(role, 'shorten text to fit the thumbnail without an orphan word')
+    error = ValidationError(role, 'shorten text to fit the thumbnail without an orphan word')
+    if forbidden_breaks:
+        error.suggested_action = 'Shorten the headline or mark a shorter accent phrase.'
+    raise error
 
 
 def _inset(face: tuple, blocks: list[dict]) -> dict:
@@ -124,15 +175,19 @@ def plan_wide(look: str, clean: dict, style: dict, face: tuple | None) -> Layout
         table = WIDE_LAYOUTS['photo']
     else:
         table = WIDE_LAYOUTS[look]
+    plain, phrase, first, last = (_accent_span(clean['headline'])
+                                if look in {'photo', 'hook'} else ('', None, -1, -1))
     if bleep.enabled(style):
         vocabulary = bleep.listed(style['music'])
-        clean = {k: bleep.mask_text(v, vocabulary) if k != 'inset' else v
+        plain = bleep.mask_text(plain, vocabulary)
+        clean = {k: bleep.mask_text(v, vocabulary) if k not in {'headline', 'inset'} else v
                  for k, v in clean.items()}
     side = 'left' if face[0] + face[2] / 2 < 640 else 'right'
     x = table['right'] if side == 'left' else table['left']
     font, small_font = style['hook']['font'], style['graphics']['font']
     color = style['captions']['text_color']
-    accent = readable_accent(style, '#101010')
+    accent = readable_accent(style, '#101010') if phrase or look in {
+        'number', 'before-after'} else color
     y = table['top']
     blocks = []
 
@@ -154,8 +209,13 @@ def plan_wide(look: str, clean: dict, style: dict, face: tuple | None) -> Layout
         add('kicker', kicker, size, caps=True)
         y += 12
     if look in {'photo', 'hook'}:
-        plain, phrase, first, last = _accent_span(clean['headline'])
+        first = len(re.sub(r'\s+', ' ', plain[:first])) if phrase else -1
+        last = len(re.sub(r'\s+', ' ', plain[:last])) if phrase else -1
+        plain = ' '.join(plain.split())
+        forbidden = tuple(i for i, word in enumerate(re.finditer(r'\S+', plain))
+                          if first < word.start() < last)
         lines, size = _lines('headline', plain, font, table,
+                             forbidden_breaks=forbidden,
                              height=table['bottom'] - y - (80 if clean.get('label') else 0))
         offset = 0
         for line in lines:

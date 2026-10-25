@@ -27,7 +27,7 @@ COPY = {
 @pytest.mark.parametrize('look', COPY)
 @pytest.mark.parametrize('side', ['left', 'right'])
 def test_wide_looks_clear_face_safe_area_and_badge(look, side):
-    face = (170, 100, 280, 330) if side == 'left' else (830, 100, 280, 330)
+    face = (170, 220, 280, 330) if side == 'left' else (830, 220, 280, 330)
     plan = plan_blocks(look, COPY[look], resolve('preset:editorial_serif').data,
                        face_box=face, shape='horizontal')
     assert plan.speaker_side == side
@@ -50,14 +50,14 @@ def test_wide_looks_clear_face_safe_area_and_badge(look, side):
 def test_wide_refuses_long_copy_instead_of_shrinking_to_illegibility():
     with pytest.raises(ValidationError, match='shorten|orphan'):
         plan_blocks('photo', {'headline': 'WWWWWWWWW WWWWWWWWW WWWWWWWWW WWWWWWWWW'},
-                    resolve('preset:editorial_serif').data, face_box=(170, 100, 280, 330),
+                    resolve('preset:editorial_serif').data, face_box=(170, 220, 280, 330),
                     shape='horizontal')
 
 
 def test_wide_kicker_balances_copy_and_inset_clears_head_and_text():
     from yap_studio.covers.wide import check_box, check_face
-    face = (170, 100, 280, 330)
-    plan = plan_blocks('photo', {'headline': 'Make *more room* for better work',
+    face = (170, 220, 280, 200)
+    plan = plan_blocks('photo', {'headline': 'Make *room* for work',
                                 'kicker': 'Small changes', 'inset': 'other.png'},
                        resolve('preset:editorial_serif').data, face_box=face,
                        shape='horizontal')
@@ -83,13 +83,18 @@ def test_wide_geometry_badge_and_small_glyph_check():
     mask[630:650, 1120:1200] = 255
     with pytest.raises(ValidationError, match='badge'):
         check_geometry(mask, shape='horizontal')
+    text = np.zeros((720, 1280, 4), dtype=np.uint8)
+    text[100:180, 660:1000] = 255
+    backdrop = np.zeros_like(text)
     with pytest.raises(ValidationError, match='168x94'):
-        check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 135]}])
-    result = check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 180]}])
+        check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 135]}],
+                          text, backdrop)
+    result = check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 180],
+                                'box': [660, 100, 340, 80]}], text, backdrop)
     assert result['passed'] and result['preview'] == [168, 94]
     with pytest.raises(ValidationError, match='168x94'):
         check_legibility([{'role': 'label', 'measured_box': [660, 100, 1000, 135]}],
-                          look='number')
+                          text, backdrop, look='number')
 
 
 def test_wide_pick_prefers_open_lit_sharp_face_with_headline_room():
@@ -169,7 +174,7 @@ def test_wide_renders_checked_photo_at_1280x720(tmp_path, look, values, side):
     frame = tmp_path / 'frame.png'
     ffmpeg.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
                 'color=c=gray:s=1280x720:r=30', '-frames:v', '1', str(frame)], timeout_s=60)
-    face = (170, 100, 280, 330) if side == 'left' else (830, 100, 280, 330)
+    face = (170, 220, 280, 330) if side == 'left' else (830, 220, 280, 330)
     assets = CoverAssets(frame, face_box=face, shape='horizontal')
     result = render_cover(tmp_path, assets, resolve('preset:editorial_serif'), look, values)
     info = ffmpeg.probe(result.png)
@@ -205,3 +210,116 @@ def test_vertical_cover_fixture_bytes_unchanged(tmp_path: Path, look, digest):
     assets = synth.cover_assets(tmp_path)
     result = render_cover(tmp_path, assets, resolve('preset:editorial_serif'), look, values[look])
     assert hashlib.sha256(result.png.read_bytes()).hexdigest() == digest
+
+
+@pytest.mark.parametrize('headline', ['Fuck this', '*Fuck* this'])
+def test_wide_bleep_preserves_accent_span(headline):
+    style = resolve('preset:editorial_serif').data
+    style['music']['bleep_swears'] = True
+    plan = plan_blocks('photo', {'headline': headline}, style,
+                       face_box=(170, 220, 280, 330), shape='horizontal')
+    assert ' '.join(b['text'] for b in plan.blocks) == 'F*** this'
+    if headline.startswith('*'):
+        assert plan.blocks[0]['accent_start'] == 0
+        assert plan.blocks[0]['accent_end'] == 4
+
+
+def test_wide_pick_tries_requested_layout_on_ranked_candidates(monkeypatch):
+    boxes = [Box(600, 360, 720, 600)] * 15 + [Box(375, 375, 225, 360)] * 15
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', 30,
+                      Fraction(30), 1920, 1080), {}, {},
+                      tuple((FaceBox(box, .99, 'detected'),) for box in boxes), ())
+    monkeypatch.setattr('yap_studio.gallery.still._sharpness', lambda *_: 100.)
+    def layout(face):
+        return plan_blocks('photo', {'headline': 'Good work'},
+                           resolve('preset:editorial_serif').data,
+                           face_box=face, shape='horizontal')
+    picked = pick_frame(None, faces, TimelineSnapshot(30, 0, ()), shape='horizontal',
+                        image_loader=lambda _: np.full((720, 1280), 130, np.uint8),
+                        layout=layout)
+    assert picked.frame == 15
+    assert picked.candidates[0]['placement_error']
+    with pytest.raises(ValidationError, match='room'):
+        pick_frame(None, faces, TimelineSnapshot(30, 0, ()), frame=0,
+                   shape='horizontal', layout=layout)
+
+
+@pytest.mark.parametrize('stem_width', [1, 16])
+def test_wide_preview_checks_surviving_strokes_and_contrast(stem_width):
+    from yap_studio.covers.wide import _preview, check_legibility
+    text = np.zeros((720, 1280, 4), np.uint8)
+    text[200:300, 700:700 + stem_width] = 255
+    backdrop = np.zeros_like(text)
+    blocks = [{'role': 'headline', 'box': [680, 180, 100, 140],
+               'measured_box': [700, 200, 700 + stem_width, 300]}]
+    assert (300 - 200) * 94 / 720 > 8  # The old height-only check accepted either stem.
+    if stem_width == 1:
+        assert _preview(text[:, :, 3:4] / 255).max() == pytest.approx(.125)
+        with pytest.raises(ValidationError, match='168x94'):
+            check_legibility(blocks, text, backdrop)
+    else:
+        assert check_legibility(blocks, text, backdrop)['passed']
+        backdrop[:, :, :3] = 255
+        with pytest.raises(ValidationError, match='168x94'):
+            check_legibility(blocks, text, backdrop)
+
+
+@pytest.mark.parametrize('face', [(0, 200, 450, 400), (170, 100, 280, 330),
+                                  (1200, 220, 200, 300), (170, 500, 280, 300)])
+def test_wide_refuses_clipped_face_or_head(face):
+    from yap_studio.covers.wide import check_face
+    with pytest.raises(ValidationError, match='canvas|clipped'):
+        check_face([], face)
+
+
+def test_wide_pick_retains_ranked_interior_face():
+    interior = FaceBox(Box(250, 375, 225, 360), .99, 'detected')
+    clipped = FaceBox(Box(0, 300, 675, 600), .99, 'detected')
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', 1,
+                      Fraction(30), 1920, 1080), {}, {}, ((interior, clipped),), ())
+    picked = pick_frame(None, faces, TimelineSnapshot(1, 0, ()), shape='horizontal',
+                        image_loader=lambda _: np.full((720, 1280), 130, np.uint8))
+    assert picked.face_box == (250, 375, 225, 360)
+
+
+def test_wide_accent_phrase_stays_on_one_line_or_refuses_copy():
+    with pytest.raises(ValidationError, match='shorten') as error:
+        plan_blocks('photo', {'headline': 'Make *more room* for better work'},
+                    resolve('preset:editorial_serif').data,
+                    face_box=(170, 220, 280, 330), shape='horizontal')
+    assert error.value.suggested_action == 'Shorten the headline or mark a shorter accent phrase.'
+    plan = plan_blocks('photo', {'headline': '*more room*'},
+                       resolve('preset:editorial_serif').data,
+                       face_box=(170, 220, 280, 330), shape='horizontal')
+    accented = [b for b in plan.blocks if 'accent_start' in b]
+    assert len(accented) == 1
+    block = accented[0]
+    assert block['text'][block['accent_start']:block['accent_end']] == 'more room'
+    with pytest.raises(ValidationError, match='shorten'):
+        plan_blocks('photo', {'headline': 'Make *WWWWWWWWW WWWWWWWWW* work'},
+                    resolve('preset:editorial_serif').data,
+                    face_box=(170, 220, 280, 330), shape='horizontal')
+
+
+def test_wide_plain_headline_does_not_resolve_unused_accent():
+    style = resolve('preset:editorial_serif').data
+    style['brand'] = {'accent_color': '#101010'}
+    for section, field in [('captions', 'highlight_color'), ('hook', 'accent_color'),
+                           ('graphics', 'accent_color')]:
+        style[section][field] = '#101010'
+    plan = plan_blocks('photo', {'headline': 'Good work'}, style,
+                       face_box=(170, 220, 280, 330), shape='horizontal')
+    assert all(b['color'] == style['captions']['text_color'] for b in plan.blocks)
+    with pytest.raises(ValidationError, match='accent'):
+        plan_blocks('photo', {'headline': 'Good *work*'}, style,
+                    face_box=(170, 220, 280, 330), shape='horizontal')
+
+
+def test_wide_sampling_seeds_short_speaker_window():
+    face = (FaceBox(Box(375, 375, 225, 360), .99, 'detected'),)
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', 1801,
+                      Fraction(30), 1920, 1080), {}, {}, (face,) * 1801, ())
+    picked = pick_frame(None, faces, TimelineSnapshot(1801, 0, (
+        ('insert', 0, 15), ('insert', 30, 1801))), shape='horizontal',
+        image_loader=lambda _: np.full((720, 1280), 130, np.uint8))
+    assert picked.frame == 15

@@ -15,6 +15,7 @@ from yap_studio.covers.command import check_owned_output, finished_snapshot, req
 from yap_studio.covers.pick import Pick, TimelineSnapshot
 from yap_studio.covers.render import CoverAssets, RenderedCover
 from yap_studio.errors import OutputPathError, ValidationError
+from yap_studio.faces.model import Box, FaceBox
 from yap_studio.style import resolve
 
 
@@ -65,15 +66,23 @@ def test_receipt_fields_and_owned_replacement(
                               resolved_timeline=lambda: (_ for _ in ()).throw(
                                   AssertionError("live timeline must not be read")))
     monkeypatch.setattr(command, "ProjectContext", lambda _path: context)
-    monkeypatch.setattr(command, "cut_faces", lambda *_args: SimpleNamespace(frames=()))
+    selected = (250, 375, 225, 360) if shape == 'horizontal' else None
+    faces = ((FaceBox(Box(0, 300, 675, 600), .99, 'detected'),
+              FaceBox(Box(250, 375, 225, 360), .99, 'detected')),)
+    monkeypatch.setattr(command, "cut_faces", lambda *_args: SimpleNamespace(
+        frames=faces * 4 if shape == 'horizontal' else ()))
     def picked(_cut, _faces, timeline, **_kwargs):
         assert isinstance(timeline, TimelineSnapshot)
         assert timeline.total_frames == 90 and timeline.replacements == (("insert", 30, 40),)
         assert _kwargs.get("shape", "vertical") == shape
-        return Pick(3, "override", [{"frame": 3, "score": 1}])
+        if shape == 'horizontal':
+            assert _kwargs['layout']((170, 250, 150, 240)).blocks
+        return Pick(3, "override", [{"frame": 3, "score": 1}], selected)
     monkeypatch.setattr(command, "pick_frame", picked)
-    monkeypatch.setattr(command, "prepare_assets", lambda cut, *_args, **_kwargs:
-                        CoverAssets(cut, face_box=(450, 350, 300, 390)))
+    def prepared(cut, *_args, **kwargs):
+        assert kwargs['face_box'] == selected
+        return CoverAssets(cut, face_box=(450, 350, 300, 390))
+    monkeypatch.setattr(command, "prepare_assets", prepared)
     def rendered(work: Path, *_args) -> RenderedCover:
         png = work / "cover.png"
         png.write_bytes(b"synthetic png")
@@ -86,7 +95,8 @@ def test_receipt_fields_and_owned_replacement(
     assert result["look"] == "photo" and result["frame"] == 3
     assert result["pick"]["candidates"][0]["score"] == 1
     assert result["style"]["sha256"] and result["renderer_version"] == "test-pin"
-    assert result["face_box"] == {"source": "matte", "box": [450, 350, 300, 390]}
+    assert result["face_box"] == {"source": "faces" if selected else "matte",
+                                  "box": [450, 350, 300, 390]}
     assert result["hashes"]["cut"] and result["hashes"]["final"]
     png = tmp_path / "covers/sample-photo.png"
     check_owned_output(png, png.with_suffix(".json"))

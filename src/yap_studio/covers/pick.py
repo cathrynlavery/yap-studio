@@ -57,6 +57,7 @@ class Pick:
     frame: int
     reason: str
     candidates: list[dict]
+    face_box: tuple[float, float, float, float] | None = None
 
 
 def eligible_frame(frame: int, timeline: TimelineSnapshot) -> str | None:
@@ -108,6 +109,7 @@ def pick_frame(
     landmark_detector: still.LandmarkDetector | None = None,
     choose_default_detector: bool = True,
     shape: str = "vertical",
+    layout: Callable[[tuple], object] | None = None,
 ) -> Pick:
     """Rank large faces, then reject closed eyes and soft face crops."""
     if frame is not None:
@@ -117,14 +119,43 @@ def pick_frame(
                                   "choose a speaker frame")
         if frame >= faces.video.frames:
             raise ValidationError("frame", "frame is outside the cut; choose a lower frame")
-        return Pick(frame, "--frame override", [{"frame": frame, "override": True}])
+        box = None
+        if shape == "horizontal":
+            from yap_studio.covers.wide import check_face, thumbnail_face
+
+            face = (_face(faces.frames[frame], faces.video.width, faces.video.height)
+                    if frame < len(faces.frames) else None)
+            if face is None:
+                raise ValidationError("face", "wide thumbnail needs a face; choose another frame")
+            box = (face.box.x, face.box.y, face.box.w, face.box.h)
+            mapped = thumbnail_face(face.box, faces.video.width, faces.video.height)
+            target = (mapped.x, mapped.y, mapped.w, mapped.h)
+            check_face([], target)
+            if layout is not None:
+                layout(target)
+        return Pick(frame, "--frame override", [{"frame": frame, "override": True}], box)
     if faces.status != "measured":
         raise ValidationError("faces", f"faces unavailable: {faces.reason}; choose --frame N")
     sampled = []
     count = min(timeline.total_frames, len(faces.frames))
-    # shortcut: sample at most 120 wide moments; batch-decode if denser picks are needed.
+    # shortcut: 120 wide samples or one per speaker window, batch-decode for denser picks.
     step = max(15, ((count + 1799) // 1800) * 15) if shape == "horizontal" else 15
-    for index in range(0, count, step):
+    indices = list(range(0, count, step))
+    if shape == "horizontal":
+        seeds = []
+        cursor = 0
+        for _, start, end in sorted(timeline.replacements, key=lambda window: window[1]):
+            if cursor < min(start, count):
+                seeds.append(cursor)
+            cursor = max(cursor, end)
+        if cursor < count:
+            seeds.append(cursor)
+        rest = [i for i in indices if i not in seeds and eligible_frame(i, timeline) is None]
+        budget = max(0, 120 - len(seeds))
+        if len(rest) > budget:
+            rest = [rest[int(i)] for i in np.linspace(0, len(rest) - 1, budget)]
+        indices = sorted(set(seeds + rest))
+    for index in indices:
         if eligible_frame(index, timeline) is not None:
             continue
         face = _face(faces.frames[index], faces.video.width, faces.video.height)
@@ -167,6 +198,8 @@ def pick_frame(
                               "face_area": round(box.w * box.h, 2),
                               "sharpness": round(still._sharpness(pixels, crop), 3)})
                 if shape == "horizontal":
+                    batch[-1]['source_face_box'] = (face.box.x, face.box.y, face.box.w, face.box.h)
+                    batch[-1]['face_box'] = dict(x=box.x, y=box.y, w=box.w, h=box.h)
                     patch = pixels[max(0, int(box.y)):int(box.y1),
                                    max(0, int(box.x)):int(box.x1)]
                     batch[-1].update(face_luma=round(float(np.mean(patch)), 2),
@@ -211,6 +244,19 @@ def pick_frame(
             viable = [row for row in rows if not row["motion_blur"] and
                       row["eyes_open"] is not False]
             if viable:
-                chosen = max(viable, key=lambda row: (row["score"], -row["frame"]))
-                return Pick(chosen["frame"], reason, rows)
+                for chosen in sorted(viable, key=lambda row: (-row["score"], row["frame"])):
+                    if shape == "horizontal":
+                        from yap_studio.covers.wide import check_face
+
+                        box = tuple(chosen['face_box'][k] for k in ('x', 'y', 'w', 'h'))
+                        try:
+                            check_face([], box)
+                            if layout is not None:
+                                layout(box)
+                        except ValidationError as exc:
+                            chosen['placement_error'] = exc.message
+                            continue
+                    return Pick(chosen["frame"], reason, rows, chosen.get('source_face_box'))
+                raise ValidationError("frame", "no ranked frame has room for this layout; "
+                                      "shorten text or choose another frame")
         raise ValidationError("frame", "no sharp frame with open eyes; try --frame N")
