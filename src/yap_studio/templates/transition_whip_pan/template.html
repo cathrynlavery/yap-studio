@@ -95,7 +95,7 @@ canvas { display: block; width: 1080px; height: 1920px; }
     gl.finish();
   }
   let time = 0;
-  // HyperFrames 0.8.192 awaits promises registered synchronously on hf-seek.
+  // HyperFrames 0.8.198 awaits promises registered synchronously on hf-seek.
   window.addEventListener('hf-seek', event => {
     const seekTime = event.detail.time;
     time = seekTime;
