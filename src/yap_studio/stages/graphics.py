@@ -378,7 +378,7 @@ def _caption_top(context: ProjectContext, style: ResolvedStyle, start: int, end:
         layout = context.json("captions/layout.json")
     except FileNotFoundError:
         layout = {}
-    return card_caption_top(style, start, end, layout)
+    return card_caption_top(style, start, end, layout, shape=context.project.shape)
 
 
 def graphics_snapshot(

@@ -34,7 +34,7 @@ def installed_registry(monkeypatch, _shared_cache_root):
 @pytest.mark.parametrize("kind", [*LAYOUTS, "stat/on_cue", "stat/on_cue_glow",
     "specs_list/on_cue", "specs_list/on_cue_glow", "flow/tags",
     "text_tag/block", "text_tag/underline", "quote/no_role", "name_tag/no_role",
-    "image_compare/no_labels"])
+    "image_compare/no_labels", "transfer/wide_payload", "steps/four"])
 def test_wide_browser_content_fills_paper(kind, image, tmp_path):
     from yap_studio.render import hyperframes
 
@@ -44,10 +44,16 @@ def test_wide_browser_content_fills_paper(kind, image, tmp_path):
     slots.update({"specs_list": {"rows": [{"name": "Format", "value": "Live"},
                                           {"name": "Access", "value": "All"}]},
                   "file_drop": {"name": "Clip"}, "comment_drop": {"text": "Send it"},
+                  "hf:char-slam-explode": {"text": "Hi"},
+                  "hf:conic-progress-ring": {"percent": 72},
                   }.get(kind, {}))
     chosen = resolve("preset:clean_minimal")
     if look:
-        if look == "no_role":
+        if look == "wide_payload":
+            slots.update(left_label="From", right_label="To", payload="WWWW")
+        elif look == "four":
+            slots["steps"] = ["Film", "Edit", "Post", "Share"]
+        elif look == "no_role":
             slots["role"] = ""
         elif look == "no_labels":
             slots.update(before_label="", after_label="", split=90)
@@ -73,7 +79,7 @@ def test_wide_browser_content_fills_paper(kind, image, tmp_path):
             "node", str(Path(__file__).parent / "fixtures/wide_card_probe.mjs")],
             input=json.dumps({"kind": kind, "browser": renderer.browser_path,
                 "composition": str(composition),
-                "variables": plan.variables,
+                "variables": plan.variables, "sample": 1.4 if kind == "transfer" else 2.5,
                 "puppeteer": str(renderer.prefix / "node_modules/puppeteer-core"),
                 "url": f"http://127.0.0.1:{server.server_port}/index.html"}),
             capture_output=True, text=True, timeout=60, check=False)
@@ -91,21 +97,92 @@ def test_wide_browser_content_fills_paper(kind, image, tmp_path):
     for text in report["text"]:
         minimum = 24 if text["className"] in {
             "wide-kicker", "kicker", "bar-title", "host-text"} else 42
+        if text["className"] == "payload-text":
+            minimum = cards.MIN_TEXT_PX
         assert text["size"] >= minimum, text
         if kind == "choices":
             assert text["size"] == 42
             assert all(len(line.split()) >= 2 for line in text["text"].split("\n"))
+    if kind == "hf:char-slam-explode":
+        assert "".join(text["text"] for text in report["text"]) == "Hi"
+    if kind == "hf:conic-progress-ring":
+        assert "".join(text["text"] for text in report["text"]) == "72%"
+        assert report["progress"] == pytest.approx(72)
+        assert report["progressValue"] == 72
+    if kind == "transfer":
+        chip = report["chip"]
+        assert chip["scrollWidth"] <= chip["width"] + 1
+        assert chip["x"] >= panel["x"]
+        assert chip["x"] + chip["width"] <= panel["x"] + panel["width"]
     if kind == "steps":
         steps = report["steps"]
-        assert len(steps) == 3
+        assert len(steps) == len(slots["steps"])
+        if look == "four":
+            placed, _ = place_card(plan, chosen, [[]] * plan.frames)
+            assert placed.height <= 656
         assert all(step["x"] == steps[0]["x"] for step in steps)
-        assert all(b["y"] - a["y"] - a["height"] == pytest.approx(44)
+        assert all(b["y"] - a["y"] - a["height"] == pytest.approx(26 if look == "four" else 44)
                    for a, b in zip(steps, steps[1:], strict=False))
         assert sum(step["state"] == "active" for step in steps) == 1
         assert all(step["background"] == "rgb(54, 90, 88)" for step in steps
                    if step["state"] == "active")
         assert all(step["color"] == "rgb(34, 34, 34)" for step in steps
                    if step["state"] != "active")
+
+
+def test_transfer_refuses_payload_that_cannot_fit():
+    with pytest.raises(ValidationError, match="shorten") as caught:
+        cards.card_layer_plan("transfer", {"left_label": "From", "right_label": "To",
+            "payload": "WWWWWWWW"}, resolve("preset:clean_minimal"), shape="horizontal")
+    assert caught.value.parameter == "slots.payload"
+    assert caught.value.suggested_action == "Shorten the transfer payload."
+
+
+def test_four_short_steps_fit_and_oversized_steps_offer_fewer():
+    chosen = resolve("preset:clean_minimal")
+    plan = cards.card_layer_plan("steps", {"steps": ["Film", "Edit", "Post", "Share"]},
+                                 chosen, shape="horizontal")
+    placed, _ = place_card(plan, chosen, [[]] * plan.frames)
+    assert placed.y >= 108 and placed.y + placed.height <= 764
+    for labels, limit in ((["Film"] * 5, 4), (["WWWW WWWW WWWW WWWW"] * 4, 2)):
+        plan = cards.card_layer_plan("steps", {"steps": labels}, chosen, shape="horizontal")
+        with pytest.raises(ValidationError) as caught:
+            place_card(plan, chosen, [[]] * plan.frames)
+        assert caught.value.suggested_action == f"Use {limit} steps or fewer."
+        shorter = cards.card_layer_plan("steps", {"steps": labels[:limit]}, chosen,
+                                        shape="horizontal")
+        place_card(shorter, chosen, [[]] * shorter.frames)
+
+
+def test_steps_recovery_refits_type_after_removing_the_widest_label():
+    chosen = resolve("preset:clean_minimal")
+    plan = cards.card_layer_plan("steps", {"steps": ["Film"] * 4 + ["W" * 15]},
+                                 chosen, shape="horizontal")
+    with pytest.raises(ValidationError) as caught:
+        place_card(plan, chosen, [[]] * plan.frames, caption_top=828)
+    assert caught.value.suggested_action == "Use 2 steps or fewer."
+
+
+@pytest.mark.parametrize("caller", ["planner", "graphics"])
+def test_missing_wide_caption_layout_reserves_actual_band(caller, tmp_path):
+    from test_landscape import _context
+    from test_planner_anchors import synthetic_words
+    from test_planner_cards import requests, synthetic_faces
+
+    from yap_studio.planner.cards import plan_cards
+    from yap_studio.stages.graphics import _caption_top
+
+    context = _context(tmp_path, style={"captions": {"size_px": 120}})
+    chosen = resolve("preset:clean_minimal")
+    chosen.data["captions"]["size_px"] = 120
+    if caller == "graphics":
+        assert _caption_top(context, chosen, 0, 90) == 653
+    else:
+        faces = synthetic_faces(Box(260, 220, 340, 380))
+        faces = replace(faces, video=replace(faces.video, width=1920, height=1080))
+        with pytest.raises(ValidationError):
+            plan_cards(requests(template="steps", slots={"steps": ["Film", "Edit", "Post"]}),
+                       synthetic_words(), chosen, frames=900, faces=faces, project_dir=tmp_path)
 
 
 def slots_for(kind, image):

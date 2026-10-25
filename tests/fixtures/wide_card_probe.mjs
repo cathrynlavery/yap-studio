@@ -31,7 +31,9 @@ try {
   }
   await page.evaluate(() => document.fonts.ready);
   for (let pass = 0; pass < 2; pass++) {
-    await page.evaluate(async () => { window.__player.pause(); await window.__player.seek(2.5); });
+    await page.evaluate(async sample => {
+      window.__player.pause(); await window.__player.seek(sample);
+    }, input.sample ?? 2.5);
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
   }
   const report = await page.evaluate(() => {
@@ -54,7 +56,12 @@ try {
       && visible(node) && node.getBoundingClientRect().height > 0)
       .map(node => ({text: node.textContent, className: String(node.className),
         size: parseFloat(getComputedStyle(node).fontSize), ...rect(node)}));
+    const chip = document.querySelector('.traveler .chip');
+    const ring = document.querySelector('.ring');
     return {paper: rect(paper), panel: rect(panel), text,
+      chip: chip && {...rect(chip), scrollWidth: chip.scrollWidth},
+      progress: ring && parseFloat(getComputedStyle(ring).getPropertyValue('--ring-progress')),
+      progressValue: ring && Number(ring.getAttribute('aria-valuenow')),
       steps: [...document.querySelectorAll('.chip[role=listitem]')].map(node => ({
         state: node.dataset.state, color: getComputedStyle(node).color,
         background: getComputedStyle(node).backgroundColor, ...rect(node)}))};

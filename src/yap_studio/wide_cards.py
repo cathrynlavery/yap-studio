@@ -131,8 +131,9 @@ def _content_plan(plan: cards.CardPlan, slots: Mapping[str, object],
         fitted = [lines(label, room - 60, size) for label in labels]
         v.update(steps=json.dumps([row[0] for row in fitted]), text_px=size,
                  wide_steps_layout="vertical")
-        content = (sum(row[2] * size * 1.2 + 52 for row in fitted)
-                   + (len(labels) - 1) * 44 + 56.8)
+        padding, gap = (16, 26) if len(labels) >= 4 else (26, 44)
+        content = (sum(row[2] * size * 1.2 + 2 * padding for row in fitted)
+                   + (len(labels) - 1) * gap + 56.8)
         css = """.wide-kicker{font-family:var(--card-mono);font-size:24px;line-height:1.2;
           letter-spacing:.12em;text-transform:uppercase;color:var(--card-accent);margin-bottom:28px}
         .rail{flex-direction:column;align-items:stretch;gap:0}
@@ -146,6 +147,9 @@ def _content_plan(plan: cards.CardPlan, slots: Mapping[str, object],
           display:grid;place-items:center;color:var(--card-accent);font-size:34px}
         .chip[data-state=done]{color:var(--card-ink)}
         .chip[data-state=done]::before{display:none}"""
+        if len(labels) >= 4:
+            css += (f".chip{{padding:{padding}px 30px}}.chip+.chip{{margin-top:{gap}px}}"
+                    f".chip+.chip::after{{top:-{gap}px;height:{gap}px;font-size:24px}}")
     elif kind == "checklist":
         labels = json.loads(v["items"])
         fitted = [lines(label, room - 71) for label in labels]
@@ -382,9 +386,17 @@ def _content_plan(plan: cards.CardPlan, slots: Mapping[str, object],
                 v["after_chip_reveal_progress"] = math.acos(1 - 2*share) / math.pi
             content = info.height * scale + 16
         else:  # transfer: the route and devices occupy the authored diagram box.
+            text_room = (v["chip_max_width_px"] - v["chip_icon_px"] - v["chip_gap_px"]
+                         - 2 * v["chip_pad_x_px"])
+            try:
+                chip_size = cards._fit_measured("payload", v["payload"], text_room, font, 600, 42)
+            except ValidationError as error:
+                error.suggested_action = "Shorten the transfer payload."
+                raise
             v.update(label_px=min(cards._fit_measured("label", v[key],
                      v["device_column_width_px"], font, 600, 42)
-                     for key in ("left_label", "right_label")), chip_px=42, chip_max_width_px=300)
+                     for key in ("left_label", "right_label")),
+                     chip_px=chip_size)
             content = v["panel_max_height_px"]
         v["wide_css"] = css
         return replace(plan, variables=v), (40, 24, plan.width-80, content)
@@ -402,6 +414,22 @@ def place_card(plan: cards.CardPlan, style: ResolvedStyle,
     ceiling = min(frame.height - 108, min(caption_top if caption_top is not None
                                          else frame.caption_top, frame.caption_top)
                   - style.data["graphics"]["caption_gap_px"])
+    if plan.height > ceiling - 108 or plan.width > frame.width - 226:
+        fix = "Shorten the card text or use fewer rows."
+        if plan.template == "steps":
+            labels = [label.replace("\n", " ") for label in json.loads(plan.variables["steps"])]
+            limit = 0
+            for count in range(len(labels) - 1, 1, -1):
+                shorter = card_plan("steps", {"steps": labels[:count]}, style,
+                                    frames=plan.frames, fps=plan.fps)
+                if shorter.height <= ceiling - 108:
+                    limit = count
+                    break
+            fix = (f"Use {limit} steps or fewer." if limit >= 2
+                   else "Shorten the step labels or reduce the caption size.")
+        error = ValidationError("graphic.clearance", fix)
+        error.suggested_action = fix
+        raise error
     heads = [head_box(face) for row in faces or () for face in row]
     margin = face_clearance_px(style.data)
     right_first = not heads or sum(h.x + h.w / 2 for h in heads) / len(heads) < frame.width / 2
@@ -525,8 +553,20 @@ def prepare(plan: cards.CardPlan, work_dir: Path, *,
         paper_motion = (f'const paperFrames={v["panel_keyframes"]};'
                         'paperFrames.forEach(frame=>tl.set("#wide-paper",'
                         '{height:frame.height_px+100},frame.at_s));')
+    head = ""
+    mounted = (
+        f'<div data-composition-id="{html.escape(inner_id, quote=True)}"{no_timeline} '
+        'data-composition-src="card.html" data-hf-authored-id="root" data-start="0" '
+        f'data-duration="{duration}" data-width="{native.width}" data-height="{native.height}" '
+        f'data-track-index="0" data-variable-values="{values}"></div>'
+    )
+    if plan.registry:
+        # Mount the registry item directly so the compiler preserves its variable bindings.
+        head = card_source.partition("<head>")[2].partition("</head>")[0]
+        mounted = card_source.partition("<body>")[2].rpartition("</body>")[0]
     source = (
         '<!doctype html><html><head><meta charset="utf-8"><script src="gsap.min.js"></script>'
+        + head +
         f'<style>html,body{{margin:0;width:{frame.width}px;height:{frame.height}px;'
         'background:transparent;overflow:hidden}</style></head><body>'
         f'<div id="wide" data-composition-id="wide-card" data-width="{frame.width}" '
@@ -537,15 +577,12 @@ def prepare(plan: cards.CardPlan, work_dir: Path, *,
         f'width:{plan.width}px;height:{plan.height}px;overflow:hidden">'
         f'{paper_panel}'
         f'<div id="wide-content" style="position:absolute;left:{left}px;top:{top}px">'
-        f'<div data-composition-id="{html.escape(inner_id, quote=True)}"{no_timeline} '
-        'data-composition-src="card.html" data-hf-authored-id="root" data-start="0" '
-        f'data-duration="{duration}" data-width="{native.width}" data-height="{native.height}" '
-        f'data-track-index="0" data-variable-values="{values}"></div></div></div></div>'
-        f'<script>const D={duration};const tl=gsap.timeline({{paused:true}});'
+        f'{mounted}</div></div></div>'
+        f'<script>(()=>{{const D={duration};const tl=gsap.timeline({{paused:true}});'
         'tl.fromTo("#floating",{opacity:0},{opacity:1,duration:.25},0);'
         'tl.to("#floating",{opacity:0,duration:.3},D-.3);' + motion + paper_motion +
         'window.__timelines=window.__timelines||{};window.__timelines["wide-card"]=tl;'
-        '</script></body></html>'
+        '})();</script></body></html>'
     )
     paths.atomic_write_text(composition / "index.html", source)
     return composition

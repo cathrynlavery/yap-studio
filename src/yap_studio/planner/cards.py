@@ -566,14 +566,20 @@ def _resolved_slots(template: str, slots: dict, project_dir: Path | None) -> dic
 
 
 def card_caption_top(style: ResolvedStyle, start_frame: int, end_frame: int,
-                     layout: dict | None = None) -> int:
+                     layout: dict | None = None, *, shape: str = "vertical") -> int:
     """Use timed camera glyphs or the flat caption band as the card ceiling."""
+    from yap_studio.canvas import canvas
     from yap_studio.stages.captions import caption_band_geometry
 
+    settings = caption_layout_settings(style.data["captions"], style.data["brand"])
+    safe_bottom = style.data["internal"]["caption_safe_bottom_px"]
+    if shape == "horizontal":
+        frame = canvas(shape)
+        settings = {**settings, "position": "bottom", "placement": "fixed",
+                    "top_px": frame.caption_top}
+        safe_bottom = frame.caption_safe_bottom
     top = 1920 if style.data["captions"].get("camera_3d", False) else caption_band_geometry(
-        caption_layout_settings(style.data["captions"], style.data["brand"]),
-        safe_bottom_px=style.data["internal"]["caption_safe_bottom_px"],
-    ).y
+        settings, safe_bottom_px=safe_bottom).y
     if layout and layout.get("measured"):
         top = min([top, *[
             box["y"] for phrase in layout["captions"]
@@ -953,7 +959,8 @@ def plan_cards(
 
         render_slots = relative_times(planned_slots, f"{location}.slots")
         scene = request.template in {"playing_grid", "reel_feed"}
-        caption_top = (card_caption_top(style, start_frame, end_frame, caption_layout)
+        caption_top = (card_caption_top(style, start_frame, end_frame, caption_layout,
+                                        shape="horizontal" if wide else "vertical")
                        if wide or scene or request.template == "video_card"
                        or safe_card_order(request.template, style, planned_slots) is not None
                        else None)
