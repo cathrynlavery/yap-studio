@@ -278,6 +278,8 @@ class GraphicsPlan:
     words_sha256: dict[str, str]
     style: str
     project_dir: Path | None = None
+    width: int = 1080
+    height: int = 1920
 
     def lane(self) -> dict:
         """Return only the timeline lane contract, without invoking its stage."""
@@ -342,8 +344,8 @@ class GraphicsPlan:
                     () if card.placement == "behind_head" else None,
                 ))
         return Layout(
-            1080,
-            1920,
+            self.width,
+            self.height,
             tuple(elements),
             (),
             clearance_px=self.cards[0].clearance["margin_px"] if self.cards else None,
@@ -356,11 +358,13 @@ class GraphicsPlan:
             CardOverlay(
                 card.id,
                 Path(layers_dir) / f"{card.id}.mov",
-                0 if card.clearance.get("card_motion", {}).get("status") == "streak" else card.x,
-                card.y,
-                1080 if card.clearance.get("card_motion", {}).get("status") == "streak"
+                0 if self.width > self.height or
+                card.clearance.get("card_motion", {}).get("status") == "streak" else card.x,
+                0 if self.width > self.height else card.y,
+                self.width if self.width > self.height or
+                card.clearance.get("card_motion", {}).get("status") == "streak"
                 else card.width,
-                card.height,
+                self.height if self.width > self.height else card.height,
                 card.start_frame,
                 card.end_frame,
                 "front" if card.placement == "top" else "behind_head",
@@ -1077,6 +1081,8 @@ def plan_cards(
         dict(cut_words.words_sha256),
         style.sha256(),
         project_dir,
+        frame.width,
+        frame.height,
     )
 
 

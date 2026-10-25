@@ -60,13 +60,20 @@ def card_plan(template: str, slots: Mapping[str, object], style: ResolvedStyle, 
         chosen.data["graphics"]["card_width_px"] = width
     chosen.data["internal"].update(key_text_top_px=0, key_text_bottom_px=height)
     native_slots = slots
-    if template == "steps":
+    if template in {"steps", "flow"}:
+        rules = cards.load_template(template)["slots"]
+        if template == "flow":
+            # Full-width nodes use the checklist's copy budget, then measured fitting below.
+            rules["nodes"] = {**rules["nodes"], "max_length":
+                              cards.load_template("checklist")["slots"]["items"]["max_length"]}
         if bleep.enabled(style.data):
-            slots, _ = bleep.mask_slots(dict(slots), cards.load_template(template)["slots"],
+            slots, _ = bleep.mask_slots(dict(slots), rules,
                                         bleep.listed(style.data["music"]))
         # Validate the real labels, but use the portrait adapter only for its cue clock.
-        values, _ = cards._slots(slots, cards.load_template(template)["slots"])
-        native_slots = {**slots, "steps": ["x"] * len(values["steps"])}
+        values, _ = cards._slots(slots, rules)
+        key = "steps" if template == "steps" else "nodes"
+        slots = {**slots, key: values[key]}
+        native_slots = {**slots, key: ["x"] * len(values[key])}
     if template.startswith("hf:"):
         from yap_studio.hf_registry import catalog
 
@@ -214,6 +221,9 @@ def _content_plan(plan: cards.CardPlan, slots: Mapping[str, object],
           color-mix(in srgb,var(--card-ink) 20%,transparent)!important}
         .row-name,.row-value{white-space:pre-line}"""
     elif kind == "name_tag":
+        from yap_studio.wide_titles import wide_layer_plan
+
+        wide_layer_plan(kind, v, style, frames=plan.frames)
         fit("name", v["name"], room, 56, weight=700)
         fit("role", v["role"], weight=400)
         content = v["name_px"] * 1.1 + (4 + v["role_px"] * 1.2 if v["role"] else 0)
@@ -269,9 +279,10 @@ def _content_plan(plan: cards.CardPlan, slots: Mapping[str, object],
         css += f".name{{font-size:{name_px}px}}"
     elif kind == "flow":
         # The boxes' paths and their reveal clock stay intact in a wide vertical flow.
-        labels = json.loads(v["nodes"])
+        labels = list(slots["nodes"])
         size = min(cards._fit_measured("nodes", label, room-36, font, 600, 42) for label in labels)
-        v.update(text_px=size, box_width_px=room, box_height_px=88, arrow_gap_px=44)
+        v.update(nodes=json.dumps(labels), text_px=size,
+                 box_width_px=room, box_height_px=88, arrow_gap_px=44)
         if "tag_height_px" in v:
             v.update(tag_height_px=math.ceil(size * 1.46), tag_max_width_px=room)
         content = len(labels) * v.get("tag_height_px", 88) + (len(labels)-1)*44
@@ -453,6 +464,7 @@ def place_card(plan: cards.CardPlan, style: ResolvedStyle,
     evidence = {"status": "clear", "layout": "floating",
                 "reason": "floating card clears every measured face",
                 "margin_px": margin,
+                "gap_px": min((gap_px(box, head) for head in heads), default=None),
                 "box": {"x": box.x, "y": box.y, "w": box.w, "h": box.h}}
     motion = None
     if style.data["graphics"].get("card_motion", "none") != "none":

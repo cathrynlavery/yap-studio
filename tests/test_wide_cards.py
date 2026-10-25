@@ -32,8 +32,8 @@ def installed_registry(monkeypatch, _shared_cache_root):
 
 @pytest.mark.render
 @pytest.mark.parametrize("kind", [*LAYOUTS, "stat/on_cue", "stat/on_cue_glow",
-    "specs_list/on_cue", "specs_list/on_cue_glow", "flow/tags",
-    "text_tag/block", "text_tag/underline", "quote/no_role", "name_tag/no_role",
+    "specs_list/on_cue", "specs_list/on_cue_glow", "flow/tags", "flow/long_labels",
+    "text_tag/block", "text_tag/underline", "quote/no_role",
     "image_compare/no_labels", "transfer/wide_payload", "steps/four"])
 def test_wide_browser_content_fills_paper(kind, image, tmp_path):
     from yap_studio.render import hyperframes
@@ -53,6 +53,8 @@ def test_wide_browser_content_fills_paper(kind, image, tmp_path):
             slots.update(left_label="From", right_label="To", payload="WWWW")
         elif look == "four":
             slots["steps"] = ["Film", "Edit", "Post", "Share"]
+        elif look == "long_labels":
+            slots["nodes"] = ["Film the introduction", "Edit the story", "Publish the video"]
         elif look == "no_role":
             slots["role"] = ""
         elif look == "no_labels":
@@ -333,7 +335,7 @@ def test_registry_minimum_panel_refuses_unreadable_fit(monkeypatch):
     assert "Choose another registry card" in caught.value.suggested_action
 
 
-def wide_plan(tmp_path):
+def wide_plan(tmp_path, motion="none"):
     from test_planner_anchors import synthetic_words
     from test_planner_cards import requests, synthetic_faces
 
@@ -343,9 +345,125 @@ def wide_plan(tmp_path):
     faces = synthetic_faces(Box(260, 220, 340, 380))
     faces = replace(faces, video=replace(faces.video, width=1920, height=1080))
     chosen = resolve("preset:clean_minimal")
+    chosen.data["graphics"]["card_motion"] = motion
     plan = plan_cards(requests(id="agent-stat"), synthetic_words(), chosen, frames=900,
                       faces=faces, project_dir=tmp_path)
     return plan, chosen
+
+
+@pytest.mark.parametrize("motion", ["none", "streak"])
+def test_wide_exported_geometry_and_clearance(tmp_path, motion):
+    from test_planner_cards import synthetic_faces
+
+    from yap_studio.faces.clearance import check_layout, load_layout
+    from yap_studio.matte.composite import load_cards
+    from yap_studio.planner.cards import write_plan
+
+    plan, _ = wide_plan(tmp_path, motion)
+    outputs = write_plan(plan, tmp_path / "plan")
+    faces = synthetic_faces(Box(260, 220, 340, 380))
+    faces = replace(faces, video=replace(faces.video, width=1920, height=1080))
+    card, = plan.cards
+    overlay, = load_cards(outputs["cards.json"])
+    assert overlay.box() == Box(0, 0, 1920, 1080)
+    assert (overlay.start_frame, overlay.end_frame) == (card.start_frame, card.end_frame)
+    assert card.clearance.get("card_motion", {}).get("status", "none") == motion
+    layout = load_layout(outputs["layout.json"])
+    assert check_layout(faces, layout).status == "pass"
+    assert layout.elements[0].box == Box(card.x, card.y, card.width, card.height)
+
+
+def test_wide_plan_non_json_cli(tmp_path, monkeypatch, capsys):
+    from yap_studio.planner import command
+
+    plan, chosen = wide_plan(tmp_path)
+    monkeypatch.setattr(command, "load_requests", lambda _: ())
+    monkeypatch.setattr(command, "load_cut_words", lambda _: None)
+    monkeypatch.setattr(command, "resolve", lambda _: chosen)
+    monkeypatch.setattr(command, "plan_cards", lambda *args, **kwargs: plan)
+    words = tmp_path / "words.json"
+    words.write_text("{}")
+    args = SimpleNamespace(requests="unused", cut_words=str(words), style=None,
+                           faces=None, project=None, frames=900, fps=30,
+                           out=str(tmp_path / "cli-plan"), render=False, json=False)
+    assert command._plan(args) == 0
+    gap = gap_px(Box(plan.cards[0].x, plan.cards[0].y,
+                     plan.cards[0].width, plan.cards[0].height),
+                 head_box(Box(260, 220, 340, 380)))
+    assert plan.cards[0].clearance["gap_px"] == pytest.approx(gap)
+    assert f"clear of the head (gap {gap:.0f} px)" in capsys.readouterr().out
+    assert (tmp_path / "cli-plan/cards.json").is_file()
+
+
+@pytest.mark.parametrize("look", ["boxes", "tags"])
+@pytest.mark.parametrize("first", ["Film the introduction", "Film the intro"])
+def test_wide_flow_fits_real_labels(look, first):
+    labels = [first, "Edit the story", "Publish the video"]
+    chosen = resolve("preset:clean_minimal")
+    chosen.data["graphics"]["flow_look"] = look
+    plan = cards.card_layer_plan("flow", {"nodes": labels}, chosen,
+                                 frames=120, shape="horizontal")
+    assert json.loads(plan.variables["nodes"]) == labels
+    assert plan.variables["text_px"] >= cards.MIN_TEXT_PX
+    assert plan.variables["box_width_px"] == 556
+    assert len(json.loads(plan.variables["cues"])) == len(labels)
+
+
+@pytest.mark.parametrize("slots", [{"nodes": ["Film"]}, {"nodes": ["Film", 2]},
+    {"nodes": ["Film", " "]}, {"nodes": ["Film", "Edit\nnow"]},
+    {"nodes": ["Film", "Edit"], "cues": [1, .5]},
+    {"nodes": ["Film", "Edit"], "unknown": True}])
+def test_wide_flow_still_validates_real_slots(slots):
+    with pytest.raises(ValidationError):
+        cards.card_layer_plan("flow", slots, resolve("preset:clean_minimal"),
+                              frames=120, shape="horizontal")
+
+
+@pytest.mark.parametrize("role", [None, "", "   ", "W" * 45])
+def test_wide_name_tag_rejects_content_project_cannot_render(role):
+    from yap_studio.wide_titles import wide_layer_plan
+
+    slots = {"name": "Sam Porter", **({"role": role} if role is not None else {})}
+    chosen = resolve("preset:clean_minimal")
+    with pytest.raises(ValidationError):
+        wide_layer_plan("name_tag", slots, chosen, frames=60)
+    with pytest.raises(ValidationError):
+        cards.card_layer_plan("name_tag", slots, chosen, frames=60, shape="horizontal")
+
+
+@pytest.mark.render
+def test_wide_planned_name_tag_renders_in_project(layer_project, monkeypatch, tmp_path):
+    from test_planner_anchors import synthetic_words
+    from test_planner_cards import requests, synthetic_faces
+    from test_stage_captions import republish_cut, set_elements
+
+    from yap_studio.planner.cards import plan_cards
+    from yap_studio.project.status import ProjectContext
+    from yap_studio.stages import graphics
+    from yap_studio.stages.captions import render_layer_plan
+
+    project = json.loads((layer_project / "project.json").read_text())
+    project.update(shape="horizontal", word_fixes={})
+    (layer_project / "project.json").write_text(json.dumps(project))
+    chosen = resolve("preset:clean_minimal")
+    chosen.data["moves"].update(jump_cuts="hard", opening_push=False)
+    (layer_project / "style.json").write_text(json.dumps(chosen.data))
+    republish_cut(layer_project)
+    faces = synthetic_faces(Box(260, 220, 340, 380), frames=90)
+    faces = replace(faces, video=replace(faces.video, width=1920, height=1080))
+    plan = plan_cards(requests(id="agent-name", template="name_tag", slots={"name": "Sam Porter",
+        "role": "Writer and founder"}, start={"time": 0}, end={"time": 2}),
+        synthetic_words(), chosen, frames=90, faces=faces, project_dir=layer_project)
+    set_elements(layer_project, *plan.lane()["elements"])
+    monkeypatch.setattr(graphics, "picture_faces", lambda *_: faces)
+    snapshot = graphics.graphics_snapshot(ProjectContext(layer_project))
+    title, = snapshot.titles
+    assert title.plan.template == "wide_titles"
+    assert title.plan.variables["role"] == "Writer and founder"
+    with paths.operation():
+        result = render_layer_plan(title.plan, tmp_path / "work", tmp_path / "name.mov")
+    info = ffmpeg.probe(result.path, count_frames=True)
+    assert (info.width, info.height, info.video_frames) == (1920, 1080, 60)
 
 
 def test_wide_planner_exports_automatic_floating_placement(tmp_path):
@@ -357,14 +475,40 @@ def test_wide_planner_exports_automatic_floating_placement(tmp_path):
 
 
 @pytest.mark.render
-def test_wide_planner_layer_reconstructs_and_renders(tmp_path):
+@pytest.mark.parametrize("motion", ["none", "streak"])
+def test_wide_planner_layer_reconstructs_and_renders(tmp_path, motion):
+    from test_planner_cards import synthetic_faces
+
+    from yap_studio.faces.clearance import check_layout, load_layout
+    from yap_studio.matte.composite import composite_video, load_cards
     from yap_studio.planner.cards import render_layers, write_plan
 
-    plan, chosen = wide_plan(tmp_path)
-    write_plan(plan, tmp_path / "plan")
+    plan, chosen = wide_plan(tmp_path, motion)
+    plan = replace(plan, frames=plan.cards[0].end_frame)
+    outputs = write_plan(plan, tmp_path / "plan")
     result, = render_layers(plan, chosen, tmp_path / "plan")
     info = ffmpeg.probe(result.path)
     assert (info.width, info.height) == (1920, 1080)
+    plate = tmp_path / "cut.mp4"
+    ffmpeg.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i",
+                "color=c=black:s=1920x1080:r=30", "-frames:v", str(plan.frames),
+                "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                str(plate)], timeout_s=60)
+    faces = synthetic_faces(Box(260, 220, 340, 380), frames=plan.frames)
+    faces = replace(faces, video=replace(faces.video, width=1920, height=1080))
+    assert check_layout(faces, load_layout(outputs["layout.json"])).status == "pass"
+    overlays = load_cards(outputs["cards.json"])
+    with paths.operation():
+        composite_video(plate, overlays, tmp_path / "composite.mp4", matte_dir=None)
+    info = ffmpeg.probe(tmp_path / "composite.mp4", count_frames=True)
+    assert (info.width, info.height, info.video_frames) == (1920, 1080, plan.frames)
+    card = plan.cards[0]
+    sample = (card.start_frame + (card.end_frame - card.start_frame) // 2) / plan.fps
+    raw = ffmpeg.run(["ffmpeg", "-v", "error", "-ss", str(sample), "-i",
+        str(tmp_path / "composite.mp4"), "-frames:v", "1", "-vf",
+        f"crop=2:2:{card.x + card.width // 2}:{card.y + 60}",
+        "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"], binary=True, timeout_s=30).stdout
+    assert len(raw) == 12 and min(raw) > 100
 
 
 @pytest.mark.parametrize("motion", ["none", "streak"])
