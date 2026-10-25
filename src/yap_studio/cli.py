@@ -27,7 +27,7 @@ from yap_studio.checks.platform import PLATFORMS
 from yap_studio.errors import DependencyError, InputError, ValidationError, YapError
 from yap_studio.ffmpeg import check_version, has_filters, resolve_tool, tool_versions
 from yap_studio.project.receipts import failed_assert_lines
-from yap_studio.report import exit_code, summarize
+from yap_studio.report import _finding_lines, exit_code, summarize
 from yap_studio.style import (
     SHIPPED_PRESETS,
     StyleRefusal,
@@ -1246,6 +1246,10 @@ def _cut_edit(args: argparse.Namespace) -> int:
                     lines.append(f"Take levels {action} {levels['reference']}: {gains}")
             lines.extend(f"failed: {line}" for line in failed_assert_lines(
                 result.get("asserts", [])))
+            for finding in result.get("failures", []):
+                lines.extend(_finding_lines(finding))
+            if result["status"] == "failed" and result.get("verify"):
+                lines.append(f"Verify report: {result['verify']}")
             lines.append(result["out"])
         lines.extend(f"warning: {warning}" for warning in result["warnings"])
     except (YapError, OSError, ValueError) as exc:

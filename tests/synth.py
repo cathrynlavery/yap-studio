@@ -1425,11 +1425,11 @@ def watch_render(path: Path) -> list[float]:
 
 
 def watch_spans(path: Path, source: Path, cuts: list[float], end_s: float = 10.5) -> Path:
-    """Write yap spans whose output joins land at the requested piece boundaries."""
+    """Write yap spans with source gaps and cuts at the requested output times."""
     edges = [0.0, *cuts, end_s]
     data = {"sources": {"a": str(source)}, "fps": "30/1", "segments": [
-        {"source": "a", "start": start, "end": end}
-        for start, end in zip(edges, edges[1:], strict=False)
+        {"source": "a", "start": start + index, "end": end + index}
+        for index, (start, end) in enumerate(zip(edges, edges[1:], strict=False))
     ]}
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return path
@@ -1486,13 +1486,13 @@ def watch_ranges(
     overlays: list[dict] | None = None,
     holds: list[tuple[int, int]] | None = None,
 ) -> Path:
-    """Write ranges JSON with optional output-clock graphics and declared holds."""
+    """Write source-gapped ranges with optional output-clock graphics and holds."""
     edges = [0.0, *cuts, end_s]
     data = {
         "sources": {"a": str(source)},
         "ranges": [
-            {"source": "a", "start": start, "end": end}
-            for start, end in zip(edges, edges[1:], strict=False)
+            {"source": "a", "start": start + index, "end": end + index}
+            for index, (start, end) in enumerate(zip(edges, edges[1:], strict=False))
         ],
         "overlays": overlays or [],
         "holds": [

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -181,7 +182,7 @@ def test_console_script_verify(synth_media, tmp_path: Path) -> None:
     edl = _edit_list(tmp_path / "edit.json", synth_media.path("calib"), synth_media.spans)
     result = subprocess.run(
         [
-            str(ROOT / ".venv" / "bin" / "yap-studio"),
+            str(Path(sys.executable).with_name("yap-studio")),
             "verify",
             str(synth_media.path("clean")),
             "--edl",

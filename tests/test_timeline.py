@@ -494,7 +494,7 @@ def transition_story(root: Path, *, sentence: bool = True, join: int = 180) -> N
     edit = json.loads((root / "edit.json").read_bytes())
     edit["segments"] = [
         {"id": "s1", "take": "t1", "from": {"time": 0}, "to": {"time": 6}},
-        {"id": "s2", "take": "t1", "from": {"time": 6}, "to": {"time": 12}},
+        {"id": "s2", "take": "t1", "from": {"time": 7}, "to": {"time": 13}},
     ]
     write(root / "edit.json", edit)
     mapped = {"schema": "yap-studio/cut-words@1", "time_base": "output",
@@ -517,7 +517,7 @@ def transition_story(root: Path, *, sentence: bool = True, join: int = 180) -> N
     spans = write(root / "staged-spans.json", {
         "sources": {"t1": "../source.mov"}, "fps": "30/1",
         "segments": [{"source": "t1", "start": "0", "end": str(join / 30)},
-                     {"source": "t1", "start": str(join / 30), "end": "12"}],
+                     {"source": "t1", "start": str(join / 30 + 1), "end": "13"}],
     })
     with StageRun(root, "cut") as run:
         for name, digest in cut_inputs(ProjectContext(root)).items():
@@ -616,7 +616,7 @@ def test_transition_wordless_outgoing_piece_uses_receipt_segment_id(
     staged_words = write(project / "staged-join-words.json", mapped)
     spans = [{"source": "t1", "start": "0", "end": "5.6"},
              {"source": "t1", "start": "5.7", "end": "6"},
-             {"source": "t1", "start": "6", "end": "12"}]
+             {"source": "t1", "start": "7", "end": "13"}]
     staged_spans = write(project / "staged-spans.json", {
         "sources": {"t1": "../source.mov"}, "fps": "30/1", "segments": spans,
     })
@@ -764,8 +764,8 @@ def test_transition_windows_at_distinct_joins(project: Path, second_join: int) -
     spans = write(project / "staged-spans.json", {
         "sources": {"t1": "../source.mov"}, "fps": "30/1",
         "segments": [{"source": "t1", "start": "0", "end": "6"},
-                     {"source": "t1", "start": "6", "end": str(second_join / 30)},
-                     {"source": "t1", "start": str(second_join / 30), "end": "12"}],
+                     {"source": "t1", "start": "7", "end": str(second_join / 30 + 1)},
+                     {"source": "t1", "start": str(second_join / 30 + 2), "end": "14"}],
     })
     with StageRun(project, "cut") as run:
         for name, digest in cut_inputs(ProjectContext(project)).items():
@@ -1867,13 +1867,13 @@ def test_opening_resolution(project: Path, start: dict) -> None:
     transition_story(project, join=45)
     result = add(project, opening(start=start), lane="agent").require_valid()
     item = result.elements[0]
-    assert (item.start_frame, item.end_frame) == (0, 43)
-    assert item.payload["opening"] == {"reason": "line", "word": "t1:5", "end_frame": 43,
+    assert (item.start_frame, item.end_frame) == (0, 45)
+    assert item.payload["opening"] == {"reason": "line", "word": "t1:5", "end_frame": 45,
                                        "end_scale": 1.3}
     assert item.payload["scale"] == 1.3
     assert item.payload["curve"] == [
         {"frame": 0, "scale": 1, "center": [.5, .42], "ease": "cut"},
-        {"frame": 43, "scale": 1.3, "center": [.5, .42], "ease": "linear"},
+        {"frame": 45, "scale": 1.3, "center": [.5, .42], "ease": "linear"},
     ]
 
 

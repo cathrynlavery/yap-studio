@@ -188,6 +188,13 @@ class Plan:
             segments.append(planned)
             running_frame = out_f0 + n_frames
 
+        boundaries = (
+            (left, right)
+            for left, right in zip(segments, segments[1:], strict=False)
+            if (left.source_id is None or left.source_id != right.source_id
+                or left.src_f1 != right.src_f0
+                or left.out_f0 + left.n_frames != right.out_f0)
+        )
         cuts = [
             PlanCut(
                 index=index,
@@ -197,7 +204,7 @@ class Plan:
                 out_time=right.out_time,
                 out_sample=right.sample_start,
             )
-            for index, (left, right) in enumerate(zip(segments, segments[1:], strict=False), 1)
+            for index, (left, right) in enumerate(boundaries, 1)
         ]
         planned_holds = [
             PlanHold(

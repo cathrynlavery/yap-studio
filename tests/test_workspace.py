@@ -148,8 +148,34 @@ def test_workspace_zip_uses_staged_content(tmp_path: Path) -> None:
         assert archive.read("CLAUDE.md") == b"@AGENTS.md\n"
         assert archive.read("LICENSES/Apache-2.0.txt") == staged_license
         assert archive.read(".yap-studio-version") == f"{VERSION}\n".encode()
+        _assert_workspace_links(archive)
         with zipfile.ZipFile(archive.open(f"wheels/{WHEEL}")) as wheel:
             assert wheel.read("yap_studio/__init__.py") == staged_package
+
+
+def _assert_workspace_links(archive: zipfile.ZipFile) -> None:
+    """Resolve Markdown/HTML links and bare doc references from the zip alone."""
+    import posixpath
+    from urllib.parse import unquote, urlsplit
+
+    members = set(archive.namelist())
+    checked = 0
+    for member in members:
+        if not member.endswith((".md", ".html")):
+            continue
+        text = archive.read(member).decode()
+        links = re.findall(r'\]\(([^)]+)\)|href=["\']([^"\']+)["\']|'
+                           r'(?<![\w/])(docs/[\w./-]+\.md)|^@(\S+\.md)$', text, re.M)
+        for match in links:
+            target = urlsplit(next(value for value in match if value))
+            if target.scheme or target.netloc or not target.path:
+                continue
+            resolved = posixpath.normpath(posixpath.join(
+                posixpath.dirname(member), unquote(target.path),
+            ))
+            assert resolved in members, f"{member}: missing {resolved}"
+            checked += 1
+    assert checked, "workspace must exercise at least one relative link"
 
 
 def test_every_tracked_workspace_file_is_bundled() -> None:

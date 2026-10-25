@@ -27,6 +27,20 @@ def _edit_list(segments: list[Segment]) -> EditList:
     )
 
 
+def test_only_source_and_output_continuity_skip_a_cut() -> None:
+    plan = Plan.build(_edit_list([
+        Segment(1, "main", Fraction(0), Fraction(1)),
+        Segment(2, "main", Fraction(1), Fraction(2)),
+        Segment(3, "main", Fraction(3), Fraction(4)),
+        Segment(4, "other", Fraction(4), Fraction(5)),
+        Segment(5, "other", Fraction(5), Fraction(6), output_start=Fraction(5)),
+    ]), Fraction(30), 48_000)
+    assert [(cut.index, cut.left.index, cut.right.index) for cut in plan.cuts] == [
+        (1, 2, 3), (2, 3, 4), (3, 4, 5),
+    ]
+    assert plan.total_frames == 180 and plan.total_samples == 288_000
+
+
 def test_half_frame_ties_snap_up() -> None:
     fps = Fraction(30000, 1001)
     for frame in (0, 1, 17, 100):

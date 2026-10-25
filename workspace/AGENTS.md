@@ -9,13 +9,13 @@ stay whole, centred and full height over a blurred, darkened fill from the same 
 Keep colour matching on by default, ask before using stock, and follow capture order in
 project videos. Stock searches prefer landscape and approved generated pictures use 16:9.
 Use `yap-studio media sheet ID --shape horizontal` when picking wide B-roll. Splits and
-behind-person B-roll remain refused; see docs/limits.md for unsupported features.
+behind-person B-roll remain refused; see [limits](https://github.com/cathrynlavery/yap-studio/blob/main/docs/limits.md) for unsupported features.
 Horizontal cards default to floating paper panels beside the speaker, using the creator's
 fonts and colours. Let the engine choose the open side from measured faces, inside title-safe
 and above captions. If it refuses, choose a moment with room beside the speaker; never cover
 the face or force a box. Playing grids, phone feeds, falling words and behind-speaker big
 numbers are unavailable: use video_card, checklist or stat instead. Side-panel and full-frame
-blurred card layouts are later options. See docs/limits.md for the supported template list.
+blurred card layouts are later options. See [limits](https://github.com/cathrynlavery/yap-studio/blob/main/docs/limits.md) for the supported template list.
 
 ## Set me up
 
@@ -304,5 +304,5 @@ An optional `--inset PHOTO` adds a tilted Polaroid when it clears the face and c
 After the cut, save a timeline fragment with one `caption_gap` on the `agent` lane, starting
 at `{"time": 0}` and ending at the full cut duration, including the end hold. Add it with the
 documented `yap-studio timeline add FRAGMENT DIR --lane agent` command (see
-docs/editing.md, Timeline elements). This hides captions for the whole video without changing
+[Timeline elements](https://github.com/cathrynlavery/yap-studio/blob/main/docs/editing.md#timeline-elements)). This hides captions for the whole video without changing
 the style format.

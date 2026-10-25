@@ -103,11 +103,27 @@ def test_cut_cli_verified_noop_force_and_failed(
     assert result["status"] == "verified"
     assert main(["cut", str(root)]) == 0
     assert "Cut unchanged." in capsys.readouterr().out
-    monkeypatch.setattr(cut_stage, "verify", lambda **kwargs: {"status": "fail", "findings": []})
+    monkeypatch.setattr(cut_stage, "verify", lambda **kwargs: {
+        "status": "fail", "findings": [
+            {"check": "join.words", "severity": "fail", "cut": 1, "time_s": 17.633333,
+             "message": 'The source voice for the planned last word "learn." overlaps this '
+                        'edge by 80 ms; the cut drops its end or the whole word.',
+             "suggested_action": 'Move this segment\'s last edge later to keep "learn.".'},
+            {"check": "join.click", "severity": "fail", "cut": 2, "time_s": 30,
+             "message": "A click at this cut.", "suggested_action": "Smooth this join."},
+        ],
+    })
     assert main(["cut", str(root), "--force", "--json"]) == 1
     assert json.loads(capsys.readouterr().out)["status"] == "failed"
     assert main(["cut", str(root), "--force"]) == 1
-    assert "failed: verify (expected pass, actual fail)" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "failed: verify (expected pass, actual fail)" in output
+    assert 'Cut 1 at 0:17.6' in output
+    assert 'planned last word "learn."' in output
+    assert 'Move this segment\'s last edge later to keep "learn.".' in output
+    assert "Cut 2 at 0:30.0" in output and "A click at this cut." in output
+    assert "Smooth this join." in output
+    assert "cut/verify.json" in output
 
 
 def test_cut_cli_prints_contract_values(tmp_path: Path, capsys: pytest.CaptureFixture,

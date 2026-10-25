@@ -191,9 +191,8 @@ def test_continuous_tone_through_seamless_cuts_does_not_click(
         source, plan, {"main": source}, measured, backend=None, work_dir=tmp_path
     )
 
-    assert len(result.cuts) == len(spans) - 1
-    assert not [finding for finding in result.findings if finding.check == "join.click"]
-    assert all(cut.click_db is not None and abs(cut.click_db) <= 1 for cut in result.cuts)
+    assert plan.cuts == result.cuts == []
+    assert result.findings == []
 
 
 def test_music_transient_uses_voice_stem_for_clicks(calibration, tmp_path: Path) -> None:
@@ -665,13 +664,18 @@ def small_media(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     original = rng.normal(0, 0.1, 10 * sr).astype(np.float32)
     frames = rng.uniform(30, 230, (300, 12, 16)).astype(np.float32)
     plan = _plan(tmp_path, source, [(0, 3), (4, 7), (7, 10)])
+    # The second control join switches takes, so it remains a cut without a time gap.
+    edits = load_edit_list(tmp_path / "spans.json")
+    edits.sources["tail"] = Source("tail", source)
+    edits.segments[2] = replace(edits.segments[2], source_id="tail")
+    plan = Plan.build(edits, Fraction(30), sr)
     sound = np.concatenate((original[: 3 * sr], original[4 * sr :]))
     picture = np.concatenate((frames[:90], frames[120:]))
     mapping = video.Mapping("full", 1, 0, 0, 16, 12, 1)
     rows = [
         sync.SegmentSync(
             segment.index,
-            "main",
+            segment.source_id,
             measured=True,
             mapping=mapping,
             video_frame=segment.out_f0 + segment.n_frames // 2,
@@ -732,7 +736,7 @@ def _check(media, **kwargs):
     return joins.check_joins(
         media.render,
         media.plan,
-        {"main": media.source},
+        {"main": media.source, "tail": media.source},
         sync.SyncResult(media.rows, None, []),
         **arguments,
     )
@@ -837,9 +841,10 @@ def _with_intent(plan: Plan, directory: Path, **words: dict[int, str]) -> Plan:
     """Read boundary intent through the same span format used by verify."""
     path = directory / "intent.json"
     path.write_text(json.dumps({
-        "source": "source.mov",
+        "sources": {row.source_id: "source.mov" for row in plan.segments},
         "segments": [
-            {"start": str(Fraction(row.src_f0, 1) / plan.fps),
+            {"source": row.source_id,
+             "start": str(Fraction(row.src_f0, 1) / plan.fps),
              "end": str(Fraction(row.src_f1, 1) / plan.fps),
              **{key: values[row.index] for key, values in words.items() if row.index in values}}
             for row in plan.segments
@@ -1618,7 +1623,7 @@ def test_source_outer_words_share_the_join_batch(
         first_word={1: "Bright"}, last_word={len(media.plan.segments): "hills"},
     )
     sr = 8000
-    edge = 3.0 if single else 10.0
+    edge = 3.0 if single else 11.0 if case == "clipped" else 10.0
     # Source context extends past the authored end, even when the render has ended.
     media.original.resize(round((edge + 1) * sr), refcheck=False)
     media.original[:] = 10 ** (-65 / 20)
@@ -1627,7 +1632,7 @@ def test_source_outer_words_share_the_join_batch(
     if case == "clipped":
         # Start inside the source so its excluded voice is available to the control.
         media.plan = _plan(media.directory, media.source,
-                           [(0.1, 3)] if single else [(0.1, 3), (4, 7), (7, 10)])
+                           [(0.1, 3)] if single else [(0.1, 3), (4, 7), (8, 11)])
         media.plan = _with_intent(media.plan, media.directory,
                                   first_word={1: "Bright"},
                                   last_word={len(media.plan.segments): "hills"})
@@ -2243,7 +2248,7 @@ def test_unavailable_source_decode_is_cached(small_media, monkeypatch: pytest.Mo
         return decode(path, sr=sr)
 
     monkeypatch.setattr(audio, "decode", unavailable)
-    result = _check(small_media, source_streams={"main": 5})
+    result = _check(small_media, source_streams={"main": 5, "tail": 5})
 
     assert attempts == [5]
     assert small_media.pictures == [small_media.render]
@@ -2638,6 +2643,29 @@ def speech_media(tmp_path_factory):
     )
 
 
+def test_contiguous_boundary_keeps_last_word_voice(small_media: SimpleNamespace) -> None:
+    media = small_media
+    media.plan = _with_intent(
+        _plan(media.directory, media.source, [(0, 3), (3, 6), (7, 10)]), media.directory,
+        last_word={1: "before."},
+    )
+    sr = 8000
+    media.original[:] = 10 ** (-65 / 20)
+    media.original[round(2.60 * sr):round(3.08 * sr)] = 0.1
+    media.sound[:] = np.concatenate((media.original[:6 * sr], media.original[7 * sr:]))
+    media.picture[:] = np.concatenate((media.frames[:180], media.frames[210:]))
+
+    def script(path: Path) -> Transcript:
+        if path.name == "cut-01-left.wav":
+            return Transcript([Word("BEFORE", 2.1, 2.4)])
+        return Transcript([])
+
+    result = _check(media, backend=ScriptedBackend(script))
+    assert not [row for row in result.findings if row.check == "join.words"], result.to_dict()
+    assert [(cut.index, cut.out_frame) for cut in media.plan.cuts] == [(1, 180)]
+    assert [cut.index for cut in result.cuts] == [1]
+
+
 @_LOCAL_ONLY
 @pytest.mark.parametrize("case", ["exact", "clipped", "missing"])
 @pytest.mark.parametrize("outer", [False, True])
@@ -2909,7 +2937,7 @@ def test_words_audio_feeds_join_and_outer_trials(
     stem = synth.float_audio(tmp_path / "stem.wav", np.full(count, .05, dtype=np.float32))
     original = synth.float_audio(tmp_path / "original.wav", np.full(count, .03, dtype=np.float32))
     reference = render if source_is_render else original
-    plan = _plan(tmp_path, reference, [(0, 2), (2, 4)])
+    plan = _plan(tmp_path, reference, [(0, 2), (1, 3)])
     plan = replace(plan, segments=[replace(segment, first_word="first", last_word="last")
                                    for segment in plan.segments])
     seen, outer = [], []
@@ -2934,7 +2962,7 @@ def test_words_audio_feeds_join_and_outer_trials(
     np.testing.assert_array_equal(seen[0], expected)
     source_sound = audio.decode(stem if use_stem and source_is_render else reference)[1]
     for trial, frame, before, after in zip(
-        outer, (0, 120), (1, 1.5), (1.5, 1), strict=True,
+        outer, (0, 90), (1, 1.5), (1.5, 1), strict=True,
     ):
         expected = joins._slice(source_sound, rate, frame / 30 - before, frame / 30 + after)
         np.testing.assert_array_equal(trial.sound, expected)

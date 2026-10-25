@@ -110,7 +110,7 @@ title-safe and above captions. When neither side fits, choose a moment with room
 speaker. Do not force a box or put the card behind the person. Playing grids, phone feeds,
 falling words and behind-speaker big numbers remain unavailable; use video_card, checklist or
 stat. Side panels and full-frame blurred layouts are later options. Supported templates and
-video-window motion limits are listed in docs/limits.md.
+video-window motion limits are listed in [limits](https://github.com/cathrynlavery/yap-studio/blob/main/docs/limits.md).
 
 Use a moment only when the style lists it or a review comment asks for one; then turn
 it on in the project's style. Put it on a punchline, key claim or reveal. Keep starts

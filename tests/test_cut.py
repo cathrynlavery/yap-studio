@@ -1160,6 +1160,34 @@ def test_removal_between_touching_words_requires_listening(
     assert plan.pieces[1].words == ("t1:2",)
 
 
+@pytest.mark.parametrize("shape", ["vertical", "horizontal"])
+def test_contiguous_segments_keep_audio_and_offer_no_review_join(
+    tmp_path: Path, shape: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from yap_studio.review.findings import findings_for_media
+
+    source = synth.calib_source(tmp_path / "source.mov", seconds=4,
+                                size="320x180" if shape == "horizontal" else "180x320")
+    root = make_project(tmp_path / "project", [source])
+    project = json.loads((root / "project.json").read_bytes())
+    write_json(root / "project.json", {**project, "shape": shape})
+    write_edit(root, [time_segment("whole", "t1", 0.3, 2.7)])
+    assert cut(root)["status"] == "verified"
+    straight_audio = (root / "cut/voice.wav").read_bytes()
+    write_edit(root, [time_segment("left", "t1", 0.3, 1.5),
+                      time_segment("right", "t1", 1.5, 2.7)])
+    monkeypatch.setattr(cut_stage, "_listen_boundary", lambda *args, **kwargs: True)
+    result = cut(root)
+    assert result["status"] == "verified"
+    assert (root / "cut/voice.wav").read_bytes() == straight_audio
+    assert result["listen_joins"] == []
+    report = json.loads((root / "cut/verify.json").read_bytes())
+    assert report["summary"]["cuts"] == 0
+    media = root / "cut/cut.mp4"
+    items = findings_for_media(media, receipt.sha256_file(media), project_dir=root)["items"]
+    assert not [item for item in items if item["reason"] == "Listen to this join"]
+
+
 def test_60fps_conforms_and_verifies(tmp_path: Path) -> None:
     source = synth.calib_source(tmp_path / "source.mov", seconds=7, fps="60/1")
     root = make_project(tmp_path / "project", [source])
@@ -1968,7 +1996,8 @@ def test_selected_speech_stream_cuts_and_verifies(tmp_path: Path) -> None:
     report = json.loads((root / "cut/verify.json").read_bytes())
     assert all(row["audio_landing_s"] is not None for row in report["segments"])
     assert all(row["audio_vs_plan_ms"] == pytest.approx(0, abs=2) for row in report["segments"])
-    assert report["checks"]["join.words"]["status"] == "pass"
+    assert report["summary"]["cuts"] == 0
+    assert report["checks"]["join.words"]["status"] == "skipped"
 
 
 def test_neighbouring_word_segments_join_only_when_close(

@@ -783,6 +783,7 @@ def _resolve(context: ProjectContext) -> CutPlan:
                 )
     repeated = repeats.find_repeats(list(retained_words.values()))
     warnings.extend(repeats.repeat_warnings(repeated))
+    cut_frames = {cut.out_frame for cut in engine.cuts}
     listen = tuple(
         {
             "frame": right.out_f0,
@@ -791,7 +792,7 @@ def _resolve(context: ProjectContext) -> CutPlan:
             "right": right.segment_id,
         }
         for left, right in zip(placed, placed[1:], strict=False)
-        if left.listen_out or right.listen_in
+        if right.out_f0 in cut_frames and (left.listen_out or right.listen_in)
     )
     if edit.end_hold_s is not None:
         hold = _fraction(edit.end_hold_s)
@@ -1236,9 +1237,14 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                         if gain != 0.0:
                             sounds[index] = sounds[index] * np.float32(10 ** (gain / 20))
                 unfaded = np.concatenate(sounds)
+                splice_edges = [0, *(
+                    right.sample_start
+                    for left, right in zip(plan.pieces, plan.pieces[1:], strict=False)
+                    if left.take != right.take or left.src_f1 != right.src_f0
+                ), plan.total_samples]
                 voice, _ = audio.splice(
                     unfaded,
-                    [(piece.sample_start, piece.sample_end) for piece in plan.pieces],
+                    list(zip(splice_edges, splice_edges[1:], strict=False)),
                     FADE_SAMPLES,
                 )
                 voice_path = work / "voice.wav"
@@ -1443,6 +1449,8 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                     "verify": "cut/verify.json",
                     "conversions": conversion_rows,
                     "asserts": assertions,
+                    "failures": [item for item in report.get("findings", [])
+                                 if item["severity"] == "fail"],
                     **({"take_levels": take_level_record} if take_level_record is not None else {}),
                 }
         finally:
