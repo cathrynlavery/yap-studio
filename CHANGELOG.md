@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- The join Listen browser test reads the start position when the review page presses play, after its seek has settled, so a slow test machine can no longer make a correct start look late.
+- The join Listen browser test reads the start position when the review page presses play, after its seek has settled, so a slow test machine can no longer make a correct start look late. Its 8x CPU-throttled variant runs in local gates only.
 - A Listen that runs to the end of the video stops on its planned last frame, not two frames early, on a busy machine.
 - Wide videos get B-roll: full-frame clips and stills, portrait and square media shown whole over a soft blurred fill, landscape-first stock and 16:9 generated pictures, and 16:9 picking sheets.
 - The Home browser test taps only a live, enabled button, so a page refresh mid-tap no longer fails it on slow machines.

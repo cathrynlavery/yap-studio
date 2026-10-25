@@ -68,7 +68,10 @@ def test_review_pin_phone_and_desktop(tmp_path: Path) -> None:
 @pytest.mark.parametrize(("agent", "cpu_throttle"), [
     pytest.param(None, 1, id="None"),
     pytest.param("codex", 1, id="codex"),
-    pytest.param("codex", 8, id="codex-8x"),
+    # Throttling GitHub's shared macOS runner 8x times the runner, not the page.
+    pytest.param("codex", 8, id="codex-8x", marks=pytest.mark.skipif(
+        os.environ.get("GITHUB_ACTIONS") == "true", reason="CPU stress variant runs in local gates",
+    )),
 ])
 def test_review_join_listens_phone_and_desktop(join_project, tmp_path, agent, cpu_throttle):
     root, _, _ = join_project
