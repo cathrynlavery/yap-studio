@@ -20,6 +20,11 @@ async function run(url, resultFile, shots, agent = 'Claude Code', cpuThrottle = 
         const cdp = await page.createCDPSession();
         await cdp.send('Emulation.setCPUThrottlingRate', {rate: Number(cpuThrottle)});
         await page.evaluateOnNewDocument(() => {
+          // Playback advances while a busy main thread delays the playing observer.
+          document.addEventListener('playing', () => {
+            const until = performance.now() + 120;
+            while (performance.now() < until) {}
+          }, true);
           // Let EOF beat the final frame callback, as a busy main thread can on a slow Mac.
           window.joinEndStalled = false;
           const requestFrame = HTMLVideoElement.prototype.requestVideoFrameCallback;
@@ -54,8 +59,15 @@ async function run(url, resultFile, shots, agent = 'Claude Code', cpuThrottle = 
           return video.paused && !video.seeking;
         });
         await page.$eval('#video', (node) => {
-          const sample = window.joinPlayback = {start: null, end: null};
-          node.addEventListener('playing', () => { sample.start = node.currentTime; }, {once: true});
+          const sample = window.joinPlayback = {start: null, end: null, seeking: null};
+          const play = node.play;
+          // Observe the settled seek the app plays from, before the media clock advances.
+          node.play = function(...args) {
+            node.play = play;
+            sample.start = node.currentTime;
+            sample.seeking = node.seeking;
+            return play.apply(this, args);
+          };
           const recordEnd = () => {
             if (sample.start === null) return;
             sample.end = node.currentTime;
@@ -65,8 +77,9 @@ async function run(url, resultFile, shots, agent = 'Claude Code', cpuThrottle = 
         });
         await button.click();
         await page.waitForFunction(() => window.joinPlayback.start !== null && window.joinPlayback.end !== null);
-        const {start, end} = await page.evaluate(() => window.joinPlayback);
-        // Capture event times in-page; allow less than two frames at 30 fps.
+        const {start, end, seeking} = await page.evaluate(() => window.joinPlayback);
+        assert.equal(seeking, false, `Listen ${index} played before its seek settled`);
+        // Allow less than two frames at 30 fps.
         assert.ok(Math.abs(start - (index ? 35 / 30 : 0)) < 0.06, `Listen ${index} start: ${start}`);
         assert.ok(Math.abs(end - (index ? 119.5 / 30 : 84.5 / 30)) < 0.06, `Listen ${index} end: ${end}`);
         played.push({start, end});
