@@ -152,10 +152,14 @@ def pick_frame(
             cursor = max(cursor, end)
         if cursor < count:
             windows.append((cursor, count))
-        seeds = sorted({index for start, end in windows
-                        for index in (start, (start + end - 1) // 2, end - 1)})
-        if len(seeds) > 120:
-            seeds = [seeds[int(i)] for i in np.linspace(0, len(seeds) - 1, 120)]
+        window_count = len(windows)
+        if window_count > 120:
+            windows = [windows[i * (window_count - 1) // 119] for i in range(120)]
+        # Cover every window before spending the budget on midpoints or ends.
+        seeds = list(dict.fromkeys(
+            [start for start, _ in windows]
+            + [(start + end - 1) // 2 for start, end in windows]
+            + [end - 1 for _, end in windows]))[:120]
         rest = [i for i in indices if i not in seeds and eligible_frame(i, timeline) is None]
         budget = max(0, 120 - len(seeds))
         if len(rest) > budget:
@@ -177,6 +181,8 @@ def pick_frame(
               if detector is None else "largest sharp face with open eyes")
     if shape == "horizontal":
         reason += "; ranked lighting and room beside the face across the finished cut"
+        if window_count > 120:
+            reason += f"; sampled 120 of {window_count} speaker windows, evenly spread"
     with tempfile.TemporaryDirectory(prefix="cover-pick-") as directory:
         folder = Path(directory)
         rows = []

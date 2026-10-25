@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from fractions import Fraction
 from pathlib import Path
 
@@ -319,6 +320,59 @@ def test_wide_plain_headline_does_not_resolve_unused_accent():
     with pytest.raises(ValidationError, match='accent'):
         plan_blocks('photo', {'headline': 'Good *work*'}, style,
                     face_box=(170, 220, 280, 330), shape='horizontal')
+
+
+@pytest.mark.parametrize(('window_count', 'midpoint_count', 'end_count'), [
+    (40, 39, 40), (60, 59, 1), (100, 20, 0), (121, 0, 0),
+])
+def test_wide_sample_cap_prioritizes_window_coverage(window_count, midpoint_count, end_count):
+    windows = []
+    replacements = []
+    cursor = 0
+    for index in range(window_count):
+        end = cursor + (2 if index == 1 else 3)
+        windows.append((cursor, end))
+        if index < window_count - 1:
+            replacements.append(('insert', end, end + 1))
+        cursor = end + 1
+    count = windows[-1][1]
+    face = (FaceBox(Box(375, 375, 225, 360), .99, 'detected'),)
+    faces = FacesData('measured', None, VideoIdentity('cut.mp4', 'hash', count,
+                      Fraction(30), 1920, 1080), {}, {}, (face,) * count, ())
+    pixels = np.full((720, 1280), 130, np.uint8)
+    timeline = TimelineSnapshot(count, 0, tuple(replacements))
+    picked = pick_frame(None, faces, timeline, shape='horizontal',
+                        image_loader=lambda _: pixels)
+    sampled = {row['frame'] for row in picked.candidates}
+    assert len(sampled) <= 120
+    starts = {start for start, _ in windows}
+    midpoints = {(start + end - 1) // 2 for start, end in windows} - starts
+    ends = {end - 1 for _, end in windows} - starts - midpoints
+    assert len(sampled & midpoints) == midpoint_count
+    assert len(sampled & ends) == end_count
+    if window_count > 120:
+        # Even spacing across 121 windows omits the penultimate window.
+        selected = windows[:119] + windows[-1:]
+        assert sampled == {start for start, _ in selected}
+        assert '120 of 121 speaker windows' in picked.reason
+        assert 'evenly spread' in picked.reason
+    else:
+        assert all(any(start <= frame < end for frame in sampled) for start, end in windows)
+        assert starts <= sampled
+        if window_count == 100:
+            assert sampled & midpoints == {
+                start + 1 for start, _ in windows[:1] + windows[2:21]}
+        if window_count == 60:
+            assert sampled & ends == {2}
+    repeated = pick_frame(None, faces, timeline, shape='horizontal',
+                          image_loader=lambda _: pixels)
+    assert repeated == picked
+    if window_count == 100:
+        only_face = windows[1][0]
+        faces = replace(faces, frames=tuple(face if i == only_face else () for i in range(count)),
+                        gaps=((0, only_face), (only_face + 1, count)))
+        assert pick_frame(None, faces, timeline, shape='horizontal',
+                          image_loader=lambda _: pixels).frame == only_face
 
 
 def test_wide_sampling_seeds_short_speaker_window():
