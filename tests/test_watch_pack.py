@@ -37,7 +37,11 @@ def media(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     root = tmp_path_factory.mktemp("watch-media")
     video = root / "render.mp4"
     cuts = synth.watch_render(video)
-    edl = synth.watch_spans(root / "spans.json", root / "missing-source.mp4", cuts)
+    edl = synth.watch_spans(root / "spans.json", video, cuts)
+    # Keep missing-source coverage after validating the ranges against real media.
+    spans = json.loads(edl.read_text())
+    spans["sources"]["a"] = str(root / "missing-source.mp4")
+    edl.write_text(json.dumps(spans, indent=2) + "\n", encoding="utf-8")
     words = synth.watch_words(
         root / "words.json",
         [

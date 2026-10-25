@@ -217,6 +217,22 @@ def test_subpixel_region_packs_and_scans_with_still_finding(
     assert findings[0]["end_s"] == pytest.approx(6, abs=1 / 30)
 
 
+@pytest.mark.parametrize("helper,key", [(synth.watch_spans, "segments"),
+                                      (synth.watch_ranges, "ranges")])
+def test_watch_fixture_source_frames(prepared, tmp_path, helper, key) -> None:
+    source = prepared["video"]
+    path = tmp_path / "edit.json"
+    data = json.loads(helper(path, source, [3.0, 7.5]).read_text())
+    ranges = [(item["start"] * 30, item["end"] * 30) for item in data[key]]
+    assert ranges == [(0, 90), (60, 195), (165, 255)]
+    stream = synth._stream(source, "video")
+    assert all(0 <= start < end <= int(stream["nb_frames"]) for start, end in ranges)
+    assert [end - start for start, end in ranges] == [90, 135, 90]
+    assert all(left[1] != right[0] for left, right in zip(ranges, ranges[1:], strict=False))
+    with pytest.raises(AssertionError, match="within source duration"):
+        helper(path, source, [], end_s=11)
+
+
 def test_cut_splits_still_span() -> None:
     pack = pack_dict(still=[still_span(0, 240)], cuts=[cut(1, 120, None)])
     result = scan_pack(pack, words=None)
