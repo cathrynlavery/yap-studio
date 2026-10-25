@@ -120,8 +120,8 @@ def test_horizontal_refusal_lifts_only_supported_layers(tmp_path, kind, payload)
     context = _context(tmp_path)
     item = Element("agent-test", kind, Anchor(time=0), fields=payload)
     require_supported(context, {"agent": SimpleNamespace(elements=[item], lane="agent")})
-    item = replace(item, kind="graphic", fields={"template": "steps"})
-    with pytest.raises(YapError, match="graphic"):
+    item = replace(item, kind="graphic", fields={"template": "playing_grid"})
+    with pytest.raises(YapError, match="playing_grid"):
         require_supported(context, {"agent": SimpleNamespace(elements=[item], lane="agent")})
 
 

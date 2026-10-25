@@ -415,7 +415,7 @@ function stepShape(draft) {
   const unsupported = draft.shape === 'horizontal' && draft.video_type !== 'talking_head';
   return h('section', {}, ...stepHeader('what', 'Vertical or horizontal?', 'Choose for this video. You can change it when you add your footage.'),
     h('div', {class: 'section'}, shapeChoices(draft)),
-    draft.shape === 'horizontal' ? h('p', {class: 'note', text: 'Horizontal talking head and B-roll are ready. Voiceover, green screen, screen recording effects, titles and cards are coming soon.'}) : null,
+    draft.shape === 'horizontal' ? h('p', {class: 'note', text: 'Horizontal talking head, B-roll, titles and floating cards are ready. Phone feeds, full-frame grids, falling words and behind-speaker numbers are coming later, along with voiceover, green screen and screen recording effects.'}) : null,
     unsupported ? h('p', {class: 'note', role: 'alert', text: 'Choose vertical for a voiceover, or go back and choose talking head.'}) : null,
     h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/what', text: 'Back'}), h('span', {class: 'spacer'}),
       h('button', {type: 'button', class: 'btn primary big', disabled: unsupported, text: 'Next', onclick: async () => {
@@ -643,7 +643,7 @@ function stepLook(draft) {
         h('label', {class: 'check-row'}, h('input', {type: 'checkbox', role: 'switch', checked: draft.captions === true,
           onchange: (event) => { saveDraft({...loadDraft(), captions: event.target.checked}); }}),
         h('span', {}, h('strong', {text: 'Add captions to this video'})))),
-      h('p', {class: 'note', text: 'Opening titles, chapter cards, name tags and B-roll work in horizontal videos. Titles, chapter cards and name tags use your fonts and colors. Cards, zooms and color grades are coming soon.'}),
+      h('p', {class: 'note', text: 'Opening titles, chapter cards, name tags, B-roll and floating cards work in horizontal videos, using your fonts and colors. Floating cards sit beside the speaker, clear of faces and captions. Phone feeds, full-frame grids, falling words and behind-speaker numbers are coming later. Zooms and color grades are coming soon.'}),
       h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/footage', text: 'Back'}), h('span', {class: 'spacer'}),
         h('button', {type: 'button', class: 'btn primary big', text: 'Next', onclick: () => navigate('#new/make')})));
   }

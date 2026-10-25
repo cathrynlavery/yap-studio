@@ -10,6 +10,12 @@ Keep colour matching on by default, ask before using stock, and follow capture o
 project videos. Stock searches prefer landscape and approved generated pictures use 16:9.
 Use `yap-studio media sheet ID --shape horizontal` when picking wide B-roll. Splits and
 behind-person B-roll remain refused; see docs/limits.md for unsupported features.
+Horizontal cards default to floating paper panels beside the speaker, using the creator's
+fonts and colours. Let the engine choose the open side from measured faces, inside title-safe
+and above captions. If it refuses, choose a moment with room beside the speaker; never cover
+the face or force a box. Playing grids, phone feeds, falling words and behind-speaker big
+numbers are unavailable: use video_card, checklist or stat instead. Side-panel and full-frame
+blurred card layouts are later options. See docs/limits.md for the supported template list.
 
 ## Set me up
 

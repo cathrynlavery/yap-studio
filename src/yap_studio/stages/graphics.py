@@ -578,8 +578,43 @@ def graphics_snapshot(
             project = (project_facts(context, timeline, element)
                        if template in PROJECT_CARD_TEMPLATES else None)
             scene = template in {"playing_grid", "reel_feed"}
+            wide = context.project.shape == "horizontal"
             safe_order = safe_card_order(template, style, slots)
-            if scene:
+            if wide:
+                from yap_studio.canvas import canvas
+                from yap_studio.wide_cards import place_card as place_wide_card
+
+                if element.layer != "front":
+                    raise ValidationError("graphic.layer", "Use front for a floating card.")
+                if "box" in element.payload:
+                    raise ValidationError("graphic.box", "Remove box to place the floating "
+                                          "card clear of faces and captions.")
+                card = cards.card_layer_plan(template, slots, style,
+                                             frames=element.end_frame - element.start_frame,
+                                             project=project, shape="horizontal")
+                captions_top = _caption_top(context, style, element.start_frame, element.end_frame)
+                if any(item.kind == "caption_gap" and item.start_frame <= element.start_frame
+                       and item.end_frame >= element.end_frame for item in timeline.elements):
+                    captions_top = canvas("horizontal").caption_top
+                if faces is None and placement_record is None:
+                    faces = picture_faces(context.project_dir, timeline, context)
+                    face_frames = (face_boxes_per_frame(faces)
+                                   if faces.status == "measured" else None)
+                card, clearance = place_wide_card(
+                    card, style, [] if placement_record is not None else
+                    face_frames[element.start_frame:element.end_frame]
+                    if face_frames is not None else None,
+                    saved_box=Box(**placement_record["clearance"]["box"])
+                    if placement_record is not None else None,
+                    caption_top=captions_top,
+                )
+                if placement_record is not None:
+                    clearance = placement_record["clearance"]
+                    motion = clearance.get("card_motion", {})
+                    card = replace(card, motion={key: motion[key] for key in ("side", "enter")}
+                                   if motion.get("status") == "streak" else None)
+                placement = "top"
+            elif scene:
                 if "box" in element.payload:
                     raise ValidationError("graphic.box", "full-frame cards arrange their own "
                                           "windows; remove box")
@@ -619,7 +654,7 @@ def graphics_snapshot(
                 card = cards.card_layer_plan(template, slots, style,
                                              frames=element.end_frame - element.start_frame,
                                              project=project)
-            if "box" in element.payload and template != "big_number":
+            if not wide and "box" in element.payload and template != "big_number":
                 box = element.payload["box"]
                 _validate_card_box(box)
                 card = fitted_card(template, slots, style,
@@ -627,7 +662,7 @@ def graphics_snapshot(
                                    width=box["width"], project=project,
                                    height=box["height"])
                 card = _card_box(card, element.payload["box"])
-            if placement_record is not None:
+            if not wide and placement_record is not None:
                 box = {key: placement_record[key] for key in ("x", "y", "width", "height")}
                 motion_record = placement_record["clearance"].get("card_motion", {})
                 if motion_record.get("status") == "streak":
@@ -653,7 +688,7 @@ def graphics_snapshot(
                                if motion_record.get("status") == "streak" else None)
                 placement = "behind_head" if placement_record["layer"] == "behind" else "top"
                 clearance = placement_record["clearance"]
-            elif not scene:
+            elif not wide and not scene:
                 if faces is None:
                     faces = picture_faces(context.project_dir, timeline, context)
                     face_frames = (face_boxes_per_frame(faces)
@@ -689,7 +724,7 @@ def graphics_snapshot(
                     )
                 if clearance["status"] == "blocked":
                     raise ValidationError(f"graphic.{element.id}.clearance", clearance["reason"])
-            if placement_record is None and "card_motion" not in clearance:
+            if not wide and placement_record is None and "card_motion" not in clearance:
                 card, clearance = plan_motion(
                     card, style, face_frames[element.start_frame:element.end_frame]
                     if face_frames is not None else None, clearance)
@@ -754,6 +789,12 @@ def graphics_snapshot(
                                                  "version": grade.GRADE_VERSION}
             if card.windows:
                 projection["windows"] = card.windows
+            if wide:
+                from yap_studio import wide_cards
+
+                projection["wide"] = {"variables": card.variables,
+                    "source": hashlib.sha256(context.read(str(Path(wide_cards.__file__))))
+                    .hexdigest()}
             if card.motion:
                 from yap_studio import card_motion
 

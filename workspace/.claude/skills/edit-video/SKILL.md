@@ -104,6 +104,13 @@ a plain fix when the list is invalid; a valid list is saved beside the final and
 on Home and review. Use the creator's title and card fonts and colors for wide titles,
 chapters and name tags. Offer None or Just the opening for horizontal text; the whole-video
 label remains unavailable. Wait for chosen opening text before rendering it.
+Horizontal cards use floating paper panels in the open side of the shot, with the creator's
+fonts and colours. Let the engine fit and place them against every measured face, inside
+title-safe and above captions. When neither side fits, choose a moment with room beside the
+speaker. Do not force a box or put the card behind the person. Playing grids, phone feeds,
+falling words and behind-speaker big numbers remain unavailable; use video_card, checklist or
+stat. Side panels and full-frame blurred layouts are later options. Supported templates and
+video-window motion limits are listed in docs/limits.md.
 
 Use a moment only when the style lists it or a review comment asks for one; then turn
 it on in the project's style. Put it on a punchline, key claim or reveal. Keep starts

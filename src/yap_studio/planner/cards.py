@@ -293,7 +293,8 @@ class GraphicsPlan:
                     "slots": card.lane_slots(),
                     "start": card.start.to_dict(),
                     "layer": card.layer(),
-                    **({} if card.template in {"playing_grid", "reel_feed"} else {
+                    **({} if card.template in {"playing_grid", "reel_feed"}
+                       or card.clearance.get("layout") == "floating" else {
                         "box": {"x": card.x, "y": card.y,
                                 "width": card.width, "height": card.height}}),
                     **(
@@ -371,6 +372,12 @@ class GraphicsPlan:
 def _render_key(layer: CardPlan) -> str:
     """Hash pixel inputs, using asset contents rather than their source paths."""
     data = asdict(layer)
+    if layer.shape == "vertical":
+        data.pop("shape")
+    else:
+        from yap_studio import wide_cards
+
+        data["wide_source"] = sha256_file(Path(wide_cards.__file__))
     if layer.motion is None:
         data.pop("motion", None)
     else:
@@ -824,6 +831,10 @@ def plan_cards(
         raise ValidationError("cut_words.time_base", "expected output time")
     if project_dir is not None:
         project_dir = Path(project_dir).resolve()
+    from yap_studio.canvas import canvas, project_canvas
+
+    frame = project_canvas(project_dir) if project_dir is not None else canvas()
+    wide = frame.width > frame.height
     if not isinstance(requests, dict):
         requests = {
             "schema": REQUESTS_SCHEMA,
@@ -833,7 +844,7 @@ def plan_cards(
     if faces is not None:
         face_count = frames + (timeline.end_hold_frames if timeline else 0)
         for key, expected in (("frames", face_count), ("fps", fps),
-                              ("width", 1080), ("height", 1920)):
+                              ("width", frame.width), ("height", frame.height)):
             if getattr(faces.video, key) != expected:
                 raise ValidationError(
                     f"faces.video.{key}", f"must describe the same cut: {expected}"
@@ -843,6 +854,10 @@ def plan_cards(
     warnings = []
     for index, request in enumerate(requests):
         location = f"cards[{index}]"
+        if wide:
+            from yap_studio.wide_cards import require_template
+
+            require_template(request.template)
         if card_kind_off(style, request.template):
             raise ValidationError(
                 f"{location}.template",
@@ -939,13 +954,16 @@ def plan_cards(
         render_slots = relative_times(planned_slots, f"{location}.slots")
         scene = request.template in {"playing_grid", "reel_feed"}
         caption_top = (card_caption_top(style, start_frame, end_frame, caption_layout)
-                       if scene or request.template == "video_card"
+                       if wide or scene or request.template == "video_card"
                        or safe_card_order(request.template, style, planned_slots) is not None
                        else None)
         ceiling = caption_ceiling(style, caption_top) if scene else None
         try:
             slots = _resolved_slots(request.template, render_slots, project_dir)
-            if request.template == "playing_grid":
+            if wide:
+                layer = card_layer_plan(request.template, slots, style,
+                                        frames=end_frame - start_frame, fps=fps, shape="horizontal")
+            elif request.template == "playing_grid":
                 from yap_studio.cards import grid_card_plan
 
                 layer, _ = grid_card_plan(
@@ -984,7 +1002,16 @@ def plan_cards(
                 f"{RULE_DEFAULTS['graphic_hold_max_s']:g} s"
             )
         windows = behind_face_windows(timeline, start_frame, end_frame) if timeline else ()
-        if request.template == "big_number":
+        if wide:
+            from yap_studio.wide_cards import place_card as place_wide_card
+
+            if request.placement != "top":
+                raise ValidationError(location, "Use top for a floating card.")
+            layer, clearance = place_wide_card(
+                layer, style, face_frames[start_frame:end_frame]
+                if face_frames is not None else None, caption_top=caption_top)
+            placement = "top"
+        elif request.template == "big_number":
             layer, placement, clearance = provisional_number(
                 layer, margin_px=face_clearance_px(style.data),
             )
@@ -1005,7 +1032,7 @@ def plan_cards(
                    if request.template == "playing_grid" else {}),
                 **({"safe_order": safe_order} if safe_order is not None else {}),
             )
-        if "card_motion" not in clearance:
+        if not wide and "card_motion" not in clearance:
             layer, clearance = plan_motion(
                 layer, style,
                 face_frames[start_frame:end_frame] if face_frames is not None else None,
@@ -1289,7 +1316,11 @@ def render_layers(
                 staged = []
                 for card in plan.cards:
                     slots = _resolved_slots(card.template, card.render_slots, plan.project_dir)
-                    if card.template == "playing_grid":
+                    if card.clearance.get("layout") == "floating":
+                        layer = card_layer_plan(card.template, slots, style,
+                                                frames=card.end_frame - card.start_frame,
+                                                fps=plan.fps, shape="horizontal")
+                    elif card.template == "playing_grid":
                         tiles = [{"x": int(tile["box"]["x"]), "y": int(tile["box"]["y"]),
                                   "width": int(tile["box"]["w"]),
                                   "height": int(tile["box"]["h"])}

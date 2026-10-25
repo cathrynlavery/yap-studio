@@ -3,6 +3,7 @@
 ## Unreleased
 
 - The join Listen browser test reads the start position when the review page presses play, after its seek has settled, so a slow test machine can no longer make a correct start look late. Its 8x CPU-throttled variant runs in local gates only.
+- Wide videos get floating cards: 26 built-in cards and the registry cards that fit sit on a paper card in the open side of the shot, clear of faces and captions, sized to their content. Grids, phone feeds, falling words and numbers behind the speaker stay vertical-only, each with a fix line.
 - A Listen that runs to the end of the video stops on its planned last frame, not two frames early, on a busy machine.
 - Wide videos get B-roll: full-frame clips and stills, portrait and square media shown whole over a soft blurred fill, landscape-first stock and 16:9 generated pictures, and 16:9 picking sheets.
 - The Home browser test taps only a live, enabled button, so a page refresh mid-tap no longer fails it on slow machines.

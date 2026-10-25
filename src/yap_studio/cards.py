@@ -319,9 +319,15 @@ class CardPlan:
     windows: tuple[dict, ...] = ()
     registry: dict | None = None
     motion: dict | None = None
+    shape: str = "vertical"
 
     def layer_box(self) -> dict[str, int]:
         """Keep the placement box separate from the moving card's band layer."""
+        if self.shape == "horizontal":
+            from yap_studio.canvas import canvas
+
+            frame = canvas(self.shape)
+            return {"x": 0, "y": 0, "width": frame.width, "height": frame.height}
         return {"x": 0 if self.motion else self.x, "y": self.y,
                 "width": 1080 if self.motion else self.width, "height": self.height}
 
@@ -1216,6 +1222,7 @@ def card_layer_plan(
     project: CardProject | None = None,
     max_width_px: int | None = None,
     max_height_px: int | None = None,
+    shape: str = "vertical",
 ) -> CardPlan:
     """Fit typed content before preparing or rendering assets.
 
@@ -1223,6 +1230,10 @@ def card_layer_plan(
     Terminal schedule is produced by this planner. Overrides of command, output
     or the timing slots must go through card_layer_plan to rebuild the schedule.
     """
+    if shape == "horizontal":
+        from yap_studio.wide_cards import card_plan
+
+        return card_plan(template, slots, style, frames=frames, fps=fps, project=project)
     vocabulary = bleep.listed(style.data["music"]) if bleep.enabled(style.data) else None
     if vocabulary is not None:
         slots, _ = bleep.mask_slots(dict(slots), load_template(template)["slots"], vocabulary)
@@ -2319,6 +2330,10 @@ class _RootParser(HTMLParser):
 
 def prepare_card(plan: CardPlan, work_dir: Path, *, install: RendererInstall | None = None) -> Path:
     """Write a composition with bundled fonts and atomically copied local assets."""
+    if plan.shape == "horizontal":
+        from yap_studio.wide_cards import prepare
+
+        return prepare(plan, work_dir, install=install)
     if registry_cards.is_kind(plan.template):
         composition = registry_cards.prepare(plan, work_dir, install=install)
         if plan.motion:
@@ -2432,7 +2447,8 @@ def render_card(
         composition,
         out,
         frames=plan.frames,
-        variables={} if plan.motion or registry_cards.is_kind(plan.template) else plan.variables,
+        variables={} if plan.shape == "horizontal" or plan.motion
+        or registry_cards.is_kind(plan.template) else plan.variables,
         fps=plan.fps,
         install=install,
         browser_gpu=hyperframes.CARD_BROWSER_GPU,

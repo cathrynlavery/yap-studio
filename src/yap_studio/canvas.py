@@ -101,10 +101,13 @@ def require_supported(context: ProjectContext,
             if item.kind == "overlay" and item.fields.get("placement") != "box":
                 unsupported(f"{item.fields.get('placement')} B-roll element {item.id}",
                             f"Set {item.id} placement to box with a box inside the wide canvas")
+            if item.kind == "graphic":
+                from yap_studio.wide_cards import require_template
+
+                require_template(item.fields.get("template", ""))
+                continue
             if item.kind not in {
                 "caption_gap", "sound", "insert", "overlay", "title", "chapter",
-            } and not (
-                item.kind == "graphic" and item.fields.get("template") == "name_tag"
-            ):
+            }:
                 unsupported(f"{item.kind} element {item.id}",
                             f"Remove {item.id} from the {lane.lane} timeline")
