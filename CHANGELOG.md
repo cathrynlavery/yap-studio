@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge.
+- When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge. End-edge suggestions stay within the known source picture length.
 
 ## 1.1.0 (2026-10-26)
 
