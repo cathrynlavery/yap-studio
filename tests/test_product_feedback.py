@@ -287,6 +287,61 @@ def test_automatic_failure_preserves_output_and_exit(
         assert entry["sent"] == (consent == "always" and status == 204)
 
 
+@pytest.mark.parametrize("arguments,step", [
+    (["versions", "save", "Private Project"], "versions save"),
+    (["feedback", "reply", "Private Project", "--batch", "synthetic", "--comment", "v1:c1",
+      "--status", "changed", "--text", "Private reply"], "feedback reply"),
+])
+def test_automatic_grouped_failure_records_subcommand(monkeypatch, capsys, arguments, step):
+    from yap_studio.feedback import cli as feedback_cli
+
+    def fail(_args):
+        print(str(InputError("Private failure")), file=sys.stderr)
+        return 2
+
+    monkeypatch.setattr(feedback_cli, "_versions", fail)
+    monkeypatch.setattr(feedback_cli, "_feedback", fail)
+    assert cli.main(arguments) == 2
+    capsys.readouterr()
+    entry, = feedback.entries()
+    assert entry["step"] == step
+    assert entry["text"] == f"{step} failed with invalid_input"
+    assert "Private" not in json.dumps(entry)
+    assert feedback.scrub(step) == step
+    assert entry["fingerprint"] == feedback.fingerprint(
+        "bug", step, "invalid_input", entry["text"])
+    assert entry["fingerprint"] != feedback.fingerprint(
+        "bug", arguments[0], "invalid_input", entry["text"])
+    preview, = feedback.send(dry_run=True)
+    assert preview["title"] == f"bug: {step} invalid_input"
+    assert f"Step: {step}\n" in preview["body"]
+
+
+@pytest.mark.parametrize("arguments", [
+    ["verify", "/synthetic/Private Project/take.mov"],
+    ["verify", "Private text"],
+    ["verify", "save"],
+    ["versions", "/synthetic/Private Project"],
+    ["versions", "sav"],
+    ["feedback", "Private text"],
+    [],
+])
+def test_automatic_failure_excludes_unregistered_arguments(monkeypatch, arguments):
+    def fail(_arguments):
+        str(InputError("Private failure"))
+        return 2
+
+    monkeypatch.setattr(cli, "_main", fail)
+    assert cli.main(arguments) == 2
+    entry, = feedback.entries()
+    step = arguments[0] if arguments else "unknown"
+    assert entry["step"] == step
+    assert entry["text"] == f"{step} failed with invalid_input"
+    assert "Private" not in json.dumps(entry)
+    if len(arguments) > 1:
+        assert arguments[1] not in json.dumps(entry)
+
+
 def test_feedback_write_failure_never_changes_command(monkeypatch, capsys):
     def fail(**_kwargs):
         raise YapError("original error", code="original")
@@ -322,7 +377,8 @@ def fake_gh(tmp_path, monkeypatch, *, logged_in=True, pages=None):
         "if '--body-file' in args else None\n"
         "with log.open('a') as out: out.write(json.dumps({'args': args, 'body': body})+'\\n')\n"
         f"if args[0] == 'auth': sys.exit({0 if logged_in else 1})\n"
-        f"if args[0] == 'api': print({json.dumps(pages or [[]])!r})\n"
+        f"if args[0] == 'api': print('[[]]' if 'labels=feedback' in args[-1] "
+        f"else {json.dumps(pages or [[]])!r})\n"
     )
     binary.chmod(0o755)
     monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ.get("PATH", ""))
@@ -355,6 +411,25 @@ def test_gh_existing_fingerprint_comments_and_new_creates(tmp_path, monkeypatch,
     assert feedback.entries(pending=True) == []
     assert feedback.send(yes=True) == []
     assert len([line for line in log.read_text().splitlines() if '"issue"' in line]) == 2
+
+
+def test_gh_unlabelled_fingerprint_comments_instead_of_creating(tmp_path, monkeypatch, capsys):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    body = "Fingerprint: " + entry["fingerprint"]
+    pages = [[{"number": 20, "body": body, "pull_request": {}, "labels": []},
+              {"number": 21, "body": body, "labels": []}]]
+    log = fake_gh(tmp_path, monkeypatch, pages=pages)
+    assert cli.main(["feedback", "send", "--yes"]) == 0
+    capsys.readouterr()
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    writes = [call for call in calls if call["args"][0] == "issue"]
+    assert [call["args"][:3] for call in writes] == [["issue", "comment", "21"]]
+    assert writes[0]["body"] == f"seen again in {__version__}, 1 times"
+    assert next(call["args"] for call in calls if call["args"][0] == "api") == [
+        "api", "--paginate", "--slurp", "-X", "GET",
+        f"repos/{feedback.REPO}/issues?state=open&per_page=100",
+    ]
+    assert feedback.entries(pending=True) == []
 
 
 @pytest.mark.parametrize("installed", [False, True])

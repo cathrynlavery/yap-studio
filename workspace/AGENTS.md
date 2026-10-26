@@ -55,7 +55,11 @@ always. Keep product notes about the tool; never copy the creator's words or nam
 
 Run `yap-studio feedback "..." --step STEP` whenever a step fails, needs a retry or a
 workaround, the docs were wrong or missing, or the creator corrects something the checks
-should have caught. With mode ask, at the end of a video show
+should have caught. When the creator asks for something Yap Studio has no command or
+option for and you do it by hand (ffmpeg, a script, editing files), run
+`yap-studio feedback "..." --kind missing --step STEP` naming the missing capability,
+for example "No way to blur part of the picture". Describe the tool, never the video
+or what it shows. With mode ask, at the end of a video show
 `yap-studio feedback send --dry-run` to the creator. Run `yap-studio feedback send --yes`
 only if they agree. With mode never, keep the notes local.
 
