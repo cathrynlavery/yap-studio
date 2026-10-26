@@ -25,6 +25,14 @@ from pathlib import Path
 from yap_studio.errors import ValidationError, YapError
 
 ROOT = Path(__file__).resolve().parents[1]
+CHANGE_KINDS = {
+    "feature": "Features",
+    "fix": "Fixes",
+    "performance": "Performance",
+    "dependencies": "Dependencies",
+    "docs": "Docs",
+    "tests": "Tests",
+}
 MANIFESTS = {
     ".claude-plugin/marketplace.json": 2,
     "plugins/yap-studio/.claude-plugin/plugin.json": 1,
@@ -97,7 +105,38 @@ def _manifest_update(text: str, current: str, new: str, expected: int) -> str:
     return re.sub(pattern, lambda match: f'{match[1]}"{new}"', text)
 
 
-def _changelog_release(text: str, new: str, release_date: str) -> str:
+def change_notes(root: Path) -> list[tuple[Path, str, str]]:
+    """Read and validate change files in filename order."""
+    folder = root / "changes"
+    if not folder.exists():
+        return []
+    notes = []
+    for path in sorted(folder.iterdir()):
+        if path.name.startswith(".") or path.name == "README.md":
+            continue
+        parameter = f"changes/{path.name}"
+        if not path.is_file():
+            raise ValidationError(parameter, "replace this entry with a change file")
+        name = re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*\.([a-z]+)\.md", path.name)
+        if name is None or name[1] not in CHANGE_KINDS:
+            raise ValidationError(
+                parameter, "name it <short-slug>.<kind>.md with kind feature, fix, "
+                "performance, dependencies, docs or tests",
+            )
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError as exc:
+            raise ValidationError(parameter, "save the change file as UTF-8") from exc
+        bullets = [line.rstrip() for line in lines if line.strip()]
+        if not bullets or any(re.fullmatch(r"- \S.*", line) is None for line in bullets):
+            raise ValidationError(parameter, "write one or more lines starting with '- '")
+        notes.append((path, name[1], "\n".join(bullets)))
+    return notes
+
+
+def _changelog_release(
+    text: str, new: str, release_date: str, gathered: list[tuple[Path, str, str]],
+) -> str:
     """Move Unreleased notes into a dated section below an empty Unreleased heading."""
     unreleased = re.search(r"(?m)^## Unreleased[ \t]*$", text)
     if unreleased is None:
@@ -109,6 +148,12 @@ def _changelog_release(text: str, new: str, release_date: str) -> str:
         following = re.search(r"(?m)^## ", text[unreleased.end():])
         end = len(text) if following is None else unreleased.end() + following.start()
         notes = text[unreleased.end():end].strip()
+    sections = [notes] if notes else []
+    for kind, heading in CHANGE_KINDS.items():
+        bullets = [bullets for _, note_kind, bullets in gathered if note_kind == kind]
+        if bullets:
+            sections.append(f"### {heading}\n\n" + "\n".join(bullets))
+    notes = "\n\n".join(sections)
     prefix = text[:start].rstrip() + "\n\n"
     section = f"## Unreleased\n\n## {new} ({release_date})\n\n"
     if notes:
@@ -136,13 +181,24 @@ def bump(root: Path, new: str, release_date: str) -> None:
         updated[relative] = _manifest_update(original[relative], current, new, expected)
     changelog = root / "CHANGELOG.md"
     original["CHANGELOG.md"] = changelog.read_text(encoding="utf-8")
+    gathered = change_notes(root)
     if changelog_section(original["CHANGELOG.md"], new) is None:
-        updated["CHANGELOG.md"] = _changelog_release(original["CHANGELOG.md"], new, release_date)
+        updated["CHANGELOG.md"] = _changelog_release(
+            original["CHANGELOG.md"], new, release_date, gathered,
+        )
+    elif gathered:
+        raise ValidationError(
+            "CHANGELOG.md", f"remove the section for {new}, or move the change notes into it "
+            "by hand and delete their files, then retry",
+        )
+    original_notes = {path: path.read_bytes() for path, _, _ in gathered}
     lock = root / "uv.lock"
     original_lock = lock.read_bytes() if lock.exists() else None
     try:
         for relative, text in updated.items():
             (root / relative).write_text(text, encoding="utf-8")
+        for path in original_notes:
+            path.unlink()
         subprocess.run(
             ["uv", "lock"], cwd=root, stdin=subprocess.DEVNULL, capture_output=True,
             text=True, timeout=120, check=True,
@@ -150,6 +206,8 @@ def bump(root: Path, new: str, release_date: str) -> None:
     except (OSError, subprocess.SubprocessError) as exc:
         for relative, text in original.items():
             (root / relative).write_text(text, encoding="utf-8")
+        for path, content in original_notes.items():
+            path.write_bytes(content)
         if original_lock is None:
             lock.unlink(missing_ok=True)
         else:

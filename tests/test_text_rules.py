@@ -6,6 +6,7 @@ import ast
 from pathlib import Path
 
 import pytest
+from release_notes import release_bullets
 
 from yap_studio.text_rules import (
     apply_text_rules,
@@ -106,8 +107,7 @@ def test_caption_builder_uses_one_text_rule_import() -> None:
 
 
 def test_changelog_mentions_brand_command_and_spelling_report() -> None:
-    source = (Path(__file__).parents[1] / "CHANGELOG.md").read_text()
-    bullets = [line for line in source.splitlines() if line.startswith("- ")]
+    bullets = release_bullets()
     bullet = next(line for line in bullets if "yap-studio brand words" in line)
     assert "receipt" in bullet and "spelling" in bullet
 

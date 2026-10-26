@@ -1,0 +1,1 @@
+- Pull requests add their release note as a file in `changes/` instead of editing CHANGELOG.md, and the release bump gathers those files into the dated section by kind, so open pull requests no longer conflict over the changelog.

@@ -142,7 +142,7 @@ jobs:
 
           ## What this does
 
-          Pins HyperFrames {latest} in `hyperframes.py`, the renderer lock, the transition templates, the font and export tests and the changelog bullet. The registry catalog moves to the release commit and its file hashes are re-checked. `scripts/bump_hyperframes.py` checked the locked integrity against npm.
+          Pins HyperFrames {latest} in `hyperframes.py`, the renderer lock, the transition templates, the font and export tests and the release note in `changes/hyperframes.dependencies.md`. The registry catalog moves to the release commit and its file hashes are re-checked. `scripts/bump_hyperframes.py` checked the locked integrity against npm.
 
           Lock changes:
 
@@ -156,7 +156,7 @@ jobs:
           - [ ] The `render` CI job passes and layers match the previous pin.
           - [ ] Run the registry render tests and look at registry items whose files changed: {registry}.
           - [ ] If beat detection changed, compare beat grids on real music, as in #193.
-          - [ ] Add what changed for creators to the changelog bullet.
+          - [ ] Add what changed for creators to the pin note in `changes/hyperframes.dependencies.md`.
 
           ## Upstream release notes
 
@@ -183,6 +183,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$BRANCH"
           git add -u
+          git add changes/hyperframes.dependencies.md
           git commit -m "render: pin HyperFrames $LATEST"
           # The hyperframes-bump/ prefix belongs to this workflow.
           git push --force origin "HEAD:refs/heads/$BRANCH"
