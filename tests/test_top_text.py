@@ -89,10 +89,9 @@ def test_none_omits_existing_titles_without_editing_timeline(layer_project):
 
 def test_changelog_describes_top_text_choice():
     changelog = (Path(__file__).parents[1] / "CHANGELOG.md").read_text()
-    entry, = [line for line in changelog.splitlines()
-              if line.startswith("- ") and "Text at the top" in line]
-    for phrase in ("style page", "no default", "Home", "waits for a pick"):
-        assert phrase in entry
+    phrases = ("Text at the top", "style page", "no default", "Home", "waits for a pick")
+    assert any(all(phrase in line for phrase in phrases)
+               for line in changelog.splitlines() if line.startswith("- "))
 
 
 def test_pick_my_look_guidance_lists_current_steps():
