@@ -39,8 +39,11 @@ def _load(root: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 def bump_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, ModuleType]:
     """Copy every pinned file so a bump cannot change the real checkout."""
     module = _load(ROOT, monkeypatch)
-    for relative in [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, "NOTICE",
-                     "scripts/bump_hyperframes.py", "scripts/bump_version.py"]:
+    files = [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, "NOTICE",
+             "scripts/bump_hyperframes.py", "scripts/bump_version.py"]
+    if (ROOT / module.CHANGE_NOTE).exists():
+        files.append(module.CHANGE_NOTE)
+    for relative in files:
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / relative, target)
@@ -77,10 +80,13 @@ def _next(version: str) -> str:
     return f"{major}.{minor}.{int(patch) + 1}"
 
 
-def _snapshot(root: Path, module: ModuleType) -> dict[str, str]:
+def _snapshot(root: Path, module: ModuleType) -> dict[str, str | None]:
     """Read every file a bump may write."""
-    return {relative: (root / relative).read_text(encoding="utf-8")
-            for relative in [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, "NOTICE"]}
+    snapshot = {relative: (root / relative).read_bytes().decode("utf-8")
+                for relative in [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, "NOTICE"]}
+    note = root / module.CHANGE_NOTE
+    snapshot[module.CHANGE_NOTE] = note.read_bytes().decode("utf-8") if note.exists() else None
+    return snapshot
 
 
 def _stub_npm(module: ModuleType, monkeypatch: pytest.MonkeyPatch, new: str, *,
@@ -173,18 +179,25 @@ def test_bump_moves_every_pin_and_reports_lock_changes(
         assert old is not None
         expected = before[relative].replace(old[0], old[0].replace(current, new), 1)
         assert (root / relative).read_text(encoding="utf-8") == expected
-    changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
-    pin = f"- Pin the renderer to HyperFrames {current}"
+    changelog = (root / "CHANGELOG.md").read_bytes().decode("utf-8")
+    pin = "- Pin the renderer to HyperFrames "
     unreleased, released = before["CHANGELOG.md"].split("## Unreleased\n", 1)[1].split(
         "\n## ", 1)
     updated, updated_released = changelog.split("## Unreleased\n", 1)[1].split("\n## ", 1)
-    assert updated_released == released
-    if pin in unreleased:
-        assert updated == unreleased.replace(
-            pin, f"- Pin the renderer to HyperFrames {new}", 1)
-    else:
-        assert updated.strip() == (f"- Pin the renderer to HyperFrames {new}.\n"
-                                   + unreleased.strip()).strip()
+    assert updated_released.encode("utf-8") == released.encode("utf-8")
+    assert pin not in updated
+    assert updated.splitlines(keepends=True) == [
+        line for line in unreleased.splitlines(keepends=True) if not line.startswith(pin)
+    ]
+    note = (root / module.CHANGE_NOTE).read_text(encoding="utf-8")
+    assert note.count(pin) == 1
+    assert f"{pin}{new}" in note
+    assert f"{pin}{current}" not in note
+    from bump_version import change_notes
+
+    assert [(path, kind) for path, kind, _ in change_notes(root)] == [
+        (root / module.CHANGE_NOTE, "dependencies"),
+    ]
     assert module.pinned_version(root) == new
     assert calls[-1] == ["ci", "--ignore-scripts", "--no-audit", "--no-fund"]
     data = json.loads(before[CATALOG])
@@ -227,7 +240,7 @@ def test_bump_updates_only_the_registry_notice_commit(
     notice.write_bytes(original)
     target = re.search(rb"(?m)^at commit ([0-9a-f]{40})\b", original)
     expected = original[:target.start(1)] + COMMIT.encode() + original[target.end(1):]
-    before = {relative: (root / relative).read_bytes() for relative in _snapshot(root, module)}
+    before = _snapshot(root, module)
     _stub_npm(module, monkeypatch, new)
     if registry_only:
         monkeypatch.setattr(module, "run_git", lambda args, cwd: f"{COMMIT}\trefs/tags/v{new}\n")
@@ -235,9 +248,10 @@ def test_bump_updates_only_the_registry_notice_commit(
     assert json.loads((root / CATALOG).read_text())["registry"]["commit"] == COMMIT
     assert notice.read_bytes() == expected
     if registry_only:
+        after = _snapshot(root, module)
         for relative, content in before.items():
             if relative not in {CATALOG, "NOTICE"}:
-                assert (root / relative).read_bytes() == content
+                assert after[relative] == content
 
 
 @pytest.mark.parametrize("registry_only", [False, True])
@@ -256,7 +270,7 @@ def test_bump_refuses_missing_or_duplicate_notice_sentence_and_restores_every_fi
     else:
         malformed = original.replace(paragraph, paragraph + b"\n\n" + paragraph)
     notice.write_bytes(malformed)
-    before = {relative: (root / relative).read_bytes() for relative in _snapshot(root, module)}
+    before = _snapshot(root, module)
     current = module.pinned_version(root)
     new = current if registry_only else _next(current)
     _stub_npm(module, monkeypatch, new)
@@ -265,7 +279,7 @@ def test_bump_refuses_missing_or_duplicate_notice_sentence_and_restores_every_fi
     with pytest.raises(YapError, match="NOTICE.*files were restored") as caught:
         module.bump(root, new, registry_only=registry_only)
     assert isinstance(caught.value.__cause__, ValidationError)
-    assert {relative: (root / relative).read_bytes() for relative in before} == before
+    assert _snapshot(root, module) == before
 
 
 def test_bump_refuses_an_older_release(bump_copy: tuple[Path, ModuleType]) -> None:
@@ -304,17 +318,31 @@ def test_bump_restores_files_when_a_pin_moved(
     assert _snapshot(root, module) == before
 
 
+@pytest.mark.parametrize("note_exists", [False, True])
 def test_bump_restores_files_when_the_lock_does_not_match_npm(
-    bump_copy: tuple[Path, ModuleType], monkeypatch: pytest.MonkeyPatch,
+    bump_copy: tuple[Path, ModuleType], monkeypatch: pytest.MonkeyPatch, note_exists: bool,
 ) -> None:
     """A lock whose integrity differs from the registry is rolled back with the pins."""
     root, module = bump_copy
+    note = root / module.CHANGE_NOTE
+    original_note = (
+        f"- Pin the renderer to HyperFrames {module.pinned_version(root)} (creator words).\r\n\r\n"
+    ).encode()
+    if note_exists:
+        note.parent.mkdir(parents=True, exist_ok=True)
+        note.write_bytes(original_note)
+    else:
+        note.unlink(missing_ok=True)
     before = _snapshot(root, module)
     new = _next(module.pinned_version(root))
     _stub_npm(module, monkeypatch, new, integrity="sha512-other")
     with pytest.raises(YapError, match="does not match npm"):
         module.bump(root, new)
     assert _snapshot(root, module) == before
+    if note_exists:
+        assert note.read_bytes() == original_note
+    else:
+        assert not note.exists()
 
 
 @pytest.mark.parametrize("change", ["hash", "add", "remove"])
@@ -377,7 +405,6 @@ def test_registry_failure_restores_every_file(
     before = _snapshot(root, module)
     new = _next(module.pinned_version(root))
     _stub_npm(module, monkeypatch, new, failure=failure)
-    before_bytes = {relative: (root / relative).read_bytes() for relative in before}
     if failure == "tag":
         monkeypatch.setattr(module, "run_git", lambda args, cwd: "")
     with pytest.raises(YapError, match={
@@ -388,16 +415,22 @@ def test_registry_failure_restores_every_file(
     if failure == "tag":
         assert "tag" in caught.value.suggested_action
     assert _snapshot(root, module) == before
-    assert {relative: (root / relative).read_bytes() for relative in before} == before_bytes
 
 
 @pytest.mark.parametrize("annotated", [False, True])
+@pytest.mark.parametrize("note_exists", [False, True])
 def test_registry_flag_refreshes_the_current_pin_without_writing(
     bump_copy: tuple[Path, ModuleType], monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str], annotated: bool,
+    capsys: pytest.CaptureFixture[str], annotated: bool, note_exists: bool,
 ) -> None:
     """Refresh uses the pinned release, never looks up npm latest, and preserves all bytes."""
     root, module = bump_copy
+    note = root / module.CHANGE_NOTE
+    if note_exists:
+        note.parent.mkdir(parents=True, exist_ok=True)
+        note.write_bytes(b"- Creator words.\r\n\r\n")
+    else:
+        note.unlink(missing_ok=True)
     source = root / CATALOG
     data = json.loads(source.read_text(encoding="utf-8"))
     data["registry"]["commit"] = COMMIT
@@ -452,30 +485,45 @@ def test_registry_refresh_preserves_helper_metadata(bump_copy, monkeypatch):
         **helper, "files": {main: _digest(_content("sample-helper"))}}
 
 
-def test_changelog_replaces_the_unreleased_pin(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _load(ROOT, monkeypatch)
-    text = ("# Changelog\n\n## Unreleased\n\n"
-            "- Other.\n- Pin the renderer to HyperFrames 1.0.0 (notes).\n\n"
-            "## 0.1.0 (2026-01-01)\n\n- Pin the renderer to HyperFrames 1.0.0 (old).\n")
-    assert module._changelog_update(text, "1.0.0", "1.0.1") == text.replace(
-        "- Pin the renderer to HyperFrames 1.0.0 (notes).",
-        "- Pin the renderer to HyperFrames 1.0.1 (notes).", 1)
-
-
-@pytest.mark.parametrize(("unreleased", "expected"), [
-    ("- Pin the renderer to HyperFrames 1.0.0 (notes).\n- Other.\n",
-     "- Pin the renderer to HyperFrames 1.0.1 (notes).\n- Other.\n"),
-    ("- Other.\n", "- Pin the renderer to HyperFrames 1.0.1.\n- Other.\n"),
-    ("", "- Pin the renderer to HyperFrames 1.0.1.\n"),
+@pytest.mark.parametrize(("unreleased", "note", "expected_unreleased", "expected_note"), [
+    ("## Unreleased\n\n- Pin the renderer to HyperFrames 1.0.0 (notes).\n- Other.\n\n",
+     None, "## Unreleased\n\n- Other.\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1 (notes).\n"),
+    ("## Unreleased\n\n- Other.\n\n", None, "## Unreleased\n\n- Other.\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1.\n"),
+    ("## Unreleased\n\n", None, "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1.\n"),
+    ("## Unreleased\n\n- Pin the renderer to HyperFrames 1.0.0.\n\n",
+     None, "## Unreleased\n\n", "- Pin the renderer to HyperFrames 1.0.1.\n"),
+    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9.\n\n",
+     "- Pin the renderer to HyperFrames 1.0.0 (creator words).\n", "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1 (creator words).\n"),
+    ("## Unreleased\n\n", "- Something else.\n", "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1.\n- Something else.\n"),
+    ("", None, "", "- Pin the renderer to HyperFrames 1.0.1.\n"),
+    ("## Unreleased\n\n- First.  \n- Pin the renderer to HyperFrames 0.9.9 (older).\n"
+     "- Middle.\n- Pin the renderer to HyperFrames 1.0.0 (notes).\n- Last.\n\n",
+     None, "## Unreleased\n\n- First.  \n- Middle.\n- Last.\n\n",
+     "- Pin the renderer to HyperFrames 0.9.9 (older).\n"
+     "- Pin the renderer to HyperFrames 1.0.1 (notes).\n"),
+    ("## Unreleased\n\n", "- Other.\n- Pin the renderer to HyperFrames 1.0.0 (words).\n\n\n",
+     "## Unreleased\n\n", "- Other.\n- Pin the renderer to HyperFrames 1.0.1 (words).\n"),
+    ("## Unreleased\n\n", "", "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1.\n"),
+    ("## Unreleased\n\n", "- Pin the renderer to HyperFrames 1.0.0 (one).\n"
+     "- Pin the renderer to HyperFrames 1.0.0 (two).", "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1.\n"
+     "- Pin the renderer to HyperFrames 1.0.0 (one).\n"
+     "- Pin the renderer to HyperFrames 1.0.0 (two).\n"),
 ])
-def test_changelog_edits_only_the_unreleased_pin(
-    bump_copy: tuple[Path, ModuleType], unreleased: str, expected: str,
+def test_pin_note_cleans_only_unreleased_and_preserves_creator_words(
+    monkeypatch: pytest.MonkeyPatch, unreleased: str, note: str | None,
+    expected_unreleased: str, expected_note: str,
 ) -> None:
-    """The Unreleased pin bullet moves; a pin that already shipped gets a new bullet."""
-    _, module = bump_copy
+    """Legacy pins leave Unreleased; existing notes and released sections keep their words."""
+    module = _load(ROOT, monkeypatch)
     released = "## 0.1.0 (2026-01-01)\n\n- Pin the renderer to HyperFrames 1.0.0 (old).\n"
-    text = f"# Changelog\n\n## Unreleased\n\n{unreleased}\n{released}"
-    updated = module._changelog_update(text, "1.0.0", "1.0.1")
-    assert updated.endswith(released)
-    section = updated.split("## Unreleased\n", 1)[1].split("## 0.1.0", 1)[0]
-    assert section.strip() + "\n" == expected
+    text = f"# Changelog\n\n{unreleased}{released}"
+    assert module._pin_note(text, note, "1.0.0", "1.0.1") == (
+        f"# Changelog\n\n{expected_unreleased}{released}", expected_note,
+    )

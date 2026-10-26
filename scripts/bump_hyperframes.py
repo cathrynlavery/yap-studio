@@ -48,7 +48,8 @@ PINS = {
     "tests/test_fonts.py": r"HyperFrames {v} FONT_ALIAS_MAP",
     "tests/test_studio_export.py": r'\.version == "{v}"',
 }
-CHANGELOG_PIN = r"(?m)^- Pin the renderer to HyperFrames {v}\b"
+CHANGE_NOTE = "changes/hyperframes.dependencies.md"
+PIN_NOTE = r"(?m)^- Pin the renderer to HyperFrames {v}\b"
 # npm 10 drops the libc fields npm 11 writes, which churns the committed lock.
 NPM_MAJOR = 11
 
@@ -212,21 +213,27 @@ def _notice_update(text: str, commit: str) -> str:
     return pattern.sub(lambda match: match[1] + commit, text)
 
 
-def _changelog_update(text: str, current: str, new: str) -> str:
-    """Update the Unreleased pin bullet, or add one when the last pin already shipped."""
+def _pin_note(text: str, note: str | None, current: str, new: str) -> tuple[str, str]:
+    """Move legacy Unreleased pins to the change note, preserving creator words."""
     heading = re.search(r"(?m)^## Unreleased[ \t]*\n", text)
-    if heading is None:
-        raise ValidationError("CHANGELOG.md", "missing ## Unreleased")
-    following = re.search(r"(?m)^## ", text[heading.end():])
-    end = len(text) if following is None else heading.end() + following.start()
-    body = text[heading.end():end].strip("\n")
-    pin = re.compile(CHANGELOG_PIN.format(v=re.escape(current)))
-    if len(pin.findall(body)) == 1:
-        body = pin.sub(f"- Pin the renderer to HyperFrames {new}", body)
+    legacy = []
+    if heading is not None:
+        following = re.search(r"(?m)^## ", text[heading.end():])
+        end = len(text) if following is None else heading.end() + following.start()
+        body = text[heading.end():end]
+        pattern = re.compile(PIN_NOTE.format(v=r"\d+\.\d+\.\d+") + r"[^\n]*(?:\n|$)")
+        legacy = pattern.findall(body)
+        if legacy:
+            body = pattern.sub("", body)
+            text = text[:heading.end()] + (body if body.strip() else "\n") + text[end:]
+    if note is None:
+        note = "".join(legacy)
+    pin = re.compile(PIN_NOTE.format(v=re.escape(current)))
+    if len(pin.findall(note)) == 1:
+        note = pin.sub(f"- Pin the renderer to HyperFrames {new}", note)
     else:
-        body = f"- Pin the renderer to HyperFrames {new}." + (f"\n{body}" if body else "")
-    tail = "\n" if following is None else "\n\n"
-    return text[:heading.end()] + "\n" + body + tail + text[end:]
+        note = f"- Pin the renderer to HyperFrames {new}.\n" + note
+    return text, note.rstrip("\n") + "\n"
 
 
 def _lock_versions(lock: dict) -> dict[str, str]:
@@ -253,6 +260,9 @@ def bump(root: Path, new: str, *, registry_only: bool = False) -> dict:
     lock_path = root / LOCK_DIR / "package-lock.json"
     tracked = [*PINS, "CHANGELOG.md", f"{LOCK_DIR}/package-lock.json", CATALOG, NOTICE]
     original = {relative: (root / relative).read_bytes() for relative in tracked}
+    if not registry_only:
+        note_path = root / CHANGE_NOTE
+        original[CHANGE_NOTE] = note_path.read_bytes() if note_path.exists() else None
     before = _lock_versions(json.loads(original[f"{LOCK_DIR}/package-lock.json"]))
     try:
         commit = _registry_commit(root, new)
@@ -264,9 +274,15 @@ def bump(root: Path, new: str, *, registry_only: bool = False) -> dict:
                     original[relative].decode("utf-8"), relative, pattern, current, new,
                 )
                 (root / relative).write_text(updated, encoding="utf-8")
-            (root / "CHANGELOG.md").write_text(
-                _changelog_update(original["CHANGELOG.md"].decode("utf-8"), current, new),
-                encoding="utf-8")
+            original_note = original[CHANGE_NOTE]
+            changelog, note = _pin_note(
+                original["CHANGELOG.md"].decode("utf-8"),
+                original_note.decode("utf-8") if original_note is not None else None,
+                current, new,
+            )
+            (root / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+            note_path.parent.mkdir(parents=True, exist_ok=True)
+            note_path.write_text(note, encoding="utf-8")
             run_npm(["install", "--package-lock-only", "--ignore-scripts", "--no-audit",
                      "--no-fund"], root / LOCK_DIR)
             lock = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -283,7 +299,10 @@ def bump(root: Path, new: str, *, registry_only: bool = False) -> dict:
         YapError, OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError,
     ) as exc:
         for relative, content in original.items():
-            (root / relative).write_bytes(content)
+            if content is None:
+                (root / relative).unlink(missing_ok=True)
+            else:
+                (root / relative).write_bytes(content)
         action = exc.suggested_action if isinstance(exc, YapError) else None
         raise ReleaseError(
             f"HyperFrames bump failed ({exc}); pinned files were restored.",
