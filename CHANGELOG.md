@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Kinetic hook titles render without the browser GPU, so two renders of the same title match even when the machine is busy.
 - Two speech release tests keep a real cut where they check one, now that continuous ranges of one take are not cuts.
 - The join check again flags a planned last or first word whose final syllable is cut off when the speech engine places the word's edge early.
 - Covers tint low-contrast style accents so default-style starred headlines, numbers and before/after looks render in both orientations.

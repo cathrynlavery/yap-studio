@@ -300,6 +300,20 @@ def test_kinetic_title_uses_cut_words_fixes_and_hashes_timing(layer_project: Pat
     assert graphics_snapshot(ProjectContext(layer_project)).titles[0].digest != changed.digest
 
 
+@pytest.mark.parametrize("look", ["kinetic", "paper_title"])
+def test_kinetic_drawing_mode_changes_only_kinetic_title_identity(
+    layer_project: Path, monkeypatch: pytest.MonkeyPatch, look: str,
+) -> None:
+    style = json.loads((layer_project / "style.json").read_bytes())
+    style["hook"]["style"] = look
+    write(layer_project / "style.json", style)
+    set_elements(layer_project, title(start={"time": 0}, lines=["Simple steps"], hold_s=1.5))
+    before = graphics_snapshot(ProjectContext(layer_project)).titles[0].digest
+    monkeypatch.setattr(hyperframes, "KINETIC_BROWSER_GPU", True)
+    after = graphics_snapshot(ProjectContext(layer_project)).titles[0].digest
+    assert (after != before) == (look == "kinetic")
+
+
 @pytest.mark.parametrize("selector", ["--word", "--heard"])
 def test_word_fixes_stale_kinetic_title(layer_project: Path, fake_layers, capsys, selector) -> None:
     style = json.loads((layer_project / "style.json").read_bytes())
