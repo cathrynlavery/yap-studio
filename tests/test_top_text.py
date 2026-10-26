@@ -88,9 +88,9 @@ def test_none_omits_existing_titles_without_editing_timeline(layer_project):
 
 
 def test_changelog_describes_top_text_choice():
-    unreleased = (Path(__file__).parents[1] / "CHANGELOG.md").read_text().split(
-        "## Unreleased\n", 1)[1].split("\n## ", 1)[0]
-    entry, = [line for line in unreleased.splitlines() if "Text at the top" in line]
+    changelog = (Path(__file__).parents[1] / "CHANGELOG.md").read_text()
+    entry, = [line for line in changelog.splitlines()
+              if line.startswith("- ") and "Text at the top" in line]
     for phrase in ("style page", "no default", "Home", "waits for a pick"):
         assert phrase in entry
 
