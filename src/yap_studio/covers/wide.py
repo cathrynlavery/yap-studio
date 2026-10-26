@@ -21,14 +21,18 @@ from yap_studio.faces.clearance import head_box
 from yap_studio.faces.model import Box
 from yap_studio.sfx import bleep
 
+MINIMUM_GLYPH_PX = 8
+# Search no lower than the source height needed at browse size; ink is checked after rendering.
+MINIMUM_TYPE_PX = math.ceil(MINIMUM_GLYPH_PX * 720 / 94)
+
 # Each look owns its column and type hierarchy; no portrait dimensions are scaled.
 WIDE_LAYOUTS = {
     'photo': {'left': 56, 'right': 656, 'width': 568, 'top': 112, 'bottom': 592,
-              'maximum': 146, 'minimum': 104, 'lines': 3},
+              'maximum': 146, 'minimum': MINIMUM_TYPE_PX, 'lines': 3},
     'number': {'left': 56, 'right': 656, 'width': 568, 'top': 112, 'bottom': 592,
                'maximum': 300, 'minimum': 160, 'lines': 1},
     'before-after': {'left': 56, 'right': 656, 'width': 568, 'top': 112, 'bottom': 592,
-                     'maximum': 142, 'minimum': 104, 'lines': 2},
+                     'maximum': 142, 'minimum': MINIMUM_TYPE_PX, 'lines': 2},
 }
 BADGE = Box(1080, 620, 200, 100)
 
@@ -110,10 +114,13 @@ def check_legibility(blocks: list[dict], text: np.ndarray, backdrop: np.ndarray,
         height = (block['measured_box'][3] - block['measured_box'][1]) * 94 / 720
         # An isolated italic phrase can have only lowercase x-height, without line capitals.
         secondary = block['role'] in {'kicker', 'label', 'proof', 'accent'}
-        minimum = 4 if secondary and not (look == 'number' and block['role'] == 'label') else 8
+        minimum = (4 if secondary and not (look == 'number' and block['role'] == 'label')
+                   else MINIMUM_GLYPH_PX)
         if height < minimum:
-            raise ValidationError('text', f"{block['role']} glyph height {height:.1f} px at "
-                                  f'168x94 is below {minimum}; shorten text')
+            error = ValidationError('text', f"{block['role']} glyph height {height:.1f} px at "
+                                    f'168x94 is below {minimum}')
+            error.suggested_action = 'Try --look before-after or --look number.'
+            raise error
         x, y, w, h = block['box']
         x0, y0 = math.floor(x * 168 / 1280), math.floor(y * 94 / 720)
         x1, y1 = math.ceil((x + w) * 168 / 1280), math.ceil((y + h) * 94 / 720)
@@ -121,8 +128,10 @@ def check_legibility(blocks: list[dict], text: np.ndarray, backdrop: np.ndarray,
         strokes = mask >= .5
         yy, _ = np.nonzero(strokes)
         if not len(yy) or yy.max() - yy.min() + 1 < minimum:
-            raise ValidationError('text', f"{block['role']} strokes vanish at 168x94; "
-                                  'shorten text or choose a heavier font')
+            error = ValidationError('text', f"{block['role']} strokes vanish at 168x94")
+            error.suggested_action = (
+                'Choose a heavier font or try --look before-after or --look number.')
+            raise error
         # Measure stroke cores; antialiased edges blend into the backdrop by design.
         cores = mask >= max(.5, .9 * float(mask.max()))
         p10 = float(np.percentile(contrast[y0:y1, x0:x1][cores], 10))
@@ -163,12 +172,10 @@ def _lines(role: str, text: str, font: str, table: dict, *, maximum: int | None 
                 return result, size
         except ValidationError:
             continue
-    error = ValidationError(role, 'shorten text to fit the thumbnail without an orphan word')
-    if forbidden_breaks:
-        error.suggested_action = 'Shorten the headline or mark a shorter accent phrase.'
-    else:
-        error.suggested_action = (
-            f'Shorten the {role} to fit the thumbnail without a one-word line.')
+    error = ValidationError(role, 'text cannot fit the thumbnail without an orphan word')
+    error.suggested_action = (
+        'Each line needs two or more words; try --look before-after or --look number.'
+        + (' Mark a shorter accent phrase.' if forbidden_breaks else ''))
     raise error
 
 

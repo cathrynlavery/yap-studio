@@ -53,10 +53,12 @@ def test_wide_looks_clear_face_safe_area_and_badge(look, side):
 
 def test_default_wide_long_headline_has_actionable_fix():
     with pytest.raises(ValidationError, match='orphan') as error:
-        plan_blocks('photo', {'headline': 'Small *choices* matter.'}, resolve().data,
-                    face_box=(170, 220, 280, 330), shape='horizontal')
-    assert error.value.suggested_action == (
-        'Shorten the headline to fit the thumbnail without a one-word line.')
+        plan_blocks('photo', {'headline': 'WWWWWWWWWWWWWWWWWWWW WWWWWWWWWWWWWWWWWWWW'},
+                    resolve().data, face_box=(170, 220, 280, 330), shape='horizontal')
+    fix = error.value.suggested_action.lower()
+    assert 'two or more words' in fix
+    assert 'before-after' in fix and 'number' in fix
+    assert 'shorten' not in fix
 
 
 def test_wide_refuses_long_copy_instead_of_shrinking_to_illegibility():
@@ -96,12 +98,14 @@ def test_wide_geometry_badge_and_small_glyph_check():
     with pytest.raises(ValidationError, match='badge'):
         check_geometry(mask, shape='horizontal')
     text = np.zeros((720, 1280, 4), dtype=np.uint8)
-    text[100:180, 660:1000] = 255
+    text[100:162, 660:1000] = 255
     backdrop = np.zeros_like(text)
-    with pytest.raises(ValidationError, match='168x94'):
-        check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 135]}],
+    with pytest.raises(ValidationError, match='168x94') as error:
+        check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 161]}],
                           text, backdrop)
-    result = check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 180],
+    assert 'shorten' not in str(error.value).lower()
+    assert '--look before-after' in error.value.suggested_action
+    result = check_legibility([{'role': 'headline', 'measured_box': [660, 100, 1000, 162],
                                 'box': [660, 100, 340, 80]}], text, backdrop)
     assert result['passed'] and result['preview'] == [168, 94]
     with pytest.raises(ValidationError, match='168x94'):
@@ -178,6 +182,52 @@ def test_wide_extract_and_assets_keep_landscape(tmp_path):
     assert assets.cutout is None and assets.shape == 'horizontal'
     assert assets.face_boxes[0] == pytest.approx(assets.face_box)
     assert assets.face_boxes[1] == pytest.approx((800, 160, 200, 350 * 2/3))
+
+
+@pytest.mark.render
+@pytest.mark.parametrize(('look', 'values'), [
+    ('photo', {'headline': 'Small choices'}),
+    ('photo', {'headline': 'Small *choices*'}),
+    ('photo', {'headline': 'Make room for better work'}),
+    ('photo', {'headline': 'Good work'}),
+    ('before-after', {'before': 'Busy days', 'after': 'Good work'}),
+    ('before-after', {'before': 'Wrong work', 'after': 'Good work'}),
+])
+def test_default_wide_copy_fits_and_survives_browse_preview(tmp_path, look, values):
+    frame = tmp_path / 'frame.png'
+    ffmpeg.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
+                'color=c=gray:s=1280x720:r=30', '-frames:v', '1', str(frame)], timeout_s=60)
+    assets = CoverAssets(frame, face_box=(170, 220, 280, 330), shape='horizontal')
+    plan = plan_blocks(look, values, resolve().data, face_box=assets.face_box, shape='horizontal')
+    assert all(len(block['text'].split()) >= 2 for block in plan.blocks)
+    result = render_cover(tmp_path, assets, resolve(), look, values)
+    assert result.checks['legibility']['passed']
+    assert result.checks['legibility']['preview'] == [168, 94]
+    assert [b['font_size'] for b in result.checks['blocks']] == [
+        b['font_size'] for b in plan.blocks]
+
+
+def test_wide_search_floor_comes_from_browse_glyph_threshold():
+    import math
+
+    from yap_studio.covers.wide import MINIMUM_GLYPH_PX, MINIMUM_TYPE_PX, WIDE_LAYOUTS
+    assert MINIMUM_TYPE_PX == math.ceil(MINIMUM_GLYPH_PX * 720 / 94) == 62
+    assert WIDE_LAYOUTS['photo']['minimum'] == WIDE_LAYOUTS['before-after']['minimum'] == 62
+    assert WIDE_LAYOUTS['number']['minimum'] == 160
+
+
+@pytest.mark.parametrize(('headline', 'expected'), [
+    ('Small choices', 88), ('Small *choices*', 88),
+    ('Make room for better work', 80), ('Good work', 109),
+])
+def test_default_wide_selects_largest_fitting_size(headline, expected):
+    from yap_studio.covers.layout import _width, balance_lines
+    plan = plan_blocks('photo', {'headline': headline}, resolve().data,
+                       face_box=(170, 220, 280, 330), shape='horizontal')
+    assert all(b['font_size'] == expected for b in plan.blocks)
+    with pytest.raises(ValidationError):
+        balance_lines(headline.replace('*', '').split(),
+                      lambda line: _width(line, 'Gelasio', expected + 1), 528, 3)
 
 
 @pytest.mark.render
@@ -309,11 +359,13 @@ def test_wide_pick_retains_ranked_interior_face():
 
 
 def test_wide_accent_phrase_stays_on_one_line_or_refuses_copy():
-    with pytest.raises(ValidationError, match='shorten') as error:
-        plan_blocks('photo', {'headline': 'Make *more room* for better work'},
-                    resolve('preset:editorial_serif').data,
-                    face_box=(170, 220, 280, 330), shape='horizontal')
-    assert error.value.suggested_action == 'Shorten the headline or mark a shorter accent phrase.'
+    longer = plan_blocks('photo', {'headline': 'Make *more room* for better work'},
+                         resolve('preset:editorial_serif').data,
+                         face_box=(170, 220, 280, 330), shape='horizontal')
+    assert longer.blocks[0]['font_size'] == 90
+    assert longer.blocks[0]['text'] == 'Make more room'
+    assert longer.blocks[0]['accent_start'] == 5
+    assert longer.blocks[0]['accent_end'] == 14
     plan = plan_blocks('photo', {'headline': '*more room*'},
                        resolve('preset:editorial_serif').data,
                        face_box=(170, 220, 280, 330), shape='horizontal')
@@ -321,10 +373,11 @@ def test_wide_accent_phrase_stays_on_one_line_or_refuses_copy():
     assert len(accented) == 1
     block = accented[0]
     assert block['text'][block['accent_start']:block['accent_end']] == 'more room'
-    with pytest.raises(ValidationError, match='shorten'):
+    with pytest.raises(ValidationError, match='orphan') as error:
         plan_blocks('photo', {'headline': 'Make *WWWWWWWWW WWWWWWWWW* work'},
                     resolve('preset:editorial_serif').data,
                     face_box=(170, 220, 280, 330), shape='horizontal')
+    assert 'Mark a shorter accent phrase.' in error.value.suggested_action
 
 
 def test_wide_plain_headline_does_not_resolve_unused_accent():
