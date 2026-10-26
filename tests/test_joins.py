@@ -959,6 +959,7 @@ def test_planned_word_early_heard_edge_keeps_clipped_syllable(side: str) -> None
 @pytest.mark.parametrize("neighbour_voice, spans, point", [
     ((106, 109), [("garden", 0.80, 1.05), ("a", 1.06, 1.09)], 1.06),
     ((104, 108), [("garden", 0.80, 1.04), ("a", 1.06, 1.10)], 1.04),
+    ((106, 114), [("garden", 0.80, 1.04), ("a", 1.16, 1.24)], 1.08),
 ])
 def test_planned_word_cannot_use_next_heard_neighbour(
     side: str, neighbour_voice: tuple[int, int], spans: list[tuple[str, float, float]],

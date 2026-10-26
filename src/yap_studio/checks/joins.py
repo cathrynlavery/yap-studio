@@ -31,6 +31,7 @@ _WORD_FRAME_S = 0.01
 _WORD_SEARCH_S = 0.6
 _WORD_EXCLUDED_S = 0.8  # Hear the source speech on the excluded side of an edge.
 _WORD_CLOCK_S = 0.4
+_WORD_HEARD_EDGE_S = 0.08  # A heard word edge can be one speech-engine token frame late.
 _WORD_OVERLAP_S = 0.02
 _WORD_JOIN_GAP_S = 0.03  # Bound the distance from a crossing to its shared syllable valley.
 _WORD_PROMINENCE_DB = 4.0
@@ -1224,18 +1225,18 @@ def _locate_word_shape(
         _, first, last = min(matches, key=lambda match: match[0])
         return first if side == "first" else last
     # Kept neighbours never count as the planned word's own syllables.
-    # Past an early heard edge, only shapes ending before the next heard word count.
+    # Past an early heard edge, shapes must clear the next heard word by its edge uncertainty.
     if any(start_s <= shape.nucleus_s <= end_s for shape in candidates):
         if side == "last":
             candidates = [shape for shape in candidates if start_s <= shape.nucleus_s
                           and (shape.nucleus_s <= end_s or neighbour_s is None
                                or (shape.offset.time_s if shape.offset else shape.nucleus_s)
-                               < neighbour_s)]
+                               < neighbour_s - _WORD_HEARD_EDGE_S)]
         else:
             candidates = [shape for shape in candidates if shape.nucleus_s <= end_s
                           and (start_s <= shape.nucleus_s or neighbour_s is None
                                or (shape.onset.time_s if shape.onset else shape.nucleus_s)
-                               > neighbour_s)]
+                               > neighbour_s + _WORD_HEARD_EDGE_S)]
     center = start_s + min(end_s - start_s, _WORD_SEARCH_S) / 2
     if side == "first":
         facing = [shape for shape in candidates if shape.nucleus_s >= point_s - _WORD_OVERLAP_S]
