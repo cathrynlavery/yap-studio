@@ -230,7 +230,7 @@ def _plan(group: dict, state: dict) -> dict:
     if state["gh_logged_in"]:
         # Walk every page; a full page is never evidence that the search is complete.
         issues = json.loads(_gh("api", "--paginate", "--slurp", "-X", "GET",
-                                f"repos/{REPO}/issues?state=open&labels=feedback&per_page=100"))
+                                f"repos/{REPO}/issues?state=open&per_page=100"))
         for page in issues:
             for item in page:
                 if ("pull_request" not in item
