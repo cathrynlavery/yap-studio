@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A `changed` reply to a Fix note about the whole video is accepted in a later saved version instead of always being refused.
+
 ## 1.1.0 (2026-10-26)
 
 Yap Studio now edits horizontal YouTube videos too, with an opening title, chapter cards, floating cards, B-roll and a thumbnail, and the workspace opens in Claude Code, the Claude app's Code tab, Codex or Cursor. Long videos cut and caption faster.
