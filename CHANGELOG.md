@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Pin the renderer to HyperFrames 0.8.203.
 - A `changed` reply to a Fix note about the whole video is accepted in a later saved version instead of always being refused.
 
 ## 1.1.0 (2026-10-26)
