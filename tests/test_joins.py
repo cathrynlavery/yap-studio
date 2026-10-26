@@ -2797,7 +2797,7 @@ def test_real_speech_compares_render_with_plan(
     tight = [
         (starts[0] - 0.1, starts[0] + 0.5),
         (starts[0] + 0.48, starts[0] + 1.18),
-        (starts[0] + 1.17, starts[0] + 1.77),
+        (starts[0] + 1.14, starts[0] + 1.77),  # Keep frame overlap; 10 ms rounds to continuity.
         (ends[0] - 0.7, ends[0] + 0.1),
         (starts[1] - 0.4, starts[1] + 0.2),
         (long_word.end + 0.03, long_word.end + 0.83),

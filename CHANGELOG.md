@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Two speech release tests keep a real cut where they check one, now that continuous ranges of one take are not cuts.
 - The join check again flags a planned last or first word whose final syllable is cut off when the speech engine places the word's edge early.
 - Covers tint low-contrast style accents so default-style starred headlines, numbers and before/after looks render in both orientations.
 - Continuous ranges from the same take no longer count as cuts or receive join fades or Listen prompts; failed cuts print each verifier problem and its fix with the report path, and workspace doc links open the public documentation.
