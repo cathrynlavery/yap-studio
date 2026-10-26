@@ -113,6 +113,40 @@ def test_round_replies_measure_removed_kept_and_unchanged_moments(reply_project)
     assert first.media["sha256"] != second.media["sha256"]
 
 
+@pytest.mark.parametrize("version", ["v2", "v1"])
+def test_whole_video_changed_reply_requires_later_saved_version(
+    feedback_project: Path, tmp_path: Path, version: str,
+) -> None:
+    root = feedback_project
+    comment = {"kind": "fix", "target": "video", "text": "Move captions up throughout",
+               "start_frame": 119, "pin": {"x": 0.5, "y": 0.8, "frame": 119}}
+    store, first, second = _round(root, tmp_path / "data", comments=[comment], next_words=WORDS)
+    batch = load_batch(root, "b1")
+    item = batch["items"][0]
+    assert item["location"]["status"] == "whole_video" and item["operations"] == []
+    assert item["comment"]["pin"]["frame"] == 119
+    before = _tree(store.root)
+    if version == "v1":
+        with pytest.raises(FeedbackError, match="The reply version must follow"):
+            _reply(root, store, version=version)
+        evidence = reply_evidence(root, batch, item, first)
+        with pytest.raises(FeedbackError, match=r"^Nothing changed in v1\.$"):
+            replies_module._check_status(item, first, "changed", evidence)
+        assert _tree(store.root) == before
+        assert load_batch(root, "b1")["resulting_version"] is None
+        return
+    set_resulting_version(root, "b1", second.id)
+    suggested = reply_status(root, store)["items"][0]["suggested"]
+    reply = _reply(root, store, text="Moved captions up throughout", version=version)
+    stored = store.series(first.media["sha256"]).replies[0]
+    assert stored == reply and stored.status == "changed"
+    assert stored.comment_version == 1 and stored.version == 2
+    assert stored.evidence["unmapped"] == "whole video"
+    assert stored.evidence["moment"] is None and stored.evidence["change"] is None
+    assert stored.evidence["operations"] == []
+    assert suggested == "changed"
+
+
 def test_range_maps_to_retimed_word_frames(feedback_project: Path, tmp_path: Path) -> None:
     words = CutWords("output", {}, (replace(WORDS.words[2], segment="s3", start=3.2, end=3.5),
                                   replace(WORDS.words[3], start=3.8, end=3.9)))

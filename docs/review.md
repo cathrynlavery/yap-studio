@@ -49,6 +49,10 @@ picker, a side by side comparison, and replies to earlier comments. In a project
 each verified cut with `versions save`, then review the folder; saved word occurrences
 match story moments even when their playback times change.
 
+A Fix note about Whole video can be replied `changed` in a later saved version,
+even if its pinned frame did not change. The note's own version is refused.
+Notes about a moment still need a measured change or recorded edit at that moment.
+
 ```console
 yap-studio review --versions first.mp4 second.mp4
 yap-studio versions save my-video --note "Ready for review"

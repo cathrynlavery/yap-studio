@@ -222,6 +222,8 @@ def _unanswered(item: dict) -> bool:
 
 
 def _changed(item: dict, evidence: dict) -> bool:
+    if evidence["unmapped"] == "whole video":
+        return int(evidence["version"][1:]) > int(evidence["comment_version"][1:])
     return bool((evidence["change"] or {}).get("differences") or item["operations"])
 
 
@@ -238,7 +240,8 @@ def _check_status(item: dict, version: VersionManifest, status: str, evidence: d
             raise FeedbackError("This item still needs an answer to its clarification.",
                                 suggested_action="Get an answer or reply needs_clarification.")
         if not _changed(item, evidence):
-            raise FeedbackError(f"Nothing changed at this moment in {version.id}.",
+            scope = "" if evidence["unmapped"] == "whole video" else " at this moment"
+            raise FeedbackError(f"Nothing changed{scope} in {version.id}.",
                                 suggested_action="Make the edit and save a new version, "
                                 "or reply declined with the reason.")
     elif status == "kept":
