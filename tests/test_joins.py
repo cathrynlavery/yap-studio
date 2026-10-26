@@ -983,6 +983,25 @@ def test_planned_word_cannot_use_next_heard_neighbour(
 
 
 @pytest.mark.parametrize("side", ["first", "last"])
+def test_planned_word_cannot_use_distant_burst_without_heard_neighbour(side: str) -> None:
+    """A separate burst past the heard edge is not the word's own syllable."""
+    levels = np.full(250, -65.0)
+    levels[100:110] = -20.0
+    levels[118:138] = -20.0
+    spans = [("garden", 1.00, 1.06)]
+    point = 1.28
+    if side == "first":
+        levels = levels[::-1]
+        spans = [(text, 2.5 - end, 2.5 - start) for text, start, end in reversed(spans)]
+        point = 2.5 - point
+    finding = joins._planned_word_finding(
+        Transcript([Word(text, start + 1, end + 1) for text, start, end in spans]),
+        "garden", side, point, "Cut 1", point, sound=_word_level_sound(levels), sr=16000,
+    )
+    assert finding is None or finding.check != "join.words"
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
 @pytest.mark.parametrize("overlap_ms", [-40, 0, 20, 30, 70, 80, 400])
 def test_planned_word_energy_tolerance_and_whole_word_loss(
     small_media: SimpleNamespace, side: str, overlap_ms: int,
