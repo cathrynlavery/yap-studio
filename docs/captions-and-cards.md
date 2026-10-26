@@ -27,13 +27,15 @@ the same height. If one line plus entry rise and shadow padding cannot fit above
 `warnings`. With `position: middle`, the band stays centered on `top_px` with its
 existing safe-boundary clamp.
 
-Project captions use `captions.placement: "avoid_face"` by default. If a phrase has
-no clear position, captions stops before rendering and lists the times. Frame the
+Project captions use `captions.placement: "avoid_face"` by default. When placement
+finds no clear position, captions checks the rendered phrase. It stops before
+publishing if the phrase still fails face clearance, and lists the times. Earlier
+captions with no clear position are checked again on the next run. Frame the
 shot wider, use smaller captions, or set `captions.placement` to `"fixed"` in this
 project's style to accept captions over your face. Face overlaps then warn and
 allow the final to verify. Cards and overlays still have to clear your face.
 Horizontal videos always keep captions in the bottom band; that alone does not accept face overlaps.
-`run --allow-violations` reports blocked phrases as warnings and continues to assembly.
+`run --allow-violations` reports confirmed overlaps as warnings and continues to assembly.
 
 `captions.entrance` defaults to `slide`, which moves the whole phrase by
 `entry_rise_px` over `entry_ms`. Choose `rise` to bring each word up from behind

@@ -51,6 +51,7 @@ from yap_studio.faces.clearance import (
     DEFAULT_HAIR,
     LAYOUT_SCHEMA,
     Layout,
+    check_layout,
     face_clearance_px,
     gap_px,
     head_box,
@@ -1421,8 +1422,14 @@ def captions(project_dir: Path, *, force: bool = False,
                   "receipt": "captions/receipt.json",
                   "warnings": [],
                   "caption_spelling": caption_spelling(snapshot.phrases, snapshot.vocabulary)}
-        if not force and run.up_to_date(snapshot.inputs):
-            previous = read_receipt(root / "captions")
+        previous = read_receipt(root / "captions")
+        legacy_blocked = (
+            previous is not None and "warnings" not in previous
+            and context.creator_caption_placement == "avoid_face"
+            and any(item.get("reason", "").startswith("kept: no position")
+                    for item in previous.get("caption_placement", {}).get("phrases", []))
+        )
+        if not force and not legacy_blocked and run.up_to_date(snapshot.inputs):
             warnings = previous.get("warnings", []) if previous else []
             if warnings and not allow_violations:
                 raise YapError(warnings[0].removesuffix(f" {CAPTION_FACE_ACTION}"),
@@ -1430,7 +1437,6 @@ def captions(project_dir: Path, *, force: bool = False,
                                suggested_action=CAPTION_FACE_ACTION)
             return {**result, "layer": previous.get("layer", layer) if previous else layer,
                     "warnings": warnings, "noop": True}
-        previous = read_receipt(root / "captions")
         work_root = paths.validate_output_dir(root / ".yap/work")
         with tempfile.TemporaryDirectory(prefix="captions-", dir=work_root) as folder, run:
             work = Path(folder)
@@ -1498,20 +1504,8 @@ def captions(project_dir: Path, *, force: bool = False,
                                          text_hook_bottom=_text_hook_bottom(timeline, style),
                                          splits=[(start, end, layout.seam_y)
                                                  for start, end, layout in splits])
-            blocked = [slot for slot, placement in zip(
-                json.loads(plan.variables["phrases"]), placements, strict=True,
-            ) if placement["reason"].startswith("kept: no position")]
-            if blocked and context.creator_caption_placement == "avoid_face":
-                times = ", ".join(f"{format_time(slot['start'])} to {format_time(slot['end'])}"
-                                  for slot in blocked[:3])
-                if len(blocked) > 3:
-                    times += f", and {len(blocked) - 3} more"
-                message = (f"{len(blocked)} caption {'phrase' if len(blocked) == 1 else 'phrases'} "
-                           f"cannot fit clear of the face at {times}.")
-                if not allow_violations:
-                    raise YapError(message, code="caption_face_clearance",
-                                   suggested_action=CAPTION_FACE_ACTION)
-                result["warnings"].append(f"{message} {CAPTION_FACE_ACTION}")
+            candidates = {f"caption-{item['slot']}" for item in placements
+                          if item["reason"].startswith("kept: no position")}
             if any(item["offset_px"] for item in placements):
                 plan = caption_layer_plan(snapshot.phrases, style, frames=timeline.total_frames,
                                           offsets=[item["offset_px"] for item in placements],
@@ -1534,6 +1528,28 @@ def captions(project_dir: Path, *, force: bool = False,
             rendered = render_layer_plan(plan, work, work / "captions.mov",
                                          assets=snapshot.assets)
             run.progress("checking captions", 0.9)
+            layout = caption_layout(rendered.checks, plan)
+            layout["caption_placement"] = context.creator_caption_placement
+            if (candidates and faces is not None
+                    and context.creator_caption_placement == "avoid_face"):
+                report = check_layout(faces, Layout.from_dict(layout),
+                                      margin_px=face_clearance_px(style.data))
+                overlaps = candidates & {item.target_id for item in report.violations
+                                         if item.kind == "face"}
+                blocked = [slot for index, slot in enumerate(json.loads(plan.variables["phrases"]))
+                           if f"caption-{index}" in overlaps]
+                if blocked:
+                    times = ", ".join(f"{format_time(slot['start'])} to {format_time(slot['end'])}"
+                                      for slot in blocked[:3])
+                    if len(blocked) > 3:
+                        times += f", and {len(blocked) - 3} more"
+                    message = (
+                        f"{len(blocked)} caption {'phrase' if len(blocked) == 1 else 'phrases'} "
+                        f"did not clear the face at {times}.")
+                    if not allow_violations:
+                        raise YapError(message, code="caption_face_clearance",
+                                       suggested_action=CAPTION_FACE_ACTION)
+                    result["warnings"].append(f"{message} {CAPTION_FACE_ACTION}")
             subtitles = work / "captions.srt"
             subtitles.write_text(_srt_text(snapshot.phrases), encoding="utf-8")
             phrases_path = work / "phrases.json"
@@ -1541,8 +1557,6 @@ def captions(project_dir: Path, *, force: bool = False,
                 "schema": "yap-studio/phrases@1", "time_base": "output", "fps": 30,
                 "layer": layer, "phrases": [phrase.to_dict() for phrase in snapshot.phrases],
             }, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
-            layout = caption_layout(rendered.checks, plan)
-            layout["caption_placement"] = context.creator_caption_placement
             layout_path = work / "layout.json"
             layout_path.write_text(json.dumps(layout, indent=2, ensure_ascii=False, allow_nan=False)
                                    + "\n", encoding="utf-8")

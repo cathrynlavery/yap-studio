@@ -1521,10 +1521,40 @@ def test_caption_offsets_keep_clear_empty_and_blocked_windows(case: str) -> None
     }[case])
 
 
-@pytest.mark.parametrize("face_frames", [None, (4,)])
-def test_blocked_collision_stops_before_rendering(
+@pytest.mark.parametrize("allow_violations", [False, True])
+def test_blocked_band_keeps_clear_measured_phrase(
     layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
-    monkeypatch: pytest.MonkeyPatch, face_frames: tuple[int, ...] | None,
+    reported_layers: Callable[[dict | None], None], allow_violations: bool,
+) -> None:
+    from yap_studio.checks.caption_layout import LayoutRecord
+    from yap_studio.checks.face_clearance import check_face_clearance
+
+    measured_faces.box = Box(70, 640, 180, 1100)
+    snapshot = caption_snapshot(ProjectContext(layer_project))
+    reported_layers(_layout_checks([
+        {"slot": slot, "boxes": [{"x": 480, "y": 20, "w": 120, "h": 40}]}
+        for slot in range(len(snapshot.phrases))
+    ]))
+    result = captions(layer_project, allow_violations=allow_violations)
+    assert not result["noop"] and result["warnings"] == []
+    assert len(fake_layers) == 1
+    record = read_receipt(layer_project / "captions")
+    assert record["caption_placement"]["phrases"][0]["reason"].startswith("kept: no position")
+    layout = Layout.from_dict(json.loads((layer_project / "captions/layout.json").read_bytes()))
+    faces = cut_faces(layer_project, layer_project / "cut/cut.mp4", detector=measured_faces)
+    findings, coverage = check_face_clearance(
+        LayoutRecord(layout, True, None, {}), faces, faces_source="record",
+    )
+    assert coverage["ran"] and findings == []
+    assert captions(layer_project)["noop"]
+    assert len(fake_layers) == 1
+
+
+@pytest.mark.parametrize("face_frames", [None, (4,)])
+def test_blocked_collision_stops_before_publishing(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    checked_layers: list[dict], monkeypatch: pytest.MonkeyPatch,
+    face_frames: tuple[int, ...] | None,
 ) -> None:
     measured_faces.box = Box(0, 640, 1080, 1100)
     if face_frames is None:
@@ -1537,6 +1567,8 @@ def test_blocked_collision_stops_before_rendering(
                    for n in range(faces.video.frames))
     faces = replace(faces, frames=frames, gaps=tuple(find_gaps(frames)))
     monkeypatch.setattr(caption_stage, "cut_faces", lambda *args: faces)
+    monkeypatch.setattr(StageRun, "replace_output", lambda *args: pytest.fail(
+        "A blocked caption layer must not publish outputs"))
     with pytest.raises(YapError) as caught:
         captions(layer_project)
     assert caught.value.code == "caption_face_clearance"
@@ -1549,7 +1581,9 @@ def test_blocked_collision_stops_before_rendering(
     assert all(text in caught.value.suggested_action for text in (
         "wider", "smaller captions", 'captions.placement', '"fixed"', "this project",
     ))
-    assert fake_layers == []
+    assert len(fake_layers) == 1
+    assert all(not (layer_project / "captions" / name).exists()
+               for name in ("captions.mov", "captions.srt", "phrases.json", "layout.json"))
 
 
 def test_blocked_face_only_on_undrawn_frame_does_not_stop_captions(
@@ -1570,6 +1604,7 @@ def test_blocked_face_only_on_undrawn_frame_does_not_stop_captions(
 
 def test_blocked_collision_is_listed_in_receipt_with_warning(
     layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    checked_layers: list[dict],
 ) -> None:
     measured_faces.box = Box(0, 0, 1080, 1920)
     from yap_studio.stages import run as chain
@@ -1592,6 +1627,32 @@ def test_blocked_collision_is_listed_in_receipt_with_warning(
     assert caught.value.message.count(caption_stage.CAPTION_FACE_ACTION) == 0
     assert caught.value.suggested_action == caption_stage.CAPTION_FACE_ACTION
     assert f"{caught.value.message} {caught.value.suggested_action}" == state["warnings"][0]
+
+
+@pytest.mark.parametrize("blocked", [False, True])
+@pytest.mark.parametrize("placement", ["avoid_face", "fixed"])
+def test_legacy_blocked_caption_receipt_is_rechecked(
+    layer_project: Path, fake_layers: list[dict], blocked: bool, placement: str,
+) -> None:
+    style = json.loads((layer_project / "style.json").read_bytes())
+    style["captions"]["placement"] = placement
+    write(layer_project / "style.json", style)
+    captions(layer_project)
+    target = layer_project / "captions/receipt.json"
+    record = read_receipt(layer_project / "captions")
+    inputs = record["inputs"]
+    record.pop("warnings")
+    if blocked:
+        record["caption_placement"]["phrases"] = [{
+            "slot": 0, "text": "simple steps.", "offset_px": 0,
+            "reason": "kept: no position in the band clears the head",
+        }]
+    write(target, record)
+    result = captions(layer_project)
+    rerender = blocked and placement == "avoid_face"
+    assert result["noop"] == (not rerender)
+    assert len(fake_layers) == (2 if rerender else 1)
+    assert read_receipt(layer_project / "captions")["inputs"] == inputs
 
 
 @pytest.mark.parametrize("shape", ["vertical", "horizontal"])

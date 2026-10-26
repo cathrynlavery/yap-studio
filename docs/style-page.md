@@ -68,8 +68,9 @@ The live preview builds the phrase with fixed lines and a full size background.
 More holds words on screen, all 24 highlights, position, size, color and shadow,
 background color, phrase motion and exact values. Italicize emphasized words is
 with the highlights. Keep captions off my face lets the engine move captions
-around the faces it measures. If there is no clear position, captions stops with
-the times. Turning it off saves `captions.placement: "fixed"` and accepts captions
+around the faces it measures. If a rendered phrase still covers your face, captions
+stops before publishing and lists the times. Turning it off saves
+`captions.placement: "fixed"` and accepts captions
 over your face. The final reports those overlaps as warnings. Cards and overlays
 still have to clear your face.
 
@@ -263,7 +264,8 @@ sets it to `false`.
 - Top, Middle and Bottom set `top_px` to 700, 1180 and 1500. That is the preferred
   spot. Keep captions off my face lets the engine move captions off a face. The render
   measures faces through each phrase, and the preview uses the faces in the still.
-  With it on, a phrase with no clear position stops captions before rendering.
+  With it on, captions checks rendered phrases and stops before publishing if they
+  still cover your face.
 - A background below 50% strength keeps your caption color. Stronger backgrounds use
   the engine's contrast color. A background at zero strength lays out like None.
 - `captions.width_scale` runs from 0.6 to 1. `captions.highlight_style` can be `pill`

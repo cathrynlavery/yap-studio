@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- With `avoid_face`, captions stop before rendering when a phrase has no position clear of the face, and say when and how to fix it. Setting `captions.placement` to `fixed` in a project's style accepts captions over the face as a warning; cards and overlays still have to stay clear.
+- With `avoid_face`, captions stop before the final when a phrase covers the face and there is no clear position, and say when and how to fix it. Setting `captions.placement` to `fixed` in a project's style accepts captions over the face as a warning; cards and overlays still have to stay clear.
 
 ## 1.1.0 (2026-10-26)
 
