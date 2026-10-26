@@ -206,6 +206,180 @@ def test_bump_restores_release_files_when_lock_fails(
     assert after == before
 
 
+def test_bump_gathers_change_files_by_kind(
+    release_copy: Path, bump_script: ModuleType, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Change files follow legacy notes in kind order and satisfy the release gate."""
+    root = release_copy
+    current = str(_project(root)["version"])
+    project_text = (root / "pyproject.toml").read_text(encoding="utf-8")
+    build_checkout(root, version=current)
+    (root / "pyproject.toml").write_text(project_text, encoding="utf-8")
+    changelog = root / "CHANGELOG.md"
+    changelog.write_text(
+        "# Changelog\n\n## Unreleased\n\n- Legacy note.\n\n"
+        f"## {current} (2026-10-01)\n\n- Older change.\n", encoding="utf-8",
+    )
+    folder = root / "changes"
+    folder.mkdir()
+    files = {
+        "new.feature.md": "\n- New feature.  \n\n- Another feature.\t\n",
+        "z-last.fix.md": "- Second fix.\n",
+        "a-first.fix.md": "- First fix.\n",
+        "update.dependencies.md": "- Updated dependency.\n",
+        "coverage.tests.md": "- Added tests.\n",
+        "README.md": "Change file instructions.\n",
+        ".DS_Store": "ignored\n",
+    }
+    for filename, content in files.items():
+        (folder / filename).write_text(content, encoding="utf-8")
+    assert bump_script.change_notes(root) == [
+        (folder / "a-first.fix.md", "fix", "- First fix."),
+        (folder / "coverage.tests.md", "tests", "- Added tests."),
+        (folder / "new.feature.md", "feature", "- New feature.\n- Another feature."),
+        (folder / "update.dependencies.md", "dependencies", "- Updated dependency."),
+        (folder / "z-last.fix.md", "fix", "- Second fix."),
+    ]
+    new = _next_version(root)
+    with monkeypatch.context() as resolver:
+        resolver.setattr(bump_script.subprocess, "run", Mock())
+        bump_script.bump(root, new, "2026-10-06")
+    assert changelog.read_text(encoding="utf-8") == (
+        f"# Changelog\n\n## Unreleased\n\n## {new} (2026-10-06)\n\n- Legacy note.\n\n"
+        "### Features\n\n- New feature.\n- Another feature.\n\n"
+        "### Fixes\n\n- First fix.\n- Second fix.\n\n"
+        "### Dependencies\n\n- Updated dependency.\n\n### Tests\n\n- Added tests.\n\n"
+        f"## {current} (2026-10-01)\n\n- Older change.\n"
+    )
+    assert sorted(path.name for path in folder.iterdir()) == [".DS_Store", "README.md"]
+    for filename in ("README.md", ".DS_Store"):
+        assert (folder / filename).read_bytes() == files[filename].encode("utf-8")
+    result = _run(root, "check_version_bump.py", "--base", "main")
+    assert result.returncode == 0, result.stderr
+
+
+def test_bump_with_only_change_files(
+    release_copy: Path, bump_script: ModuleType, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without legacy notes, the section starts with the first kind heading."""
+    changelog = release_copy / "CHANGELOG.md"
+    changelog.write_text("# Changelog\n\n## Unreleased\n", encoding="utf-8")
+    folder = release_copy / "changes"
+    folder.mkdir()
+    (folder / "speed.performance.md").write_text("- Faster captions.\n", encoding="utf-8")
+    (folder / "guide.docs.md").write_text("- Updated guide.\n", encoding="utf-8")
+    monkeypatch.setattr(bump_script.subprocess, "run", Mock())
+    new = _next_version(release_copy)
+    bump_script.bump(release_copy, new, "2026-10-06")
+    assert changelog.read_text(encoding="utf-8") == (
+        f"# Changelog\n\n## Unreleased\n\n## {new} (2026-10-06)\n\n"
+        "### Performance\n\n- Faster captions.\n\n### Docs\n\n- Updated guide.\n"
+    )
+    assert list(folder.iterdir()) == []
+
+
+@pytest.mark.parametrize(("filename", "content"), [
+    ("x.feat.md", b"- Note.\n"), ("x.md", b"- Note.\n"),
+    ("Bad_Name.fix.md", b"- Note.\n"), ("x.fix.txt", b"- Note.\n"),
+    ("x.fix.md", None), ("x.fix.md", b""), ("x.fix.md", b"Prose.\n"),
+    ("x.fix.md", b"- Note.\nProse.\n"), ("x.fix.md", b"* Note.\n"),
+    ("x.fix.md", b"  - Indented.\n"), ("x.fix.md", b"# Heading\n"),
+    ("x.fix.md", b"- \t\n"), ("x.fix.md", b"- \xff\n"),
+    ("x--y.fix.md", b"- Note.\n"),
+])
+def test_bump_refuses_bad_change_files(
+    release_copy: Path, filename: str, content: bytes | None,
+) -> None:
+    """Invalid entries fail plainly before any release file or change file is changed."""
+    folder = release_copy / "changes"
+    folder.mkdir()
+    (folder / "a-valid.fix.md").write_bytes(b"\r\n- Keep this note.  \r\n")
+    bad = folder / filename
+    if content is None:
+        bad.mkdir()
+    else:
+        bad.write_bytes(content)
+    paths = [release_copy / relative for relative in RELEASE_FILES] + list(folder.iterdir())
+    before = {path: path.read_bytes() if path.is_file() else None for path in paths}
+    result = _run(release_copy, "bump_version.py", _next_version(release_copy))
+    assert result.returncode == 1
+    assert f"changes/{filename}" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert {path: path.read_bytes() if path.is_file() else None for path in paths} == before
+    assert set(folder.iterdir()) == {bad, folder / "a-valid.fix.md"}
+
+
+@pytest.mark.parametrize("has_lock", [True, False])
+def test_bump_restores_change_files_when_lock_fails(
+    release_copy: Path, bump_script: ModuleType, monkeypatch: pytest.MonkeyPatch, has_lock: bool,
+) -> None:
+    """A failed resolver recreates deleted notes with their original bytes."""
+    folder = release_copy / "changes"
+    folder.mkdir()
+    for filename in ("first.fix.md", "second.tests.md"):
+        (folder / filename).write_bytes("\r\n- Keep café.  \r\n\r\n".encode())
+    if not has_lock:
+        (release_copy / "uv.lock").unlink()
+    paths = [release_copy / relative for relative in RELEASE_FILES] + list(folder.iterdir())
+    before = {path: path.read_bytes() if path.exists() else None for path in paths}
+
+    def fail_lock(*args: object, **kwargs: object) -> None:
+        assert list(folder.iterdir()) == []
+        (release_copy / "uv.lock").write_text("partial lock\n", encoding="utf-8")
+        raise subprocess.CalledProcessError(1, ["uv", "lock"])
+
+    monkeypatch.setattr(bump_script.subprocess, "run", fail_lock)
+    with pytest.raises(bump_script.ReleaseError, match="release files were restored"):
+        bump_script.bump(release_copy, _next_version(release_copy), "2026-10-06")
+    assert {path: path.read_bytes() if path.exists() else None for path in paths} == before
+
+
+def test_bump_refuses_existing_section_with_change_files(release_copy: Path) -> None:
+    """Prepared sections cannot silently leave new change files out of a release."""
+    new = _next_version(release_copy)
+    (release_copy / "CHANGELOG.md").write_text(
+        f"# Changelog\n\n## Unreleased\n\n## {new} (2026-10-06)\n\n- Prepared note.\n",
+        encoding="utf-8",
+    )
+    folder = release_copy / "changes"
+    folder.mkdir()
+    note = folder / "pending.fix.md"
+    note.write_bytes(b"- Pending note.\r\n")
+    paths = [release_copy / relative for relative in RELEASE_FILES] + [note]
+    before = {path: path.read_bytes() for path in paths}
+    result = _run(release_copy, "bump_version.py", new)
+    assert result.returncode == 1
+    assert "CHANGELOG.md" in result.stderr and "remove the section" in result.stderr
+    assert "by hand" in result.stderr and "retry" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert {path: path.read_bytes() for path in paths} == before
+
+
+def test_change_notes_without_pending_files(
+    release_copy: Path, bump_script: ModuleType,
+) -> None:
+    """Missing folders and ignored entries produce no pending notes."""
+    assert bump_script.change_notes(release_copy) == []
+    folder = release_copy / "changes"
+    folder.mkdir()
+    (folder / "README.md").write_text("Instructions.\n", encoding="utf-8")
+    (folder / ".DS_Store").write_bytes(b"ignored")
+    (folder / ".hidden").mkdir()
+    assert bump_script.change_notes(release_copy) == []
+
+
+def test_repository_change_notes_are_valid() -> None:
+    """Every pending note in the real checkout follows the documented format."""
+    spec = importlib.util.spec_from_file_location(
+        "repository_release_bump", ROOT / "scripts" / "bump_version.py",
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert (ROOT / "changes" / "README.md").is_file()
+    module.change_notes(ROOT)
+
+
 @pytest.mark.parametrize(
     ("version", "changelog", "expected"),
     [

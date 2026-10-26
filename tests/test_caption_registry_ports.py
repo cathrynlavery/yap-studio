@@ -11,6 +11,7 @@ from pathlib import Path
 import jsonschema
 import numpy as np
 import pytest
+from release_notes import release_bullets
 from test_captions_render import (
     _TEMPLATES,
     _caption_dom,
@@ -73,8 +74,7 @@ PORT_DIGESTS = {
 
 
 def test_registry_styles_have_a_changelog_entry() -> None:
-    changelog = (_TEMPLATES.parents[2] / "CHANGELOG.md").read_text()
-    bullets = [line for line in changelog.splitlines() if line.startswith("- ")]
+    bullets = release_bullets()
     entry = next(line for line in bullets if "HyperFrames caption styles" in line)
     assert str(len(PORTS)) in entry
 

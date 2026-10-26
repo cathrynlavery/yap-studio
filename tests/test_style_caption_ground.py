@@ -6,14 +6,14 @@ from pathlib import Path
 
 import jsonschema
 import pytest
+from release_notes import release_bullets
 
 from yap_studio.style import SCHEMA_PATH, StyleError, load_style, resolve, resolve_style_data
 from yap_studio.style.loader import _contrast, unbranded
 
 
 def test_caption_ground_feature_has_a_release_note() -> None:
-    changelog = (Path(__file__).parents[1] / "CHANGELOG.md").read_text()
-    bullets = [line.lower() for line in changelog.splitlines() if line.startswith("- ")]
+    bullets = [line.lower() for line in release_bullets()]
     assert any(all(word in bullet for word in ("caption", "box", "band", "placement"))
                for bullet in bullets)
 
