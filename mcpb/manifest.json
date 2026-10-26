@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "yap-studio",
   "display_name": "Yap Studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Checks every cut in a finished video: clicks, sync, frames, loudness and platform rules.",
   "author": {
     "name": "Cathryn Lavery"

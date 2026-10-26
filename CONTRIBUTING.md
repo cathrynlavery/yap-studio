@@ -42,7 +42,30 @@ Vision helper tests require macOS and Xcode command line tools. Tests that need
 unavailable dependencies may skip; include those skips when reporting results.
 
 Add one bullet under `## Unreleased` in CHANGELOG.md. Don't change the version;
-it is set once, at release.
+it is set once, at release. Keep Unreleased a flat list; it is sorted at release.
+
+Releases are small and frequent, cut from a `release/vX.Y.Z` pull request whenever
+main is green:
+
+1. Branch `release/vX.Y.Z` from main once CI and Release checks have passed on
+   main's latest commit.
+2. Run `uv run python scripts/bump_version.py X.Y.Z`. It sets the version in
+   pyproject.toml, uv.lock and the plugin and MCPB manifests, and moves the
+   Unreleased notes into a dated section.
+3. In that section, add a one-line summary and sort the notes under Features,
+   Fixes, Performance, Dependencies and Tests. The Release workflow publishes this
+   section as the release notes.
+4. Merge the pull request once its checks pass and its review comments are resolved.
+5. Run Release checks on the merge commit (`gh workflow run release-checks.yml
+   --ref main`) or wait for the nightly run. When CI and Release checks pass on
+   it, tag that commit and push the tag: `git tag vX.Y.Z <commit>` then
+   `git push origin vX.Y.Z`.
+6. The Release workflow builds the wheel, source archive, MCPB bundle and
+   workspace zip, installs the zip in a clean folder and creates a draft release.
+   Check its assets and notes, then publish it.
+
+Use a patch version for fixes and small changes, a minor version when a release
+adds features, and a major version when it breaks existing projects or styles.
 
 Tests use synthetic speech and generated pictures. Keep fixtures synthetic and
 do not commit real creator footage, transcripts or private taste files.

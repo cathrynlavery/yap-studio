@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yap-studio"
-version = "1.0.0"
+version = "1.1.0"
 description = "Edits vertical videos from raw takes and verifies finished renders."
 readme = "README.md"
 requires-python = ">=3.11"

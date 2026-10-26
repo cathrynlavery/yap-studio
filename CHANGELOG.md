@@ -2,39 +2,57 @@
 
 ## Unreleased
 
-- The vertical cover and layer checks compare what is sent to the renderer instead of rendered bytes, so they pass on any machine and run on every pull request.
-- Kinetic hook titles render without the browser GPU, so two renders of the same title match even when the machine is busy.
-- Two speech release tests keep a real cut where they check one, now that continuous ranges of one take are not cuts.
+## 1.1.0 (2026-10-26)
+
+Yap Studio now edits horizontal YouTube videos too, with an opening title, chapter cards, floating cards, B-roll and a thumbnail, and the workspace opens in Claude Code, the Claude app's Code tab, Codex or Cursor. Long videos cut and caption faster.
+
+### Features
+
+- Add horizontal talking-head videos at 1920x1080 with hard cuts and captions; other features are refused with a fix.
+- Home asks vertical or horizontal for each video, with horizontal captions off by default.
+- Wide videos get an opening title, chapter cards with a chapter bar, a name tag, and a YouTube chapter list you can copy from Home and review.
+- Wide videos get floating cards: 26 built-in cards and the registry cards that fit sit on a paper card in the open side of the shot, clear of faces and captions, sized to their content. Grids, phone feeds, falling words and numbers behind the speaker stay vertical-only, each with a fix line.
+- Wide videos get B-roll: full-frame clips and stills, portrait and square media shown whole over a soft blurred fill, landscape-first stock and 16:9 generated pictures, and 16:9 picking sheets.
+- Wide videos get 1280x720 YouTube thumbnails from `yap-studio cover`: a face-first frame from the finished edit, the headline, number and before/after looks on the open side of the shot with no box, clear of YouTube's duration badge and checked for legibility at 168x94.
+- Open the workspace in Claude Code, the Claude app's Code tab, Codex or Cursor: shared instructions and skills, settings that let each app run Yap Studio, the app's name on Home and review, and a privacy line for each app.
+- Text at the top is a style page step with no default for new creators; Home lets you change it per video, and the agent waits for a pick.
+- Review lists uncertain joins with a Listen button to hear the speech on each side, keeping only joins whose source edges still meet in the reviewed version.
+- Verify warns when caption word starts consistently run more than half a second ahead of or behind matching speech, with the time and measured offset.
+- Catch repeated points in unpunctuated story cuts using pauses and edit segment edges, and check the whole story again after review notes.
+- Record scrubbed product feedback locally, with consent settings, repeat grouping and optional sharing.
+
+### Fixes
+
 - The join check again flags a planned last or first word whose final syllable is cut off when the speech engine places the word's edge early.
 - Covers tint low-contrast style accents so default-style starred headlines, numbers and before/after looks render in both orientations.
 - Continuous ranges from the same take no longer count as cuts or receive join fades or Listen prompts; failed cuts print each verifier problem and its fix with the report path, and workspace doc links open the public documentation.
-- Wide videos get 1280x720 YouTube thumbnails from `yap-studio cover`: a face-first frame from the finished edit, the headline, number and before/after looks on the open side of the shot with no box, clear of YouTube's duration badge and checked for legibility at 168x94.
-- The join Listen browser test reads the start position when the review page presses play, after its seek has settled, so a slow test machine can no longer make a correct start look late. Its 8x CPU-throttled variant runs in local gates only.
-- Wide videos get floating cards: 26 built-in cards and the registry cards that fit sit on a paper card in the open side of the shot, clear of faces and captions, sized to their content. Grids, phone feeds, falling words and numbers behind the speaker stay vertical-only, each with a fix line.
-- A Listen that runs to the end of the video stops on its planned last frame, not two frames early, on a busy machine.
-- Wide videos get B-roll: full-frame clips and stills, portrait and square media shown whole over a soft blurred fill, landscape-first stock and 16:9 generated pictures, and 16:9 picking sheets.
-- The Home browser test taps only a live, enabled button, so a page refresh mid-tap no longer fails it on slow machines.
-- Wide videos get an opening title, chapter cards with a chapter bar, a name tag, and a YouTube chapter list you can copy from Home and review.
-- The fresh-user browser test expects Home to name Claude Code while it builds a video, and the join Listen test waits for the previous Listen to settle so a late seek can't count as the next start.
 - A layer whose script throws while it renders now fails the render instead of coming out half drawn.
-- Open the workspace in Claude Code, the Claude app's Code tab, Codex or Cursor: shared instructions and skills, settings that let each app run Yap Studio, the app's name on Home and review, and a privacy line for each app.
-- Cutting seeks to each piece instead of decoding the take from the start: on a 20-minute video the cut went from 282 s to 201 s, with identical output.
-- The review Listen browser test records where playback starts and stops inside the page, so slow test machines no longer fail it.
 - Verify tells you long YouTube uploads need a verified account instead of telling you to trim a video over 15 minutes.
-- With captions off for the whole video, captions skip rendering an empty layer and the final skips the overlay: on a 10-minute video, captions went from 243 s to 1 s and the final from 259 s to 161 s.
-- Text at the top is a style page step with no default for new creators; Home lets you change it per video, and the agent waits for a pick.
 - Captions no longer fail when a caption phrase has no length, which showed up on a 30-minute video, and internal caption errors keep their own message.
-- Home asks vertical or horizontal for each video, with horizontal captions off by default.
-- Add horizontal talking-head videos at 1920x1080 with hard cuts and captions; other features are refused with a fix.
 - Cards fit ordinary framing, notes can be closed in a later version, review controls stay on screen, and Home and review use honest labels.
-- Pin the renderer to HyperFrames 0.8.192.
-- Record scrubbed product feedback locally, with consent settings, repeat grouping and optional sharing.
 - Multiword caption fixes keep words separate across long pauses, sentence ends and cuts. Layout breaks preserve merged spellings.
-- Catch repeated points in unpunctuated story cuts using pauses and edit segment edges, and check the whole story again after review notes.
 - Review videos show a Retry button when loading stalls or fails, keep your place on retry, and retry a network error once. Finished background runs open the newest saved version for review and report how to recover if the page cannot start.
 - Home shows newer work after a stopped run and warns when it loses contact with your Mac. Review confirms approval, says the download is ready, and leaves internal layer lint out of its flagged items.
-- Review lists uncertain joins with a Listen button to hear the speech on each side, keeping only joins whose source edges still meet in the reviewed version.
-- Verify warns when caption word starts consistently run more than half a second ahead of or behind matching speech, with the time and measured offset.
+- A Listen that runs to the end of the video stops on its planned last frame, not two frames early, on a busy machine.
+- Kinetic hook titles render without the browser GPU, so two renders of the same title match even when the machine is busy.
+
+### Performance
+
+- Cutting seeks to each piece instead of decoding the take from the start: on a 20-minute video the cut went from 282 s to 201 s, with identical output.
+- With captions off for the whole video, captions skip rendering an empty layer and the final skips the overlay: on a 10-minute video, captions went from 243 s to 1 s and the final from 259 s to 161 s.
+
+### Dependencies
+
+- Pin the renderer to HyperFrames 0.8.192.
+
+### Tests
+
+- The vertical cover and layer checks compare what is sent to the renderer instead of rendered bytes, so they pass on any machine and run on every pull request.
+- Two speech release tests keep a real cut where they check one, now that continuous ranges of one take are not cuts.
+- The join Listen browser test reads the start position when the review page presses play, after its seek has settled, so a slow test machine can no longer make a correct start look late. Its 8x CPU-throttled variant runs in local gates only.
+- The Home browser test taps only a live, enabled button, so a page refresh mid-tap no longer fails it on slow machines.
+- The fresh-user browser test expects Home to name Claude Code while it builds a video, and the join Listen test waits for the previous Listen to settle so a late seek can't count as the next start.
+- The review Listen browser test records where playback starts and stops inside the page, so slow test machines no longer fail it.
 
 ## 1.0.0 (2026-10-23)
 
