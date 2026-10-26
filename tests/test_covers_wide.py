@@ -605,3 +605,17 @@ def test_wide_prediction_does_not_dilute_a_small_accent():
     frame = np.full((720, 1280, 4), 128, np.uint8)
     result = _predicted_contrast(frame, [block], [(0, 0), (1, 0)], horizontal=True)
     assert result['0'] == 1
+
+
+def test_label_that_cannot_fit_says_to_shorten_it():
+    from yap_studio.covers.wide import WIDE_LAYOUTS, _lines
+
+    table = WIDE_LAYOUTS['number']
+    with pytest.raises(ValidationError) as error:
+        _lines('label', ' '.join(['extraordinarily'] * 6), 'Gelasio', table,
+                    maximum=112, minimum=104)
+    assert error.value.suggested_action == 'Shorten the label; each line needs two or more words.'
+    with pytest.raises(ValidationError) as error:
+        _lines('headline', ' '.join(['extraordinarily'] * 6), 'Gelasio', table,
+                    maximum=112, minimum=104)
+    assert '--look before-after' in error.value.suggested_action

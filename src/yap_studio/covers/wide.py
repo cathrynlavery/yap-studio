@@ -173,9 +173,11 @@ def _lines(role: str, text: str, font: str, table: dict, *, maximum: int | None 
         except ValidationError:
             continue
     error = ValidationError(role, 'text cannot fit the thumbnail without an orphan word')
+    # A headline is copy the creator chose for a look; a label can simply be shorter.
     error.suggested_action = (
         'Each line needs two or more words; try --look before-after or --look number.'
-        + (' Mark a shorter accent phrase.' if forbidden_breaks else ''))
+        if role == 'headline' else f'Shorten the {role}; each line needs two or more words.'
+    ) + (' Mark a shorter accent phrase.' if forbidden_breaks else '')
     raise error
 
 
