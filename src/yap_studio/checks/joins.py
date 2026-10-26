@@ -1223,15 +1223,19 @@ def _locate_word_shape(
     if matches:
         _, first, last = min(matches, key=lambda match: match[0])
         return first if side == "first" else last
-    # Kept neighbours and the next heard word cannot stand in for the planned word.
-    # Its own syllables past an early heard edge still count.
+    # Kept neighbours never count as the planned word's own syllables.
+    # Past an early heard edge, only shapes ending before the next heard word count.
     if any(start_s <= shape.nucleus_s <= end_s for shape in candidates):
         if side == "last":
-            limit = max(end_s, neighbour_s) if neighbour_s is not None else float("inf")
-            candidates = [shape for shape in candidates if start_s <= shape.nucleus_s <= limit]
+            candidates = [shape for shape in candidates if start_s <= shape.nucleus_s
+                          and (shape.nucleus_s <= end_s or neighbour_s is None
+                               or (shape.offset.time_s if shape.offset else shape.nucleus_s)
+                               < neighbour_s)]
         else:
-            limit = min(start_s, neighbour_s) if neighbour_s is not None else -float("inf")
-            candidates = [shape for shape in candidates if limit <= shape.nucleus_s <= end_s]
+            candidates = [shape for shape in candidates if shape.nucleus_s <= end_s
+                          and (start_s <= shape.nucleus_s or neighbour_s is None
+                               or (shape.onset.time_s if shape.onset else shape.nucleus_s)
+                               > neighbour_s)]
     center = start_s + min(end_s - start_s, _WORD_SEARCH_S) / 2
     if side == "first":
         facing = [shape for shape in candidates if shape.nucleus_s >= point_s - _WORD_OVERLAP_S]

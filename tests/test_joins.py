@@ -956,13 +956,18 @@ def test_planned_word_early_heard_edge_keeps_clipped_syllable(side: str) -> None
 
 
 @pytest.mark.parametrize("side", ["first", "last"])
-def test_planned_word_cannot_use_next_heard_neighbour(side: str) -> None:
+@pytest.mark.parametrize("neighbour_voice, spans, point", [
+    ((106, 109), [("garden", 0.80, 1.05), ("a", 1.06, 1.09)], 1.06),
+    ((104, 108), [("garden", 0.80, 1.04), ("a", 1.06, 1.10)], 1.04),
+])
+def test_planned_word_cannot_use_next_heard_neighbour(
+    side: str, neighbour_voice: tuple[int, int], spans: list[tuple[str, float, float]],
+    point: float,
+) -> None:
     """The next heard word cannot stand in for the planned word's last syllable."""
     levels = np.full(250, -65.0)
     levels[80:100] = -20.0
-    levels[106:109] = -20.0
-    spans = [("garden", 0.80, 1.05), ("a", 1.06, 1.09)]
-    point = 1.06
+    levels[neighbour_voice[0]:neighbour_voice[1]] = -20.0
     if side == "first":
         levels = levels[::-1]
         spans = [(text, 2.5 - end, 2.5 - start) for text, start, end in reversed(spans)]
