@@ -2,7 +2,6 @@
 
 ## Unreleased
 
-- Wide thumbnail headlines shrink to fit the default font while keeping two or more words per line and passing the 168×94 readability check.
 - Pin the renderer to HyperFrames 0.8.203.
 - Repeated feedback adds to the matching open issue instead of opening a duplicate, automatic bug reports name the subcommand (such as `versions save`) without sharing other arguments, and agents record a `missing` note when they do something by hand that Yap Studio can't.
 - Final videos and pilots no longer fail on older ffmpeg builds that decode extra AAC padding at the end. The audio in the file must still match the picture exactly.
