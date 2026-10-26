@@ -70,6 +70,12 @@ Each segment names a take and its first and last word IDs; segments play in list
 order. Give each segment a unique `id`. Keep `words_sha256` tied to the current
 ingest file. For this first video, use the default style and no music or graphics.
 
+`from` defaults to the word's start; `to` defaults to its end. `offset_s` shifts that
+transcript edge in seconds. A non-zero `offset_s` makes the edge exact: no pad and no
+silence search. A small offset can therefore move the cut past its default padding.
+When a join clips the anchored word, use the suggested `from.offset_s` or `to.offset_s`
+as the new value. It includes a small margin to keep the measured voice after frame snapping.
+
 Check the edit, apply agreed filler removals, and render a cut for story review.
 Only removals applied before that review reach the final. `run` never applies new removals:
 
