@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Pin the renderer to HyperFrames 0.8.203.
+- Pin the renderer to HyperFrames 0.8.204.
 
 ## 1.1.0 (2026-10-26)
 

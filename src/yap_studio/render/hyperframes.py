@@ -31,7 +31,7 @@ from yap_studio.errors import (
 )
 from yap_studio.render import alpha
 
-HYPERFRAMES_VERSION = "0.8.203"
+HYPERFRAMES_VERSION = "0.8.204"
 # From 0.8.151 caption bands render the same at any worker count.
 # Let HyperFrames choose the caption count.
 # Cards and titles stay at one worker. A stat card chunk that starts during
