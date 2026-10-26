@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Pin the renderer to HyperFrames 0.8.203.
+- Repeated feedback adds to the matching open issue instead of opening a duplicate, automatic bug reports name the subcommand (such as `versions save`) without sharing other arguments, and agents record a `missing` note when they do something by hand that Yap Studio can't.
 - A `changed` reply to a Fix note about the whole video is accepted in a later saved version instead of always being refused.
 
 ## 1.1.0 (2026-10-26)
