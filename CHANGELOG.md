@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Pin the renderer to HyperFrames 0.8.203.
 - Final videos and pilots no longer fail on older ffmpeg builds that decode extra AAC padding at the end. The audio in the file must still match the picture exactly.
 
 ## 1.1.0 (2026-10-26)
