@@ -1464,6 +1464,29 @@ def test_planned_word_extends_soft_boundary(
 
 
 @pytest.mark.parametrize("side", ["first", "last"])
+def test_planned_word_extends_soft_boundary_with_excluded_neighbour(side: str) -> None:
+    """Hearing the excluded neighbour must not hide the planned word's soft syllable."""
+    levels = np.full(250, -65.0)
+    levels[100:110] = -20.0
+    levels[110:113] = -28.0
+    levels[113:117] = -26.0
+    if side == "first":
+        levels = levels[::-1]
+    words = ([Word("hills", 1.80, 2.00), Word("garden", 2.44, 2.50)]
+             if side == "first" else
+             [Word("garden", 2.00, 2.06), Word("hills", 2.80, 3.00)])
+    point = 1.41 if side == "first" else 1.09
+    finding = joins._planned_word_finding(
+        Transcript(words), "garden", side, point, "Cut 1", point,
+        sound=_word_level_sound(levels), sr=16000, cut=1,
+        excluded=Transcript([Word("hills", 1.0, 1.2)]),
+    )
+    assert finding is not None and (finding.check, finding.severity) == ("join.words", "fail")
+    assert finding.evidence["overlap_ms"] == pytest.approx(80, abs=10)
+    assert finding.evidence["joined_shapes"] == 1
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
 def test_planned_word_hyphenated_heard_word_extends_soft_boundary(side: str) -> None:
     """Another token from the same heard word cannot block its soft boundary."""
     levels = np.full(250, -65.0)

@@ -1392,17 +1392,21 @@ def _planned_word_finding(
     neighbours = reversed(tokens[:index]) if side == "first" else tokens[index + len(expected):]
     neighbour = next((heard for _, heard in neighbours if heard is not edge_word), None)
     neighbour_s = None
+    locate_neighbour_s = None
     if neighbour is not None:
         neighbour_s = (neighbour.end if side == "first" else neighbour.start) - 1.0 + shift
+        locate_neighbour_s = neighbour_s
         if excluded_tokens:
             neighbour_tokens = norm_words(neighbour.text)
-            # Excluded audio heard the neighbour first, so that word starts at the cut.
+            # Excluded audio adjusts only which shape counts as the word's own.
             if side == "last" and excluded_tokens[0] == neighbour_tokens[0]:
-                neighbour_s = min(neighbour_s, point_s)
+                locate_neighbour_s = min(neighbour_s, point_s)
             elif side == "first" and excluded_tokens[-1] == neighbour_tokens[-1]:
-                neighbour_s = max(neighbour_s, point_s)
+                locate_neighbour_s = max(neighbour_s, point_s)
     if shape is None:
-        shape = _locate_word_shape(shapes, start + shift, end + shift, side, point_s, neighbour_s)
+        shape = _locate_word_shape(
+            shapes, start + shift, end + shift, side, point_s, locate_neighbour_s,
+        )
     boundary, joined = ((None, 0) if shape is None else
                         _extend_word_boundary(shapes, shape, side, neighbour_s))
     evidence.update(word_start_s=start, word_end_s=end, clock_shift_s=shift,
