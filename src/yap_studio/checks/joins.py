@@ -1394,6 +1394,13 @@ def _planned_word_finding(
     neighbour_s = None
     if neighbour is not None:
         neighbour_s = (neighbour.end if side == "first" else neighbour.start) - 1.0 + shift
+        if excluded_tokens:
+            neighbour_tokens = norm_words(neighbour.text)
+            # Excluded audio heard the neighbour first, so that word starts at the cut.
+            if side == "last" and excluded_tokens[0] == neighbour_tokens[0]:
+                neighbour_s = min(neighbour_s, point_s)
+            elif side == "first" and excluded_tokens[-1] == neighbour_tokens[-1]:
+                neighbour_s = max(neighbour_s, point_s)
     if shape is None:
         shape = _locate_word_shape(shapes, start + shift, end + shift, side, point_s, neighbour_s)
     boundary, joined = ((None, 0) if shape is None else
