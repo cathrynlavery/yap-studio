@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import struct
 import subprocess
 import tempfile
 import wave
+import zlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 from fractions import Fraction
@@ -1894,6 +1896,45 @@ def watch_short_audio(path: Path) -> Path:
         timeout=60,
     )
     return path
+
+
+def exact_cover_assets(folder: Path):
+    """Make pixels from numpy so cover input pins do not depend on the local ffmpeg build."""
+    from yap_studio.covers.render import CoverAssets
+
+    def write_png(name: str, pixels: np.ndarray) -> Path:
+        height, width, channels = pixels.shape
+
+        def chunk(kind: bytes, data: bytes) -> bytes:
+            return (struct.pack(">I", len(data)) + kind + data
+                    + struct.pack(">I", zlib.crc32(kind + data)))
+
+        raw = b"".join(b"\x00" + row.tobytes() for row in pixels)
+        target = folder / name
+        target.write_bytes(
+            b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8,
+                                         6 if channels == 4 else 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw))
+            + chunk(b"IEND", b""))
+        return target
+
+    colours = np.array([(255, 255, 255), (255, 255, 0), (0, 255, 255), (0, 255, 0),
+                        (255, 0, 255), (255, 0, 0), (0, 0, 255)], dtype=np.uint8)
+    row = colours[np.arange(1080) * len(colours) // 1080]
+    pixels = np.broadcast_to(row, (1920, 1080, 3))
+    alpha = np.zeros((1920, 1080), dtype=np.uint8)
+    alpha[350:1750, 450:1050] = 255
+    padded = np.pad(row, ((30, 30), (0, 0)), mode="edge")
+    sums = np.pad(np.cumsum(padded, axis=0, dtype=np.uint32), ((1, 0), (0, 0)))
+    smoothed = ((sums[61:] - sums[:-61] + 30) // 61).astype(np.uint8)
+
+    frame = write_png("frame.png", pixels)
+    matte = write_png("matte.png", np.repeat(alpha[:, :, None], 3, axis=2))
+    cutout = write_png("cutout.png", np.dstack((pixels, alpha)))
+    blur = write_png("blur.png", np.broadcast_to(smoothed, pixels.shape))
+    dark = write_png("dark.png", (pixels.astype(np.uint16) * 3 // 4).astype(np.uint8))
+    return CoverAssets(frame, cutout, blur, dark, matte, face_box=(450, 350, 500, 700))
 
 
 def cover_assets(folder: Path):

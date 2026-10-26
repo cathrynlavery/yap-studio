@@ -24,7 +24,7 @@ COPY = {
     'before-after': {'before': 'Busy days', 'after': 'Good work'},
 }
 
-# Copies of ffmpeg-made fixtures vary by build; config variables carry every derived value.
+# Encoded fixture PNG bytes depend on local zlib; config variables carry every derived value.
 COVER_FIXTURE_IMAGES = ('frame.png', 'cutout.png', 'blur.png', 'dark.png')
 
 
@@ -220,10 +220,10 @@ def test_wide_renders_checked_photo_at_1280x720(tmp_path, look, values, side, st
 
 
 @pytest.mark.parametrize(('look', 'digest'), [
-    ('photo', '4c400b396ef7e105a62d02aeed8abacdbd900676cedc5d970f19ec634f16e575'),
+    ('photo', 'd6436a9800fdf7393e6611f9ca08924539e0ee0c0a9e79d4c8aa339a30ccaeed'),
     ('number', 'e1b93228b7c5c71028b0baa6dda212e5ad2bdacd12f27514b76755beb1ba1bd3'),
-    ('hook', '8026567a6465c7ca8cb91b4f2ad32efd7594d9e8d722a07b659beea639ebd3ad'),
-    ('before-after', '31ad6268f0449a569c9166b8b05e2ac0478c434a8bc334bada36109d07d09ee2'),
+    ('hook', 'c37e0acbbcf84a35e930bacadfecdd047ba3298cc65735c9bf5f653d338f3b6f'),
+    ('before-after', '541b4c35b7433ebe8e5a7077d91fe32289c60b4a51f582be30aa8ead4b77780e'),
 ])
 def test_vertical_cover_inputs_unchanged(tmp_path: Path, monkeypatch, look, digest):
     import synth
@@ -231,7 +231,7 @@ def test_vertical_cover_inputs_unchanged(tmp_path: Path, monkeypatch, look, dige
               'number': {'number': '5', 'label': 'better nights'},
               'hook': {'headline': 'A *better* night', 'label': 'A real result'},
               'before-after': {'before': '8 hours', 'after': '2 hours'}}
-    assets = synth.cover_assets(tmp_path)
+    assets = synth.exact_cover_assets(tmp_path)
     result = renderer_inputs(monkeypatch, lambda: render_cover(
         tmp_path, assets, resolve('preset:editorial_serif'), look, values[look]),
         leave_out=COVER_FIXTURE_IMAGES)
