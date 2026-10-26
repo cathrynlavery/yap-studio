@@ -1,6 +1,8 @@
 # Feedback
 
-When an agent struggles with Yap Studio, it records a short product note. Every note
+When an agent struggles with Yap Studio, it records a short product note. When the
+creator asks for something Yap Studio cannot do and the agent does it by hand, the
+agent records a `missing` note that names the capability, not the video. Every note
 is written locally first in `feedback.jsonl` in the Yap Studio data folder, with file
 mode 600 so only your account can read or write it. On macOS that folder is
 `~/Library/Application Support/yap-studio/`; `YAP_STUDIO_DATA_DIR` can change it.
@@ -18,13 +20,15 @@ issue gets a comment with the version and count.
 The command scrubs paths, file names, emails, URLs, IP addresses, local hostnames
 and common secret patterns on write and again before sharing. Links to github.com
 and yapstudio.app retain only their domain. Automatic failure notes contain only
-the command name and error code, never the error message.
+the command name, registered subcommand when present (such as `versions save`),
+and error code. Other arguments and the error message are never included.
 No footage, transcripts, spoken words, names or project files are attached or read.
 Write about the tool only: do not put names or the creator's words in a note.
 The scrubber recognizes patterns; read free text before agreeing to share it.
 
 ```console
 yap-studio feedback "The render needed a retry" --step run --kind bug
+yap-studio feedback "No way to blur part of the picture" --step assemble --kind missing
 yap-studio feedback --stdin
 yap-studio feedback list
 yap-studio feedback list --pending --json
@@ -55,8 +59,9 @@ reports the effective mode and whether an endpoint or logged-in `gh` is availabl
 
 With `YAP_STUDIO_FEEDBACK_ENDPOINT` set, pending entries are grouped by fingerprint
 and POSTed as JSON to that address with a 15 second timeout. Otherwise a logged-in
-`gh` creates issues labelled `feedback` on cathrynlavery/yap-studio, or comments on
-an open issue with the same fingerprint. If `gh` is missing or logged out, the
+`gh` creates issues on cathrynlavery/yap-studio with the `feedback` label when
+permissions allow, or comments on an open issue with the same fingerprint,
+even if it has no label. If `gh` is missing or logged out, the
 command prints a prefilled issue link for you to open. Those notes stay pending.
 
 `send --dry-run` prints the exact JSON, issue body or comment that would be posted

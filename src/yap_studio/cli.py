@@ -2012,4 +2012,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         _command_error.reset(token)
         if failed and observed:
-            automatic(arguments[0] if arguments else "unknown", observed[-1].code)
+            step = arguments[0] if arguments else "unknown"
+            if len(arguments) > 1:
+                for action in _parser()._actions:
+                    if isinstance(action, argparse._SubParsersAction) and step in action.choices:
+                        for subaction in action.choices[step]._actions:
+                            if (isinstance(subaction, argparse._SubParsersAction)
+                                    and arguments[1] in subaction.choices):
+                                step = f"{step} {arguments[1]}"
+            automatic(step, observed[-1].code)
