@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -23,6 +24,34 @@ from yap_studio.stages import assemble as assembly
 from yap_studio.stages import assemble_audio as stage
 from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline
 from yap_studio.style import resolve
+
+
+@pytest.mark.parametrize(("container_delta", "padding", "passed"), [
+    (0, 0, True), (0, 896, True), (-1, 896, False), (1, 896, False),
+    (0, 1024, False), (0, -1, False),
+])
+def test_delivery_samples_allow_only_terminal_decoder_padding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    container_delta: int, padding: int, passed: bool,
+) -> None:
+    frames = 121
+    expected = frames * stage.SAMPLES_PER_FRAME
+    monkeypatch.setattr(ffmpeg, "probe", lambda _: SimpleNamespace(
+        channels=2, audio_duration_s=(expected + container_delta) / stage.RATE,
+        audio_codec="aac", sample_rate=stage.RATE, audio_start_s=0,
+    ))
+    monkeypatch.setattr(stage, "decode", lambda source, commands, *, channels:
+                        np.zeros((expected + padding, channels), dtype=np.float32))
+    monkeypatch.setattr(stage, "packet_samples", lambda *args: [1024, 64])
+    monkeypatch.setattr(stage, "measure", lambda *args: stage.Loudness(None, None, None))
+    checks, _ = stage.delivery_asserts(tmp_path / "final.mp4", frames=frames,
+                                      policy={"mode": "preserve"}, commands=[])
+    samples = next(check for check in checks if check["id"] == "audio.samples")
+    assert samples["pass"] is passed, samples
+    assert samples["expected"] == expected
+    assert samples["container_samples"] == expected + container_delta
+    assert samples["actual"] == expected + padding
+    assert samples["terminal_padding"] == padding
 
 
 @pytest.mark.parametrize("audible", [False, True])
@@ -67,8 +96,7 @@ def test_preserve_voice_pcm_is_sample_exact_with_zero_lag(tmp_path: Path, hold: 
     assert result.samples == (120 + hold) * 1600
     assert result.input_voice.integrated_lufs == pytest.approx(-16, abs=0.1)
     checks, output = stage.delivery_asserts(out, frames=120 + hold,
-                                          policy={"mode": "preserve"}, commands=[],
-                                          allow_terminal_padding=True)
+                                          policy={"mode": "preserve"}, commands=[])
     assert all(check["pass"] for check in checks)
     assert output.integrated_lufs == pytest.approx(result.pcm_output.integrated_lufs, abs=0.1)
     if hold == 0:
@@ -90,8 +118,7 @@ def test_constant_gain_loudnorm_target_and_true_peak(tmp_path: Path, target: flo
     out = tmp_path / "audio.m4a"
     result = stage.render_audio(tmp_path, out, work_dir=tmp_path / "work", timeline=timeline,
                                 policy=policy, music=resolve("preset:clean_minimal").data["music"])
-    checks, output = stage.delivery_asserts(out, frames=165, policy=policy, commands=[],
-                                          allow_terminal_padding=True)
+    checks, output = stage.delivery_asserts(out, frames=165, policy=policy, commands=[])
     assert all(check["pass"] for check in checks), checks
     assert output.integrated_lufs == pytest.approx(target, abs=0.5)
     assert output.true_peak_dbtp <= -1.7
@@ -302,8 +329,7 @@ def test_broadcast_runs_before_loudnorm_and_passes_delivery(tmp_path: Path) -> N
                                 timeline=ResolvedTimeline((), (), (), 120, 45),
                                 policy=AUDIO_DEFAULTS,
                                 music=resolve("preset:clean_minimal").data["music"], voice=voice)
-    checks, output = stage.delivery_asserts(out, frames=165, policy=AUDIO_DEFAULTS, commands=[],
-                                          allow_terminal_padding=True)
+    checks, output = stage.delivery_asserts(out, frames=165, policy=AUDIO_DEFAULTS, commands=[])
     assert all(check["pass"] for check in checks), checks
     assert output.integrated_lufs == pytest.approx(-14, abs=0.5)
     assert output.true_peak_dbtp <= -1.7
