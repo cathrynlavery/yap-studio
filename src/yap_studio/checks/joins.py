@@ -1354,7 +1354,7 @@ def _planned_word_finding(
     excluded: Transcript | None = None,
     anchor_s: Fraction | None = None,
     source_point_s: float = 0.0,
-    source_duration_s: float | None = None,
+    source_info: ffmpeg.MediaInfo | None = None,
 ) -> Finding | None:
     """Locate intent in uncut source speech, then measure excluded voice by energy."""
     expected = norm_words(word)
@@ -1451,6 +1451,7 @@ def _planned_word_finding(
     portion = "start" if side == "first" else "end"
     action = f'Move this segment\'s {side} edge {direction} to keep "{word}".'
     if anchor_s is not None:
+        source_duration_s = getattr(source_info, "video_duration_s", None)
         # Fifty milliseconds covers rounding the offset and snapping to a 30 fps frame.
         target = max(0.0, source_point_s + boundary.time_s - point_s
                      + (-0.05 if side == "first" else 0.05))
@@ -1461,8 +1462,18 @@ def _planned_word_finding(
             offset = (0.001 if side == "last" or anchor_s == 0
                       else -min(0.001, float(anchor_s)))
         if side == "last" and source_duration_s is not None:
-            last_frame = math.floor(Fraction(str(source_duration_s)) * 30)
-            max_offset = math.floor((Fraction(last_frame, 30) - anchor_s) * 1000) / 1000
+            frames = getattr(source_info, "video_frames", None)
+            fps = getattr(source_info, "fps", None)
+            if frames is not None and fps and not source_info.variable_frame_rate:
+                last_frame = math.floor(Fraction(frames * 30, 1) / fps)
+            else:
+                # Probe durations round to microseconds and can undershoot the final frame.
+                frame_count = Fraction(str(source_duration_s)) * 30
+                nearest = round(frame_count)
+                last_frame = (nearest if abs(frame_count - nearest) <= Fraction(1, 10_000)
+                              else math.floor(frame_count))
+            limit = min(Fraction(last_frame, 30), Fraction(str(source_duration_s)))
+            max_offset = math.floor((limit - anchor_s) * 1000) / 1000
             offset = min(offset, max_offset)
             if offset == 0:
                 offset = -min(0.001, float(anchor_s))
@@ -2079,8 +2090,7 @@ def check_joins(
                         excluded=transcripts[excluded_paths[cut.index, side]],
                         anchor_s=getattr(segment, f"{side}_word_anchor_s"),
                         source_point_s=frame / fps,
-                        source_duration_s=(getattr(media.info, "video_duration_s", None)
-                                           if media is not None else None),
+                        source_info=media.info if media is not None else None,
                     )
                     if finding is not None:
                         findings.append(finding)
@@ -2103,8 +2113,7 @@ def check_joins(
                 excluded=transcripts[excluded_paths[None, outer.side]],
                 anchor_s=getattr(segment, f"{outer.side}_word_anchor_s"),
                 source_point_s=frame / fps,
-                source_duration_s=(getattr(media.info, "video_duration_s", None)
-                                   if media is not None else None),
+                source_info=media.info if media is not None else None,
             )
             if finding is not None:
                 findings.append(finding)

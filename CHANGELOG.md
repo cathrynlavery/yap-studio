@@ -4,7 +4,7 @@
 
 - Pin the renderer to HyperFrames 0.8.203.
 - Repeated feedback adds to the matching open issue instead of opening a duplicate, automatic bug reports name the subcommand (such as `versions save`) without sharing other arguments, and agents record a `missing` note when they do something by hand that Yap Studio can't.
-- When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge. End-edge suggestions stay within the known source picture length.
+- When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge.
 
 ## 1.1.0 (2026-10-26)
 

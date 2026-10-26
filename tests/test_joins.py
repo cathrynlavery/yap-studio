@@ -937,11 +937,12 @@ def test_planned_word_suggests_offset_that_keeps_measured_voice(
 
 
 @pytest.mark.parametrize("outer", [False, True], ids=["join", "outer"])
-@pytest.mark.parametrize("duration,anchor_time", [(10.0, 9.65), (10.0, 10.0),
-                                                (9.9996, 9.6504), (9.95, 9.65)])
+@pytest.mark.parametrize("duration,anchor_time,last_frame", [
+    (10.0, 9.65, 300), (10.0, 10.0, 300), (9.9996, 9.6504, 299), (9.95, 9.65, 298),
+])
 def test_suggested_last_word_offset_stays_inside_source_picture(
     small_media, monkeypatch: pytest.MonkeyPatch, outer: bool,
-    duration: float, anchor_time: float,
+    duration: float, anchor_time: float, last_frame: int,
 ) -> None:
     media = small_media
     sr, point = 8000, 9.8
@@ -983,7 +984,59 @@ def test_suggested_last_word_offset_stays_inside_source_picture(
                   (SourceWord("t1:0", "garden", 9.35, anchor_time),))
     end = nominal_edge(segment, anchor, words, Fraction(str(duration)), start=False)
     assert end <= Fraction(str(duration))
-    assert Fraction(snap_frame(end, Fraction(30)), 30) <= Fraction(str(duration))
+    assert snap_frame(end, Fraction(30)) <= last_frame
+
+
+@pytest.mark.parametrize("outer", [False, True], ids=["join", "outer"])
+@pytest.mark.parametrize("frames,rate,duration,last_frame", [
+    (31, 30, 1.033333, 31), (None, 30, 1.033333, 31), (None, 30, 1.033334, 31),
+    (62, 60, 1.033333, 31), (30, 30, 1.033333, 30), (None, 30, 1.032, 30),
+])
+def test_suggested_end_keeps_last_frame_despite_probe_rounding(
+    small_media, monkeypatch: pytest.MonkeyPatch, outer: bool,
+    frames: int | None, rate: int, duration: float, last_frame: int,
+) -> None:
+    media = small_media
+    sr = 8000
+    media.original[:] = 10 ** (-65 / 20)
+    media.original[round(0.72 * sr):round(1.03 * sr)] = 0.1
+    media.sound[:] = np.concatenate((media.original[:3 * sr], media.original[4 * sr:]))
+    media.plan = _plan(media.directory, media.source,
+                       [(0, 1)] if outer else [(0, 1), (0.2, 0.6)])
+    media.plan = _with_intent(media.plan, media.directory, last_word={1: "garden"})
+    path = media.directory / "intent.json"
+    data = json.loads(path.read_bytes())
+    data["segments"][0]["last_word_anchor_s"] = 0.9
+    path.write_text(json.dumps(data), encoding="utf-8")
+    media.plan = Plan.build(load_edit_list(path), Fraction(30), sr)
+    probe, probed = ffmpeg.probe, []
+
+    def rounded_duration(path: Path, **kwargs):
+        probed.append(path)
+        info = probe(path, **kwargs)
+        if path == media.source:
+            info.video_duration_s, info.video_frames, info.fps = duration, frames, Fraction(rate)
+        return info
+
+    monkeypatch.setattr(ffmpeg, "probe", rounded_duration)
+    name = "edge-last-source.wav" if outer else "cut-01-left.wav"
+    backend = ScriptedBackend(lambda path: Transcript([
+        Word("garden", 2.22, 2.53),
+    ]) if path.name == name else Transcript([]))
+    result = _check(media, backend=backend)
+    finding = next(row for row in result.findings if row.check == "join.words"
+                   and row.evidence.get("side") == "last")
+    assert probed.count(media.source) == probed.count(media.render) == 1
+    anchor = Anchor(word="t1:0", edge="end", offset_s=finding.evidence["suggested_offset_s"])
+    segment = StorySegment("ending", "t1", Anchor(time=0), anchor)
+    words = Words("t1", "1" * 64, "source", 0, "none", None, "2" * 64,
+                  (SourceWord("t1:0", "garden", 0.72, 0.9),))
+    end = nominal_edge(segment, anchor, words, Fraction(str(duration)), start=False)
+    assert end <= Fraction(str(duration))
+    resolved = Fraction(snap_frame(end, Fraction(30)), 30)
+    if last_frame == 31:
+        assert resolved >= Fraction("1.03")
+    assert resolved == Fraction(last_frame, 30)
 
 
 @pytest.mark.parametrize("case", ["exact", "start60", "end80", "dip", "missing"])

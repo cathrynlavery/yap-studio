@@ -50,6 +50,7 @@ in source seconds. Verify uses it to suggest a replacement `from.offset_s` or
 `to.offset_s` and records `suggested_offset_s` in the finding's evidence. The value
 keeps up to a 50 ms margin around the measured voice before snapping to a 30 fps frame.
 When the source picture duration is known, the end edge stays within its last full frame.
+Probe rounding does not discard a valid final frame.
 Source-time anchors, different words and opposite word edges keep the direction-only advice.
 Older span files keep that advice until the cut is regenerated with the anchor times.
 
