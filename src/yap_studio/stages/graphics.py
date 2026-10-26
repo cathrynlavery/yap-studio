@@ -905,7 +905,11 @@ def graphics_snapshot(
             )}, "kinetic_lines": plan.variables["kinetic_lines"], "layer": "front"}
                if style.data["hook"]["style"] == "kinetic" else {}),
             "fonts": assets.font_identity(),
-            "template": assets.template_identity(workers=hyperframes.RENDER_WORKERS),
+            "template": assets.template_identity(
+                workers=hyperframes.RENDER_WORKERS,
+                browser_gpu=(hyperframes.KINETIC_BROWSER_GPU
+                             if style.data["hook"]["style"] == "kinetic" else None),
+            ),
         })
         layer = ("front" if style.data["hook"]["style"] in {"kinetic", "text_hook"}
                  else element.layer)

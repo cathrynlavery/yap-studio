@@ -935,6 +935,73 @@ def test_planned_word_beyond_edge_cannot_use_kept_neighbour(side: str) -> None:
 
 
 @pytest.mark.parametrize("side", ["first", "last"])
+def test_planned_word_early_heard_edge_keeps_clipped_syllable(side: str) -> None:
+    """A heard end that comes early must not hide the word's own clipped final syllable."""
+    levels = np.full(250, -65.0)
+    levels[40:55] = -20.0
+    levels[80:100] = -20.0
+    levels[104:126] = -20.0
+    spans = [("the", 0.40, 0.55), ("garden", 0.80, 1.06)]
+    point = 1.18
+    if side == "first":
+        levels = levels[::-1]
+        spans = [(text, 2.5 - end, 2.5 - start) for text, start, end in reversed(spans)]
+        point = 2.5 - point
+    finding = joins._planned_word_finding(
+        Transcript([Word(text, start + 1, end + 1) for text, start, end in spans]),
+        "garden", side, point, "Cut 1", point, sound=_word_level_sound(levels), sr=16000,
+    )
+    assert finding is not None and (finding.check, finding.severity) == ("join.words", "fail")
+    assert finding.evidence["overlap_ms"] == pytest.approx(80, abs=10)
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
+@pytest.mark.parametrize("neighbour_voice, spans, point", [
+    ((106, 109), [("garden", 0.80, 1.05), ("a", 1.06, 1.09)], 1.06),
+    ((104, 108), [("garden", 0.80, 1.04), ("a", 1.06, 1.10)], 1.04),
+    ((106, 114), [("garden", 0.80, 1.04), ("a", 1.16, 1.24)], 1.08),
+    ((106, 109), [("garden", 0.80, 1.04), ("a", 1.18, 1.24)], 1.06),
+])
+def test_planned_word_cannot_use_next_heard_neighbour(
+    side: str, neighbour_voice: tuple[int, int], spans: list[tuple[str, float, float]],
+    point: float,
+) -> None:
+    """The next heard word cannot stand in for the planned word's last syllable."""
+    levels = np.full(250, -65.0)
+    levels[80:100] = -20.0
+    levels[neighbour_voice[0]:neighbour_voice[1]] = -20.0
+    if side == "first":
+        levels = levels[::-1]
+        spans = [(text, 2.5 - end, 2.5 - start) for text, start, end in reversed(spans)]
+        point = 2.5 - point
+    finding = joins._planned_word_finding(
+        Transcript([Word(text, start + 1, end + 1) for text, start, end in spans]),
+        "garden", side, point, "Cut 1", point, sound=_word_level_sound(levels), sr=16000,
+        excluded=Transcript([Word("a", 1.0, 1.1)]),
+    )
+    assert finding is None or finding.check != "join.words"
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
+def test_planned_word_cannot_use_distant_burst_without_heard_neighbour(side: str) -> None:
+    """A separate burst past the heard edge is not the word's own syllable."""
+    levels = np.full(250, -65.0)
+    levels[100:110] = -20.0
+    levels[118:138] = -20.0
+    spans = [("garden", 1.00, 1.06)]
+    point = 1.28
+    if side == "first":
+        levels = levels[::-1]
+        spans = [(text, 2.5 - end, 2.5 - start) for text, start, end in reversed(spans)]
+        point = 2.5 - point
+    finding = joins._planned_word_finding(
+        Transcript([Word(text, start + 1, end + 1) for text, start, end in spans]),
+        "garden", side, point, "Cut 1", point, sound=_word_level_sound(levels), sr=16000,
+    )
+    assert finding is None or finding.check != "join.words"
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
 @pytest.mark.parametrize("overlap_ms", [-40, 0, 20, 30, 70, 80, 400])
 def test_planned_word_energy_tolerance_and_whole_word_loss(
     small_media: SimpleNamespace, side: str, overlap_ms: int,
@@ -1413,6 +1480,29 @@ def test_planned_word_extends_soft_boundary(
         assert finding.evidence["boundary_level_dbfs"] == boundary.level_db
     else:
         assert finding is None, finding
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
+def test_planned_word_extends_soft_boundary_with_excluded_neighbour(side: str) -> None:
+    """Hearing the excluded neighbour must not hide the planned word's soft syllable."""
+    levels = np.full(250, -65.0)
+    levels[100:110] = -20.0
+    levels[110:113] = -28.0
+    levels[113:117] = -26.0
+    if side == "first":
+        levels = levels[::-1]
+    words = ([Word("hills", 1.80, 2.00), Word("garden", 2.44, 2.50)]
+             if side == "first" else
+             [Word("garden", 2.00, 2.06), Word("hills", 2.80, 3.00)])
+    point = 1.41 if side == "first" else 1.09
+    finding = joins._planned_word_finding(
+        Transcript(words), "garden", side, point, "Cut 1", point,
+        sound=_word_level_sound(levels), sr=16000, cut=1,
+        excluded=Transcript([Word("hills", 1.0, 1.2)]),
+    )
+    assert finding is not None and (finding.check, finding.severity) == ("join.words", "fail")
+    assert finding.evidence["overlap_ms"] == pytest.approx(80, abs=10)
+    assert finding.evidence["joined_shapes"] == 1
 
 
 @pytest.mark.parametrize("side", ["first", "last"])
@@ -2776,7 +2866,7 @@ def test_real_speech_compares_render_with_plan(
     tight = [
         (starts[0] - 0.1, starts[0] + 0.5),
         (starts[0] + 0.48, starts[0] + 1.18),
-        (starts[0] + 1.17, starts[0] + 1.77),
+        (starts[0] + 1.14, starts[0] + 1.77),  # Keep frame overlap; 10 ms rounds to continuity.
         (ends[0] - 0.7, ends[0] + 0.1),
         (starts[1] - 0.4, starts[1] + 0.2),
         (long_word.end + 0.03, long_word.end + 0.83),

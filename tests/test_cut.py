@@ -1652,9 +1652,15 @@ def test_known_speech_spans_cut_verifies_with_project_asr(tmp_path: Path) -> Non
     if transcript.resolve_backend("auto") is None:
         pytest.skip("no speech engine is installed")
     root, _ = _known_speech_cut_project(tmp_path)
+    # Drop "Seven" for a real cut; consecutive word segments of one take form one continuous range.
+    write_edit(root, [
+        {"id": "s1", "take": "t1", "from": {"word": "t1:0"}, "to": {"word": "t1:10"}},
+        {"id": "s2", "take": "t1", "from": {"word": "t1:12"}, "to": {"word": "t1:21"}},
+    ])
     result = cut(root)
     assert result["status"] == "verified", result
     report = json.loads((root / "cut/verify.json").read_bytes())
+    assert report["summary"]["cuts"] == 1
     assert report["checks"]["join.relisten"]["ran"] is True
 
 

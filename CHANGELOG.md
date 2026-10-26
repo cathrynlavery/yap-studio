@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The vertical cover and layer checks compare what is sent to the renderer instead of rendered bytes, so they pass on any machine and run on every pull request.
+- Kinetic hook titles render without the browser GPU, so two renders of the same title match even when the machine is busy.
+- Two speech release tests keep a real cut where they check one, now that continuous ranges of one take are not cuts.
+- The join check again flags a planned last or first word whose final syllable is cut off when the speech engine places the word's edge early.
 - Covers tint low-contrast style accents so default-style starred headlines, numbers and before/after looks render in both orientations.
 - Continuous ranges from the same take no longer count as cuts or receive join fades or Listen prompts; failed cuts print each verifier problem and its fix with the report path, and workspace doc links open the public documentation.
 - Wide videos get 1280x720 YouTube thumbnails from `yap-studio cover`: a face-first frame from the finished edit, the headline, number and before/after looks on the open side of the shot with no box, clear of YouTube's duration badge and checked for legibility at 168x94.

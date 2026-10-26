@@ -1140,6 +1140,8 @@ def render_layer_plan(
         options = ({"workers": hyperframes.CAPTION_WORKERS,
                     "browser_gpu": hyperframes.CAPTION_BROWSER_GPU}
                    if plan.template == "captions" else {})
+        if plan.variables.get("look") == "kinetic":
+            options["browser_gpu"] = hyperframes.KINETIC_BROWSER_GPU
         return hyperframes.render_layer(
             composition,
             out,

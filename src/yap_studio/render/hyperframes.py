@@ -45,6 +45,8 @@ RENDER_CAPTURE = "screenshot"
 CARD_BROWSER_GPU = False
 # Captions draw in software too, so the same layer gives the same pixels under load.
 CAPTION_BROWSER_GPU = False
+# Kinetic titles blur and scale every word; software drawing gives the same pixels under load.
+KINETIC_BROWSER_GPU = False
 # Renderer serves 127.0.0.1 but loads localhost; another program on [::1] can break page loads.
 LOCAL_SERVER_ERRORS = (
     "net::ERR_INVALID_HTTP_RESPONSE at http://localhost:",

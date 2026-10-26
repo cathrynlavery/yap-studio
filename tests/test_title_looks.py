@@ -715,6 +715,25 @@ def test_real_title_look_midpoint_alpha_inside_plan(tmp_path: Path, look: str) -
         ], timeout_s=120)
 
 
+def test_only_kinetic_titles_render_without_browser_gpu(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+    dummy = object()
+
+    def render(*args, **kwargs):
+        calls.append(kwargs)
+        return dummy
+
+    monkeypatch.setattr(hyperframes, "render_layer", render)
+    for look in ("kinetic", "paper_title"):
+        plan = title_layer_plan("Small clear", "steps", _style(look), frames=45,
+                                word_times=[0, 0.2, 0.5])
+        assert render_layer_plan(plan, tmp_path / look, tmp_path / f"{look}.mov") is dummy
+    assert calls[0]["browser_gpu"] is False
+    assert "browser_gpu" not in calls[1]
+
+
 @pytest.mark.render
 def test_kinetic_render_is_deterministic(tmp_path: Path) -> None:
     plan = title_layer_plan("Small clear", "steps", _style("kinetic"), frames=45,
