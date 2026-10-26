@@ -1669,12 +1669,8 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     extra["green_screen"] = list(picture.green_screen)
                 if not all(item["pass"] for item in asserts):
                     run.finish("failed", asserts=asserts, extra=extra)
-                    sample_check = next(item for item in asserts if item["id"] == "audio.samples")
                     action = next((item["fix"] for item in asserts
                                    if not item["pass"] and "fix" in item), None)
-                    if not sample_check["pass"] and sample_check["terminal_padding"] > 0:
-                        action = ("Use an ffmpeg build that trims AAC decoding to the MP4 "
-                                  "duration, then assemble again.")
                     message = "Final delivery failed: " + ", ".join(
                         failed_assert_lines(asserts))
                     if layout_failures:

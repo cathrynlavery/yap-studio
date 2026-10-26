@@ -4,6 +4,7 @@
 
 - Pin the renderer to HyperFrames 0.8.203.
 - Repeated feedback adds to the matching open issue instead of opening a duplicate, automatic bug reports name the subcommand (such as `versions save`) without sharing other arguments, and agents record a `missing` note when they do something by hand that Yap Studio can't.
+- Final videos and pilots no longer fail on older ffmpeg builds that decode extra AAC padding at the end. The audio in the file must still match the picture exactly.
 - With `avoid_face`, captions stop before the final when a phrase covers the face and there is no clear position, and say when and how to fix it. Setting `captions.placement` to `fixed` in a project's style accepts captions over the face as a warning; cards and overlays still have to stay clear.
 
 ## 1.1.0 (2026-10-26)

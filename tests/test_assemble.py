@@ -2983,8 +2983,9 @@ def test_music_final_exact_samples_and_declared_hold(project: Path) -> None:
     assert round(ffmpeg.probe(out).audio_duration_s * 48000) == frames * 1600
     record = read_receipt(project / "final")
     counts = next(item for item in record["asserts"] if item["id"] == "audio.samples")
-    assert counts["pass"] and counts["terminal_padding"] == 0
-    assert len(decode(out, [], channels=2)) == frames * 1600
+    assert counts["pass"] and 0 <= counts["terminal_padding"] < 1024
+    assert counts["container_samples"] == frames * 1600
+    assert len(decode(out, [], channels=2)) == frames * 1600 + counts["terminal_padding"]
     assert record["verify"]["checks"]["plan.holds"]["status"] == "pass"
     assert not [item for item in record["verify"]["findings"]
                 if item["check"] in {"plan.holds", "picture.freeze"}
