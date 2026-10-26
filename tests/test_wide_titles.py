@@ -1,5 +1,6 @@
 """Wide title geometry, chapter navigation, and real alpha layers."""
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -25,6 +26,30 @@ def style():
                                "hook": {"style": "quiet_serif", "font": "Inter"},
                                "chapters": {"style": "title_card"}})
     return ResolvedStyle(data["name"], "test", data)
+
+
+def renderer_inputs(monkeypatch, render, *, leave_out=()):
+    """Digest the files, variables and options a render hands to the layer renderer."""
+    from yap_studio import receipt
+    from yap_studio.render import hyperframes
+
+    class Handed(Exception):
+        pass
+
+    record = {}
+
+    def capture(composition, out, **options):
+        options.pop("install", None)
+        record.update(options, files={
+            path.relative_to(composition).as_posix(): receipt.sha256_file(path)
+            for path in sorted(composition.rglob("*"))
+            if path.is_file() and path.name not in leave_out})
+        raise Handed
+
+    monkeypatch.setattr(hyperframes, "render_layer", capture)
+    with pytest.raises(Handed):
+        render()
+    return hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
 
 
 @pytest.mark.parametrize("kind", ["title", "chapter", "name_tag"])
@@ -272,15 +297,14 @@ def test_wide_layers_with_captions_pass_final_clearance(tmp_path, monkeypatch):
     assert not any(item["check"] == "captions.cards" for item in report["findings"])
 
 
-@pytest.mark.render
 @pytest.mark.parametrize("kind,digest", [
-    ("title", "5f6673bf486d0eaaaacfc73f77519959c9ca7654ba037a77d8d2b09c4fa19e89"),
-    ("chapter", "344d8526150233517dba1cf13090ec474faddc9d83f72f85e872c47b8bcdee61"),
-    ("name_tag", "9667561b01a1e88f7a87e443afe49d62ded648cddd3596437372a1b1485f2a0e"),
+    ("title", "d57be022a61fd59f892606305f47f6384a89dc57bc7b95b6b36f6c1022426a27"),
+    ("chapter", "ae388d178bf4daedbeaa3dda5879c3ce2bcf3b09b6665126700897a5061aba6a"),
+    ("name_tag", "8ff06c7e5c5244e93683d9831ddb0598c8a0d38412e58453f98b0e7eb16fe4c5"),
 ])
-def test_vertical_layer_bytes_match_main_5e1876b(tmp_path, kind, digest):
-    """Measured by rendering the same inputs from an untouched archive of main."""
-    from yap_studio import cards, receipt
+def test_vertical_layer_inputs_match_main_5e1876b(tmp_path, monkeypatch, kind, digest):
+    """Digests measured from an untouched archive of main 5e1876b."""
+    from yap_studio import cards
     from yap_studio.stages.captions import chapter_layer_plan, title_layer_plan
 
     chosen = style()
@@ -288,13 +312,15 @@ def test_vertical_layer_bytes_match_main_5e1876b(tmp_path, kind, digest):
         plan = cards.card_layer_plan(kind, {"name": "Sam Porter", "role": "Writer and founder"},
                                      chosen, frames=30)
         with paths.operation():
-            result = cards.render_card(plan, tmp_path / "work", tmp_path / "layer.mov")
+            result = renderer_inputs(monkeypatch, lambda: cards.render_card(
+                plan, tmp_path / "work", tmp_path / "layer.mov"))
     else:
         plan = (title_layer_plan("Small", "steps", chosen, frames=30) if kind == "title"
                 else chapter_layer_plan("Make it clear", 2, chosen, frames=30))
         with paths.operation():
-            result = render_layer_plan(plan, tmp_path / "work", tmp_path / "layer.mov")
-    assert receipt.sha256_file(result.path) == digest
+            result = renderer_inputs(monkeypatch, lambda: render_layer_plan(
+                plan, tmp_path / "work", tmp_path / "layer.mov"))
+    assert result == digest
 
 
 @pytest.mark.parametrize("mask", [False, True])

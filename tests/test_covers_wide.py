@@ -1,13 +1,13 @@
 """YouTube thumbnail contracts on the finished picture clock."""
 from __future__ import annotations
 
-import hashlib
 from dataclasses import replace
 from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
 import pytest
+from test_wide_titles import renderer_inputs
 
 from yap_studio import ffmpeg
 from yap_studio.covers.layout import check_geometry, plan_blocks
@@ -23,6 +23,9 @@ COPY = {
     'number': {'number': '5', 'label': 'better habits'},
     'before-after': {'before': 'Busy days', 'after': 'Good work'},
 }
+
+# Copies of ffmpeg-made fixtures vary by build; config variables carry every derived value.
+COVER_FIXTURE_IMAGES = ('frame.png', 'cutout.png', 'blur.png', 'dark.png')
 
 
 @pytest.mark.parametrize('look', COPY)
@@ -216,22 +219,23 @@ def test_wide_renders_checked_photo_at_1280x720(tmp_path, look, values, side, st
                 (label[0] + label[2]) / 2, abs=8)
 
 
-@pytest.mark.render
 @pytest.mark.parametrize(('look', 'digest'), [
-    ('photo', '2ce059a3028a1d3fbbcde7ca0451c21ff14a8f5f0b7ba44cd8d4c8a4694d2cef'),
-    ('number', '35533732261fe72e07253d53c1a2b716b1d6f5be8c871bb97cc3f24fd519f960'),
-    ('hook', '16226e8d0e1997f1eb06693c5eac9ebe83067a7afe15992979def31fdec75684'),
-    ('before-after', '52aed414cdeea4fae2f7127c005049ea6fb1f33ea7a088bf35343488bbc4ef84'),
+    ('photo', '4c400b396ef7e105a62d02aeed8abacdbd900676cedc5d970f19ec634f16e575'),
+    ('number', 'e1b93228b7c5c71028b0baa6dda212e5ad2bdacd12f27514b76755beb1ba1bd3'),
+    ('hook', '8026567a6465c7ca8cb91b4f2ad32efd7594d9e8d722a07b659beea639ebd3ad'),
+    ('before-after', '31ad6268f0449a569c9166b8b05e2ac0478c434a8bc334bada36109d07d09ee2'),
 ])
-def test_vertical_cover_fixture_bytes_unchanged(tmp_path: Path, look, digest):
+def test_vertical_cover_inputs_unchanged(tmp_path: Path, monkeypatch, look, digest):
     import synth
     values = {'photo': {'headline': 'A *better* night'},
               'number': {'number': '5', 'label': 'better nights'},
               'hook': {'headline': 'A *better* night', 'label': 'A real result'},
               'before-after': {'before': '8 hours', 'after': '2 hours'}}
     assets = synth.cover_assets(tmp_path)
-    result = render_cover(tmp_path, assets, resolve('preset:editorial_serif'), look, values[look])
-    assert hashlib.sha256(result.png.read_bytes()).hexdigest() == digest
+    result = renderer_inputs(monkeypatch, lambda: render_cover(
+        tmp_path, assets, resolve('preset:editorial_serif'), look, values[look]),
+        leave_out=COVER_FIXTURE_IMAGES)
+    assert result == digest
 
 
 @pytest.mark.parametrize('headline', ['Fuck this', '*Fuck* this'])
