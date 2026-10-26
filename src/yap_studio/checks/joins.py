@@ -1223,9 +1223,10 @@ def _locate_word_shape(
     if matches:
         _, first, last = min(matches, key=lambda match: match[0])
         return first if side == "first" else last
-    # Prefer the word's own nucleus before considering neighbours on an uncertain clock.
-    candidates = ([shape for shape in candidates if start_s <= shape.nucleus_s <= end_s]
-                  or candidates)
+    # Exclude kept neighbours on an uncertain clock, retaining syllables past an early heard edge.
+    if any(start_s <= shape.nucleus_s <= end_s for shape in candidates):
+        candidates = [shape for shape in candidates if (
+            shape.nucleus_s >= start_s if side == "last" else shape.nucleus_s <= end_s)]
     center = start_s + min(end_s - start_s, _WORD_SEARCH_S) / 2
     if side == "first":
         facing = [shape for shape in candidates if shape.nucleus_s >= point_s - _WORD_OVERLAP_S]
