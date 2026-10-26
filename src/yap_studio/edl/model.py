@@ -44,6 +44,8 @@ class Segment:
     output_start: Fraction | None = None
     first_word: str | None = None
     last_word: str | None = None
+    first_word_anchor_s: Fraction | None = None
+    last_word_anchor_s: Fraction | None = None
 
     def __post_init__(self) -> None:
         for name in ("first_word", "last_word"):
@@ -52,6 +54,11 @@ class Segment:
                 raise EditListError(
                     f"Segment {self.index} {name} must be a non-empty string.",
                     suggested_action=f"Set {name} to the intended spoken word or omit it.",
+                )
+            anchor = getattr(self, f"{name}_anchor_s")
+            if anchor is not None and (anchor < 0 or value is None):
+                raise EditListError(
+                    f"Segment {self.index} {name}_anchor_s needs a non-negative time and {name}.",
                 )
 
     @property
@@ -75,6 +82,8 @@ class Segment:
         for name in ("first_word", "last_word"):
             if (value := getattr(self, name)) is not None:
                 result[name] = value
+            if (anchor := getattr(self, f"{name}_anchor_s")) is not None:
+                result[f"{name}_anchor_s"] = float(anchor)
         result.update(_fraction_fields("start", self.start))
         result.update(_fraction_fields("end", self.end))
         result.update(_fraction_fields("duration", self.duration))

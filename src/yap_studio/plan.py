@@ -37,6 +37,8 @@ class PlanSegment:
     label: str | None
     first_word: str | None = None
     last_word: str | None = None
+    first_word_anchor_s: Fraction | None = None
+    last_word_anchor_s: Fraction | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-compatible planned segment."""
@@ -55,6 +57,8 @@ class PlanSegment:
             "label": self.label,
             "first_word": self.first_word,
             "last_word": self.last_word,
+            **{name: float(value) for name in ("first_word_anchor_s", "last_word_anchor_s")
+               if (value := getattr(self, name)) is not None},
         }
 
 
@@ -184,6 +188,8 @@ class Plan:
                 label=segment.label,
                 first_word=segment.first_word,
                 last_word=segment.last_word,
+                first_word_anchor_s=segment.first_word_anchor_s,
+                last_word_anchor_s=segment.last_word_anchor_s,
             )
             segments.append(planned)
             running_frame = out_f0 + n_frames

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge.
+
 ## 1.1.0 (2026-10-26)
 
 Yap Studio now edits horizontal YouTube videos too, with an opening title, chapter cards, floating cards, B-roll and a thumbnail, and the workspace opens in Claude Code, the Claude app's Code tab, Codex or Cursor. Long videos cut and caption faster.

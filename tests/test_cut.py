@@ -1694,6 +1694,50 @@ def test_span_intent_stays_on_authored_edges_after_removals(
     ]
     for row in written["segments"][1:-1]:
         assert "first_word" not in row and "last_word" not in row
+    assert written["segments"][0].get("first_word_anchor_s") == (0.5 if word_from else None)
+    assert written["segments"][-1].get("last_word_anchor_s") == (4.6 if word_to else None)
+    assert all("first_word_anchor_s" not in row for row in written["segments"][1:])
+    assert all("last_word_anchor_s" not in row for row in written["segments"][:-1])
+
+
+@pytest.mark.parametrize("field", ["from", "to"])
+@pytest.mark.parametrize("case", ["time", "opposite-edge", "different-word"])
+def test_span_word_anchor_times_require_same_word_and_edge(
+    tmp_path: Path, calibration: Path, field: str, case: str,
+) -> None:
+    root = make_project(tmp_path / "project", [calibration])
+    segment = {"id": "s1", "take": "t1", "from": {"word": "t1:0"}, "to": {"word": "t1:4"}}
+    if case == "time":
+        segment[field] = {"time": 0.3 if field == "from" else 5.0}
+    elif case == "opposite-edge":
+        segment[field]["edge"] = "end" if field == "from" else "start"
+    write_edit(root, [segment])
+    plan = resolve_cut(root)
+    if case == "different-word":
+        piece = plan.pieces[0]
+        plan = replace(plan, pieces=(replace(
+            piece, words=piece.words[1:] if field == "from" else piece.words[:-1],
+        ),))
+    rows = cut_stage._spans(plan, root / "cut")["segments"]
+    key = "first_word_anchor_s" if field == "from" else "last_word_anchor_s"
+    assert all(key not in row for row in rows)
+
+
+def test_span_word_anchor_times_keep_authored_transcript_clock(
+    tmp_path: Path, calibration: Path,
+) -> None:
+    root = make_project(tmp_path / "project", [calibration])
+    write_edit(root, [{
+        "id": "s1", "take": "t1", "from": {"word": "t1:0"}, "to": {"word": "t1:4"},
+    }])
+    plan = resolve_cut(root)
+    words = plan.source_words["t1"]
+    plan = replace(plan, source_words={"t1": replace(words, words=tuple(
+        replace(word, start=word.start + 0.3, end=word.end + 0.3) for word in words.words
+    ))})
+    row = cut_stage._spans(plan, root / "cut")["segments"][0]
+    assert row["first_word_anchor_s"] == 0.5
+    assert row["last_word_anchor_s"] == 4.6
 
 
 @pytest.mark.parametrize("consume_from,consume_to", [(True, False), (False, True), (True, True)])

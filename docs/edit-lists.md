@@ -44,6 +44,14 @@ The cut stage writes these fields for outer word anchors, using the first and la
 words; time anchors and edges created by removals leave them out. Other edit-list formats
 leave them unset. Without a speech engine, the report says the intent checks were skipped.
 
+When the edge uses that same word's start or end anchor in `edit.json`, the cut stage
+also saves `first_word_anchor_s` or `last_word_anchor_s`, its original transcript time
+in source seconds. Verify uses it to suggest a replacement `from.offset_s` or
+`to.offset_s` and records `suggested_offset_s` in the finding's evidence. The value
+keeps a 50 ms margin around the measured voice before snapping to a 30 fps frame.
+Source-time anchors, different words and opposite word edges keep the direction-only advice.
+Older span files keep that advice until the cut is regenerated with the anchor times.
+
 A ranges JSON file can point to one or more source files:
 
 ```json
