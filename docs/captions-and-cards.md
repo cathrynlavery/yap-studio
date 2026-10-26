@@ -30,10 +30,13 @@ existing safe-boundary clamp.
 Project captions use `captions.placement: "avoid_face"` by default. When placement
 finds no clear position, captions checks the rendered phrase. It stops before
 publishing if the phrase still fails face clearance, and lists the times. Earlier
-captions with no clear position are checked again on the next run. Frame the
-shot wider, use smaller captions, or set `captions.placement` to `"fixed"` in this
-project's style to accept captions over your face. Face overlaps then warn and
+captions with no clear position are checked again by captions or assembly. If the
+rendered phrase cannot be measured, captions warns why and publishes. That warning
+does not stop later runs. Frame the shot wider, use smaller captions, or set
+`captions.placement` to `"fixed"` in this project's style to accept captions over
+your face. Face overlaps then warn and
 allow the final to verify. Cards and overlays still have to clear your face.
+Approved taste rules can change the placement choice too.
 Horizontal videos always keep captions in the bottom band; that alone does not accept face overlaps.
 `run --allow-violations` reports confirmed overlaps as warnings and continues to assembly.
 

@@ -1618,15 +1618,55 @@ def test_blocked_collision_is_listed_in_receipt_with_warning(
     assert placement["phrases"][0]["offset_px"] == 0
     assert placement["phrases"][0]["reason"].startswith("kept: no position in the band")
     assert placement["kept_phrases"] == 2
-    assert read_receipt(layer_project / "captions")["warnings"] == state["warnings"]
+    record = read_receipt(layer_project / "captions")
+    assert record["warnings"] == state["warnings"]
+    assert record["face_overlaps"] == [
+        state["warnings"][0].removesuffix(f" {caption_stage.CAPTION_FACE_ACTION}"),
+    ]
+    record["warnings"].insert(0, "A general caption warning.")
+    write(layer_project / "captions/receipt.json", record)
     again = captions(layer_project, allow_violations=True)
-    assert again["noop"] and again["warnings"] == state["warnings"]
+    assert again["noop"] and again["warnings"] == record["warnings"]
     with pytest.raises(YapError) as caught:
         captions(layer_project)
     assert caught.value.code == "caption_face_clearance"
     assert caught.value.message.count(caption_stage.CAPTION_FACE_ACTION) == 0
     assert caught.value.suggested_action == caption_stage.CAPTION_FACE_ACTION
     assert f"{caught.value.message} {caught.value.suggested_action}" == state["warnings"][0]
+
+
+@pytest.mark.parametrize("allow_violations", [False, True])
+def test_blocked_unmeasured_captions_warn_and_stay_up_to_date(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    reported_layers: Callable[[dict | None], None], allow_violations: bool,
+) -> None:
+    measured_faces.box = Box(0, 640, 1080, 1100)
+    reported_layers(None)
+    result = captions(layer_project, allow_violations=allow_violations)
+    assert not result["noop"] and len(result["warnings"]) == 1
+    layout = json.loads((layer_project / "captions/layout.json").read_bytes())
+    assert not layout["measured"]
+    assert "face clearance could not be checked" in result["warnings"][0].lower()
+    assert layout["reason"] in result["warnings"][0]
+    assert (layer_project / "captions/captions.mov").is_file()
+    record = read_receipt(layer_project / "captions")
+    assert record["warnings"] == result["warnings"]
+    assert record["face_overlaps"] == []
+    again = captions(layer_project)
+    assert again["noop"] and again["warnings"] == result["warnings"]
+    assert len(fake_layers) == 1
+
+
+def test_cached_caption_warnings_do_not_refuse(
+    layer_project: Path, fake_layers: list[dict],
+) -> None:
+    captions(layer_project)
+    record = read_receipt(layer_project / "captions")
+    record.update(warnings=["A general caption warning."], face_overlaps=[])
+    write(layer_project / "captions/receipt.json", record)
+    result = captions(layer_project)
+    assert result["noop"] and result["warnings"] == record["warnings"]
+    assert len(fake_layers) == 1
 
 
 @pytest.mark.parametrize("blocked", [False, True])
@@ -1675,11 +1715,13 @@ def test_creator_caption_placement_resolves_style_and_is_read_only(
         context.creator_caption_placement = "fixed"
 
 
-@pytest.mark.parametrize("shape", ["vertical", "horizontal"])
+@pytest.mark.parametrize(("shape", "taste_override"), [
+    ("vertical", False), ("horizontal", False), ("vertical", True),
+])
 @pytest.mark.parametrize("placement", ["avoid_face", "fixed"])
 def test_caption_layout_records_creator_placement(
     layer_project: Path, fake_layers: list[dict], checked_layers: list[dict],
-    shape: str, placement: str,
+    shape: str, placement: str, taste_override: bool,
 ) -> None:
     from yap_studio.checks.caption_layout import read_layout_record, write_layout_record
     from yap_studio.checks.face_clearance import check_face_clearance
@@ -1695,7 +1737,14 @@ def test_caption_layout_records_creator_placement(
         run.outputs.update({item["path"]: item for item in previous["outputs"]})
         run.finish(extra={"plan": previous["plan"]})
     style = json.loads((layer_project / "style.json").read_bytes())
-    if placement == "fixed":
+    if taste_override:
+        from test_taste_render import _body
+
+        from yap_studio.taste import approve_proposal, revoke
+
+        style["captions"]["placement"] = "avoid_face" if placement == "fixed" else "fixed"
+        rule = approve_proposal(_body(placement, field="captions.placement")).rule
+    elif placement == "fixed":
         style["captions"]["placement"] = placement
     write(layer_project / "style.json", style)
     captions(layer_project)
@@ -1726,7 +1775,9 @@ def test_caption_layout_records_creator_placement(
         "faces", "picture:faces", "style:face_clearance", "style:captions", "fonts", "renderer",
     } | ({"project:shape"} if shape == "horizontal" else set()) | (
         {"caption_placement"} if placement == "fixed" else set()
-    )
+    ) | ({"taste"} if taste_override else set())
+    if taste_override:
+        revoke(rule["id"])
     style["captions"]["placement"] = "avoid_face" if placement == "fixed" else "fixed"
     write(layer_project / "style.json", style)
     after = caption_snapshot(ProjectContext(layer_project)).inputs

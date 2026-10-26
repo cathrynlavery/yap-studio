@@ -1401,6 +1401,15 @@ def back_weak_captions(project_dir: Path, look: str, *, force: bool = False) -> 
     return {"backed": backed, "skipped": skipped, "captions": captions(root, force=force)}
 
 
+def caption_receipt_needs_recheck(record: Mapping[str, Any] | None, placement: str) -> bool:
+    """Recheck legacy captions that could not find a clear position."""
+    return (
+        record is not None and "warnings" not in record and placement == "avoid_face"
+        and any(item.get("reason", "").startswith("kept: no position")
+                for item in record.get("caption_placement", {}).get("phrases", []))
+    )
+
+
 def captions(project_dir: Path, *, force: bool = False,
              allow_violations: bool = False) -> dict[str, Any]:
     """Publish a project caption band, output-time phrases, SRT and owned receipt."""
@@ -1423,16 +1432,12 @@ def captions(project_dir: Path, *, force: bool = False,
                   "warnings": [],
                   "caption_spelling": caption_spelling(snapshot.phrases, snapshot.vocabulary)}
         previous = read_receipt(root / "captions")
-        legacy_blocked = (
-            previous is not None and "warnings" not in previous
-            and context.creator_caption_placement == "avoid_face"
-            and any(item.get("reason", "").startswith("kept: no position")
-                    for item in previous.get("caption_placement", {}).get("phrases", []))
-        )
+        legacy_blocked = caption_receipt_needs_recheck(previous, context.creator_caption_placement)
         if not force and not legacy_blocked and run.up_to_date(snapshot.inputs):
             warnings = previous.get("warnings", []) if previous else []
-            if warnings and not allow_violations:
-                raise YapError(warnings[0].removesuffix(f" {CAPTION_FACE_ACTION}"),
+            face_overlaps = previous.get("face_overlaps", []) if previous else []
+            if face_overlaps and not allow_violations:
+                raise YapError(face_overlaps[0],
                                code="caption_face_clearance",
                                suggested_action=CAPTION_FACE_ACTION)
             return {**result, "layer": previous.get("layer", layer) if previous else layer,
@@ -1530,8 +1535,12 @@ def captions(project_dir: Path, *, force: bool = False,
             run.progress("checking captions", 0.9)
             layout = caption_layout(rendered.checks, plan)
             layout["caption_placement"] = context.creator_caption_placement
+            face_overlaps = []
             if (candidates and faces is not None
                     and context.creator_caption_placement == "avoid_face"):
+                if not layout["measured"]:
+                    result["warnings"].append(
+                        f"Caption face clearance could not be checked: {layout['reason']}")
                 report = check_layout(faces, Layout.from_dict(layout),
                                       margin_px=face_clearance_px(style.data))
                 overlaps = candidates & {item.target_id for item in report.violations
@@ -1549,6 +1558,7 @@ def captions(project_dir: Path, *, force: bool = False,
                     if not allow_violations:
                         raise YapError(message, code="caption_face_clearance",
                                        suggested_action=CAPTION_FACE_ACTION)
+                    face_overlaps.append(message)
                     result["warnings"].append(f"{message} {CAPTION_FACE_ACTION}")
             subtitles = work / "captions.srt"
             subtitles.write_text(_srt_text(snapshot.phrases), encoding="utf-8")
@@ -1573,6 +1583,7 @@ def captions(project_dir: Path, *, force: bool = False,
                               "layer_checks": rendered.checks,
                               "caption_shrink": caption_shrink(rendered.checks, plan),
                               "caption_placement": placement,
+                              "face_overlaps": face_overlaps,
                               "warnings": result["warnings"],
                               "caption_layout": {"measured": layout["measured"],
                                                  "reason": layout["reason"],

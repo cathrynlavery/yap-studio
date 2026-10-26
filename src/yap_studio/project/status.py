@@ -228,11 +228,11 @@ class ProjectContext:
                     target = self.project_dir / target
             self._style_path = paths.validate_input(target)
             data = resolve_style_data(self.json(str(self._style_path)))
-            self._creator_caption_placement = data["captions"]["placement"]
             # project.json has no overrides for taste-supported style fields.
             self._taste_application = render_style(ResolvedStyle(data["name"], spec, data),
                                                    explicit=None)
             self._render_style = self._taste_application.style
+            self._creator_caption_placement = self._render_style.data["captions"]["placement"]
             if self.project.shape == "horizontal":
                 data = copy.deepcopy(self._render_style.data)
                 frame = canvas(self.project.shape)

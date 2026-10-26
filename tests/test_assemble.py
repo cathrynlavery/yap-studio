@@ -3016,6 +3016,34 @@ def test_cut_change_assemble_refreshes_stale_stages(project: Path) -> None:
     assert read_receipt(project / "final")["status"] == "verified"
 
 
+@pytest.mark.parametrize("blocked", [False, True])
+def test_legacy_blocked_caption_receipt_is_refreshed(
+    project: Path, monkeypatch: pytest.MonkeyPatch, blocked: bool,
+) -> None:
+    from yap_studio.stages import captions as caption_stage
+
+    record = read_receipt(project / "captions")
+    inputs = record["inputs"]
+    record.pop("warnings")
+    if blocked:
+        record["caption_placement"]["phrases"] = [{
+            "slot": 0, "offset_px": 0, "reason": "kept: no position in the band clears the head",
+        }]
+    write_json(project / "captions/receipt.json", record)
+    options = []
+
+    def refresh(root: Path, **kwargs: Any) -> dict:
+        options.append(kwargs)
+        return captions(root, **kwargs)
+
+    monkeypatch.setattr(caption_stage, "captions", refresh)
+    result = stage.assemble(project)
+    assert options == ([{"allow_violations": False}] if blocked else [])
+    assert result["status"] == "verified"
+    assert ("captions" in result["refreshed"]) is blocked
+    assert read_receipt(project / "captions")["inputs"] == inputs
+
+
 @pytest.mark.parametrize("allow_violations", [False, True])
 def test_missing_caption_output_is_refreshed(
     project: Path, monkeypatch: pytest.MonkeyPatch, allow_violations: bool,

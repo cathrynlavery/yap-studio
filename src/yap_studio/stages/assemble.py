@@ -88,6 +88,7 @@ from yap_studio.stages.captions import (
     add_caption_halos,
     caption_frame_window,
     caption_halos,
+    caption_receipt_needs_recheck,
     caption_snapshot,
     chapter_number,
 )
@@ -580,6 +581,8 @@ def assembly_snapshot(context: ProjectContext, *, allow_violations: bool = False
         current = spec.inputs(projection_context)
         if (record.get("schema") != "yap-studio/stage-receipt@1" or
                 record.get("status") != "verified" or record.get("inputs") != current or
+                (name == "captions" and caption_receipt_needs_recheck(
+                    record, projection_context.creator_caption_placement)) or
                 (context.project_dir / folder / "receipt.pending.json").exists()):
             raise StaleStageError(name)
         inputs[f"stage:{name}"] = projection_sha256(current)
