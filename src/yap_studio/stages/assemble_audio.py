@@ -118,7 +118,7 @@ def packet_samples(source: Path, commands: list[tuple[str, ...]]) -> list[int]:
 
 
 def delivery_asserts(source: Path, *, frames: int, policy: dict[str, Any],
-                    commands: list[tuple[str, ...]], allow_terminal_padding: bool = False
+                    commands: list[tuple[str, ...]]
                     ) -> tuple[list[dict[str, Any]], Loudness]:
     """Check PCM delivery length, packet framing and measured encoded loudness."""
     info = ffmpeg.probe(source)
@@ -130,7 +130,7 @@ def delivery_asserts(source: Path, *, frames: int, policy: dict[str, Any],
     padding = len(decoded) - expected
     checks = [
         {"id": "audio.samples", "pass": duration == expected and
-         (0 <= padding < 1024 if allow_terminal_padding else padding == 0),
+         0 <= padding < 1024,
          "expected": expected, "actual": len(decoded), "container_samples": duration,
          "terminal_padding": padding},
         {"id": "audio.stream", "pass": info.audio_codec == "aac" and info.sample_rate == RATE

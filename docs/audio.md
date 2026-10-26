@@ -155,12 +155,12 @@ then uses an oversampled true-peak limiter with 0.5 dB of AAC headroom. It does 
 fall back to time-varying loudness gain when the true-peak target needs limiting;
 `lra_lu` is retained in the policy record and does not compress dialogue dynamics.
 The receipt records the policy, target, input/output measurements, commands and delivery
-asserts. The final's decoded sample count must match its frame count at 48 kHz;
-the receipt records container duration and terminal padding too. `--allow-violations`
-permits editorial timeline violations; media identity and end-hold bounds still apply.
-An ffmpeg build that exposes AAC padding after the MP4 duration fails the sample gate;
-use a build that honors the end trim. Selected source audio streams get a portable
-copy-only reference under `final/source-audio/` for edit-list verification.
+asserts. Final and pilot audio must match their frame count at 48 kHz in the container.
+Decoders may return fewer than 1024 extra terminal AAC samples; the receipt records
+container duration and terminal padding too. `--allow-violations` permits editorial
+timeline violations; media identity and end-hold bounds still apply.
+Selected source audio streams get a portable copy-only reference under
+`final/source-audio/` for edit-list verification.
 
 A cut that joins more than one take, such as a voiceover memo and a pickup recorded
 later, evens out their speech loudness. The cut measures each take over the words it
