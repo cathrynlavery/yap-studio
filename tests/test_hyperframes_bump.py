@@ -498,6 +498,22 @@ def test_registry_refresh_preserves_helper_metadata(bump_copy, monkeypatch):
     ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9.\n\n",
      "- Pin the renderer to HyperFrames 1.0.0 (creator words).\n", "## Unreleased\n\n",
      "- Pin the renderer to HyperFrames 1.0.1 (creator words).\n"),
+    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9\n\n",
+     "- Pin the renderer to HyperFrames 1.0.0 (creator words).\n", "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1 (creator words).\n"),
+    ("## Unreleased\n\n- Pin the renderer to HyperFrames 1.0.0 (caption timing).\n- Other.\n\n",
+     "- Pin the renderer to HyperFrames 1.0.0 (registry).\n", "## Unreleased\n\n- Other.\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1.\n"
+     "- Pin the renderer to HyperFrames 1.0.0 (registry).\n"
+     "- Pin the renderer to HyperFrames 1.0.0 (caption timing).\n"),
+    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9 (older words).\n\n",
+     "- Pin the renderer to HyperFrames 1.0.0 (registry).\n", "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1 (registry).\n"
+     "- Pin the renderer to HyperFrames 0.9.9 (older words).\n"),
+    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9 (older words).\n\n",
+     "- Pin the renderer to HyperFrames 1.0.0 (registry).", "## Unreleased\n\n",
+     "- Pin the renderer to HyperFrames 1.0.1 (registry).\n"
+     "- Pin the renderer to HyperFrames 0.9.9 (older words).\n"),
     ("## Unreleased\n\n", "- Something else.\n", "## Unreleased\n\n",
      "- Pin the renderer to HyperFrames 1.0.1.\n- Something else.\n"),
     ("", None, "", "- Pin the renderer to HyperFrames 1.0.1.\n"),

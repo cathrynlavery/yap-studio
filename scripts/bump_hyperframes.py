@@ -228,6 +228,11 @@ def _pin_note(text: str, note: str | None, current: str, new: str) -> tuple[str,
             text = text[:heading.end()] + (body if body.strip() else "\n") + text[end:]
     if note is None:
         note = "".join(legacy)
+    else:
+        bare = re.compile(PIN_NOTE.format(v=r"\d+\.\d+\.\d+") + r"\.?")
+        words = "".join(line for line in legacy if bare.fullmatch(line.rstrip("\r\n")) is None)
+        if words:
+            note += ("" if not note or note.endswith("\n") else "\n") + words
     pin = re.compile(PIN_NOTE.format(v=re.escape(current)))
     if len(pin.findall(note)) == 1:
         note = pin.sub(f"- Pin the renderer to HyperFrames {new}", note)
