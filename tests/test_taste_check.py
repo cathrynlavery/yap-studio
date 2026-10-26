@@ -88,7 +88,8 @@ def test_setup_rules_are_enforced_and_named(tmp_path, monkeypatch, capsys, faile
 
 
 @pytest.mark.parametrize("failed", [False, True])
-def test_verify_runs_placement_taste_rules(tmp_path, failed):
+@pytest.mark.parametrize("placement", ["avoid_face", "fixed"])
+def test_verify_runs_placement_taste_rules(tmp_path, failed, placement):
     from test_face_clearance_check import FACE, _faces
 
     from yap_studio.checks.caption_layout import write_layout_record
@@ -101,7 +102,7 @@ def test_verify_runs_placement_taste_rules(tmp_path, failed):
     media = synth.calib_source(tmp_path / "final.mov", seconds=1, size="320x180")
     write_taste_record(media, render_style())
     layout = synth.calibration_layout()
-    layout.update(captions=[{
+    layout.update(caption_placement=placement, captions=[{
         **layout["captions"][0], "text": "Hello", "start_frame": 1, "end_frame": 29,
         "words": [{"text": "Hello", "start_s": 0.1, "end_s": 0.8}],
         "boxes": [{"x": 120, "y": 70, "w": 80, "h": 60}],
@@ -111,7 +112,13 @@ def test_verify_runs_placement_taste_rules(tmp_path, failed):
                 _faces(media, frames=30, box=FACE if failed else None))
     report = verify(str(media), asr="none")
     assert report["checks"]["taste.rules"]["ran"]
-    assert report["checks"]["taste.rules"]["status"] == ("fail" if failed else "pass")
+    status = "fail" if failed and placement == "avoid_face" else "warn" if failed else "pass"
+    assert report["checks"]["faces.clearance"]["status"] == status
+    assert report["checks"]["taste.rules"]["status"] == status
+    if placement == "fixed":
+        assert report["status"] != "fail"
+        assert not any(item["severity"] == "fail" for item in report["findings"]
+                       if item["check"] in {"faces.clearance", "taste.rules"})
 
 
 def test_unmeasured_captions_do_not_pass_placement_rule(tmp_path):

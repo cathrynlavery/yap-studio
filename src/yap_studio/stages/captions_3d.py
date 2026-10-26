@@ -89,6 +89,8 @@ def snapshot(context: ProjectContext) -> CameraSnapshot:
     families = (style["captions"]["font"], style["hook"]["font"])
     inputs = {
         "style:captions": projection_sha256(style["captions"]),
+        **({"caption_placement": projection_sha256(context.creator_caption_placement)}
+           if context.creator_caption_placement == "fixed" else {}),
         "brand:words": projection_sha256(vocabulary),
         "word_fixes": projection_sha256(context.project.word_fixes),
         **({"word_text_fixes": projection_sha256(context.project.word_text_fixes)}
@@ -318,6 +320,7 @@ def captions(context: ProjectContext, *, force: bool = False,
         phrases = plan_phrases(retained.words, style.data["captions"],
                                frames=retained.frames, gaps=gaps, music=style.data["music"])
         layout = plan_layout(plan)
+        layout["caption_placement"] = context.creator_caption_placement
         summary = {"groups": len(plan["groups"]),
                    "heroes": [{"sentence": i, "text": s["hero"]["text"],
                                "layer": s["hero"]["layer"]}

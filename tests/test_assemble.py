@@ -3015,10 +3015,23 @@ def test_cut_change_assemble_refreshes_stale_stages(project: Path) -> None:
     assert read_receipt(project / "final")["status"] == "verified"
 
 
-def test_missing_caption_output_is_refreshed(project: Path) -> None:
+@pytest.mark.parametrize("allow_violations", [False, True])
+def test_missing_caption_output_is_refreshed(
+    project: Path, monkeypatch: pytest.MonkeyPatch, allow_violations: bool,
+) -> None:
+    from yap_studio.stages import captions as caption_stage
+
     stage.assemble(project)
     (project / "captions/layout.json").unlink()
-    result = stage.assemble(project)
+    options = []
+
+    def refresh(root: Path, **kwargs: Any) -> dict:
+        options.append(kwargs)
+        return captions(root, **kwargs)
+
+    monkeypatch.setattr(caption_stage, "captions", refresh)
+    result = stage.assemble(project, allow_violations=allow_violations)
+    assert options == [{"allow_violations": allow_violations}]
     assert result["status"] == "verified"
     assert "captions" in result["refreshed"]
     assert (project / "captions/layout.json").is_file()

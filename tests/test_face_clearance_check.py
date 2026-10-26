@@ -13,9 +13,14 @@ import pytest
 import synth
 
 from yap_studio import ffmpeg
-from yap_studio.checks.caption_layout import LAYOUT_SUFFIX, LayoutRecord, write_layout_record
+from yap_studio.checks.caption_layout import (
+    LAYOUT_SUFFIX,
+    LayoutRecord,
+    read_layout_record,
+    write_layout_record,
+)
 from yap_studio.checks.face_clearance import FACES_SUFFIX, check_face_clearance, final_faces
-from yap_studio.errors import ValidationError
+from yap_studio.errors import InputError, ValidationError
 from yap_studio.faces import detect
 from yap_studio.faces.clearance import (
     DEFAULT_HAIR,
@@ -27,6 +32,7 @@ from yap_studio.faces.clearance import (
     check_layout,
     head_box,
 )
+from yap_studio.faces.final import final_layout
 from yap_studio.faces.model import Box, FaceBox, FacesData, VideoIdentity
 from yap_studio.faces.project import FACE_EVERY
 from yap_studio.receipt import sha256_file
@@ -153,8 +159,8 @@ def test_face_violation_names_target_time_and_geometry(caption, kind):
     )
     assert finding.time_s == 1.0
     assert finding.suggested_action == (
-        "Run captions again so the phrase is placed clear of the face, "
-        "or move the face out of the caption band." if caption else
+        "Frame the shot wider, use smaller captions, or set captions.placement to "
+        '"fixed" in this project\'s style to accept captions over the face.' if caption else
         "Move the overlay in the timeline (change its placement or box) "
         "so it sits clear of the face." if kind == "overlay" else
         "Plan the card again (run graphics) so it sits clear of the face."
@@ -167,6 +173,39 @@ def test_face_violation_names_target_time_and_geometry(caption, kind):
         "gap_px": -35, "required_px": 24, "target_box": TARGET.to_dict(),
         "face": FACE.to_dict(), "head": head_box(FACE).to_dict(), "faces_source": "record",
     }
+
+
+@pytest.mark.parametrize("placement", [None, "avoid_face", "fixed"])
+@pytest.mark.parametrize("kind", ["caption", "card", "overlay", "title"])
+def test_creator_placement_only_allows_caption_face_overlap(tmp_path, placement, kind):
+    media = tmp_path / "final.mp4"
+    media.write_bytes(b"synthetic render")
+    source = _record(caption=kind == "caption", kind=kind).layout.to_dict()
+    source.update(measured=True, reason=None)
+    for caption in source["captions"]:
+        caption["words"] = [{"text": "First words", "start_s": 1, "end_s": 2.5}]
+    if placement is not None:
+        source["caption_placement"] = placement
+    document = final_layout(source, source["elements"], width=320, height=180,
+                            clearance_px=24, caption_gap_px=60)
+    write_layout_record(media, document)
+    record = read_layout_record(media, width=320, height=180)
+    (finding,), coverage = check_face_clearance(record, _faces(), faces_source="record")
+    allowed = kind == "caption" and placement == "fixed"
+    assert finding.severity == ("warn" if allowed else "fail")
+    assert ("style allows captions over the face" in finding.message) == allowed
+    assert coverage["ran"]
+
+
+@pytest.mark.parametrize("placement", [None, True, [], {}, "invalid"])
+def test_layout_refuses_invalid_caption_placement(tmp_path, placement):
+    media = tmp_path / "final.mp4"
+    media.write_bytes(b"synthetic render")
+    document = _record().layout.to_dict()
+    document.update(measured=True, reason=None, caption_placement=placement)
+    write_layout_record(media, document)
+    with pytest.raises(InputError, match="caption_placement"):
+        read_layout_record(media, width=320, height=180)
 
 
 def test_card_fully_covering_face_fails():

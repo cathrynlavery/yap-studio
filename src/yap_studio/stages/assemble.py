@@ -1414,7 +1414,10 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     from yap_studio.stages import music as music_stage
 
                     {"captions": captions_stage.captions, "graphics": graphics_stage.graphics,
-                     "music": music_stage.music}[exc.stage](context.project_dir)
+                     "music": music_stage.music}[exc.stage](
+                         context.project_dir,
+                         **({"allow_violations": allow_violations}
+                            if exc.stage == "captions" else {}))
                     refreshed.append(exc.stage)
                     context = ProjectContext(context.project_dir)
             phrases = _pilot_phrases(context) if frames is not None else None

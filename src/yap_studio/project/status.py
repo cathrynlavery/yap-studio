@@ -63,6 +63,7 @@ class ProjectContext:
         self._render_style: ResolvedStyle | None = None
         self._taste_application: TasteApplication | None = None
         self._style_path: Path | None = None
+        self._creator_caption_placement = "avoid_face"
         self._timeline: ResolvedTimeline | None = None
 
     def read(self, relative: str) -> bytes:
@@ -190,6 +191,12 @@ class ProjectContext:
         return {"path": take.path, "sha256": digest, "audio_stream": ordinal,
                 "audio_sha256": audio_hash}
 
+    @property
+    def creator_caption_placement(self) -> str:
+        """Resolve the creator's placement before render overrides."""
+        self.render_style()
+        return self._creator_caption_placement
+
     def render_style(self) -> ResolvedStyle:
         """Snapshot the base style, approved taste and enforced schema limits."""
         from yap_studio.style import (
@@ -221,6 +228,7 @@ class ProjectContext:
                     target = self.project_dir / target
             self._style_path = paths.validate_input(target)
             data = resolve_style_data(self.json(str(self._style_path)))
+            self._creator_caption_placement = data["captions"]["placement"]
             # project.json has no overrides for taste-supported style fields.
             self._taste_application = render_style(ResolvedStyle(data["name"], spec, data),
                                                    explicit=None)

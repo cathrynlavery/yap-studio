@@ -161,7 +161,9 @@ outside the project, and `yap-studio taste show` lists them.
   for one field, the rule with more matching tags wins, then rule id breaks ties. The render
   records applied and skipped rules, including conflicts. Verify uses that pinned taste
   record to check measurable fields and placement. It reports missing measurements as not
-  measured, not passed.
+  measured, not passed. Setting `captions.placement` to `"fixed"` in this project's style
+  accepts captions over your face. Both placement and final checks report those overlaps
+  as warnings. Titles, cards and overlays still have to clear your face.
 - **The agent follows (not enforced):** Pacing notes, including learned shot lengths, pauses
   and punch-ins, do not set the edit. Filler-word taste rules do not remove words automatically.
   Free text and conditions without tags need judgment. Free text is recorded as

@@ -38,6 +38,8 @@ from yap_studio.captions import (
     phrase_key,
     phrase_keys,
 )
+from yap_studio.checks.face_clearance import CAPTION_FACE_ACTION
+from yap_studio.checks.model import format_time
 from yap_studio.errors import (
     DependencyError,
     InputError,
@@ -575,6 +577,13 @@ def caption_offsets(
                                       band=phrase_bounds, margin_px=margin, preferred_y=top)
                 if hint.y is None:
                     reason = "kept: " + hint.reason
+                    if faces is not None and still_faces is None:
+                        first, last = caption_frame_window(
+                            phrase["start"], phrase["end"], fps=fps, layer_start=0)
+                        if not any(gap_px(element, head_box(face.box, DEFAULT_HAIR)) < margin
+                                   for frame in faces.frames[max(0, first):max(0, last)]
+                                   for face in frame):
+                            reason = "kept: clear of the head"
                 else:
                     offset, reason = hint.y - original_top, hint.reason
         if text_hook_bottom is not None and original_top + offset < text_hook_bottom + margin:
@@ -1306,6 +1315,8 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
         **({"picture:layouts": projection_sha256({"windows": green_layouts, "rule": LAYOUT_RULE})}
            if green_layouts else {}),
         "style:face_clearance": projection_sha256(face_clearance_px(style.data)),
+        **({"caption_placement": projection_sha256(context.creator_caption_placement)}
+           if context.creator_caption_placement == "fixed" else {}),
         "style:captions": projection_sha256({key: value for key, value in
                                              settings.items() if key != "camera_3d"}),
         "fonts": projection_sha256(assets.font_identity()),
@@ -1389,7 +1400,8 @@ def back_weak_captions(project_dir: Path, look: str, *, force: bool = False) -> 
     return {"backed": backed, "skipped": skipped, "captions": captions(root, force=force)}
 
 
-def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
+def captions(project_dir: Path, *, force: bool = False,
+             allow_violations: bool = False) -> dict[str, Any]:
     """Publish a project caption band, output-time phrases, SRT and owned receipt."""
     with paths.operation():
         context = ProjectContext(project_dir)
@@ -1407,11 +1419,17 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                   "phrases": len(snapshot.phrases), "layer": layer,
                   "srt": "captions/captions.srt", "layout": "captions/layout.json",
                   "receipt": "captions/receipt.json",
+                  "warnings": [],
                   "caption_spelling": caption_spelling(snapshot.phrases, snapshot.vocabulary)}
         if not force and run.up_to_date(snapshot.inputs):
             previous = read_receipt(root / "captions")
+            warnings = previous.get("warnings", []) if previous else []
+            if warnings and not allow_violations:
+                raise YapError(warnings[0].removesuffix(f" {CAPTION_FACE_ACTION}"),
+                               code="caption_face_clearance",
+                               suggested_action=CAPTION_FACE_ACTION)
             return {**result, "layer": previous.get("layer", layer) if previous else layer,
-                    "noop": True}
+                    "warnings": warnings, "noop": True}
         previous = read_receipt(root / "captions")
         work_root = paths.validate_output_dir(root / ".yap/work")
         with tempfile.TemporaryDirectory(prefix="captions-", dir=work_root) as folder, run:
@@ -1422,6 +1440,7 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                 from yap_studio.stages.captions_3d import retire_outputs
 
                 layout = {"schema": LAYOUT_SCHEMA, "width": frame.width, "height": frame.height,
+                          "caption_placement": context.creator_caption_placement,
                           "measured": True, "reason": None, "elements": [], "captions": []}
                 documents = {"phrases.json": {"schema": "yap-studio/phrases@1",
                              "time_base": "output", "fps": 30, "layer": None, "phrases": []},
@@ -1479,6 +1498,20 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                                          text_hook_bottom=_text_hook_bottom(timeline, style),
                                          splits=[(start, end, layout.seam_y)
                                                  for start, end, layout in splits])
+            blocked = [slot for slot, placement in zip(
+                json.loads(plan.variables["phrases"]), placements, strict=True,
+            ) if placement["reason"].startswith("kept: no position")]
+            if blocked and context.creator_caption_placement == "avoid_face":
+                times = ", ".join(f"{format_time(slot['start'])} to {format_time(slot['end'])}"
+                                  for slot in blocked[:3])
+                if len(blocked) > 3:
+                    times += f", and {len(blocked) - 3} more"
+                message = (f"{len(blocked)} caption {'phrase' if len(blocked) == 1 else 'phrases'} "
+                           f"cannot fit clear of the face at {times}.")
+                if not allow_violations:
+                    raise YapError(message, code="caption_face_clearance",
+                                   suggested_action=CAPTION_FACE_ACTION)
+                result["warnings"].append(f"{message} {CAPTION_FACE_ACTION}")
             if any(item["offset_px"] for item in placements):
                 plan = caption_layer_plan(snapshot.phrases, style, frames=timeline.total_frames,
                                           offsets=[item["offset_px"] for item in placements],
@@ -1509,6 +1542,7 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                 "layer": layer, "phrases": [phrase.to_dict() for phrase in snapshot.phrases],
             }, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
             layout = caption_layout(rendered.checks, plan)
+            layout["caption_placement"] = context.creator_caption_placement
             layout_path = work / "layout.json"
             layout_path.write_text(json.dumps(layout, indent=2, ensure_ascii=False, allow_nan=False)
                                    + "\n", encoding="utf-8")
@@ -1525,6 +1559,7 @@ def captions(project_dir: Path, *, force: bool = False) -> dict[str, Any]:
                               "layer_checks": rendered.checks,
                               "caption_shrink": caption_shrink(rendered.checks, plan),
                               "caption_placement": placement,
+                              "warnings": result["warnings"],
                               "caption_layout": {"measured": layout["measured"],
                                                  "reason": layout["reason"],
                                                  "captions": len(layout["captions"])},

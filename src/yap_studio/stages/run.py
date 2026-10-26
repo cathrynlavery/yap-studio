@@ -148,7 +148,8 @@ def _music(root: Path, state: dict[str, Any]) -> tuple[bool, str]:
 
 
 def _captions(root: Path, state: dict[str, Any]) -> tuple[bool, str]:
-    result = captions_stage.captions(root)
+    result = captions_stage.captions(root, allow_violations=state["allow_violations"])
+    state["warnings"].extend(result.get("warnings", []))
     return result["noop"], f"{result.get('phrases', 0)} phrases"
 
 
