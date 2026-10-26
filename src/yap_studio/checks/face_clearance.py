@@ -17,6 +17,10 @@ from yap_studio.faces.project import FACE_EVERY
 from yap_studio.receipt import sha256_file
 
 FACES_SUFFIX = ".faces.json"
+CAPTION_FACE_ACTION = (
+    "Frame the shot wider, use smaller captions, or set captions.placement to "
+    '"fixed" in this project\'s style to accept captions over the face.'
+)
 
 
 def final_faces(media: Path, *, detector: FaceDetector | None = None) -> tuple[FacesData, str]:
@@ -91,6 +95,7 @@ def check_face_clearance(
         if violation.kind != "face":
             continue
         caption = violation.target_type == "caption"
+        allowed = caption and record.caption_placement == "fixed"
         label = "Caption" if caption else violation.target_kind.capitalize()
         piece_id = violation.target_id
         element_id = record.element_ids.get(piece_id, piece_id)
@@ -100,13 +105,13 @@ def check_face_clearance(
         start = report.time_at(violation.start_frame)
         end = report.time_at(violation.end_frame)
         findings.append(Finding(
-            "faces.clearance", "fail",
+            "faces.clearance", "warn" if allowed else "fail",
             f'{target_name} is over the speaker\'s face '
-            f"from {format_time(start)} to {format_time(end)}.",
+            f"from {format_time(start)} to {format_time(end)}."
+            + (" The style allows captions over the face." if allowed else ""),
             time_s=start,
             suggested_action=(
-                "Run captions again so the phrase is placed clear of the face, "
-                "or move the face out of the caption band." if caption else
+                None if allowed else CAPTION_FACE_ACTION if caption else
                 "Move the overlay in the timeline (change its placement or box) "
                 "so it sits clear of the face." if violation.target_kind == "overlay" else
                 "Plan the card again (run graphics) so it sits clear of the face."

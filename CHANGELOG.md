@@ -7,6 +7,7 @@
 - Final videos and pilots no longer fail on older ffmpeg builds that decode extra AAC padding at the end. The audio in the file must still match the picture exactly.
 - A `changed` reply to a Fix note about the whole video is accepted in a later saved version instead of always being refused.
 - When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge.
+- With `avoid_face`, captions stop before the final when a phrase covers the face and there is no clear position, and say when and how to fix it. Setting `captions.placement` to `fixed` in a project's style, or approving a taste rule that does, accepts captions over the face as a warning; cards and overlays still have to stay clear.
 
 ## 1.1.0 (2026-10-26)
 

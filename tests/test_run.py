@@ -99,6 +99,29 @@ def test_run_walks_every_stage_in_order(tmp_path: Path, monkeypatch: pytest.Monk
     assert result["next"].startswith("yap-studio review --versions ")
 
 
+@pytest.mark.parametrize("allow_violations", [False, True])
+def test_caption_warnings_and_allow_violations_reach_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    allow_violations: bool,
+) -> None:
+    calls: list[str] = []
+    _fake_stages(monkeypatch, calls)
+    options = []
+    warning = "Captions have no clear position at 0:00.1; frame the shot wider."
+
+    def captions(root: Path, **kwargs: Any) -> dict:
+        calls.append("captions")
+        options.append(kwargs)
+        return {"noop": False, "phrases": 2, "warnings": [warning]}
+
+    monkeypatch.setattr(chain.captions_stage, "captions", captions)
+    assert cli.main(["run", str(_shell(tmp_path)),
+                     *(["--allow-violations"] if allow_violations else [])]) == 0
+    assert options == [{"allow_violations": allow_violations}]
+    assert "assemble" in calls
+    assert warning in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("json_output", [False, True])
 @pytest.mark.parametrize("error", [ValueError("backing count mismatch"),
                                  OSError("caption layer write failed")])

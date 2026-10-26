@@ -23,7 +23,7 @@ from test_timeline import write
 from yap_studio import ffmpeg, receipt
 from yap_studio.brand_words import set_words
 from yap_studio.captions import CaptionWord, build_phrases
-from yap_studio.errors import OutputPathError, RendererBlockedError
+from yap_studio.errors import OutputPathError, RendererBlockedError, YapError
 from yap_studio.faces import detect
 from yap_studio.faces import project as face_project
 from yap_studio.faces.clearance import LAYOUT_SCHEMA, Layout, face_clearance_px, gap_px, head_box
@@ -627,7 +627,10 @@ def test_camera_inputs_cover_listed_hero_exclusions(layer_project: Path, on) -> 
 
 
 @pytest.mark.parametrize("on", [False, True])
-def test_camera_bleep_publishes_masked_words_and_inputs(layer_project: Path, monkeypatch, on):
+@pytest.mark.parametrize("placement", ["avoid_face", "fixed"])
+def test_camera_bleep_publishes_masked_words_and_inputs(
+    layer_project: Path, monkeypatch, on, placement,
+):
     from types import SimpleNamespace
 
     import numpy as np
@@ -641,6 +644,7 @@ def test_camera_bleep_publishes_masked_words_and_inputs(layer_project: Path, mon
     target = layer_project / "style.json"
     style = json.loads(target.read_bytes())
     style["captions"]["camera_3d"] = True
+    style["captions"]["placement"] = placement
     style["music"] = {"bleep_swears": on, "bleep_words_add": ["simple"]}
     write(target, style)
     before = captions_inputs(ProjectContext(layer_project))
@@ -667,6 +671,16 @@ def test_camera_bleep_publishes_masked_words_and_inputs(layer_project: Path, mon
     monkeypatch.setattr(captions_3d, "render_outputs", render)
     monkeypatch.setattr(captions_3d, "check_behind", lambda *a: ())
     captions(layer_project)
+    layout = json.loads((layer_project / "captions/layout.json").read_bytes())
+    assert layout["caption_placement"] == placement
+    if placement == "fixed":
+        assert before["caption_placement"] == projection_sha256(placement)
+    else:
+        assert "caption_placement" not in before
+    assert set(before) == {
+        "style:captions", "brand:words", "word_fixes", "camera3d:plan", "cut/cut.mp4",
+        "faces", "style:face_clearance", "matte", "fonts", "renderer",
+    } | ({"bleep"} if on else set()) | ({"caption_placement"} if placement == "fixed" else set())
     plan = json.loads((layer_project / "captions/camera3d.json").read_bytes())
     phrases = json.loads((layer_project / "captions/phrases.json").read_bytes())
     expected = "s*****" if on else "simple"
@@ -1507,15 +1521,268 @@ def test_caption_offsets_keep_clear_empty_and_blocked_windows(case: str) -> None
     }[case])
 
 
-def test_blocked_collision_is_listed_in_receipt(
+@pytest.mark.parametrize("allow_violations", [False, True])
+def test_blocked_band_keeps_clear_measured_phrase(
     layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    reported_layers: Callable[[dict | None], None], allow_violations: bool,
+) -> None:
+    from yap_studio.checks.caption_layout import LayoutRecord
+    from yap_studio.checks.face_clearance import check_face_clearance
+
+    measured_faces.box = Box(70, 640, 180, 1100)
+    snapshot = caption_snapshot(ProjectContext(layer_project))
+    reported_layers(_layout_checks([
+        {"slot": slot, "boxes": [{"x": 480, "y": 20, "w": 120, "h": 40}]}
+        for slot in range(len(snapshot.phrases))
+    ]))
+    result = captions(layer_project, allow_violations=allow_violations)
+    assert not result["noop"] and result["warnings"] == []
+    assert len(fake_layers) == 1
+    record = read_receipt(layer_project / "captions")
+    assert record["caption_placement"]["phrases"][0]["reason"].startswith("kept: no position")
+    layout = Layout.from_dict(json.loads((layer_project / "captions/layout.json").read_bytes()))
+    faces = cut_faces(layer_project, layer_project / "cut/cut.mp4", detector=measured_faces)
+    findings, coverage = check_face_clearance(
+        LayoutRecord(layout, True, None, {}), faces, faces_source="record",
+    )
+    assert coverage["ran"] and findings == []
+    assert captions(layer_project)["noop"]
+    assert len(fake_layers) == 1
+
+
+@pytest.mark.parametrize("face_frames", [None, (4,)])
+def test_blocked_collision_stops_before_publishing(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    checked_layers: list[dict], monkeypatch: pytest.MonkeyPatch,
+    face_frames: tuple[int, ...] | None,
+) -> None:
+    measured_faces.box = Box(0, 640, 1080, 1100)
+    if face_frames is None:
+        style = json.loads((layer_project / "style.json").read_bytes())
+        style["captions"]["max_words_per_phrase"] = 1
+        write(layer_project / "style.json", style)
+    faces = cut_faces(layer_project, layer_project / "cut/cut.mp4", detector=measured_faces)
+    frames = tuple((FaceBox(measured_faces.box, 0.95, "detected"),)
+                   if face_frames is None or n in face_frames else ()
+                   for n in range(faces.video.frames))
+    faces = replace(faces, frames=frames, gaps=tuple(find_gaps(frames)))
+    monkeypatch.setattr(caption_stage, "cut_faces", lambda *args: faces)
+    monkeypatch.setattr(StageRun, "replace_output", lambda *args: pytest.fail(
+        "A blocked caption layer must not publish outputs"))
+    with pytest.raises(YapError) as caught:
+        captions(layer_project)
+    assert caught.value.code == "caption_face_clearance"
+    assert "0:00.1" in caught.value.message
+    assert "phrase" in caught.value.message
+    if face_frames is None:
+        assert "4 caption phrases" in caught.value.message
+        assert "and 1 more" in caught.value.message
+        assert "0:01.2 to" not in caught.value.message
+    assert all(text in caught.value.suggested_action for text in (
+        "wider", "smaller captions", 'captions.placement', '"fixed"', "this project",
+    ))
+    assert len(fake_layers) == 1
+    assert all(not (layer_project / "captions" / name).exists()
+               for name in ("captions.mov", "captions.srt", "phrases.json", "layout.json"))
+
+
+def test_blocked_face_only_on_undrawn_frame_does_not_stop_captions(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    style = json.loads((layer_project / "style.json").read_bytes())
+    style["captions"]["entry_ms"] = 0
+    write(layer_project / "style.json", style)
+    measured_faces.box = Box(0, 640, 1080, 1100)
+    faces = cut_faces(layer_project, layer_project / "cut/cut.mp4", detector=measured_faces)
+    frames = tuple(frame if n == 3 else () for n, frame in enumerate(faces.frames))
+    faces = replace(faces, frames=frames, gaps=tuple(find_gaps(frames)))
+    monkeypatch.setattr(caption_stage, "cut_faces", lambda *args: faces)
+    result = captions(layer_project)
+    assert not result["warnings"] and len(fake_layers) == 1
+
+
+def test_blocked_collision_is_listed_in_receipt_with_warning(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    checked_layers: list[dict],
 ) -> None:
     measured_faces.box = Box(0, 0, 1080, 1920)
-    captions(layer_project)
+    from yap_studio.stages import run as chain
+
+    state = {"allow_violations": True, "warnings": []}
+    chain._captions(layer_project, state)
+    assert len(state["warnings"]) == 1
+    assert "0:00.1" in state["warnings"][0]
+    assert "fixed" in state["warnings"][0]
     placement = read_receipt(layer_project / "captions")["caption_placement"]
     assert placement["phrases"][0]["offset_px"] == 0
     assert placement["phrases"][0]["reason"].startswith("kept: no position in the band")
     assert placement["kept_phrases"] == 2
+    record = read_receipt(layer_project / "captions")
+    assert record["warnings"] == state["warnings"]
+    assert record["face_overlaps"] == [
+        state["warnings"][0].removesuffix(f" {caption_stage.CAPTION_FACE_ACTION}"),
+    ]
+    record["warnings"].insert(0, "A general caption warning.")
+    write(layer_project / "captions/receipt.json", record)
+    again = captions(layer_project, allow_violations=True)
+    assert again["noop"] and again["warnings"] == record["warnings"]
+    with pytest.raises(YapError) as caught:
+        captions(layer_project)
+    assert caught.value.code == "caption_face_clearance"
+    assert caught.value.message.count(caption_stage.CAPTION_FACE_ACTION) == 0
+    assert caught.value.suggested_action == caption_stage.CAPTION_FACE_ACTION
+    assert f"{caught.value.message} {caught.value.suggested_action}" == state["warnings"][0]
+
+
+@pytest.mark.parametrize("allow_violations", [False, True])
+def test_blocked_unmeasured_captions_warn_and_stay_up_to_date(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    reported_layers: Callable[[dict | None], None], allow_violations: bool,
+) -> None:
+    measured_faces.box = Box(0, 640, 1080, 1100)
+    reported_layers(None)
+    result = captions(layer_project, allow_violations=allow_violations)
+    assert not result["noop"] and len(result["warnings"]) == 1
+    layout = json.loads((layer_project / "captions/layout.json").read_bytes())
+    assert not layout["measured"]
+    assert "face clearance could not be checked" in result["warnings"][0].lower()
+    assert layout["reason"] in result["warnings"][0]
+    assert (layer_project / "captions/captions.mov").is_file()
+    record = read_receipt(layer_project / "captions")
+    assert record["warnings"] == result["warnings"]
+    assert record["face_overlaps"] == []
+    again = captions(layer_project)
+    assert again["noop"] and again["warnings"] == result["warnings"]
+    assert len(fake_layers) == 1
+
+
+def test_cached_caption_warnings_do_not_refuse(
+    layer_project: Path, fake_layers: list[dict],
+) -> None:
+    captions(layer_project)
+    record = read_receipt(layer_project / "captions")
+    record.update(warnings=["A general caption warning."], face_overlaps=[])
+    write(layer_project / "captions/receipt.json", record)
+    result = captions(layer_project)
+    assert result["noop"] and result["warnings"] == record["warnings"]
+    assert len(fake_layers) == 1
+
+
+@pytest.mark.parametrize("blocked", [False, True])
+@pytest.mark.parametrize("placement", ["avoid_face", "fixed"])
+def test_legacy_blocked_caption_receipt_is_rechecked(
+    layer_project: Path, fake_layers: list[dict], blocked: bool, placement: str,
+) -> None:
+    style = json.loads((layer_project / "style.json").read_bytes())
+    style["captions"]["placement"] = placement
+    write(layer_project / "style.json", style)
+    captions(layer_project)
+    target = layer_project / "captions/receipt.json"
+    record = read_receipt(layer_project / "captions")
+    inputs = record["inputs"]
+    record.pop("warnings")
+    if blocked:
+        record["caption_placement"]["phrases"] = [{
+            "slot": 0, "text": "simple steps.", "offset_px": 0,
+            "reason": "kept: no position in the band clears the head",
+        }]
+    write(target, record)
+    result = captions(layer_project)
+    rerender = blocked and placement == "avoid_face"
+    assert result["noop"] == (not rerender)
+    assert len(fake_layers) == (2 if rerender else 1)
+    assert read_receipt(layer_project / "captions")["inputs"] == inputs
+
+
+@pytest.mark.parametrize("shape", ["vertical", "horizontal"])
+@pytest.mark.parametrize("placement", ["avoid_face", "fixed"])
+def test_creator_caption_placement_resolves_style_and_is_read_only(
+    layer_project: Path, shape: str, placement: str,
+) -> None:
+    project = json.loads((layer_project / "project.json").read_bytes())
+    project["shape"] = shape
+    write(layer_project / "project.json", project)
+    style = json.loads((layer_project / "style.json").read_bytes())
+    style["captions"]["placement"] = placement
+    write(layer_project / "style.json", style)
+    context = ProjectContext(layer_project)
+    assert context.creator_caption_placement == placement
+    assert context.render_style().data["captions"]["placement"] == (
+        "fixed" if shape == "horizontal" else placement
+    )
+    with pytest.raises(AttributeError):
+        context.creator_caption_placement = "fixed"
+
+
+@pytest.mark.parametrize(("shape", "taste_override"), [
+    ("vertical", False), ("horizontal", False), ("vertical", True),
+])
+@pytest.mark.parametrize("placement", ["avoid_face", "fixed"])
+def test_caption_layout_records_creator_placement(
+    layer_project: Path, fake_layers: list[dict], checked_layers: list[dict],
+    shape: str, placement: str, taste_override: bool,
+) -> None:
+    from yap_studio.checks.caption_layout import read_layout_record, write_layout_record
+    from yap_studio.checks.face_clearance import check_face_clearance
+    from yap_studio.faces.final import final_layout
+
+    project = json.loads((layer_project / "project.json").read_bytes())
+    project["shape"] = shape
+    write(layer_project / "project.json", project)
+    previous = read_receipt(layer_project / "cut")
+    with StageRun(layer_project, "cut") as run:
+        for name, digest in cut_inputs(ProjectContext(layer_project)).items():
+            run.record_inputs(name, digest)
+        run.outputs.update({item["path"]: item for item in previous["outputs"]})
+        run.finish(extra={"plan": previous["plan"]})
+    style = json.loads((layer_project / "style.json").read_bytes())
+    if taste_override:
+        from test_taste_render import _body
+
+        from yap_studio.taste import approve_proposal, revoke
+
+        style["captions"]["placement"] = "avoid_face" if placement == "fixed" else "fixed"
+        rule = approve_proposal(_body(placement, field="captions.placement")).rule
+    elif placement == "fixed":
+        style["captions"]["placement"] = placement
+    write(layer_project / "style.json", style)
+    captions(layer_project)
+    layout = json.loads((layer_project / "captions/layout.json").read_bytes())
+    assert layout["caption_placement"] == placement
+    media = layer_project / "final.mp4"
+    media.write_bytes(b"synthetic render")
+    document = final_layout(layout, [], width=layout["width"], height=layout["height"],
+                            clearance_px=24, caption_gap_px=60)
+    write_layout_record(media, document)
+    record = read_layout_record(media, width=layout["width"], height=layout["height"])
+    frames = ((FaceBox(Box(0, 0, layout["width"], layout["height"]), 0.95, "detected"),),) * 90
+    faces = FacesData("measured", None, VideoIdentity(
+        media.name, receipt.sha256_file(media), 90, Fraction(30), layout["width"], layout["height"],
+    ), {}, {}, frames, ())
+    findings, coverage = check_face_clearance(record, faces, faces_source="record")
+    assert coverage["ran"] and findings
+    assert {finding.severity for finding in findings} == {
+        "warn" if placement == "fixed" else "fail",
+    }
+    before = caption_snapshot(ProjectContext(layer_project)).inputs
+    if placement == "fixed":
+        assert before["caption_placement"] == projection_sha256(placement)
+    else:
+        assert "caption_placement" not in before
+    assert set(before) == {
+        "cut/cut-words.json", "word_fixes", "phrases", "brand:words", "caption_gaps",
+        "faces", "picture:faces", "style:face_clearance", "style:captions", "fonts", "renderer",
+    } | ({"project:shape"} if shape == "horizontal" else set()) | (
+        {"caption_placement"} if placement == "fixed" else set()
+    ) | ({"taste"} if taste_override else set())
+    if taste_override:
+        revoke(rule["id"])
+    style["captions"]["placement"] = "avoid_face" if placement == "fixed" else "fixed"
+    write(layer_project / "style.json", style)
+    after = caption_snapshot(ProjectContext(layer_project)).inputs
+    assert after != before
+    assert ("caption_placement" in after) == (placement == "avoid_face")
 
 
 @pytest.fixture
@@ -1836,7 +2103,7 @@ def test_project_receipt_records_unmeasured_caption_shrink(
     )}
     layout = json.loads((layer_project / "captions/layout.json").read_text())
     assert layout == {"schema": LAYOUT_SCHEMA, "width": 1080, "height": 1920,
-                      **shrink, "elements": [], "captions": []}
+                      "caption_placement": "avoid_face", **shrink, "elements": [], "captions": []}
     assert read_receipt(layer_project / "captions")["caption_layout"] == {
         **shrink, "captions": 0,
     }
@@ -1953,6 +2220,7 @@ def test_caption_outputs_use_cut_frames_output_times_and_last_frame(
     assert layout_text == json.dumps(layout, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     assert layout == {
         "schema": LAYOUT_SCHEMA, "width": 1080, "height": 1920,
+        "caption_placement": "avoid_face",
         "measured": True, "reason": None, "elements": [], "captions": [
             {"id": "caption-0", "text": "simple steps.", "start_frame": 4, "end_frame": 29,
              "boxes": [{"x": 100, "y": layer["y"] + 20, "w": 80, "h": 40},

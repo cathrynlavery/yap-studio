@@ -198,7 +198,8 @@ def check_taste(
                 or layer == "title" and item.evidence.get("target_kind") == "title"
                 or layer == "cards" and item.evidence.get("target_kind") == "card"
             )]
-            status = "fail" if any(item.severity == "fail" for item in face_findings) else "pass"
+            status = ("fail" if any(item.severity == "fail" for item in face_findings) else
+                      "warn" if any(item.severity == "warn" for item in face_findings) else "pass")
             reason = face_coverage.get("reason")
             if not face_coverage["ran"]:
                 status = "not_measured"
@@ -209,9 +210,11 @@ def check_taste(
             rows.append({"id": identity, "field": f"{machine['layer']} clear of face",
                          "check": "faces.clearance", "status": status,
                          "reason": reason, "evidence": evidence})
-            if status == "fail":
+            if status in {"fail", "warn"}:
                 findings.append(Finding(
-                    "taste.rules", "fail", f"Rule {identity}: faces.clearance failed.",
+                    "taste.rules", status,
+                    f"Rule {identity}: faces.clearance failed." if status == "fail" else
+                    f"Rule {identity}: the style allows captions over the face.",
                     evidence={"rule_id": identity, "check": "faces.clearance",
                               "findings": evidence},
                 ))

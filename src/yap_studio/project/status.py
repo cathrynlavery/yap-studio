@@ -63,6 +63,7 @@ class ProjectContext:
         self._render_style: ResolvedStyle | None = None
         self._taste_application: TasteApplication | None = None
         self._style_path: Path | None = None
+        self._creator_caption_placement = "avoid_face"
         self._timeline: ResolvedTimeline | None = None
 
     def read(self, relative: str) -> bytes:
@@ -190,6 +191,12 @@ class ProjectContext:
         return {"path": take.path, "sha256": digest, "audio_stream": ordinal,
                 "audio_sha256": audio_hash}
 
+    @property
+    def creator_caption_placement(self) -> str:
+        """Resolve the creator's placement before render overrides."""
+        self.render_style()
+        return self._creator_caption_placement
+
     def render_style(self) -> ResolvedStyle:
         """Snapshot the base style, approved taste and enforced schema limits."""
         from yap_studio.style import (
@@ -225,6 +232,7 @@ class ProjectContext:
             self._taste_application = render_style(ResolvedStyle(data["name"], spec, data),
                                                    explicit=None)
             self._render_style = self._taste_application.style
+            self._creator_caption_placement = self._render_style.data["captions"]["placement"]
             if self.project.shape == "horizontal":
                 data = copy.deepcopy(self._render_style.data)
                 frame = canvas(self.project.shape)

@@ -27,6 +27,19 @@ the same height. If one line plus entry rise and shadow padding cannot fit above
 `warnings`. With `position: middle`, the band stays centered on `top_px` with its
 existing safe-boundary clamp.
 
+Project captions use `captions.placement: "avoid_face"` by default. When placement
+finds no clear position, captions checks the rendered phrase. It stops before
+publishing if the phrase still fails face clearance, and lists the times. Earlier
+captions with no clear position are checked again by captions or assembly. If the
+rendered phrase cannot be measured, captions warns why and publishes. That warning
+does not stop later runs. Frame the shot wider, use smaller captions, or set
+`captions.placement` to `"fixed"` in this project's style to accept captions over
+your face. Face overlaps then warn and
+allow the final to verify. Cards and overlays still have to clear your face.
+Approved taste rules can change the placement choice too.
+Horizontal videos always keep captions in the bottom band; that alone does not accept face overlaps.
+`run --allow-violations` reports confirmed overlaps as warnings and continues to assembly.
+
 `captions.entrance` defaults to `slide`, which moves the whole phrase by
 `entry_rise_px` over `entry_ms`. Choose `rise` to bring each word up from behind
 its line box, using the same easing curve. Each word moves 0.6 of its line height
@@ -361,7 +374,7 @@ clock. Anchors follow re-cuts, check overlaps and feed receipts. The number, tit
 and timecode sit over the live picture. The speaker stays visible through a
 45 percent colour wash. A soft band rises to 70 percent opacity behind the text
 and fades back to the wash above and below. The whole layer fades in and out.
-Captions stay on top and keep avoiding the speaker's face during chapters.
+Captions stay on top and follow your face placement choice during chapters.
 The wash uses the graphics paper or ink colour with higher contrast against the
 caption text. The text colour is chosen to stay readable over dark and light
 footage, with a readable fallback when needed. A soft shadow uses the wash colour.

@@ -41,6 +41,7 @@ class LayoutRecord:
     face_windows: dict[str, tuple[tuple[int, int], ...]] = field(default_factory=dict)
     element_ids: dict[str, str] = field(default_factory=dict)
     labels: dict[str, str] = field(default_factory=dict)
+    caption_placement: str = "avoid_face"
 
 
 def write_layout_record(
@@ -117,6 +118,9 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
         reason = document.get("reason")
         if reason is not None and not isinstance(reason, str):
             raise ValueError("layout record reason must be a string or null")
+        caption_placement = document.get("caption_placement", "avoid_face")
+        if caption_placement not in ("avoid_face", "fixed"):
+            raise ValueError("layout record caption_placement must be avoid_face or fixed")
         words = {}
         if measured:
             for caption in document.get("captions", []):
@@ -135,7 +139,8 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
         raise InputError(str(target), "layout record media hash does not match the media")
     if (layout.width, layout.height) != (width, height):
         raise InputError(str(target), "layout size does not match the render's display size")
-    return LayoutRecord(layout, measured, reason, words, face_windows, element_ids, labels)
+    return LayoutRecord(layout, measured, reason, words, face_windows, element_ids, labels,
+                        caption_placement)
 
 
 def check_caption_timing(

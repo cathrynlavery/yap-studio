@@ -88,6 +88,7 @@ from yap_studio.stages.captions import (
     add_caption_halos,
     caption_frame_window,
     caption_halos,
+    caption_receipt_needs_recheck,
     caption_snapshot,
     chapter_number,
 )
@@ -580,6 +581,8 @@ def assembly_snapshot(context: ProjectContext, *, allow_violations: bool = False
         current = spec.inputs(projection_context)
         if (record.get("schema") != "yap-studio/stage-receipt@1" or
                 record.get("status") != "verified" or record.get("inputs") != current or
+                (name == "captions" and caption_receipt_needs_recheck(
+                    record, projection_context.creator_caption_placement)) or
                 (context.project_dir / folder / "receipt.pending.json").exists()):
             raise StaleStageError(name)
         inputs[f"stage:{name}"] = projection_sha256(current)
@@ -1414,7 +1417,10 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     from yap_studio.stages import music as music_stage
 
                     {"captions": captions_stage.captions, "graphics": graphics_stage.graphics,
-                     "music": music_stage.music}[exc.stage](context.project_dir)
+                     "music": music_stage.music}[exc.stage](
+                         context.project_dir,
+                         **({"allow_violations": allow_violations}
+                            if exc.stage == "captions" else {}))
                     refreshed.append(exc.stage)
                     context = ProjectContext(context.project_dir)
             phrases = _pilot_phrases(context) if frames is not None else None

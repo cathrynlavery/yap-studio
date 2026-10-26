@@ -77,6 +77,8 @@ def final_layout(
     document = {
         "schema": LAYOUT_SCHEMA, "width": width, "height": height,
         "measured": captions_layout["measured"], "reason": captions_layout["reason"],
+        **({"caption_placement": captions_layout["caption_placement"]}
+           if "caption_placement" in captions_layout else {}),
         "captions": captions_layout["captions"], "elements": list(elements),
         "clearance_px": clearance_px, "caption_gap_px": caption_gap_px,
         "hair": DEFAULT_HAIR.to_dict(),
