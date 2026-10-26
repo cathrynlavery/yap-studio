@@ -956,6 +956,26 @@ def test_planned_word_early_heard_edge_keeps_clipped_syllable(side: str) -> None
 
 
 @pytest.mark.parametrize("side", ["first", "last"])
+def test_planned_word_cannot_use_next_heard_neighbour(side: str) -> None:
+    """The next heard word cannot stand in for the planned word's last syllable."""
+    levels = np.full(250, -65.0)
+    levels[80:100] = -20.0
+    levels[106:109] = -20.0
+    spans = [("garden", 0.80, 1.05), ("a", 1.06, 1.09)]
+    point = 1.06
+    if side == "first":
+        levels = levels[::-1]
+        spans = [(text, 2.5 - end, 2.5 - start) for text, start, end in reversed(spans)]
+        point = 2.5 - point
+    finding = joins._planned_word_finding(
+        Transcript([Word(text, start + 1, end + 1) for text, start, end in spans]),
+        "garden", side, point, "Cut 1", point, sound=_word_level_sound(levels), sr=16000,
+        excluded=Transcript([Word("a", 1.0, 1.1)]),
+    )
+    assert finding is None or finding.check != "join.words"
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
 @pytest.mark.parametrize("overlap_ms", [-40, 0, 20, 30, 70, 80, 400])
 def test_planned_word_energy_tolerance_and_whole_word_loss(
     small_media: SimpleNamespace, side: str, overlap_ms: int,

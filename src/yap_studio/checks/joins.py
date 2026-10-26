@@ -1205,7 +1205,7 @@ def _word_clock_shift(
 
 def _locate_word_shape(
     shapes: Sequence[_WordShape], start_s: float, end_s: float,
-    side: Literal["first", "last"], point_s: float,
+    side: Literal["first", "last"], point_s: float, neighbour_s: float | None,
 ) -> _WordShape | None:
     """Associate the word with an edge-facing nucleus within the clock uncertainty."""
     candidates = [shape for shape in shapes
@@ -1223,10 +1223,15 @@ def _locate_word_shape(
     if matches:
         _, first, last = min(matches, key=lambda match: match[0])
         return first if side == "first" else last
-    # Exclude kept neighbours on an uncertain clock, retaining syllables past an early heard edge.
+    # Kept neighbours and the next heard word cannot stand in for the planned word.
+    # Its own syllables past an early heard edge still count.
     if any(start_s <= shape.nucleus_s <= end_s for shape in candidates):
-        candidates = [shape for shape in candidates if (
-            shape.nucleus_s >= start_s if side == "last" else shape.nucleus_s <= end_s)]
+        if side == "last":
+            limit = max(end_s, neighbour_s) if neighbour_s is not None else float("inf")
+            candidates = [shape for shape in candidates if start_s <= shape.nucleus_s <= limit]
+        else:
+            limit = min(start_s, neighbour_s) if neighbour_s is not None else -float("inf")
+            candidates = [shape for shape in candidates if limit <= shape.nucleus_s <= end_s]
     center = start_s + min(end_s - start_s, _WORD_SEARCH_S) / 2
     if side == "first":
         facing = [shape for shape in candidates if shape.nucleus_s >= point_s - _WORD_OVERLAP_S]
@@ -1378,14 +1383,14 @@ def _planned_word_finding(
         shape = _locate_excluded_word_shape(shapes, side, point_s)
         if shape is not None:
             evidence["located_by"] = "excluded speech"
-    if shape is None:
-        shape = _locate_word_shape(shapes, start + shift, end + shift, side, point_s)
     edge_word = tokens[index if side == "first" else index + len(expected) - 1][1]
     neighbours = reversed(tokens[:index]) if side == "first" else tokens[index + len(expected):]
     neighbour = next((heard for _, heard in neighbours if heard is not edge_word), None)
     neighbour_s = None
     if neighbour is not None:
         neighbour_s = (neighbour.end if side == "first" else neighbour.start) - 1.0 + shift
+    if shape is None:
+        shape = _locate_word_shape(shapes, start + shift, end + shift, side, point_s, neighbour_s)
     boundary, joined = ((None, 0) if shape is None else
                         _extend_word_boundary(shapes, shape, side, neighbour_s))
     evidence.update(word_start_s=start, word_end_s=end, clock_shift_s=shift,
