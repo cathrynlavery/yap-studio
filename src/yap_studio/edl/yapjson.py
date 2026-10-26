@@ -116,6 +116,8 @@ def read(path: Path, data: bytes) -> EditList:
         label = str(item["text"]) if item.get("text") is not None else None
         first_word = _planned_word(item, "first_word", group_number, path)
         last_word = _planned_word(item, "last_word", group_number, path)
+        anchors = {name: _number(item[name], name, path)
+                   for name in ("first_word_anchor_s", "last_word_anchor_s") if name in item}
         raw_runs = item.get("runs")
         if raw_runs is None:
             raw_runs = [[item.get("start"), item.get("end")]]
@@ -136,6 +138,10 @@ def read(path: Path, data: bytes) -> EditList:
                     label=label,
                     first_word=first_word if run_index == 0 else None,
                     last_word=last_word if run_index == len(raw_runs) - 1 else None,
+                    first_word_anchor_s=anchors.get("first_word_anchor_s") if run_index == 0
+                    else None,
+                    last_word_anchor_s=anchors.get("last_word_anchor_s")
+                    if run_index == len(raw_runs) - 1 else None,
                 )
             )
 

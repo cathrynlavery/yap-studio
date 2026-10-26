@@ -6,6 +6,7 @@
 - Repeated feedback adds to the matching open issue instead of opening a duplicate, automatic bug reports name the subcommand (such as `versions save`) without sharing other arguments, and agents record a `missing` note when they do something by hand that Yap Studio can't.
 - Final videos and pilots no longer fail on older ffmpeg builds that decode extra AAC padding at the end. The audio in the file must still match the picture exactly.
 - A `changed` reply to a Fix note about the whole video is accepted in a later saved version instead of always being refused.
+- When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge.
 
 ## 1.1.0 (2026-10-26)
 

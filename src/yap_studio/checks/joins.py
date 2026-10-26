@@ -1352,6 +1352,9 @@ def _planned_word_finding(
     cut: int | None = None,
     artifact: str | None = None,
     excluded: Transcript | None = None,
+    anchor_s: Fraction | None = None,
+    source_point_s: float = 0.0,
+    source_info: ffmpeg.MediaInfo | None = None,
 ) -> Finding | None:
     """Locate intent in uncut source speech, then measure excluded voice by energy."""
     expected = norm_words(word)
@@ -1446,12 +1449,43 @@ def _planned_word_finding(
                     overlap_ms=overlap_ms)
     direction = "earlier" if side == "first" else "later"
     portion = "start" if side == "first" else "end"
+    action = f'Move this segment\'s {side} edge {direction} to keep "{word}".'
+    if anchor_s is not None:
+        source_duration_s = getattr(source_info, "video_duration_s", None)
+        # Fifty milliseconds covers rounding the offset and snapping to a 30 fps frame.
+        target = max(0.0, source_point_s + boundary.time_s - point_s
+                     + (-0.05 if side == "first" else 0.05))
+        if source_duration_s is not None:
+            target = min(target, source_duration_s)
+        offset = max(-float(anchor_s), round(target - float(anchor_s), 3))
+        if offset == 0:
+            offset = (0.001 if side == "last" or anchor_s == 0
+                      else -min(0.001, float(anchor_s)))
+        if side == "last" and source_duration_s is not None:
+            frames = getattr(source_info, "video_frames", None)
+            fps = getattr(source_info, "fps", None)
+            if frames is not None and fps and not source_info.variable_frame_rate:
+                last_frame = math.floor(Fraction(frames * 30, 1) / fps)
+            else:
+                # Probe durations round to microseconds and can undershoot the final frame.
+                frame_count = Fraction(str(source_duration_s)) * 30
+                nearest = round(frame_count)
+                last_frame = (nearest if abs(frame_count - nearest) <= Fraction(1, 10_000)
+                              else math.floor(frame_count))
+            limit = min(Fraction(last_frame, 30), Fraction(str(source_duration_s)))
+            max_offset = math.floor((limit - anchor_s) * 1000) / 1000
+            offset = min(offset, max_offset)
+            if offset == 0:
+                offset = -min(0.001, float(anchor_s))
+        evidence["suggested_offset_s"] = offset
+        field = "from" if side == "first" else "to"
+        action = f'Set this segment\'s {field}.offset_s to {offset} to keep "{word}".'
     return Finding(
         "join.words", "fail",
         f'{label}: the source voice for the planned {side} word "{word}" overlaps this '
         f'edge by {overlap_ms:.0f} ms; the cut drops its {portion} or the whole word.',
         cut=cut, time_s=time_s,
-        suggested_action=f'Move this segment\'s {side} edge {direction} to keep "{word}".',
+        suggested_action=action,
         evidence=evidence,
     )
 
@@ -2039,18 +2073,24 @@ def check_joins(
                 )
             if transcripts is not None:
                 planned_cut = plan.cuts[index]
-                for side, word, point, role in (
-                    ("last", planned_cut.left.last_word, 1.5, 2),
-                    ("first", planned_cut.right.first_word, 1.0, 3),
+                for side, segment, word, frame, point, role in (
+                    ("last", planned_cut.left, planned_cut.left.last_word,
+                     planned_cut.left.src_f1, 1.5, 2),
+                    ("first", planned_cut.right, planned_cut.right.first_word,
+                     planned_cut.right.src_f0, 1.0, 3),
                 ):
                     if word is None:
                         continue
+                    media = source(segment.source_id)
                     finding = _planned_word_finding(
                         transcripts[trial.paths[role]], word, side, point,
                         f"Cut {cut.index} at {format_time(cut.out_time_s)}", cut.out_time_s,
                         sound=trial.controls[role - 2], sr=sr, cut=cut.index,
                         artifact=trial.artifacts[role] if trial.artifacts else None,
                         excluded=transcripts[excluded_paths[cut.index, side]],
+                        anchor_s=getattr(segment, f"{side}_word_anchor_s"),
+                        source_point_s=frame / fps,
+                        source_info=media.info if media is not None else None,
                     )
                     if finding is not None:
                         findings.append(finding)
@@ -2060,6 +2100,9 @@ def check_joins(
                                 reason="planned boundary word clipped",
                             ))
         for outer in outer_trials:
+            segment = plan.segments[0] if outer.side == "first" else plan.segments[-1]
+            frame = segment.src_f0 if outer.side == "first" else segment.src_f1
+            media = source(segment.source_id)
             label = (
                 f"Render {'start' if outer.side == 'first' else 'end'} at "
                 f"{format_time(outer.time_s)}"
@@ -2068,6 +2111,9 @@ def check_joins(
                 transcripts[outer.path], outer.word, outer.side, outer.point_s, label,
                 outer.time_s, sound=outer.sound, sr=sr, artifact=outer.artifact,
                 excluded=transcripts[excluded_paths[None, outer.side]],
+                anchor_s=getattr(segment, f"{outer.side}_word_anchor_s"),
+                source_point_s=frame / fps,
+                source_info=media.info if media is not None else None,
             )
             if finding is not None:
                 findings.append(finding)

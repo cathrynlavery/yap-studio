@@ -1052,8 +1052,10 @@ def _spans(plan: CutPlan, directory: Path) -> dict[str, Any]:
         identifier: (snap_frame(first, FPS), snap_frame(last, FPS))
         for identifier, first, last in plan.segment_ranges
     }
-    words = {take: {word.id: word.text for word in snapshot.words}
-             for take, snapshot in plan.source_words.items()}
+    # Offsets resolve against the ingest snapshot, before speech timing corrections.
+    words = {take: {word.id: word for word in cast(Words, _document(
+        plan.context, "words", f"ingest/{take}/words.json",
+    )).words} for take in plan.source_words}
     segments = []
     for index, piece in enumerate(plan.pieces):
         segment = authored[piece.segment_id]
@@ -1065,10 +1067,16 @@ def _spans(plan: CutPlan, directory: Path) -> dict[str, Any]:
         # Removal-created edges have no authored word anchor.
         if (first and frames is not None and piece.src_f0 == frames[0]
                 and segment.from_.word is not None and piece.words):
-            row["first_word"] = words[piece.take][piece.words[0]]
+            word = words[piece.take][piece.words[0]]
+            row["first_word"] = word.text
+            if segment.from_.word == word.id and segment.from_.edge == "start":
+                row["first_word_anchor_s"] = word.start
         if (last and frames is not None and piece.src_f1 == frames[1]
                 and segment.to.word is not None and piece.words):
-            row["last_word"] = words[piece.take][piece.words[-1]]
+            word = words[piece.take][piece.words[-1]]
+            row["last_word"] = word.text
+            if segment.to.word == word.id and segment.to.edge == "end":
+                row["last_word_anchor_s"] = word.end
         segments.append(row)
     return {
         "sources": {

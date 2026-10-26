@@ -77,8 +77,10 @@ def test_yap_planned_boundary_words_round_trip(tmp_path: Path) -> None:
     path = _write_json(tmp_path / "words.json", {
         "source": "take.mov",
         "segments": [
-            {"start": 0, "end": 1, "first_word": "Bright", "last_word": "hills."},
-            {"runs": [[2, 3], [4, 5], [6, 7]], "first_word": "Seven", "last_word": "garden"},
+            {"start": 0, "end": 1, "first_word": "Bright", "last_word": "hills.",
+             "first_word_anchor_s": 0.12, "last_word_anchor_s": 0.8},
+            {"runs": [[2, 3], [4, 5], [6, 7]], "first_word": "Seven", "last_word": "garden",
+             "first_word_anchor_s": 2.12, "last_word_anchor_s": 6.8},
             {"start": 8, "end": 9},
         ],
     })
@@ -86,6 +88,10 @@ def test_yap_planned_boundary_words_round_trip(tmp_path: Path) -> None:
     expected = [("Bright", "hills."), ("Seven", None), (None, None),
                 (None, "garden"), (None, None)]
     assert [(row.first_word, row.last_word) for row in edit.segments] == expected
+    assert [(row.first_word_anchor_s, row.last_word_anchor_s) for row in edit.segments] == [
+        (Fraction("0.12"), Fraction("0.8")), (Fraction("2.12"), None), (None, None),
+        (None, Fraction("6.8")), (None, None),
+    ]
     for row, (first, last) in zip(edit.to_dict()["segments"], expected, strict=True):
         assert row.get("first_word") == first
         assert row.get("last_word") == last
@@ -94,11 +100,24 @@ def test_yap_planned_boundary_words_round_trip(tmp_path: Path) -> None:
         "segments": [
             {"start": str(row.start), "end": str(row.end),
              **{key: value for key, value in row.to_dict().items()
-                if key in {"first_word", "last_word"} and value is not None}}
+                if key in {"first_word", "last_word", "first_word_anchor_s", "last_word_anchor_s"}
+                and value is not None}}
             for row in edit.segments
         ],
     })
     assert load_edit_list(written).segments == edit.segments
+
+
+@pytest.mark.parametrize("field", ["first_word_anchor_s", "last_word_anchor_s"])
+@pytest.mark.parametrize("value", [-1, None, True, "nan", "inf", [], {}])
+def test_yap_refuses_invalid_word_anchor_times(tmp_path: Path, field: str, value: object) -> None:
+    path = _write_json(tmp_path / "bad-anchor.json", {
+        "source": "take.mov", "segments": [
+            {"start": 0, "end": 1, "first_word": "bright", "last_word": "hills", field: value},
+        ],
+    })
+    with pytest.raises(EditListError, match=field):
+        load_edit_list(path)
 
 
 @pytest.mark.parametrize("field", ["first_word", "last_word"])
