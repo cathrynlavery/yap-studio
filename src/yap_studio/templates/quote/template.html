@@ -67,7 +67,7 @@ px("quote-size", v.quote_px); px("name-size", v.name_px); px("role-size", v.role
 root.querySelector("blockquote").textContent = v.quote;
 root.querySelector(".name").textContent = v.name;
 root.querySelector(".role").textContent = v.role;
-tl.fromTo(root.querySelector("blockquote"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4 }, 0.25);
+tl.fromTo(root.querySelector("blockquote"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, clearProps: "transform", duration: 0.4 }, 0.25);
 
   tl.fromTo(panel, { opacity: 1 }, { opacity: 0, duration: OUT, ease: "power2.in", immediateRender: false }, outStart);
   tl.seek(0);
