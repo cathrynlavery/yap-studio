@@ -544,6 +544,7 @@ if "json" in reply:
         out = subprocess.run(["jq", "-r", args[args.index("--jq") + 1]], input=out,
                              capture_output=True, text=True, check=True).stdout
 sys.stdout.write(out)
+sys.exit(reply.get("code", 0))
 """
 LEGACY = [
     {"number": 47, "headRefName": "hyperframes-bump/0.8.204", "sha": "4" * 40,
@@ -606,10 +607,14 @@ def _run_step(
     return result, calls, outputs
 
 
+STANDING = "6" * 40
+
+
 @pytest.mark.parametrize(("scenario", "skip", "pr"), [
     ("new release", "false", ""),
-    ("standing PR pins it", "true", "60"),
+    ("standing PR is current", "true", "60"),
     ("standing PR conflicts", "false", "60"),
+    ("standing PR text is stale", "false", "60"),
     ("fork pins it", "true", ""),
     ("person pushed to it", "true", "60"),
     ("person closed it", "true", None),
@@ -622,17 +627,23 @@ def test_bump_reuses_one_standing_pr_unless_a_person_holds_it(
                          mergeable=item.get("mergeable", "MERGEABLE")) for item in LEGACY]
     open_prs.append(_open_pr(12, "feature/captions", "c" * 40))
     if pr == "60":
-        open_prs.append(_open_pr(60, "hyperframes-bump/latest", "6" * 40, mergeable=(
+        open_prs.append(_open_pr(60, "hyperframes-bump/latest", STANDING, mergeable=(
             "CONFLICTING" if scenario == "standing PR conflicts" else "MERGEABLE")))
     if scenario == "fork pins it":
         open_prs.append(_open_pr(61, "hyperframes-bump/latest", "f" * 40, owner="someone",
                                  mergeable="CONFLICTING"))
+    if scenario == "standing PR text is stale":
+        # An older bump PR that also pins the release must not stop the standing PR's repair.
+        open_prs.insert(0, _open_pr(57, f"hyperframes-bump/{LATEST}", "7" * 40))
     closed = [{"number": 58, "title": "render: pin HyperFrames 0.8.206", "mergedAt": None,
                "isCrossRepository": False}]
     if scenario == "person closed it":
         closed.append({"number": 59, "title": f"render: pin HyperFrames {LATEST}",
                        "mergedAt": None, "isCrossRepository": False})
     authors = [BOT, *(["person@example.com"] if scenario == "person pushed to it" else [])]
+    title = "render: pin HyperFrames " + (
+        "0.8.208" if scenario == "standing PR text is stale" else LATEST)
+    branch = f"{STANDING}\trefs/heads/hyperframes-bump/latest\n" if pr == "60" else ""
     replies = [
         (r"^gh pr list --state closed", {"json": closed}),
         (r"^gh pr list --state open --head hyperframes-bump/latest", {"json": [
@@ -641,37 +652,40 @@ def test_bump_reuses_one_standing_pr_unless_a_person_holds_it(
         (r"^gh pr list --state open --limit", {"json": open_prs}),
         (r"^gh pr view 60 --json commits", {"json": {"commits": [
             {"authors": [{"email": email}]} for email in authors]}}),
+        (r"^gh pr view 60 --json title", {"json": {"title": title}}),
+        (r"^git ls-remote origin refs/heads/hyperframes-bump/latest$", {"out": branch}),
         _pin_reply("4" * 40, "0.8.204"), _pin_reply("5" * 40, "0.8.208"),
-        _pin_reply("c" * 40, "0.8.203"), _pin_reply("6" * 40, LATEST),
-        _pin_reply("f" * 40, LATEST),
+        _pin_reply("c" * 40, "0.8.203"), _pin_reply(STANDING, LATEST),
+        _pin_reply("f" * 40, LATEST), _pin_reply("7" * 40, LATEST),
     ]
     result, _, outputs = _run_step(tmp_path, "Skip a release that already has a PR", replies)
     assert result.returncode == 0, result.stderr
     assert outputs["branch"] == "hyperframes-bump/latest"
     assert outputs.get("pr") == pr
     assert outputs["skip"] == skip
+    if skip == "false":
+        assert outputs["head"] == (STANDING if pr else "")
+    assert outputs.get("current") == ("true" if scenario == "standing PR is current" else None)
     assert ("::warning::" in result.stdout) is (scenario == "person pushed to it")
 
 
 @pytest.mark.parametrize("pr", ["", "60"])
-def test_bump_pushes_the_standing_branch_and_supersedes_older_bump_prs(
+def test_bump_pushes_the_standing_branch_over_the_head_it_checked(
     tmp_path: Path, pr: str,
 ) -> None:
-    """The branch is force-updated, its PR is opened or reset to draft, and older bump PRs close."""
-    open_prs = [*(_open_pr(item["number"], item["headRefName"], item["sha"]) for item in LEGACY),
-                _open_pr(12, "feature/captions", "c" * 40),
-                _open_pr(60, "hyperframes-bump/latest", "6" * 40),
-                _open_pr(61, "hyperframes-bump/latest", "f" * 40, owner="someone")]
-    replies = [(r"^gh pr create", {"out": f"https://github.com/{REPO}/pull/60\n"}),
-               (r"^gh pr list --state open", {"json": open_prs})]
-    result, calls, _ = _run_step(
+    """The branch moves only from the checked head, and its PR is opened or reset to draft."""
+    expected = STANDING if pr else ""
+    replies = [(r"^gh pr create", {"out": f"https://github.com/{REPO}/pull/60\n"})]
+    result, calls, outputs = _run_step(
         tmp_path, "Open the draft PR", replies, PR=pr, BRANCH="hyperframes-bump/latest",
-        HAS_BUMP_TOKEN="true" if pr else "false",
+        EXPECTED=expected, HAS_BUMP_TOKEN="true" if pr else "false",
     )
     assert result.returncode == 0, result.stderr
     title = f"render: pin HyperFrames {LATEST}"
-    push = ["git", "push", "--force", "origin", "HEAD:refs/heads/hyperframes-bump/latest"]
+    push = ["git", "push", f"--force-with-lease=refs/heads/hyperframes-bump/latest:{expected}",
+            "origin", "HEAD:refs/heads/hyperframes-bump/latest"]
     assert push in calls
+    assert outputs["pr"] == "60"
     if pr:
         assert calls.index(["gh", "pr", "ready", "60", "--undo"]) < calls.index(push)
         assert ["gh", "pr", "edit", "60", "--title", title, "--body-file", "pr-body.md"] in calls
@@ -679,9 +693,46 @@ def test_bump_pushes_the_standing_branch_and_supersedes_older_bump_prs(
     else:
         assert ["gh", "pr", "create", "--draft", "--base", "main", "--head",
                 "hyperframes-bump/latest", "--title", title, "--body-file", "pr-body.md"] in calls
+    dispatch = ["gh", "workflow", "run", "ci.yml", "--ref", "hyperframes-bump/latest"]
+    assert (dispatch in calls) is (not pr)
+
+
+def test_bump_stops_when_the_branch_moved_after_the_check(tmp_path: Path) -> None:
+    """A push since the check fails the lease, so nothing is overwritten or edited."""
+    replies = [(r"^git push", {"code": 1})]
+    result, calls, _ = _run_step(
+        tmp_path, "Open the draft PR", replies, PR="60", BRANCH="hyperframes-bump/latest",
+        EXPECTED=STANDING, HAS_BUMP_TOKEN="false",
+    )
+    assert result.returncode != 0
+    assert "::warning::" in result.stdout
+    assert not any(call[:3] in (["gh", "pr", "edit"], ["gh", "pr", "create"]) for call in calls)
+    assert not any(call[:2] == ["gh", "workflow"] for call in calls)
+
+
+def test_bump_closes_older_bump_prs_as_superseded(tmp_path: Path) -> None:
+    """Every other open bump PR from this repo closes; forks and other PRs stay open."""
+    open_prs = [*(_open_pr(item["number"], item["headRefName"], item["sha"]) for item in LEGACY),
+                _open_pr(12, "feature/captions", "c" * 40),
+                _open_pr(60, "hyperframes-bump/latest", STANDING),
+                _open_pr(61, "hyperframes-bump/latest", "f" * 40, owner="someone")]
+    result, calls, _ = _run_step(
+        tmp_path, "Close older bump PRs", [(r"^gh pr list --state open", {"json": open_prs})],
+        PR="60",
+    )
+    assert result.returncode == 0, result.stderr
     assert [call for call in calls if call[:3] == ["gh", "pr", "close"]] == [
         ["gh", "pr", "close", str(number), "--comment",
          f"Superseded by #60, which pins HyperFrames {LATEST}."] for number in (47, 55)
     ]
-    dispatch = ["gh", "workflow", "run", "ci.yml", "--ref", "hyperframes-bump/latest"]
-    assert (dispatch in calls) is (not pr)
+
+
+def test_close_step_runs_after_a_push_or_for_a_current_standing_pr() -> None:
+    """A run that finds the standing PR current still finishes closing older bump PRs."""
+    lines = WORKFLOW.read_text(encoding="utf-8").splitlines()
+    start = lines.index("      - name: Close older bump PRs")
+    assert lines[start + 1] == (
+        "        if: steps.push.outcome == 'success' || steps.existing.outputs.current == 'true'"
+    )
+    assert "          PR: ${{ steps.push.outputs.pr || steps.existing.outputs.pr }}" in lines
+    assert "        id: push" in lines[lines.index("      - name: Open the draft PR"):start]

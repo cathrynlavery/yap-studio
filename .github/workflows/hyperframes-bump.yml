@@ -84,6 +84,10 @@ jobs:
           pr=$(gh pr list --state open --head "$branch" --json number,isCrossRepository \
             --jq 'map(select(.isCrossRepository | not)) | .[0].number // empty')
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          # The push only replaces this head, so a commit pushed after the check below is kept.
+          head=$(git ls-remote origin "refs/heads/$branch")
+          echo "head=${head%%[[:space:]]*}" >> "$GITHUB_OUTPUT"
+          title=""
           if [ -n "$pr" ]; then
             # A rebuild replaces the branch, so it must not drop a commit a person pushed.
             people=$(gh pr view "$pr" --json commits \
@@ -93,28 +97,45 @@ jobs:
               echo "skip=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
+            title=$(gh pr view "$pr" --json title --jq .title)
           fi
           # Every open PR (not just the first page), read at its head commit in its own repository,
           # so a fork or an older branch that already pins this release is found.
           gh pr list --state open --limit 1000 \
             --json number,headRefName,headRefOid,headRepository,headRepositoryOwner,mergeable \
             --jq '.[] | "\(.number) \(.headRepositoryOwner.login)/\(.headRepository.name) \(.headRefOid) \(.headRefName) \(.mergeable)"' > open-prs.txt
+          standing="" other=""
           while read -r number repo sha ref mergeable; do
             pin=$(gh api --method GET "repos/$repo/contents/src/yap_studio/render/hyperframes.py" \
               -f ref="$sha" --jq .content 2>/dev/null | base64 -d 2>/dev/null || true)
-            if printf '%s' "$pin" | grep -q "HYPERFRAMES_VERSION = \"$LATEST\""; then
+            printf '%s' "$pin" | grep -q "HYPERFRAMES_VERSION = \"$LATEST\"" || continue
+            if [ "$number" = "$pr" ]; then
+              # Title and body are edited together, so an old title means an unfinished update.
+              if [ "$mergeable" = CONFLICTING ] || [ "$title" != "render: pin HyperFrames $LATEST" ]; then
+                echo "PR #$number pins $LATEST but conflicts with main or describes an older release."
+                standing=rebuild
+              else
+                standing=current
+              fi
+            else
               case "$repo/$ref/$mergeable" in
                 # This workflow's own PR that conflicts with main is rebuilt instead.
                 "$GITHUB_REPOSITORY/hyperframes-bump/"*/CONFLICTING)
                   echo "PR #$number pins $LATEST but conflicts with main." ;;
-                *)
-                  echo "Open PR #$number already pins $LATEST."
-                  echo "skip=true" >> "$GITHUB_OUTPUT"
-                  exit 0 ;;
+                *) other=$number ;;
               esac
             fi
           done < open-prs.txt
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          if [ "$standing" = current ]; then
+            echo "PR #$pr already pins $LATEST; only older bump PRs are closed."
+            echo "current=true" >> "$GITHUB_OUTPUT"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$standing" ] && [ -n "$other" ]; then
+            echo "Open PR #$other already pins $LATEST."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Bump the pin and write the PR body
         id: bump
@@ -198,11 +219,13 @@ jobs:
           git status --short
 
       - name: Open the draft PR
+        id: push
         if: steps.bump.outcome == 'success'
         env:
           LATEST: ${{ steps.check.outputs.latest }}
           BRANCH: ${{ steps.existing.outputs.branch }}
           PR: ${{ steps.existing.outputs.pr }}
+          EXPECTED: ${{ steps.existing.outputs.head }}
         run: |
           title="render: pin HyperFrames $LATEST"
           # A new release needs its own check, so a PR marked ready goes back to draft first.
@@ -215,8 +238,12 @@ jobs:
           git add -u
           git add changes/hyperframes.dependencies.md
           git commit -m "$title"
-          # The hyperframes-bump/ prefix belongs to this workflow.
-          git push --force origin "HEAD:refs/heads/$BRANCH"
+          # The hyperframes-bump/ prefix belongs to this workflow. The lease refuses the push if the
+          # branch moved since it was checked; an empty EXPECTED means it must not exist yet.
+          if ! git push --force-with-lease="refs/heads/$BRANCH:$EXPECTED" origin "HEAD:refs/heads/$BRANCH"; then
+            echo "::warning::$BRANCH changed after this run checked it, or the push failed, so nothing was overwritten. The next run checks it again."
+            exit 1
+          fi
           if [ -n "$PR" ]; then
             gh pr edit "$PR" --title "$title" --body-file pr-body.md
           elif url=$(gh pr create --draft --base main --head "$BRANCH" \
@@ -226,11 +253,20 @@ jobs:
             echo "::error::Could not open the PR. Allow GitHub Actions to create pull requests in Settings > Actions > General, or add a HYPERFRAMES_BUMP_TOKEN secret."
             exit 1
           fi
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          if [ "$HAS_BUMP_TOKEN" != "true" ]; then
+            gh workflow run ci.yml --ref "$BRANCH"
+          fi
+
+      # Also runs when the standing PR is already current, so a run that stopped early finishes.
+      - name: Close older bump PRs
+        if: steps.push.outcome == 'success' || steps.existing.outputs.current == 'true'
+        env:
+          LATEST: ${{ steps.check.outputs.latest }}
+          PR: ${{ steps.push.outputs.pr || steps.existing.outputs.pr }}
+        run: |
           gh pr list --state open --limit 1000 --json number,headRefName,isCrossRepository \
             --jq ".[] | select((.isCrossRepository | not) and (.headRefName | startswith(\"hyperframes-bump/\")) and .number != $PR) | .number" > superseded.txt
           while read -r old; do
             gh pr close "$old" --comment "Superseded by #$PR, which pins HyperFrames $LATEST."
           done < superseded.txt
-          if [ "$HAS_BUMP_TOKEN" != "true" ]; then
-            gh workflow run ci.yml --ref "$BRANCH"
-          fi
