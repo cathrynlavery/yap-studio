@@ -13,16 +13,16 @@ You leave notes from your phone, and the next version follows them.
 
 <p>
 <a href="https://github.com/cathrynlavery/yap-studio/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/cathrynlavery/yap-studio?style=flat&color=2f3bff"></a>
-<a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2f3bff"></a>
+<a href="https://github.com/cathrynlavery/yap-studio/blob/main/LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2f3bff"></a>
 <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-2f3bff">
 <img alt="macOS only" src="https://img.shields.io/badge/platform-macOS%20only-2f3bff">
 </p>
 
-**[Website](https://yapstudio.app) · [Changelog](CHANGELOG.md) · [Discussions](https://github.com/cathrynlavery/yap-studio/discussions)**
+**[Website](https://yapstudio.app) · [Changelog](https://github.com/cathrynlavery/yap-studio/blob/main/CHANGELOG.md) · [Discussions](https://github.com/cathrynlavery/yap-studio/discussions)**
 
 </div>
 
-<p align="center"><img src="docs/images/demo.gif" alt="A scroll through Yap Studio with a generated sample presenter: a take with the restarts and dead air struck out, cards and captions timed to the words, approved notes becoming taste rules, and the checks every render passes before you see it." width="720"></p>
+<p align="center"><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/demo.gif" alt="A scroll through Yap Studio with a generated sample presenter: a take with the restarts and dead air struck out, cards and captions timed to the words, approved notes becoming taste rules, and the checks every render passes before you see it." width="720"></p>
 
 <p align="center">You talk. The agent edits. You comment.</p>
 
@@ -78,7 +78,7 @@ In Codex and Cursor, press the button on the page, then tell the agent in chat s
 check for your choice. Claude Code can listen in the background.
 
 After that, you watch the story cut and then the finished video, leave notes on any moment, and
-approve the version you keep. [docs/home.md](docs/home.md) explains how the page and the agent
+approve the version you keep. [docs/home.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/home.md) explains how the page and the agent
 work together.
 
 ## You talk. The agent edits. You comment.
@@ -88,37 +88,37 @@ presenter with a slow push, reading a short script in the Mac's built-in voice.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/journey/1-start-here.jpg" alt="Start here page: what you need, and the phrase to type in Claude Code"><br>
+<td width="50%"><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/1-start-here.jpg" alt="Start here page: what you need, and the phrase to type in Claude Code"><br>
 <b>1. Start here.</b> The workspace opens with a page that lists what you need and the one
 phrase to type in your agent app. The agent asks before it installs anything.</td>
-<td width="50%"><img src="docs/images/journey/2-what.jpg" alt="What are you making: talking head or voiceover, and whether there is anything to show on top"><br>
+<td width="50%"><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/2-what.jpg" alt="What are you making: talking head or voiceover, and whether there is anything to show on top"><br>
 <b>2. What you're making.</b> Talking head or voiceover. A talking head asks whether you have
 anything to show on top before asking where it is.</td>
 </tr>
 <tr>
-<td><img src="docs/images/journey/3-footage.jpg" alt="Your footage: drop zone and the take in the inbox with its thumbnail"><br>
+<td><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/3-footage.jpg" alt="Your footage: drop zone and the take in the inbox with its thumbnail"><br>
 <b>3. Your footage.</b> Drag takes in from Finder or choose files. Yap Studio copies them into
 the inbox and never changes the originals.</td>
-<td><img src="docs/images/journey/4-look.jpg" alt="Style page: looks shown on a still from the creator's own take"><br>
+<td><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/4-look.jpg" alt="Style page: looks shown on a still from the creator's own take"><br>
 <b>4. Your look.</b> Tap a look on a still from your own take, or fine-tune it.</td>
 </tr>
 <tr>
-<td><img src="docs/images/journey/5-make.jpg" alt="Make it: a summary of the choices and the Make my video button"><br>
+<td><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/5-make.jpg" alt="Make it: a summary of the choices and the Make my video button"><br>
 <b>5. Make it.</b> Press Make my video. In Codex and Cursor, tell the agent you pressed it.</td>
-<td><img src="docs/images/journey/6-progress.jpg" alt="Progress while your agent works, with its notes on the version"><br>
+<td><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/6-progress.jpg" alt="Progress while your agent works, with its notes on the version"><br>
 <b>6. While your agent works.</b> The page shows each step as it happens. Your agent's notes say what
 each version changed, and you can message your agent from the page.</td>
 </tr>
 <tr>
-<td><img src="docs/images/journey/7-review.jpg" alt="Review page with a marked stretch, a note box, and Cut this, Change this and Keep this"><br>
+<td><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/7-review.jpg" alt="Review page with a marked stretch, a note box, and Cut this, Change this and Keep this"><br>
 <b>7. Watch and comment.</b> Mark a stretch and say Cut this, Change this or Keep this, with a
 note. When the story is right, press Make the final video.</td>
-<td><img src="docs/images/journey/8-done.jpg" alt="Your video is ready: Open, Show in Finder and Download, and your agent's reply to a question"><br>
+<td><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/8-done.jpg" alt="Your video is ready: Open, Show in Finder and Download, and your agent's reply to a question"><br>
 <b>8. Done.</b> Approve the final, then open it on your Mac, show it in Finder, or download it.</td>
 </tr>
 </table>
 
-<p align="center"><img src="docs/images/journey/9-phone.jpg" alt="The finished video, the video type question and the footage step on a phone" width="100%"></p>
+<p align="center"><img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/journey/9-phone.jpg" alt="The finished video, the video type question and the footage step on a phone" width="100%"></p>
 
 The same pages work on a phone over the same Wi-Fi or Tailscale. Anything paid, such as
 generated music, still goes through your agent in chat, and your agent asks first.
@@ -167,7 +167,7 @@ Yap Studio enforces some of those rules itself. The agent follows the rest:
   nothing checks that it followed them.
 
 It can also learn a style from videos you already posted.
-[Styles and taste rules](docs/styles.md#taste-rules) has the details.
+[Styles and taste rules](https://github.com/cathrynlavery/yap-studio/blob/main/docs/styles.md#taste-rules) has the details.
 
 ## It gets better from real use
 
@@ -177,7 +177,7 @@ repo, and that is how Yap Studio gets better.
 
 Nothing private is shared. A note carries the agent's sentence, the step, the error code and the
 Yap Studio and macOS versions, never your footage, your words, names, file names or paths. You
-can read every note before it goes, or turn sharing off. [Feedback](docs/feedback.md) has the
+can read every note before it goes, or turn sharing off. [Feedback](https://github.com/cathrynlavery/yap-studio/blob/main/docs/feedback.md) has the
 details.
 
 ## Checked before you see it
@@ -198,12 +198,12 @@ yap-studio verify final.mp4 --edl edits/cut.json --platform youtube
 ```
 
 On its own, verify needs only ffmpeg 6.1 or newer. Findings, fixes, exit codes and the JSON
-report are in [docs/verify.md](docs/verify.md).
+report are in [docs/verify.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/verify.md).
 
 ## How it works
 
 <p align="center">
-<img src="docs/images/how-it-works.svg" alt="How Yap Studio works: your footage is transcribed on your computer, the agent plans the story, Yap Studio cuts it, builds the picture, assembles and verifies it, and you review on your phone. Comments make the next version; approved notes become taste rules for the next video." width="100%">
+<img src="https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/docs/images/how-it-works.svg" alt="How Yap Studio works: your footage is transcribed on your computer, the agent plans the story, Yap Studio cuts it, builds the picture, assembles and verifies it, and you review on your phone. Comments make the next version; approved notes become taste rules for the next video." width="100%">
 </p>
 
 Your speech is transcribed on your computer, word by word. The agent reads the transcript and
@@ -217,11 +217,11 @@ The home page asks for a talking head or a voiceover. For the other two, tell yo
 
 - Talking head, from one or more takes to camera. That is the quick start above.
 - Voiceover, from a voice memo and your own photos and clips of a project or a day. This one
-  is early and still being built. See [docs/recipes/voiceover.md](docs/recipes/voiceover.md)
+  is early and still being built. See [docs/recipes/voiceover.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/recipes/voiceover.md)
   and [the first test](https://x.com/cathrynlavery/status/2110819344745923004).
 - Green screen, with you cut out over a page, screenshot, photo or clip that fills the frame
   (macOS). You can sit full size, along the bottom or in a corner. See
-  [the workspace guide](workspace/AGENTS.md#what-are-you-making).
+  [the workspace guide](https://github.com/cathrynlavery/yap-studio/blob/main/workspace/AGENTS.md#what-are-you-making).
 - Screen recording, with your screen as the picture and your voice recorded with it or in a
   separate memo. You in a corner over the screen is not in this version yet.
 
@@ -229,6 +229,19 @@ The home page asks for a talking head or a voiceover. For the other two, tell yo
 
 Yap Studio is a Python engine with a command line, so any agent that runs shell commands, Codex
 included, can drive it. Every stage writes a receipt.
+
+Install the released version from PyPI:
+
+```console
+brew install uv ffmpeg node@22
+uv tool install 'yap-studio[asr,mcp]'
+yap-studio renderer install
+yap-studio speech download
+yap-studio doctor --edit
+```
+
+Upgrade a PyPI install with `uv tool upgrade yap-studio`.
+Or install from a source checkout:
 
 ```console
 git clone https://github.com/cathrynlavery/yap-studio.git
@@ -243,9 +256,9 @@ yap-studio doctor --edit
 You need Python 3.11 or newer, [uv](https://docs.astral.sh/uv/), ffmpeg 6.1 or newer and
 Node.js 22 or newer.
 To build the workspace zip from a checkout, run `uv run python scripts/build_workspace.py`. It
-writes `dist/yap-studio-workspace-<version>.zip`. [docs/install.md](docs/install.md) has the full
+writes `dist/yap-studio-workspace-<version>.zip`. [docs/install.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/install.md) has the full
 requirements, the zip builder, and plugins for Claude Code, Codex and Claude Desktop. To run each
-step yourself, see [docs/editing.md](docs/editing.md).
+step yourself, see [docs/editing.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/editing.md).
 
 ## Version 1 limits
 
@@ -258,37 +271,37 @@ step yourself, see [docs/editing.md](docs/editing.md).
 - Person cutouts, face detection and backgrounds behind you need macOS with the Xcode command
   line tools.
 
-The rest, and what Yap Studio never judges, is in [docs/limits.md](docs/limits.md).
+The rest, and what Yap Studio never judges, is in [docs/limits.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/limits.md).
 
 ## Docs
 
-- [Install](docs/install.md): requirements, source install, the workspace zip, plugins, updates.
-- [Yap Studio home](docs/home.md): the guided page, and how its buttons reach the agent.
-- [Edit from the command line](docs/editing.md): the steps the agent runs, by hand.
-- [Commands](docs/commands.md): every command, the project commands and timeline lanes.
-- [Captions, titles and cards](docs/captions-and-cards.md)
-- [Music, sound effects and loudness](docs/audio.md)
-- [Styles and taste rules](docs/styles.md)
-- [The style page](docs/style-page.md): each screen, saving, and learning a style from videos
+- [Install](https://github.com/cathrynlavery/yap-studio/blob/main/docs/install.md): requirements, PyPI and source installs, the workspace zip, plugins, updates.
+- [Yap Studio home](https://github.com/cathrynlavery/yap-studio/blob/main/docs/home.md): the guided page, and how its buttons reach the agent.
+- [Edit from the command line](https://github.com/cathrynlavery/yap-studio/blob/main/docs/editing.md): the steps the agent runs, by hand.
+- [Commands](https://github.com/cathrynlavery/yap-studio/blob/main/docs/commands.md): every command, the project commands and timeline lanes.
+- [Captions, titles and cards](https://github.com/cathrynlavery/yap-studio/blob/main/docs/captions-and-cards.md)
+- [Music, sound effects and loudness](https://github.com/cathrynlavery/yap-studio/blob/main/docs/audio.md)
+- [Styles and taste rules](https://github.com/cathrynlavery/yap-studio/blob/main/docs/styles.md)
+- [The style page](https://github.com/cathrynlavery/yap-studio/blob/main/docs/style-page.md): each screen, saving, and learning a style from videos
   you already posted.
-- [Review](docs/review.md): the review page, phone links, keys and exported feedback.
-- [Feedback](docs/feedback.md): local product notes, consent and sharing.
-- [Verify](docs/verify.md): what it checks, findings, the JSON report and exit codes.
-- [Edit lists](docs/edit-lists.md): the formats verify reads.
-- [Limits](docs/limits.md)
-- [How it works](docs/how-it-works.md): the engine, receipts and a map of the code.
-- [Changelog](CHANGELOG.md)
+- [Review](https://github.com/cathrynlavery/yap-studio/blob/main/docs/review.md): the review page, phone links, keys and exported feedback.
+- [Feedback](https://github.com/cathrynlavery/yap-studio/blob/main/docs/feedback.md): local product notes, consent and sharing.
+- [Verify](https://github.com/cathrynlavery/yap-studio/blob/main/docs/verify.md): what it checks, findings, the JSON report and exit codes.
+- [Edit lists](https://github.com/cathrynlavery/yap-studio/blob/main/docs/edit-lists.md): the formats verify reads.
+- [Limits](https://github.com/cathrynlavery/yap-studio/blob/main/docs/limits.md)
+- [How it works](https://github.com/cathrynlavery/yap-studio/blob/main/docs/how-it-works.md): the engine, receipts and a map of the code.
+- [Changelog](https://github.com/cathrynlavery/yap-studio/blob/main/CHANGELOG.md)
 
 ## Contributing
 
-Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) lists the local checks to run
-first. Report security issues privately through [SECURITY.md](SECURITY.md), and follow the
-[code of conduct](CODE_OF_CONDUCT.md).
+Pull requests are welcome. [CONTRIBUTING.md](https://github.com/cathrynlavery/yap-studio/blob/main/CONTRIBUTING.md) lists the local checks to run
+first. Report security issues privately through [SECURITY.md](https://github.com/cathrynlavery/yap-studio/blob/main/SECURITY.md), and follow the
+[code of conduct](https://github.com/cathrynlavery/yap-studio/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
 Copyright 2026 Cathryn Lavery.
 
-Yap Studio is licensed under the Apache License 2.0; see [LICENSE](LICENSE). Bundled
-third-party code and fonts keep their own licenses, listed in [NOTICE](NOTICE) and
-[LICENSES/](LICENSES).
+Yap Studio is licensed under the Apache License 2.0; see [LICENSE](https://github.com/cathrynlavery/yap-studio/blob/main/LICENSE). Bundled
+third-party code and fonts keep their own licenses, listed in [NOTICE](https://github.com/cathrynlavery/yap-studio/blob/main/NOTICE) and
+[LICENSES/](https://github.com/cathrynlavery/yap-studio/tree/main/LICENSES).

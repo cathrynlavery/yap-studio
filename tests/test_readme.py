@@ -20,13 +20,15 @@ from yap_studio.project.model import parse_document
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_readme_local_images_exist_and_stay_under_10_mb() -> None:
-    """Keep local README images available and small enough to load."""
+def test_readme_images_exist_and_stay_under_10_mb() -> None:
+    """Repository images use URLs that work on GitHub and PyPI."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     targets = re.findall(r'<img\b[^>]*\bsrc="([^"]+)"', readme, re.IGNORECASE)
     targets += re.findall(r"!\[[^\]]*\]\(([^)]+)\)", readme)
-    local_images = [target for target in targets if not target.startswith(("http://", "https://"))]
-    assert local_images, "No local README images found"
+    assert all(target.startswith("https://") for target in targets)
+    prefix = "https://github.com/cathrynlavery/yap-studio/raw/refs/heads/main/"
+    local_images = [target.removeprefix(prefix) for target in targets if target.startswith(prefix)]
+    assert local_images, "No repository README images found"
     failures: list[str] = []
     for target in local_images:
         image = (ROOT / target).resolve()
@@ -37,6 +39,13 @@ def test_readme_local_images_exist_and_stay_under_10_mb() -> None:
         if size >= 10_000_000:
             failures.append(f"{target}: {size} bytes")
     assert not failures, "README image problems:\n" + "\n".join(failures)
+
+
+def test_readme_links_work_on_pypi() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    targets = re.findall(r"\[[^\]]*\]\(([^)]+)\)", readme)
+    targets += re.findall(r'href="([^"]+)"', readme)
+    assert all(target.startswith(("https://", "#")) for target in targets)
 
 
 def _walk_through() -> str:

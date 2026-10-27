@@ -73,7 +73,14 @@ main is green:
    `git push origin vX.Y.Z`.
 6. The Release workflow builds the wheel, source archive, MCPB bundle and
    workspace zip, installs the zip in a clean folder and creates a draft release.
-   Check its assets and notes, then publish it.
+   Check its assets and notes, then publish it. Publishing the GitHub release also
+   publishes its attached wheel and source archive to PyPI, without rebuilding them.
+
+Before the first PyPI release, the owner must add a pending trusted publisher on
+pypi.org under the account's Publishing page. Set the project name to `yap-studio`,
+owner to `cathrynlavery`, repository to `yap-studio`, workflow file name to `pypi.yml`
+and environment to `pypi`. The workflow uses that GitHub environment and OIDC;
+no stored PyPI token is needed. See the [PyPI setup guide](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
 
 Use a patch version for fixes and small changes, a minor version when a release
 adds features, and a major version when it breaks existing projects or styles.
