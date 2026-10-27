@@ -1,8 +1,7 @@
 # Install
 
-There are two ways in. The creator workspace is a folder you open in your agent app; the agent
-sets it up and edits from there. A source install is for development, or for running the
-commands yourself.
+The creator workspace is a folder you open in your agent app; the agent sets it up and edits
+from there. Install from PyPI to run the commands yourself, or from source for development.
 
 ## Requirements
 
@@ -36,6 +35,22 @@ covered by the macOS CI job. Xcode command line tools are optional for ordinary
 editing and required for Vision person cutouts and face detection.
 
 Linux is unverified in version 1. Contributions are welcome.
+
+## From PyPI
+
+Install the system requirements above. On a Mac with Homebrew,
+`brew install uv ffmpeg node@22` installs the command-line dependencies. Then run:
+
+```console
+uv tool install 'yap-studio[asr,mcp]'
+yap-studio renderer install
+yap-studio speech download
+yap-studio doctor --edit
+```
+
+If `yap-studio` is not found, add the directory printed by `uv tool dir --bin` to
+your PATH and open a new terminal. The renderer and speech-model downloads can take
+several minutes.
 
 ## From source
 
@@ -232,6 +247,12 @@ are not included.
 
 Run `yap-studio --version` to see the installed version. A source install also shows its
 commit. `doctor` warns when the installed tool is older than the checkout.
+
+Upgrade a PyPI install to the latest release:
+
+```console
+uv tool upgrade yap-studio
+```
 
 After updating your checkout, upgrade the installed tool from that directory:
 

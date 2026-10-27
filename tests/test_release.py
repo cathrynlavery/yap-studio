@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import tomllib
 from pathlib import Path
 from types import ModuleType
@@ -463,3 +464,93 @@ def test_release_uploads_the_built_workspace_zip() -> None:
     assert build < upload
     assert "dist/yap-studio-workspace-*.zip" in workflow[upload:]
     assert "dist/*.whl" in workflow[upload:]
+
+
+def test_pypi_publishes_only_published_release_assets() -> None:
+    """Publishing gets OIDC permission without widening the draft builder's scope."""
+    path = ROOT / ".github/workflows/pypi.yml"
+    assert path.is_file(), "Published releases need a PyPI workflow"
+    workflow = path.read_text(encoding="utf-8")
+    assert re.search(r"(?m)^on:\n  release:\n    types: \[published\]\n", workflow)
+    assert "  push:" not in workflow and "workflow_dispatch:" not in workflow
+    header, jobs = workflow.split("\njobs:\n", 1)
+    assert "id-token:" not in header
+    assert re.findall(r"(?m)^  [\w-]+:\n", jobs) == ["  publish:\n"]
+    assert "    environment: pypi\n" in jobs
+    assert "    permissions:\n      contents: read\n      id-token: write\n" in jobs
+    assert "if: github.event.release.draft == false" in jobs
+    assert "RELEASE_TAG: ${{ github.event.release.tag_name }}" in jobs
+    assert "GH_REPO: ${{ github.repository }}" in jobs
+    assert "GH_TOKEN: ${{ github.token }}" in jobs
+    assert "uses: pypa/gh-action-pypi-publish@release/v1" in jobs
+    assert "          packages-dir: dist/\n" in jobs
+    assert "secrets." not in workflow
+    assert "checkout@" not in jobs and "uv build" not in jobs
+    draft = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    assert "      contents: write\n      actions: read\n" in draft
+    assert "id-token:" not in draft
+
+
+@pytest.mark.parametrize("assets,tag,valid", [
+    (["yap_studio-1.2.3-py3-none-any.whl", "yap_studio-1.2.3.tar.gz",
+      "yap-studio-1.2.3.mcpb", "yap-studio-workspace-1.2.3.zip"], "v1.2.3", True),
+    (["yap_studio-1.2.2-py3-none-any.whl", "yap_studio-1.2.2.tar.gz"], "v1.2.3", False),
+    (["yap_studio-1.2.3-py3-none-any.whl"], "v1.2.3", False),
+    (["yap_studio-1.2.3.tar.gz"], "v1.2.3", False),
+    (["yap_studio-1.2.3-py3-none-any.whl", "yap_studio-1.2.3.tar.gz",
+      "other-1.2.3-py3-none-any.whl"], "v1.2.3", False),
+    (["other-1.2.3-py3-none-any.whl", "other-1.2.3.tar.gz"], "v1.2.3", False),
+    ([], "bad-tag", False),
+])
+def test_pypi_download_checks_release_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, assets: list[str], tag: str, valid: bool,
+) -> None:
+    """Execute the workflow's download and checks with synthetic release attachments."""
+    workflow = (ROOT / ".github/workflows/pypi.yml").read_text(encoding="utf-8")
+    source = re.search(r"python3 - <<'PY'\n(.*?)\n          PY", workflow, re.DOTALL)
+    assert source is not None
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RELEASE_TAG", tag)
+    monkeypatch.setenv("GH_REPO", "sample/project")
+
+    def download(command: list[str], *, check: bool) -> None:
+        assert check is True
+        assert command == [
+            "gh", "release", "download", tag, "--repo", "sample/project",
+            "--pattern", "*.whl", "--pattern", "*.tar.gz", "--dir", "dist",
+        ]
+        folder = tmp_path / "dist"
+        folder.mkdir()
+        for name in assets:
+            if name.endswith((".whl", ".tar.gz")):
+                (folder / name).write_bytes(b"synthetic release bytes")
+
+    monkeypatch.setattr(subprocess, "run", download)
+    code = compile(textwrap.dedent(source[1]), ".github/workflows/pypi.yml", "exec")
+    if not valid:
+        with pytest.raises(SystemExit, match="Release (tag|assets)"):
+            exec(code, {})
+        return
+    exec(code, {})
+    assert {file.name for file in (tmp_path / "dist").iterdir()} == {
+        "yap_studio-1.2.3-py3-none-any.whl", "yap_studio-1.2.3.tar.gz",
+    }
+    assert all(file.read_bytes() == b"synthetic release bytes"
+               for file in (tmp_path / "dist").iterdir())
+
+
+def test_pypi_metadata_describes_the_package() -> None:
+    project = _project(ROOT)
+    assert project["description"]
+    assert project["readme"] == "README.md"
+    assert project["license"] == "Apache-2.0"
+    assert project["requires-python"] == ">=3.11"
+    assert project["urls"] == {
+        "Homepage": "https://yapstudio.app",
+        "Documentation": "https://github.com/cathrynlavery/yap-studio/blob/main/docs/install.md",
+        "Repository": "https://github.com/cathrynlavery/yap-studio",
+        "Issues": "https://github.com/cathrynlavery/yap-studio/issues",
+        "Changelog": "https://github.com/cathrynlavery/yap-studio/blob/main/CHANGELOG.md",
+    }
+    assert "Operating System :: MacOS :: MacOS X" in project["classifiers"]
+    assert "Programming Language :: Python :: 3 :: Only" in project["classifiers"]

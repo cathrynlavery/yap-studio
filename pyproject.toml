@@ -12,6 +12,20 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "LICENSES/*"]
 authors = [{ name = "Cathryn Lavery" }]
 dependencies = ["numpy>=1.26"]
+classifiers = [
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Video",
+]
+
+[project.urls]
+Homepage = "https://yapstudio.app"
+Documentation = "https://github.com/cathrynlavery/yap-studio/blob/main/docs/install.md"
+Repository = "https://github.com/cathrynlavery/yap-studio"
+Issues = "https://github.com/cathrynlavery/yap-studio/issues"
+Changelog = "https://github.com/cathrynlavery/yap-studio/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 asr = [

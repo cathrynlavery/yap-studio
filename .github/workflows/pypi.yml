@@ -1,0 +1,46 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event.release.draft == false
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download and check release packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) is None:
+              raise SystemExit("Release tag must be v<major>.<minor>.<patch>.")
+          version = tag[1:]
+          subprocess.run([
+              "gh", "release", "download", tag, "--repo", os.environ["GH_REPO"],
+              "--pattern", "*.whl", "--pattern", "*.tar.gz", "--dir", "dist",
+          ], check=True)
+          expected = {f"yap_studio-{version}-py3-none-any.whl", f"yap_studio-{version}.tar.gz"}
+          if {file.name for file in Path("dist").iterdir()} != expected:
+              raise SystemExit("Release assets must be exactly the wheel and source archive for the tag.")
+          PY
+      - name: Publish release packages
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
