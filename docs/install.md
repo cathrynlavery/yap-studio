@@ -204,11 +204,25 @@ and [custom prompts](https://developers.openai.com/codex/custom-prompts).
 
 ### Update
 
-Download the new workspace zip from [Releases](https://github.com/cathrynlavery/yap-studio/releases)
-and unzip it into a new local folder. Copy your `projects/`, `inbox/`, `brand/` and `style/`
-folders from the old workspace into it. Open the new folder in your chosen app and say "set me up"
-to install the matching engine. Keep the old folder until you have checked your projects in
-the new one.
+Say "update Yap Studio" in your chosen app. It shows a preview and asks before applying.
+To run it yourself, open a terminal in the workspace:
+
+```console
+python3 setup.py --update --check
+python3 setup.py --update
+```
+
+The update checks the download, replaces bundled files and installs the matching engine.
+If Home was running, the update restarts it and waits until it answers.
+Rerunning a failed update finishes any pending Home restart.
+Replaced files are backed up under `.yap-studio/backups/`. Your projects, footage, brand
+files and saved look stay in place. If the update fails, keep the backup and rerun the command.
+
+Version 1.1.1 and earlier don't have this command yet, so update those once by hand:
+download the new workspace zip from [Releases](https://github.com/cathrynlavery/yap-studio/releases),
+unzip it into a new folder, copy your `projects/`, `inbox/`, `brand/` and `style/` folders
+into it, open it in your chosen app and say "set me up". Keep the old folder until you
+have checked your projects in the new one.
 
 ### Uninstall
 

@@ -15,6 +15,7 @@ if sys.version_info < (3, 11):
     )
 
 import argparse
+import json
 import os
 import subprocess
 import tempfile
@@ -113,6 +114,9 @@ def build(output_dir: Path) -> Path:
                 archive.write(source / relative, member)
             archive.writestr(".yap-studio-version", version + "\n")
             archive.write(built[0], f"wheels/{built[0].name}")
+            archive.writestr(".yap-studio-managed.json", json.dumps(sorted([
+                *archive.namelist(), ".yap-studio-managed.json",
+            ])) + "\n")
     return output
 
 

@@ -13,14 +13,17 @@ import platform
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 import time
 import zipfile
-from pathlib import Path
+from datetime import datetime
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlsplit
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from new_project import _inbox_takes, _unused_takes, _used
 
@@ -473,6 +476,163 @@ def _open_home(engine: Path, *, phone: bool) -> dict:
     return {"url": link, "phone": document.get("phone")}
 
 
+def _update_http(url: str, limit: int) -> bytes:
+    if urlsplit(url).scheme != "https":
+        raise ValueError("Updates require HTTPS URLs.")
+    request = Request(url, headers={"User-Agent": "Yap-Studio"})
+    with urlopen(request, timeout=30) as response:
+        if urlsplit(response.geturl()).scheme != "https":
+            raise ValueError("Updates require HTTPS URLs, including redirects.")
+        content = response.read(limit + 1)
+    if len(content) > limit:
+        raise ValueError("Update download exceeds the size limit.")
+    return content
+
+
+def _update_files(archive: zipfile.ZipFile) -> list[str]:
+    names = set()
+    size = 0
+    for entry in archive.infolist():
+        name = entry.filename.rstrip("/")
+        path = PurePosixPath(name)
+        mode = stat.S_IFMT(entry.external_attr >> 16)
+        if (not name or path.is_absolute() or ".." in path.parts or "\\" in name
+                or PureWindowsPath(name).drive or str(path) != name
+                or mode not in (0, stat.S_IFREG, stat.S_IFDIR)
+                or name.casefold() in names):
+            raise ValueError(f"Unsafe update zip entry: {entry.filename}")
+        names.add(name.casefold())
+        size += entry.file_size
+    if size > 512 * 1024 * 1024:
+        raise ValueError("Extracted update exceeds the size limit.")
+    files = {entry.filename for entry in archive.infolist() if not entry.is_dir()}
+    managed = json.loads(archive.read(".yap-studio-managed.json"))
+    if (not isinstance(managed, list) or not managed
+            or any(not isinstance(name, str) or name not in files for name in managed)
+            or len(set(managed)) != len(managed)
+            or not {"setup.py", ".yap-studio-version", ".yap-studio-managed.json"} <= set(managed)
+            or any(PurePosixPath(name).parts[0] == ".yap-studio" for name in managed)):
+        raise ValueError("Invalid managed file list in the update.")
+    return sorted(managed)
+
+
+def _replace_file(source: Path, target: Path) -> None:
+    with tempfile.NamedTemporaryFile(dir=target.parent, prefix=f".{target.name}-",
+                                     delete=False) as handle:
+        temporary = Path(handle.name)
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _update(*, check: bool) -> int:
+    marker = ROOT / ".yap-studio-version"
+    installed = marker.read_text(encoding="utf-8").strip()
+    release = json.loads(_update_http(
+        "https://api.github.com/repos/cathrynlavery/yap-studio/releases/latest", 1024 * 1024,
+    ))
+    tag = release["tag_name"]
+    if not isinstance(tag, str):
+        raise ValueError("The release has no valid version.")
+    version = tag.removeprefix("v")
+    if any(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value) is None
+           for value in (installed, version)):
+        raise ValueError("Cannot compare the installed version with the latest release.")
+    if tuple(map(int, installed.split("."))) >= tuple(map(int, version.split("."))):
+        print(f"Yap Studio {installed} is already up to date.")
+        return 0
+    assets = [asset for asset in release["assets"]
+              if asset["name"] == f"yap-studio-workspace-{version}.zip"]
+    if len(assets) != 1:
+        raise ValueError("Expected one workspace zip in the latest release.")
+    asset = assets[0]
+    digest = asset.get("digest")
+    if not isinstance(digest, str) or re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest) is None:
+        raise ValueError("The release has no valid SHA-256 digest.")
+    content = _update_http(asset["browser_download_url"], 100 * 1024 * 1024)
+    if hashlib.sha256(content).hexdigest() != digest.split(":")[1].lower():
+        raise ValueError("The workspace download does not match its SHA-256 digest.")
+    with tempfile.TemporaryDirectory(prefix="yap-update-") as temporary:
+        staging = Path(temporary)
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            managed = _update_files(archive)
+            archive.extractall(staging)
+        if (staging / ".yap-studio-version").read_text(encoding="utf-8").strip() != version:
+            raise ValueError("The workspace version does not match the release.")
+        wheels = [staging / name for name in managed
+                  if PurePosixPath(name).parent == PurePosixPath("wheels")
+                  and PurePosixPath(name).match(f"yap_studio-{version}-*.whl")]
+        if len(wheels) != 1 or (wheel_build := _wheel_build(wheels[0])) is None:
+            raise ValueError("Expected one valid bundled wheel for the new version.")
+        for name in [*managed, ".yap-studio/backups"]:
+            target = ROOT / name
+            for part in (target, *target.parents):
+                if part == ROOT:
+                    break
+                if part.is_symlink():
+                    raise ValueError(f"Workspace update target is a symlink: {part}")
+                if part.is_file() and part.stat().st_nlink > 1:
+                    raise ValueError(f"Workspace update target is a hard link: {part}")
+                if part.exists() and not (part.is_file() if part == target and name in managed
+                                          else part.is_dir()):
+                    raise ValueError(f"Workspace update target has the wrong file type: {part}")
+        changed = [name for name in managed if not (ROOT / name).exists()
+                   or (ROOT / name).read_bytes() != (staging / name).read_bytes()]
+        print(f"Update Yap Studio {installed} -> {version}:")
+        for name in changed:
+            print(f"  {'Replace' if (ROOT / name).exists() else 'Add'} {name}")
+        if check:
+            print("Check only; no files changed. Run python3 setup.py --update to apply.")
+            return 0
+        uv = _uv_binary()
+        if uv is None:
+            raise ValueError("Install uv, then run the update again.")
+        engine = _tool_bin_dir(uv) / "yap-studio"
+        backup = ROOT / ".yap-studio/backups" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        backup.mkdir(parents=True)
+        print(f"Backup: {backup}")
+        for name in changed:
+            if (ROOT / name).exists():
+                saved = backup / name
+                saved.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / name, saved)
+        for name in changed:
+            if name != ".yap-studio-version":
+                target = ROOT / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                _replace_file(staging / name, target)
+        wheel = ROOT / wheels[0].relative_to(staging)
+        if error := _install_wheel(uv, wheel, engine):
+            raise ValueError(f"Could not install the new engine: {error}")
+        if not engine.is_file() and (found := shutil.which("yap-studio")):
+            engine = Path(found)
+        doctor, report = _doctor(engine)
+        if doctor.returncode or report is None or not report.get("ready_to_edit"):
+            raise ValueError(f"Doctor failed after the update: {doctor.stdout or doctor.stderr}")
+        identity = report.get("install", {})
+        if identity.get("version") != version or identity.get("build") != wheel_build:
+            raise ValueError("Installed engine does not match the new bundled wheel.")
+        pending_restart = ROOT / ".yap-studio/update-home-restart"
+        restart_needed = pending_restart.exists()
+        pending_restart.touch()
+        stopped = subprocess.run(
+            [str(engine), "home", "--stop", "--workspace", str(ROOT), "--json"],
+            capture_output=True, text=True, timeout=30, check=True,
+        )
+        if json.loads(stopped.stdout)["stopped"] or restart_needed:
+            home = _open_home(engine, phone=report.get("phone", {}).get("via") is not None)
+            print(f"Yap Studio home: {home['url']}")
+            if home["phone"]:
+                print(f"Open on your phone: {home['phone']['url']}")
+        pending_restart.unlink()
+        # Publish the version after every check passes so a failed update can be retried.
+        _replace_file(staging / ".yap-studio-version", marker)
+        print(f"Updated to Yap Studio {version}. Doctor passed. Backup: {backup}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     # Install commands run in the creator's shell, which still has the original PATH.
     hints = _hints()
@@ -481,11 +641,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--agent", choices=("claude-code", "codex", "cursor"),
                         help="App running setup; saved for Home and review")
+    parser.add_argument("--update", action="store_true", help="Update this workspace in place")
     parser.add_argument(
         "--check", action="store_true",
-        help="Install and check the bundled wheel without model or renderer downloads",
+        help="Preview an update; otherwise check the wheel without model or renderer downloads",
     )
     args = parser.parse_args([] if argv is None else argv)
+    if args.update:
+        try:
+            return _update(check=args.check)
+        except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile,
+                RuntimeError, subprocess.SubprocessError) as exc:
+            print(f"Update refused: {exc}", file=sys.stderr)
+            return 1
     service = _synced_service(ROOT)
     if service is not None:
         target = Path.home() / "Yap Studio"
@@ -524,6 +692,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Could not save the setup app: {exc}", file=sys.stderr)
             return 1
     wheels = list((ROOT / "wheels").glob("yap_studio-*.whl"))
+    if len(wheels) > 1:
+        version = (ROOT / ".yap-studio-version").read_text(encoding="utf-8").strip()
+        wheels = [wheel for wheel in wheels if wheel.name.startswith(f"yap_studio-{version}-")]
     if len(wheels) != 1:
         if not args.json:
             print("Expected one bundled Yap Studio wheel.", file=sys.stderr)
