@@ -12,7 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from test_workspace import ROOT, _module
+from test_workspace import FAKE_HOME, ROOT, _module
 
 VERSION = "9.9.9"
 WHEEL = f"wheels/yap_studio-{VERSION}-py3-none-any.whl"
@@ -32,6 +32,7 @@ def release(tmp_path, monkeypatch):
     before = {
         ".yap-studio-version": b"1.1.1\n",
         "setup.py": b"old setup\n",
+        "new_project.py": b"old project helper\n",
         "AGENTS.md": b"old instructions\n",
         "inbox/README.md": b"old inbox instructions\n",
         "projects/synthetic/edit.json": b'{"synthetic": true}\n',
@@ -52,13 +53,15 @@ def release(tmp_path, monkeypatch):
     managed = {
         ".yap-studio-version": f"{VERSION}\n".encode(),
         "setup.py": b"new setup\n",
+        "new_project.py": b"new project helper\n",
         "AGENTS.md": b"new instructions\n",
         "inbox/README.md": b"new inbox instructions\n",
         WHEEL: wheel.getvalue(),
     }
     managed[MANIFEST] = json.dumps(sorted([*managed, MANIFEST])).encode()
     data = SimpleNamespace(module=module, root=root, before=before, managed=managed,
-                           extra={}, installs=[], doctors=[], requests=[])
+                           extra={}, installs=[], doctors=[], requests=[], home_events=[],
+                           engine=tmp_path / "bin/yap-studio", phone=None)
 
     def http(url, limit):
         data.requests.append(url)
@@ -72,14 +75,21 @@ def release(tmp_path, monkeypatch):
         assert uv == "/synthetic/uv"
         assert wheel == root / WHEEL
         assert wheel.read_bytes() == managed[WHEEL]
+        engine.parent.mkdir(parents=True, exist_ok=True)
+        engine.touch()
         data.installs.append(wheel)
         return None
 
     def doctor(engine):
         data.doctors.append(engine)
         report = {"install": {"version": VERSION, "build": module._wheel_build(root / WHEEL)},
-                  "ready_to_edit": True}
+                  "ready_to_edit": True, "phone": {"via": data.phone}}
         return subprocess.CompletedProcess([], 0, json.dumps(report), ""), report
+
+    def stop_home(args, **kwargs):
+        assert args == [str(data.engine), "home", "--stop", "--workspace", str(root), "--json"]
+        data.home_events.append("stop")
+        return subprocess.CompletedProcess(args, 0, json.dumps({"stopped": []}), "")
 
     monkeypatch.setattr(module, "ROOT", root)
     monkeypatch.setattr(module, "_update_http", http, raising=False)
@@ -87,6 +97,7 @@ def release(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "_tool_bin_dir", lambda uv: tmp_path / "bin")
     monkeypatch.setattr(module, "_install_wheel", install)
     monkeypatch.setattr(module, "_doctor", doctor)
+    monkeypatch.setattr(module.subprocess, "run", stop_home)
     _package(data)
     return data
 
@@ -145,6 +156,7 @@ def test_update_check_changes_nothing(release, capsys):
     assert release.module.main(["--update", "--check"]) == 0
     assert _snapshot(release.root) == before
     assert release.installs == release.doctors == []
+    assert release.home_events == []
     output = capsys.readouterr().out
     assert "1.1.1" in output and VERSION in output
     assert "AGENTS.md" in output
@@ -218,4 +230,96 @@ def test_failed_update_keeps_old_version_and_reports_backup(release, monkeypatch
     assert (backups[0] / "AGENTS.md").read_bytes() == release.before["AGENTS.md"]
     output = capsys.readouterr()
     assert str(backups[0]) in output.out
+    assert output.err
+
+
+@pytest.mark.parametrize("name", ["setup.py", "new_project.py", ".yap-studio-version"])
+def test_update_interrupted_copy_keeps_old_file_and_can_retry(release, monkeypatch, name):
+    copy = release.module.shutil.copy2
+    partial = []
+
+    def interrupted_copy(source, destination, **kwargs):
+        if (Path(source).name == name and not Path(source).is_relative_to(release.root)
+                and not partial):
+            destination = Path(destination)
+            partial.append(destination)
+            destination.write_bytes(b"partial")
+            raise OSError("synthetic interrupted write")
+        return copy(source, destination, **kwargs)
+
+    monkeypatch.setattr(release.module.shutil, "copy2", interrupted_copy)
+    assert release.module.main(["--update"]) == 1
+    assert (release.root / name).read_bytes() == release.before[name]
+    assert partial[0].parent == (release.root / name).parent
+    assert not partial[0].exists()
+    assert (release.root / ".yap-studio-version").read_bytes() == b"1.1.1\n"
+    assert release.module.main(["--update"]) == 0
+    assert (release.root / name).read_bytes() == release.managed[name]
+    assert not partial[0].exists()
+
+
+@pytest.mark.parametrize(("running", "phone"), [(False, None), (True, None), (True, "wifi")])
+def test_update_restarts_only_a_running_home(release, monkeypatch, capsys, running, phone):
+    release.phone = phone
+    events = []
+
+    def run(args, **kwargs):
+        assert release.installs and release.doctors
+        assert args[0] == str(release.engine)
+        assert kwargs["check"] == ("--stop" in args)
+        if "--stop" in args:
+            assert args[1:] == ["home", "--stop", "--workspace", str(release.root), "--json"]
+            events.append("stop")
+            result = {"stopped": [{"pid": 123}] if running else []}
+        else:
+            assert running
+            assert args[1:] == ["home", "--workspace", str(release.root),
+                               *(["--phone"] if phone else []), "--no-open", "--detach", "--json"]
+            events.append("start")
+            result = FAKE_HOME
+        return subprocess.CompletedProcess(args, 0, json.dumps(result), "")
+
+    class Response(io.BytesIO):
+        status = 200
+
+    def get(url, *, timeout):
+        assert url == "http://127.0.0.1:9000/api/state?t=synthetic"
+        assert timeout == 5
+        events.append("state")
+        assert (release.root / ".yap-studio-version").read_bytes() == b"1.1.1\n"
+        return Response(json.dumps({"schema": "yap-studio/home@1",
+                                    "workspace": release.root.name}).encode())
+
+    monkeypatch.setattr(release.module.subprocess, "run", run)
+    monkeypatch.setattr(release.module, "urlopen", get)
+    assert release.module.main(["--update"]) == 0
+    if running:
+        assert events == ["stop", "start", "state"]
+        assert FAKE_HOME["url"] in capsys.readouterr().out
+    else:
+        assert "start" not in events
+
+
+@pytest.mark.parametrize("failure", ["stop", "start", "state"])
+def test_update_home_restart_failure_is_retryable(release, monkeypatch, capsys, failure):
+    def run(args, **kwargs):
+        if "--stop" in args:
+            if failure == "stop":
+                raise subprocess.CalledProcessError(1, args)
+            result = {"stopped": [{"pid": 123}]}
+        else:
+            if failure == "start":
+                return subprocess.CompletedProcess(args, 1, "", "synthetic home failure")
+            result = FAKE_HOME
+        return subprocess.CompletedProcess(args, 0, json.dumps(result), "")
+
+    class Response(io.BytesIO):
+        status = 200
+
+    monkeypatch.setattr(release.module.subprocess, "run", run)
+    monkeypatch.setattr(release.module, "urlopen", lambda *a, **kw: Response(b"{}"))
+    assert release.module.main(["--update"]) == 1
+    assert (release.root / ".yap-studio-version").read_bytes() == b"1.1.1\n"
+    output = capsys.readouterr()
+    assert f"Updated to Yap Studio {VERSION}" not in output.out
     assert output.err

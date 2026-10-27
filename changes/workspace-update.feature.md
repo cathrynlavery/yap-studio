@@ -1,1 +1,1 @@
-- Update Yap Studio in the same workspace when you ask, with a preview and backups that keep your projects, footage and saved look in place.
+- Update Yap Studio in the same workspace when you ask, with a preview and backups that keep your projects, footage and saved look in place. Interrupted writes leave the previous file intact, and a running Home restarts on the new version.

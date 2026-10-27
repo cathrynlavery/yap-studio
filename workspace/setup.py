@@ -516,6 +516,17 @@ def _update_files(archive: zipfile.ZipFile) -> list[str]:
     return sorted(managed)
 
 
+def _replace_file(source: Path, target: Path) -> None:
+    with tempfile.NamedTemporaryFile(dir=target.parent, prefix=f".{target.name}-",
+                                     delete=False) as handle:
+        temporary = Path(handle.name)
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def _update(*, check: bool) -> int:
     marker = ROOT / ".yap-studio-version"
     installed = marker.read_text(encoding="utf-8").strip()
@@ -591,7 +602,7 @@ def _update(*, check: bool) -> int:
             if name != ".yap-studio-version":
                 target = ROOT / name
                 target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(staging / name, target)
+                _replace_file(staging / name, target)
         wheel = ROOT / wheels[0].relative_to(staging)
         if error := _install_wheel(uv, wheel, engine):
             raise ValueError(f"Could not install the new engine: {error}")
@@ -603,8 +614,17 @@ def _update(*, check: bool) -> int:
         identity = report.get("install", {})
         if identity.get("version") != version or identity.get("build") != wheel_build:
             raise ValueError("Installed engine does not match the new bundled wheel.")
-        # Publish the version only after installation passes so a failed update can be retried.
-        shutil.copy2(staging / ".yap-studio-version", marker)
+        stopped = subprocess.run(
+            [str(engine), "home", "--stop", "--workspace", str(ROOT), "--json"],
+            capture_output=True, text=True, timeout=30, check=True,
+        )
+        if json.loads(stopped.stdout)["stopped"]:
+            home = _open_home(engine, phone=report.get("phone", {}).get("via") is not None)
+            print(f"Yap Studio home: {home['url']}")
+            if home["phone"]:
+                print(f"Open on your phone: {home['phone']['url']}")
+        # Publish the version after every check passes so a failed update can be retried.
+        _replace_file(staging / ".yap-studio-version", marker)
         print(f"Updated to Yap Studio {version}. Doctor passed. Backup: {backup}")
     return 0
 
