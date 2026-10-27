@@ -208,7 +208,8 @@ that follows the last row's sentence.
 
 Motion streak is an opt-in style choice (`graphics.card_motion: "streak"`). Supported
 cards arrive fully drawn from the edge away from the face in 0.4 s and return to that
-edge in 0.35 s. The fading trail copies the card's own colors. The card stays on its
+edge in 0.35 s. The fading trail copies the card's own colors. During the hold,
+quote text has the same edges with streak or none. The card stays on its
 row, below the 280 px line. Planning checks the whole swept box during each move,
 tries the other edge if needed, and records a fallback reason when neither is clear.
 Registry cards keep their own entrance and shared fade, with a streak on the exit only.
