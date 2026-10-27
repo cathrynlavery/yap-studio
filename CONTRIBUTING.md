@@ -47,6 +47,12 @@ docs or tests for the kind. Write one or more one-line `- ` bullets. See
 [change notes](changes/README.md) for an example. Don't edit CHANGELOG.md or the
 version; they are set at release.
 
+A daily workflow keeps one draft PR, on the `hyperframes-bump/latest` branch, that
+pins the newest HyperFrames release. Each new release rebuilds that branch from
+main, puts the PR back in draft, rewrites `changes/hyperframes.dependencies.md` for
+the new pin and closes older bump PRs. A commit pushed to that branch stops the
+rebuilds until the PR is merged or closed.
+
 Releases are small and frequent, cut from a `release/vX.Y.Z` pull request whenever
 main is green:
 

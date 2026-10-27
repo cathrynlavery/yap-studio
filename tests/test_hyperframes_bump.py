@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -165,7 +167,13 @@ def test_bump_moves_every_pin_and_reports_lock_changes(
     root, module = bump_copy
     current = module.pinned_version(root)
     new = _next(current)
+    # A pin line left under Unreleased stays put: the bump never edits CHANGELOG.md.
+    changelog = root / "CHANGELOG.md"
+    changelog.write_text(changelog.read_text(encoding="utf-8").replace(
+        "## Unreleased\n\n", f"## Unreleased\n\n- Pin the renderer to HyperFrames {current}.\n", 1,
+    ), encoding="utf-8")
     before = _snapshot(root, module)
+    assert f"- Pin the renderer to HyperFrames {current}.\n" in before["CHANGELOG.md"]
     calls = _stub_npm(module, monkeypatch, new)
     result = module.bump(root, new)
     entries = json.loads(before[CATALOG])["items"]
@@ -179,16 +187,8 @@ def test_bump_moves_every_pin_and_reports_lock_changes(
         assert old is not None
         expected = before[relative].replace(old[0], old[0].replace(current, new), 1)
         assert (root / relative).read_text(encoding="utf-8") == expected
-    changelog = (root / "CHANGELOG.md").read_bytes().decode("utf-8")
+    assert changelog.read_bytes().decode("utf-8") == before["CHANGELOG.md"]
     pin = "- Pin the renderer to HyperFrames "
-    unreleased, released = before["CHANGELOG.md"].split("## Unreleased\n", 1)[1].split(
-        "\n## ", 1)
-    updated, updated_released = changelog.split("## Unreleased\n", 1)[1].split("\n## ", 1)
-    assert updated_released.encode("utf-8") == released.encode("utf-8")
-    assert pin not in updated
-    assert updated.splitlines(keepends=True) == [
-        line for line in unreleased.splitlines(keepends=True) if not line.startswith(pin)
-    ]
     note = (root / module.CHANGE_NOTE).read_text(encoding="utf-8")
     assert note.count(pin) == 1
     assert f"{pin}{new}" in note
@@ -400,7 +400,7 @@ def test_bump_refreshes_changed_item_files(
 def test_registry_failure_restores_every_file(
     bump_copy: tuple[Path, ModuleType], monkeypatch: pytest.MonkeyPatch, failure: str,
 ) -> None:
-    """Registry failures restore the catalog as well as pins, lock and changelog."""
+    """Registry failures restore the catalog as well as pins, lock and change note."""
     root, module = bump_copy
     before = _snapshot(root, module)
     new = _next(module.pinned_version(root))
@@ -485,61 +485,203 @@ def test_registry_refresh_preserves_helper_metadata(bump_copy, monkeypatch):
         **helper, "files": {main: _digest(_content("sample-helper"))}}
 
 
-@pytest.mark.parametrize(("unreleased", "note", "expected_unreleased", "expected_note"), [
-    ("## Unreleased\n\n- Pin the renderer to HyperFrames 1.0.0 (notes).\n- Other.\n\n",
-     None, "## Unreleased\n\n- Other.\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1 (notes).\n"),
-    ("## Unreleased\n\n- Other.\n\n", None, "## Unreleased\n\n- Other.\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1.\n"),
-    ("## Unreleased\n\n", None, "## Unreleased\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1.\n"),
-    ("## Unreleased\n\n- Pin the renderer to HyperFrames 1.0.0.\n\n",
-     None, "## Unreleased\n\n", "- Pin the renderer to HyperFrames 1.0.1.\n"),
-    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9.\n\n",
-     "- Pin the renderer to HyperFrames 1.0.0 (creator words).\n", "## Unreleased\n\n",
+
+
+@pytest.mark.parametrize(("note", "expected"), [
+    (None, "- Pin the renderer to HyperFrames 1.0.1.\n"),
+    ("", "- Pin the renderer to HyperFrames 1.0.1.\n"),
+    ("- Pin the renderer to HyperFrames 1.0.0 (creator words).\n",
      "- Pin the renderer to HyperFrames 1.0.1 (creator words).\n"),
-    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9\n\n",
-     "- Pin the renderer to HyperFrames 1.0.0 (creator words).\n", "## Unreleased\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1 (creator words).\n"),
-    ("## Unreleased\n\n- Pin the renderer to HyperFrames 1.0.0 (caption timing).\n- Other.\n\n",
-     "- Pin the renderer to HyperFrames 1.0.0 (registry).\n", "## Unreleased\n\n- Other.\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1.\n"
-     "- Pin the renderer to HyperFrames 1.0.0 (registry).\n"
-     "- Pin the renderer to HyperFrames 1.0.0 (caption timing).\n"),
-    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9 (older words).\n\n",
-     "- Pin the renderer to HyperFrames 1.0.0 (registry).\n", "## Unreleased\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1 (registry).\n"
-     "- Pin the renderer to HyperFrames 0.9.9 (older words).\n"),
-    ("## Unreleased\n\n- Pin the renderer to HyperFrames 0.9.9 (older words).\n\n",
-     "- Pin the renderer to HyperFrames 1.0.0 (registry).", "## Unreleased\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1 (registry).\n"
-     "- Pin the renderer to HyperFrames 0.9.9 (older words).\n"),
-    ("## Unreleased\n\n", "- Something else.\n", "## Unreleased\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1.\n- Something else.\n"),
-    ("", None, "", "- Pin the renderer to HyperFrames 1.0.1.\n"),
-    ("## Unreleased\n\n- First.  \n- Pin the renderer to HyperFrames 0.9.9 (older).\n"
-     "- Middle.\n- Pin the renderer to HyperFrames 1.0.0 (notes).\n- Last.\n\n",
-     None, "## Unreleased\n\n- First.  \n- Middle.\n- Last.\n\n",
-     "- Pin the renderer to HyperFrames 0.9.9 (older).\n"
-     "- Pin the renderer to HyperFrames 1.0.1 (notes).\n"),
-    ("## Unreleased\n\n", "- Other.\n- Pin the renderer to HyperFrames 1.0.0 (words).\n\n\n",
-     "## Unreleased\n\n", "- Other.\n- Pin the renderer to HyperFrames 1.0.1 (words).\n"),
-    ("## Unreleased\n\n", "", "## Unreleased\n\n",
-     "- Pin the renderer to HyperFrames 1.0.1.\n"),
-    ("## Unreleased\n\n", "- Pin the renderer to HyperFrames 1.0.0 (one).\n"
-     "- Pin the renderer to HyperFrames 1.0.0 (two).", "## Unreleased\n\n",
+    ("- Pin the renderer to HyperFrames 1.0.0 (registry).",
+     "- Pin the renderer to HyperFrames 1.0.1 (registry).\n"),
+    ("- Something else.\n", "- Pin the renderer to HyperFrames 1.0.1.\n- Something else.\n"),
+    ("- Other.\n- Pin the renderer to HyperFrames 1.0.0 (words).\n\n\n",
+     "- Other.\n- Pin the renderer to HyperFrames 1.0.1 (words).\n"),
+    ("- Pin the renderer to HyperFrames 1.0.0 (one).\n"
+     "- Pin the renderer to HyperFrames 1.0.0 (two).",
      "- Pin the renderer to HyperFrames 1.0.1.\n"
      "- Pin the renderer to HyperFrames 1.0.0 (one).\n"
      "- Pin the renderer to HyperFrames 1.0.0 (two).\n"),
 ])
-def test_pin_note_cleans_only_unreleased_and_preserves_creator_words(
-    monkeypatch: pytest.MonkeyPatch, unreleased: str, note: str | None,
-    expected_unreleased: str, expected_note: str,
+def test_pin_note_moves_the_pin_and_keeps_creator_words(
+    monkeypatch: pytest.MonkeyPatch, note: str | None, expected: str,
 ) -> None:
-    """Legacy pins leave Unreleased; existing notes and released sections keep their words."""
+    """The change note names the new pin and keeps words a person added."""
     module = _load(ROOT, monkeypatch)
-    released = "## 0.1.0 (2026-01-01)\n\n- Pin the renderer to HyperFrames 1.0.0 (old).\n"
-    text = f"# Changelog\n\n{unreleased}{released}"
-    assert module._pin_note(text, note, "1.0.0", "1.0.1") == (
-        f"# Changelog\n\n{expected_unreleased}{released}", expected_note,
+    assert module._pin_note(note, "1.0.0", "1.0.1") == expected
+
+
+def test_pin_note_lives_in_changes_not_the_changelog(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unreleased has no pin line for a bump to edit, and the pin note names the current pin."""
+    module = _load(ROOT, monkeypatch)
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    unreleased = text.split("## Unreleased\n", 1)[-1].split("\n## ", 1)[0]
+    assert "Pin the renderer to HyperFrames" not in unreleased
+    note = ROOT / module.CHANGE_NOTE
+    if note.exists():
+        pin = f"- Pin the renderer to HyperFrames {module.pinned_version(ROOT)}"
+        assert pin in note.read_text(encoding="utf-8")
+
+
+WORKFLOW = ROOT / ".github/workflows/hyperframes-bump.yml"
+REPO = "cathrynlavery/yap-studio"
+BOT = "41898282+github-actions[bot]@users.noreply.github.com"
+LATEST = "0.8.209"
+# Stands in for gh and git: logs each call and answers from replies.json, applying --jq with jq.
+FAKE_CLI = """
+import json, re, subprocess, sys
+from pathlib import Path
+folder = Path(__file__).resolve().parent
+args = [Path(__file__).name, *sys.argv[1:]]
+with open(folder / "calls.jsonl", "a", encoding="utf-8") as log:
+    log.write(json.dumps(args) + "\\n")
+replies = json.loads((folder / "replies.json").read_text(encoding="utf-8"))
+reply = next((reply for pattern, reply in replies if re.search(pattern, " ".join(args))), {})
+out = reply.get("out", "")
+if "json" in reply:
+    out = json.dumps(reply["json"])
+    if "--jq" in args:
+        out = subprocess.run(["jq", "-r", args[args.index("--jq") + 1]], input=out,
+                             capture_output=True, text=True, check=True).stdout
+sys.stdout.write(out)
+"""
+LEGACY = [
+    {"number": 47, "headRefName": "hyperframes-bump/0.8.204", "sha": "4" * 40,
+     "mergeable": "CONFLICTING"},
+    {"number": 55, "headRefName": "hyperframes-bump/0.8.208", "sha": "5" * 40},
+]
+
+
+def _step(name: str) -> str:
+    """Return one workflow step's run script without its YAML indent."""
+    lines = WORKFLOW.read_text(encoding="utf-8").splitlines()
+    start = lines.index(f"      - name: {name}")
+    run = next(index for index in range(start, len(lines)) if lines[index] == "        run: |")
+    script = []
+    for line in lines[run + 1:]:
+        if line.strip() and not line.startswith(" " * 10):
+            break
+        script.append(line[10:])
+    return "\n".join(script) + "\n"
+
+
+def _open_pr(number: int, ref: str, sha: str, *, owner: str = "cathrynlavery",
+             mergeable: str = "MERGEABLE") -> dict:
+    """Describe an open PR the way gh pr list --json reports it."""
+    return {"number": number, "headRefName": ref, "headRefOid": sha,
+            "mergeable": mergeable, "isCrossRepository": owner != "cathrynlavery",
+            "headRepository": {"name": "yap-studio"}, "headRepositoryOwner": {"login": owner}}
+
+
+def _pin_reply(sha: str, version: str) -> tuple[str, dict]:
+    """Answer the contents API read of hyperframes.py at one head commit."""
+    content = base64.b64encode(f'HYPERFRAMES_VERSION = "{version}"\n'.encode()).decode()
+    return rf"^gh api .* ref={sha}", {"json": {"content": content}}
+
+
+def _run_step(
+    tmp_path: Path, name: str, replies: list[tuple[str, dict]], **env: str,
+) -> tuple[subprocess.CompletedProcess[str], list[list[str]], dict[str, str]]:
+    """Run a workflow step under bash -e with gh and git answered from replies."""
+    if shutil.which("jq") is None:
+        pytest.skip("jq is not installed")
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    for tool in ("gh", "git"):
+        (tools / tool).write_text(f"#!{sys.executable}\n{FAKE_CLI}", encoding="utf-8")
+        (tools / tool).chmod(0o755)
+    (tools / "replies.json").write_text(json.dumps(replies), encoding="utf-8")
+    output = tmp_path / "output.txt"
+    output.touch()
+    result = subprocess.run(
+        ["bash", "-e", "-c", _step(name)], cwd=tmp_path, capture_output=True, text=True,
+        timeout=60, env={"PATH": f"{tools}{os.pathsep}{os.environ['PATH']}",
+                         "GITHUB_OUTPUT": str(output), "GITHUB_REPOSITORY": REPO,
+                         "LATEST": LATEST, **env},
     )
+    log = tools / "calls.jsonl"
+    calls = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] \
+        if log.exists() else []
+    outputs = dict(line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines())
+    return result, calls, outputs
+
+
+@pytest.mark.parametrize(("scenario", "skip", "pr"), [
+    ("new release", "false", ""),
+    ("standing PR pins it", "true", "60"),
+    ("standing PR conflicts", "false", "60"),
+    ("fork pins it", "true", ""),
+    ("person pushed to it", "true", "60"),
+    ("person closed it", "true", None),
+])
+def test_bump_reuses_one_standing_pr_unless_a_person_holds_it(
+    tmp_path: Path, scenario: str, skip: str, pr: str | None,
+) -> None:
+    """One branch is rebuilt for each release; people's commits and closes are respected."""
+    open_prs = [_open_pr(item["number"], item["headRefName"], item["sha"],
+                         mergeable=item.get("mergeable", "MERGEABLE")) for item in LEGACY]
+    open_prs.append(_open_pr(12, "feature/captions", "c" * 40))
+    if pr == "60":
+        open_prs.append(_open_pr(60, "hyperframes-bump/latest", "6" * 40, mergeable=(
+            "CONFLICTING" if scenario == "standing PR conflicts" else "MERGEABLE")))
+    if scenario == "fork pins it":
+        open_prs.append(_open_pr(61, "hyperframes-bump/latest", "f" * 40, owner="someone",
+                                 mergeable="CONFLICTING"))
+    closed = [{"number": 58, "title": "render: pin HyperFrames 0.8.206", "mergedAt": None,
+               "isCrossRepository": False}]
+    if scenario == "person closed it":
+        closed.append({"number": 59, "title": f"render: pin HyperFrames {LATEST}",
+                       "mergedAt": None, "isCrossRepository": False})
+    authors = [BOT, *(["person@example.com"] if scenario == "person pushed to it" else [])]
+    replies = [
+        (r"^gh pr list --state closed", {"json": closed}),
+        (r"^gh pr list --state open --head hyperframes-bump/latest", {"json": [
+            {"number": item["number"], "isCrossRepository": item["isCrossRepository"]}
+            for item in open_prs if item["headRefName"] == "hyperframes-bump/latest"]}),
+        (r"^gh pr list --state open --limit", {"json": open_prs}),
+        (r"^gh pr view 60 --json commits", {"json": {"commits": [
+            {"authors": [{"email": email}]} for email in authors]}}),
+        _pin_reply("4" * 40, "0.8.204"), _pin_reply("5" * 40, "0.8.208"),
+        _pin_reply("c" * 40, "0.8.203"), _pin_reply("6" * 40, LATEST),
+        _pin_reply("f" * 40, LATEST),
+    ]
+    result, _, outputs = _run_step(tmp_path, "Skip a release that already has a PR", replies)
+    assert result.returncode == 0, result.stderr
+    assert outputs["branch"] == "hyperframes-bump/latest"
+    assert outputs.get("pr") == pr
+    assert outputs["skip"] == skip
+    assert ("::warning::" in result.stdout) is (scenario == "person pushed to it")
+
+
+@pytest.mark.parametrize("pr", ["", "60"])
+def test_bump_pushes_the_standing_branch_and_supersedes_older_bump_prs(
+    tmp_path: Path, pr: str,
+) -> None:
+    """The branch is force-updated, its PR is opened or reset to draft, and older bump PRs close."""
+    open_prs = [*(_open_pr(item["number"], item["headRefName"], item["sha"]) for item in LEGACY),
+                _open_pr(12, "feature/captions", "c" * 40),
+                _open_pr(60, "hyperframes-bump/latest", "6" * 40),
+                _open_pr(61, "hyperframes-bump/latest", "f" * 40, owner="someone")]
+    replies = [(r"^gh pr create", {"out": f"https://github.com/{REPO}/pull/60\n"}),
+               (r"^gh pr list --state open", {"json": open_prs})]
+    result, calls, _ = _run_step(
+        tmp_path, "Open the draft PR", replies, PR=pr, BRANCH="hyperframes-bump/latest",
+        HAS_BUMP_TOKEN="true" if pr else "false",
+    )
+    assert result.returncode == 0, result.stderr
+    title = f"render: pin HyperFrames {LATEST}"
+    push = ["git", "push", "--force", "origin", "HEAD:refs/heads/hyperframes-bump/latest"]
+    assert push in calls
+    if pr:
+        assert calls.index(["gh", "pr", "ready", "60", "--undo"]) < calls.index(push)
+        assert ["gh", "pr", "edit", "60", "--title", title, "--body-file", "pr-body.md"] in calls
+        assert not any(call[:3] == ["gh", "pr", "create"] for call in calls)
+    else:
+        assert ["gh", "pr", "create", "--draft", "--base", "main", "--head",
+                "hyperframes-bump/latest", "--title", title, "--body-file", "pr-body.md"] in calls
+    assert [call for call in calls if call[:3] == ["gh", "pr", "close"]] == [
+        ["gh", "pr", "close", str(number), "--comment",
+         f"Superseded by #60, which pins HyperFrames {LATEST}."] for number in (47, 55)
+    ]
+    dispatch = ["gh", "workflow", "run", "ci.yml", "--ref", "hyperframes-bump/latest"]
+    assert (dispatch in calls) is (not pr)

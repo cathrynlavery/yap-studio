@@ -12,3 +12,6 @@ For example:
 
 The release bump moves these bullets into the dated CHANGELOG section under their
 kind and deletes the files. CI fails on a misnamed file or one with no bullet.
+
+The HyperFrames bump workflow owns `hyperframes.dependencies.md` and rewrites it
+for each new pin.

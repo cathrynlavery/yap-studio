@@ -1,7 +1,8 @@
 name: HyperFrames bump
 
-# Once a day, open a draft PR that moves the renderer pin to the newest
-# HyperFrames release. The PR waits for a person to check renders and beats.
+# Once a day, rebuild one standing draft PR from main that moves the renderer
+# pin to the newest HyperFrames release, and close older bump PRs. The PR waits
+# for a person to check renders and beats.
 on:
   schedule:
     - cron: "23 14 * * *"
@@ -68,26 +69,49 @@ jobs:
         env:
           LATEST: ${{ steps.check.outputs.latest }}
         run: |
-          branch="hyperframes-bump/$LATEST"
+          # One standing branch and PR, rebuilt from main for each release, so bump PRs never
+          # pile up or go stale. Git cannot hold a plain hyperframes-bump branch beside the
+          # older hyperframes-bump/<version> branches, so it is hyperframes-bump/latest.
+          branch="hyperframes-bump/latest"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          seen=$(gh pr list --state all --head "$branch" --json number --jq '.[0].number // empty')
-          if [ -n "$seen" ]; then
-            echo "PR #$seen already covers $LATEST."
+          closed=$(gh pr list --state closed --head "$branch" --json number,title,mergedAt,isCrossRepository \
+            --jq "map(select((.isCrossRepository | not) and .mergedAt == null and .title == \"render: pin HyperFrames $LATEST\")) | .[0].number // empty")
+          if [ -n "$closed" ]; then
+            echo "PR #$closed for $LATEST was closed without merging; waiting for the next release."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          pr=$(gh pr list --state open --head "$branch" --json number,isCrossRepository \
+            --jq 'map(select(.isCrossRepository | not)) | .[0].number // empty')
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          if [ -n "$pr" ]; then
+            # A rebuild replaces the branch, so it must not drop a commit a person pushed.
+            people=$(gh pr view "$pr" --json commits \
+              --jq '[.commits[].authors[].email | select(. != "41898282+github-actions[bot]@users.noreply.github.com")] | length')
+            if [ "$people" != 0 ]; then
+              echo "::warning::PR #$pr has commits from people, so it was not rebuilt for HyperFrames $LATEST. Merge or close it to let the next run continue."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
           # Every open PR (not just the first page), read at its head commit in its own repository,
           # so a fork or an older branch that already pins this release is found.
           gh pr list --state open --limit 1000 \
-            --json number,headRefOid,headRepository,headRepositoryOwner \
-            --jq '.[] | "\(.number) \(.headRepositoryOwner.login)/\(.headRepository.name) \(.headRefOid)"' > open-prs.txt
-          while read -r number repo sha; do
+            --json number,headRefName,headRefOid,headRepository,headRepositoryOwner,mergeable \
+            --jq '.[] | "\(.number) \(.headRepositoryOwner.login)/\(.headRepository.name) \(.headRefOid) \(.headRefName) \(.mergeable)"' > open-prs.txt
+          while read -r number repo sha ref mergeable; do
             pin=$(gh api --method GET "repos/$repo/contents/src/yap_studio/render/hyperframes.py" \
               -f ref="$sha" --jq .content 2>/dev/null | base64 -d 2>/dev/null || true)
             if printf '%s' "$pin" | grep -q "HYPERFRAMES_VERSION = \"$LATEST\""; then
-              echo "Open PR #$number already pins $LATEST."
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              exit 0
+              case "$repo/$ref/$mergeable" in
+                # This workflow's own PR that conflicts with main is rebuilt instead.
+                "$GITHUB_REPOSITORY/hyperframes-bump/"*/CONFLICTING)
+                  echo "PR #$number pins $LATEST but conflicts with main." ;;
+                *)
+                  echo "Open PR #$number already pins $LATEST."
+                  echo "skip=true" >> "$GITHUB_OUTPUT"
+                  exit 0 ;;
+              esac
             fi
           done < open-prs.txt
           echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -138,7 +162,7 @@ jobs:
           lock = "\n".join(f"- {line}" for line in bump["lock_changes"]) or "- None"
           flagged = ", ".join(sorted(mentions)) or "none of beats, fonts, captions, hf-seek, audio or capture"
           registry = ", ".join(bump["registry"]["changed"]) or "none"
-          text = f"""Moves the renderer pin from HyperFrames {current} to {latest}. Opened as a draft by the HyperFrames bump workflow.
+          text = f"""Moves the renderer pin from HyperFrames {current} to {latest}. The HyperFrames bump workflow keeps this one draft PR and rebuilds it from main for each new release, so it never conflicts or goes stale. A commit pushed here stops the rebuilds until the PR is merged or closed.
 
           ## What this does
 
@@ -178,20 +202,35 @@ jobs:
         env:
           LATEST: ${{ steps.check.outputs.latest }}
           BRANCH: ${{ steps.existing.outputs.branch }}
+          PR: ${{ steps.existing.outputs.pr }}
         run: |
+          title="render: pin HyperFrames $LATEST"
+          # A new release needs its own check, so a PR marked ready goes back to draft first.
+          if [ -n "$PR" ]; then
+            gh pr ready "$PR" --undo
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$BRANCH"
           git add -u
           git add changes/hyperframes.dependencies.md
-          git commit -m "render: pin HyperFrames $LATEST"
+          git commit -m "$title"
           # The hyperframes-bump/ prefix belongs to this workflow.
           git push --force origin "HEAD:refs/heads/$BRANCH"
-          if ! gh pr create --draft --base main --head "$BRANCH" \
-              --title "render: pin HyperFrames $LATEST" --body-file pr-body.md; then
+          if [ -n "$PR" ]; then
+            gh pr edit "$PR" --title "$title" --body-file pr-body.md
+          elif url=$(gh pr create --draft --base main --head "$BRANCH" \
+              --title "$title" --body-file pr-body.md); then
+            PR=${url##*/}
+          else
             echo "::error::Could not open the PR. Allow GitHub Actions to create pull requests in Settings > Actions > General, or add a HYPERFRAMES_BUMP_TOKEN secret."
             exit 1
           fi
+          gh pr list --state open --limit 1000 --json number,headRefName,isCrossRepository \
+            --jq ".[] | select((.isCrossRepository | not) and (.headRefName | startswith(\"hyperframes-bump/\")) and .number != $PR) | .number" > superseded.txt
+          while read -r old; do
+            gh pr close "$old" --comment "Superseded by #$PR, which pins HyperFrames $LATEST."
+          done < superseded.txt
           if [ "$HAS_BUMP_TOKEN" != "true" ]; then
             gh workflow run ci.yml --ref "$BRANCH"
           fi
