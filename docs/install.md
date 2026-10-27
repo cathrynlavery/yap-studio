@@ -214,6 +214,7 @@ python3 setup.py --update
 
 The update checks the download, replaces bundled files and installs the matching engine.
 If Home was running, the update restarts it and waits until it answers.
+Rerunning a failed update finishes any pending Home restart.
 Replaced files are backed up under `.yap-studio/backups/`. Your projects, footage, brand
 files and saved look stay in place. If the update fails, keep the backup and rerun the command.
 

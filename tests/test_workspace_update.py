@@ -293,6 +293,7 @@ def test_update_restarts_only_a_running_home(release, monkeypatch, capsys, runni
     monkeypatch.setattr(release.module.subprocess, "run", run)
     monkeypatch.setattr(release.module, "urlopen", get)
     assert release.module.main(["--update"]) == 0
+    assert not (release.root / ".yap-studio/update-home-restart").exists()
     if running:
         assert events == ["stop", "start", "state"]
         assert FAKE_HOME["url"] in capsys.readouterr().out
@@ -302,13 +303,23 @@ def test_update_restarts_only_a_running_home(release, monkeypatch, capsys, runni
 
 @pytest.mark.parametrize("failure", ["stop", "start", "state"])
 def test_update_home_restart_failure_is_retryable(release, monkeypatch, capsys, failure):
+    pending = release.root / ".yap-studio/update-home-restart"
+    stops = 0
+    events = []
+    pending_at_stop = []
+
     def run(args, **kwargs):
+        nonlocal stops
         if "--stop" in args:
-            if failure == "stop":
+            stops += 1
+            events.append("stop")
+            pending_at_stop.append(pending.is_file())
+            if stops == 1 and failure == "stop":
                 raise subprocess.CalledProcessError(1, args)
-            result = {"stopped": [{"pid": 123}]}
+            result = {"stopped": [{"pid": 123}] if stops == 1 else []}
         else:
-            if failure == "start":
+            events.append("start")
+            if stops == 1 and failure == "start":
                 return subprocess.CompletedProcess(args, 1, "", "synthetic home failure")
             result = FAKE_HOME
         return subprocess.CompletedProcess(args, 0, json.dumps(result), "")
@@ -316,10 +327,26 @@ def test_update_home_restart_failure_is_retryable(release, monkeypatch, capsys, 
     class Response(io.BytesIO):
         status = 200
 
+    def get(url, **kwargs):
+        events.append("state")
+        state = {} if stops == 1 else {"schema": "yap-studio/home@1",
+                                      "workspace": release.root.name}
+        return Response(json.dumps(state).encode())
+
     monkeypatch.setattr(release.module.subprocess, "run", run)
-    monkeypatch.setattr(release.module, "urlopen", lambda *a, **kw: Response(b"{}"))
+    monkeypatch.setattr(release.module, "urlopen", get)
     assert release.module.main(["--update"]) == 1
     assert (release.root / ".yap-studio-version").read_bytes() == b"1.1.1\n"
     output = capsys.readouterr()
     assert f"Updated to Yap Studio {VERSION}" not in output.out
     assert output.err
+    first_events = len(events)
+    pending_after_failure = pending.is_file()
+
+    assert release.module.main(["--update"]) == 0
+    assert events[first_events:] == ["stop", "start", "state"]
+    assert pending_after_failure
+    assert pending_at_stop == [True, True]
+    assert FAKE_HOME["url"] in capsys.readouterr().out
+    assert (release.root / ".yap-studio-version").read_text() == f"{VERSION}\n"
+    assert not pending.exists()

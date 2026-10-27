@@ -614,15 +614,19 @@ def _update(*, check: bool) -> int:
         identity = report.get("install", {})
         if identity.get("version") != version or identity.get("build") != wheel_build:
             raise ValueError("Installed engine does not match the new bundled wheel.")
+        pending_restart = ROOT / ".yap-studio/update-home-restart"
+        restart_needed = pending_restart.exists()
+        pending_restart.touch()
         stopped = subprocess.run(
             [str(engine), "home", "--stop", "--workspace", str(ROOT), "--json"],
             capture_output=True, text=True, timeout=30, check=True,
         )
-        if json.loads(stopped.stdout)["stopped"]:
+        if json.loads(stopped.stdout)["stopped"] or restart_needed:
             home = _open_home(engine, phone=report.get("phone", {}).get("via") is not None)
             print(f"Yap Studio home: {home['url']}")
             if home["phone"]:
                 print(f"Open on your phone: {home['phone']['url']}")
+        pending_restart.unlink()
         # Publish the version after every check passes so a failed update can be retried.
         _replace_file(staging / ".yap-studio-version", marker)
         print(f"Updated to Yap Studio {version}. Doctor passed. Backup: {backup}")
