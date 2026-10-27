@@ -2,7 +2,6 @@
 
 ## Unreleased
 
-- Pin the renderer to HyperFrames 0.8.203.
 - Repeated feedback adds to the matching open issue instead of opening a duplicate, automatic bug reports name the subcommand (such as `versions save`) without sharing other arguments, and agents record a `missing` note when they do something by hand that Yap Studio can't.
 - Final videos and pilots no longer fail on older ffmpeg builds that decode extra AAC padding at the end. The audio in the file must still match the picture exactly.
 - A `changed` reply to a Fix note about the whole video is accepted in a later saved version instead of always being refused.

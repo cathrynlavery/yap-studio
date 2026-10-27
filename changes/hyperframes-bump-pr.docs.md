@@ -1,0 +1,1 @@
+- The HyperFrames bump keeps one draft PR, rebuilt from main for each new release, and closes older bump PRs. Its release note lives only in `changes/hyperframes.dependencies.md`, so bump PRs no longer conflict over CHANGELOG.md.
