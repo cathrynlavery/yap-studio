@@ -2027,7 +2027,8 @@ def test_card_motion_none_matches_main_cache_and_placement(
     from yap_studio.planner.cards import _render_key
     from yap_studio.style import resolve
 
-    # Pins from main 3abf21f5, on Darwin.
+    # Pins from main 3abf21f5, on Darwin; the render key moved when the quote template began
+    # clearing its landed transform (#51), so quote cards re-render once.
     # Regenerate in a pristine main archive with the lane environment sourced.
     # Copy this test there; omit the card_motion assignment if main lacks the field.
     # Print actual_key, actual_placement and record["inputs"]["graphic:agent-tag"]
@@ -2051,18 +2052,18 @@ def test_card_motion_none_matches_main_cache_and_placement(
     assert record["elements"] == result["elements"]
     # Pinned sha256 render key, not a secret.
     assert actual_key == (
-        "6b04a7f2415eefc0bea5404ac1817276999e91481fa60b296ccf478290cb21a0"  # gitleaks:allow
+        "0fb48ad912e6aad5e7bb34c7779ad79a753b946ffe7479dae72ef4ee72db5329"  # gitleaks:allow
     )
     assert actual_placement == (
         '{"clearance":{"gap_px":null,"hair":{"above":0.6,"sides":0.15},"margin_px":24,'
         '"reason":"fake project has no face measurements","status":"unchecked"},'
         '"frames":90,"height":360,"id":"agent-tag","input_sha256":'
-        '"e9702b2cf9b284a0a505b64b191432991df82a3584a43f5219dc0a8e9b5c0e00",'
+        '"235a39d6c13f1c3219028abe18f854c2d0040be7b335777a1121510b7bc41e2f",'
         '"kind":"graphic","layer":"front","path":"graphics/agent-tag.mov",'
         '"start_frame":0,"width":1040,"x":20,"y":280}'
     )
     assert record["inputs"]["graphic:agent-tag"] == (
-        "e9702b2cf9b284a0a505b64b191432991df82a3584a43f5219dc0a8e9b5c0e00"
+        "235a39d6c13f1c3219028abe18f854c2d0040be7b335777a1121510b7bc41e2f"
     )
 
 
