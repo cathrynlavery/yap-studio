@@ -77,6 +77,10 @@ anywhere through Tailscale when `phone.tailscale` is `connected`, otherwise on t
 If `phone.via` is null, their phone needs the same Wi-Fi or Tailscale to open review links.
 Offer the optional Tailscale step once when it is there, following the rule above.
 
+When the creator says "update Yap Studio" or asks for the newest version, run
+`python3 setup.py --update --check` from this folder, show the preview and ask before
+running `python3 setup.py --update`.
+
 ## Yap Studio home
 
 Yap Studio home is the page where the creator makes every ordinary choice with buttons: what they

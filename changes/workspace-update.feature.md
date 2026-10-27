@@ -1,0 +1,1 @@
+- Update Yap Studio in the same workspace when you ask, with a preview and backups that keep your projects, footage and saved look in place.

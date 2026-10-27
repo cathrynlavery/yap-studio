@@ -39,6 +39,7 @@ FAKE_HOME = {"url": "http://127.0.0.1:9000/?t=synthetic", "phone": None}
 EXPECTED = {
     "Start here.html",
     ".yap-studio-version",
+    ".yap-studio-managed.json",
     ".claude/commands/edit.md",
     ".claude/settings.json",
     ".codex/config.toml",
@@ -220,6 +221,7 @@ def test_workspace_zip_exact_files_and_clean_contents(tmp_path: Path) -> None:
     assert bundle == tmp_path / f"yap-studio-workspace-{VERSION}.zip"
     with zipfile.ZipFile(bundle) as archive:
         assert set(archive.namelist()) == expected
+        assert set(json.loads(archive.read(".yap-studio-managed.json"))) == expected
         for skill in ("edit-video", "voiceover-video"):
             member = f".agents/skills/{skill}/SKILL.md"
             assert archive.read(member) == archive.read(f".claude/skills/{skill}/SKILL.md")
@@ -3190,6 +3192,22 @@ def test_setup_engine_path_step(tmp_path, monkeypatch, capsys, on_path):
     if not on_path:
         assert result["steps"][0]["command"] == "/scratch/uv tool update-shell"
         assert result["steps"][0]["optional"] is False
+
+
+def test_setup_uses_current_wheel_when_an_update_keeps_the_old_wheel(tmp_path, monkeypatch):
+    module, wheel, engine, report = _build_setup_fixture(tmp_path, monkeypatch)
+    (wheel.parent / "yap_studio-0.0.1-py3-none-any.whl").write_bytes(b"old synthetic wheel")
+    report["install"]["build"] = module._wheel_build(wheel)
+    calls = []
+
+    def run(args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, json.dumps(report), "")
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    assert module.main(["--check"]) == 0
+    assert calls == [module._engine_commands("/usr/bin/uv", wheel, Path(engine))[0],
+                     [engine, "doctor", "--edit", "--json"]]
 
 
 def test_question_and_wait_instructions_are_app_neutral():
