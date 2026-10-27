@@ -24,7 +24,7 @@ from yap_studio.style import SHIPPED_PRESETS, resolve
 
 ROOT = Path(__file__).parents[1]
 
-# HyperFrames 0.8.203 FONT_ALIAS_MAP keys, supplied in hf-font-aliases.txt.
+# HyperFrames 0.8.208 FONT_ALIAS_MAP keys, supplied in hf-font-aliases.txt.
 RENDERER_FONT_ALIASES = {
     "andale mono",
     "archivo black",
