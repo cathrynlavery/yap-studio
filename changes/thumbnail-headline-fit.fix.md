@@ -1,0 +1,1 @@
+- Wide thumbnail headlines shrink to fit the default font while keeping two or more words per line and passing the 168×94 readability check.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -46,6 +47,10 @@ import sys
 import time
 from pathlib import Path
 
+mode = os.environ.get('FAKE_HF_MODE', '')
+if mode == 'timeout-before-pid':
+    time.sleep(60)
+
 import numpy as np
 
 arguments = sys.argv[1:]
@@ -56,7 +61,6 @@ for key in ('HYPERFRAMES_NO_TELEMETRY', 'HYPERFRAMES_NO_UPDATE_CHECK',
             'HYPERFRAMES_NO_AUTO_INSTALL', 'HYPERFRAMES_SKIP_SKILLS'):
     assert os.environ[key] == '1'
 Path(os.environ['FAKE_HF_PID']).write_text(str(os.getpid()))
-mode = os.environ.get('FAKE_HF_MODE', '')
 if mode == 'exit':
     sys.stderr.write('deliberate matte failure\n')
     sys.exit(3)
@@ -135,10 +139,25 @@ class FakeRenderer:
         monkeypatch.setenv("HOME", str(folder / "home"))
         monkeypatch.setenv("FAKE_HF_PID", str(self.pid_file))
         monkeypatch.setenv("FAKE_HF_FFMPEG", ffmpeg.find_tool("ffmpeg"))
+        self.child: subprocess.Popen[bytes] | None = None
+        popen = subprocess.Popen
+
+        def start(command: list[str], *args: object, **kwargs: object):
+            child = popen(command, *args, **kwargs)
+            if command[0] == str(executable):
+                self.child = child
+            return child
+
+        monkeypatch.setattr(subprocess, "Popen", start)
 
     def assert_reaped(self) -> None:
+        # Startup can time out before the child writes its PID file.
+        assert self.child is not None, "renderer was never launched"
+        assert self.child.returncode is not None
         with pytest.raises(ProcessLookupError):
-            os.kill(int(self.pid_file.read_text()), 0)
+            os.kill(self.child.pid, 0)
+        with pytest.raises(ChildProcessError):
+            os.waitpid(self.child.pid, os.WNOHANG)
 
 
 @pytest.fixture
@@ -332,6 +351,7 @@ def test_stripes_are_zeroed_with_raw_coverage_and_warning(
         ("invalid-json", "hyperframes_matte_output"),
         ("missing-output", "hyperframes_matte_output"),
         ("timeout", "hyperframes_matte_timeout"),
+        ("timeout-before-pid", "hyperframes_matte_timeout"),
     ],
 )
 def test_cli_failures_are_reaped_and_leave_no_outputs(
@@ -343,7 +363,7 @@ def test_cli_failures_are_reaped_and_leave_no_outputs(
     code: str,
 ) -> None:
     monkeypatch.setenv("FAKE_HF_MODE", mode)
-    if mode == "timeout":
+    if code == "hyperframes_matte_timeout":
         monkeypatch.setattr(hyperframes, "_deadline_seconds", lambda frames: 0.5)
     started = time.monotonic()
     with pytest.raises(ProcessingError) as caught:
@@ -352,6 +372,10 @@ def test_cli_failures_are_reaped_and_leave_no_outputs(
     assert time.monotonic() - started < 5
     assert list((tmp_path / "out").iterdir()) == []
     fake.assert_reaped()
+    if code == "hyperframes_matte_timeout":
+        assert fake.child is not None and fake.child.returncode == -signal.SIGKILL
+    if mode == "timeout-before-pid":
+        assert not fake.pid_file.exists()
 
 
 @pytest.mark.parametrize(
