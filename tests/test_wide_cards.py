@@ -3,6 +3,7 @@
 import json
 import subprocess
 import threading
+import time
 from dataclasses import replace
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -70,6 +71,12 @@ def test_wide_browser_content_fills_paper(kind, image, tmp_path):
     composition = cards.prepare_card(plan, tmp_path / "browser", install=renderer)
 
     class Handler(SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if kind == "image_card" and self.path == "/image.png":
+                # A slow image: the probe must wait for it before measuring.
+                time.sleep(0.4)
+            super().do_GET()
+
         def log_message(self, *args):
             pass
 

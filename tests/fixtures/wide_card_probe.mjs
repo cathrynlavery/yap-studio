@@ -30,6 +30,9 @@ try {
       {timeout: 15000});
   }
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(() => [...document.images].every(image =>
+    image.complete && image.naturalWidth > 0 && image.naturalHeight > 0),
+    {timeout: 15000});
   for (let pass = 0; pass < 2; pass++) {
     await page.evaluate(async sample => {
       window.__player.pause(); await window.__player.seek(sample);
