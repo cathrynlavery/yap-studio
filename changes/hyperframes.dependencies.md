@@ -1,1 +1,1 @@
-- Pin the renderer to HyperFrames 0.8.222.
+- Pin the renderer to HyperFrames 0.8.222. Covers and the whip-pan transition keep the brightness of the footage; before, they came out slightly darker than the video around them. Captions, titles, cards and beat snapping render the same as before.
