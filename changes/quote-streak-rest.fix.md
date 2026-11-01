@@ -1,1 +1,0 @@
-- Quote cards with motion streak draw their text the same as quote cards without it once the card lands.

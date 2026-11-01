@@ -1,1 +1,0 @@
-- Published releases also go to PyPI, so you can install with `uv tool install 'yap-studio[asr,mcp]'` and update with `uv tool upgrade yap-studio`.

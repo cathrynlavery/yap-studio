@@ -2,11 +2,37 @@
 
 ## Unreleased
 
+## 1.2.0 (2026-11-01)
+
+Ask to update Yap Studio and it updates the same workspace, keeping your projects, footage and saved look. Captions now stop before the final when a phrase would cover the face, and a cut that clips a word gives the offset that keeps it.
+
+### Features
+
+- Published releases also go to PyPI, so you can install with `uv tool install 'yap-studio[asr,mcp]'` and update with `uv tool upgrade yap-studio`.
+- Update Yap Studio in the same workspace when you ask, with a preview and backups that keep your projects, footage and saved look in place. Interrupted writes leave the previous file intact, and a running Home restarts on the new version, even when an earlier restart failed.
+
+### Fixes
+
 - Repeated feedback adds to the matching open issue instead of opening a duplicate, automatic bug reports name the subcommand (such as `versions save`) without sharing other arguments, and agents record a `missing` note when they do something by hand that Yap Studio can't.
 - Final videos and pilots no longer fail on older ffmpeg builds that decode extra AAC padding at the end. The audio in the file must still match the picture exactly.
 - A `changed` reply to a Fix note about the whole video is accepted in a later saved version instead of always being refused.
 - When a cut clips its first or last word, the join check gives the `offset_s` value that keeps the word instead of only saying which way to move the edge.
 - With `avoid_face`, captions stop before the final when a phrase covers the face and there is no clear position, and say when and how to fix it. Setting `captions.placement` to `fixed` in a project's style, or approving a taste rule that does, accepts captions over the face as a warning; cards and overlays still have to stay clear.
+- Quote cards with motion streak draw their text the same as quote cards without it once the card lands.
+- Wide thumbnail headlines shrink to fit the default font while keeping two or more words per line and passing the 168×94 readability check.
+
+### Dependencies
+
+- Pin the renderer to HyperFrames 0.8.222. Covers and the whip-pan transition keep the brightness of the footage; before, they came out slightly darker than the video around them. Captions, titles, cards and beat snapping render the same as before.
+
+### Docs
+
+- Pull requests add their release note as a file in `changes/` instead of editing CHANGELOG.md, and the release bump gathers those files into the dated section by kind, so open pull requests no longer conflict over the changelog.
+- The HyperFrames bump keeps one draft PR, rebuilt from main for each new release, and closes older bump PRs. Its release note lives only in `changes/hyperframes.dependencies.md`, so bump PRs no longer conflict over CHANGELOG.md.
+
+### Tests
+
+- Verify timed-out matte renderers are killed and reaped even when startup ends before the fake writes its PID file.
 
 ## 1.1.0 (2026-10-26)
 

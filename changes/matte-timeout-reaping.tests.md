@@ -1,1 +1,0 @@
-- Verify timed-out matte renderers are killed and reaped even when startup ends before the fake writes its PID file.
