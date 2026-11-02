@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
-from yap_studio import video_type
+from yap_studio import release_notice, video_type
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.homepage import bridge
 from yap_studio.homepage.state import (
@@ -540,6 +540,7 @@ class HomeServer:
                     else:
                         self._file(_STATIC / "home.html", mime="text/html; charset=utf-8")
                 elif route == "/api/state":
+                    release_notice.refresh_async()
                     self._json(200, home.state.snapshot(on_this_mac=on_this_mac))
                 elif route.startswith("/static/"):
                     self._asset(_STATIC, route.removeprefix("/static/"), _EXTENSIONS)

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from yap_studio import background, ffmpeg, install_info, video_type
+from yap_studio import background, ffmpeg, install_info, release_notice, video_type
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.feedback.versions import VersionManifest, load_versions
 from yap_studio.homepage import bridge
@@ -448,5 +448,6 @@ class HomeState:
             "events": bridge.events(self.workspace)[:20],
             "projects": projects,
             "phone": self.phone,
+            "release_notice": release_notice.notice(),
         }
         return public_value(result, self.workspace)

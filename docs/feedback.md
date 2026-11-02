@@ -79,3 +79,25 @@ yap-studio feedback setting never
 
 Unset `YAP_STUDIO_FEEDBACK_AUTO_SEND` too if you set it. Local notes continue to be
 recorded. You can read them with `feedback list`; no sharing happens in `never` mode.
+
+## Release notices
+
+Home and `yap-studio doctor` check GitHub for the newest Yap Studio release at most
+once every 24 hours, sharing one local cache. Home checks in the background and never
+waits for GitHub. A newer release shows `Yap Studio X is out. Say "update Yap Studio".`
+with a link to its release notes. Failed or slow checks stay quiet and wait another
+24 hours before trying again. The notice never changes doctor's exit code.
+
+The check sends a GET request to
+`https://api.github.com/repos/cathrynlavery/yap-studio/releases/latest` with the plain
+User-Agent `Yap-Studio`, no auth token and nothing about the creator's work. GitHub
+receives the normal connection information, including your IP address. No footage,
+transcripts, project files, names or machine details are included in the request.
+The latest tag and attempt time stay in `release-notice.json` in the Yap Studio
+cache folder (`~/Library/Caches/yap-studio/` on macOS; `YAP_STUDIO_CACHE` can change it).
+
+Run `yap-studio update-notice off` to save `"update_notice": false` in `config.json`;
+`yap-studio update-notice on` enables it again. Setting `YAP_STUDIO_NO_UPDATE_NOTICE=1`
+also turns it off, overriding the saved choice. Either switch stops requests and
+hides any cached notice. Release notices are enabled by default and are independent
+of the feedback sharing preference.

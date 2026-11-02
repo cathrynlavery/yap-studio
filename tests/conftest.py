@@ -26,6 +26,8 @@ if str(_TESTS) not in sys.path:
 
 import synth  # noqa: E402
 
+os.environ["YAP_STUDIO_NO_UPDATE_NOTICE"] = "1"
+
 
 @pytest.fixture(autouse=True)
 def _no_real_product_feedback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
