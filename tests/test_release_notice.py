@@ -10,6 +10,8 @@ from urllib.error import URLError
 
 import pytest
 
+from yap_studio.install_info import running_version
+
 MESSAGE = 'Yap Studio 2.3.4 is out. Say "update Yap Studio".'
 LINK = "https://github.com/cathrynlavery/yap-studio/releases/tag/v2.3.4"
 NOTICE = {"text": MESSAGE, "url": LINK}
@@ -58,6 +60,18 @@ def test_versions_and_safe_link(release, monkeypatch, installed, expected):
     assert dict(request.header_items()) == {"User-agent": "Yap-Studio"}
     assert 0 < timeout <= 3
     assert json.loads(release.cache.read_text())["latest_tag"] == "v2.3.4"
+
+
+def test_source_checkout_version_overrides_older_metadata(release, monkeypatch, tmp_path):
+    checkout = tmp_path / "source"
+    checkout.mkdir()
+    (checkout / "pyproject.toml").write_text(
+        '[project]\nname = "yap-studio"\nversion = "2.3.4"\n')
+    monkeypatch.setattr(release.module.install_info, "source_checkout", lambda: checkout)
+    monkeypatch.setattr(release.module.install_info, "running_version", running_version)
+    monkeypatch.setattr(release.module.install_info, "__version__", "1.0.0")
+    assert release.module.notice(refresh=True) is None
+    assert len(release.calls) == 1
 
 
 @pytest.mark.parametrize("tag", [
@@ -114,11 +128,12 @@ def test_failed_refresh_preserves_known_release(release, monkeypatch, response):
         return io.BytesIO(b'{"tag_name": "v9.9.9/evil"}')
 
     monkeypatch.setattr(release.module, "urlopen", urlopen)
-    release.module.notice(refresh=True)
-    assert release.module.notice() == {
+    expected = {
         "text": 'Yap Studio 9.9.9 is out. Say "update Yap Studio".',
         "url": "https://github.com/cathrynlavery/yap-studio/releases/tag/v9.9.9",
     }
+    assert release.module.notice(refresh=True) == expected
+    assert release.module.notice() == expected
     assert json.loads(release.cache.read_text()) == {
         "checked_at": release.now[0], "latest_tag": "v9.9.9",
     }

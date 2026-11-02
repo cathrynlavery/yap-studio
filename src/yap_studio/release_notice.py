@@ -92,10 +92,13 @@ def notice(*, refresh: bool = False) -> dict | None:
         if not _enabled():
             return None
         if refresh:
-            _refresh()
+            try:
+                _refresh()
+            except Exception:
+                pass
         data = _read()
         tag = data["latest_tag"] if data else None
-        version = install_info.running_version(None)
+        version = install_info.running_version(install_info.source_checkout())
         if tag and install_info.compare_versions(tag[1:], version) == 1:
             return {"text": f'Yap Studio {tag[1:]} is out. Say "update Yap Studio".',
                     "url": _RELEASES + tag}
