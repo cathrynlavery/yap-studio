@@ -39,6 +39,11 @@ as part of your agent session. On personal ChatGPT plans, OpenAI may train on it
 "Improve the model for everyone" is off. In Cursor, the same data goes to Cursor (Anysphere)
 and the company running your chosen model; Privacy Mode stops training.
 
+Home quietly shows when a newer Yap Studio release is out, with a link to its release
+notes. It reads a local cache and checks GitHub in the background at most once every
+24 hours. Run `yap-studio update-notice off` or set `YAP_STUDIO_NO_UPDATE_NOTICE=1`
+to hide the notice and stop checks. See [what the check sends](feedback.md#release-notices).
+
 The page never edits, renders, downloads stock clips or spends money. Those stay with the agent,
 which asks before anything paid.
 

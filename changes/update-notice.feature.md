@@ -1,0 +1,1 @@
+- Home and doctor quietly let you know when a new Yap Studio release is out, with release notes and a way to turn the notice off.

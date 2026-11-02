@@ -183,6 +183,7 @@ function render() {
   if (!state) return;
   $('workspace-name').textContent = state.workspace ?? '';
   renderListener();
+  renderReleaseNotice();
   let route = parseRoute(location.hash);
   if (route.view === 'default') {
     let target = defaultRoute(state, welcomed());
@@ -216,6 +217,19 @@ function render() {
     if (focusId) document.getElementById(focusId)?.focus({preventScroll: true});
     window.scrollTo(0, scroll);
   }
+}
+
+let releaseNoticeKey = '';
+
+function renderReleaseNotice() {
+  const el = $('release-notice');
+  const notice = state.release_notice;
+  const key = notice ? JSON.stringify([notice.text, notice.url]) : '';
+  if (key === releaseNoticeKey) return;
+  releaseNoticeKey = key;
+  el.hidden = !notice;
+  el.replaceChildren(...(notice ? [h('span', {text: notice.text}), ' ',
+    h('a', {href: notice.url, text: 'Release notes', target: '_blank', rel: 'noopener noreferrer'})] : []));
 }
 
 function claudeWorking() {

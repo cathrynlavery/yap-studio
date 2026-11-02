@@ -22,7 +22,7 @@ from urllib.parse import urlsplit
 
 import numpy as np
 
-from yap_studio import install_info, paths, setup_checks, tools
+from yap_studio import install_info, paths, release_notice, setup_checks, tools
 from yap_studio.checks.platform import PLATFORMS
 from yap_studio.errors import DependencyError, InputError, ValidationError, YapError
 from yap_studio.ffmpeg import check_version, has_filters, resolve_tool, tool_versions
@@ -127,6 +127,9 @@ def _doctor(args: argparse.Namespace) -> int:
     lines = [f"install  {install_info.version_text()}"]
     running_root = install_info.source_checkout()
     running_version = install_info.running_version(running_root)
+    notice = release_notice.notice(refresh=True)
+    if notice:
+        lines.append(f"update   {notice['text']} {notice['url']}")
     warnings: list[str] = []
     checkout = install_info.checkout_version(Path.cwd())
     if checkout is not None:
@@ -338,6 +341,7 @@ def _doctor(args: argparse.Namespace) -> int:
         "problems": [str(problem) for problem in problems],
         "edit_missing": edit_missing,
         "ready_to_edit": ready_to_edit,
+        "release_notice": notice,
     }
     failed = bool(problems) or (args.edit and not ready_to_edit)
     if args.json:
@@ -1917,6 +1921,7 @@ def _parser() -> argparse.ArgumentParser:
     from yap_studio.video_type_command import add_parser as add_video_type_parser
 
     add_video_type_parser(subparsers)
+    release_notice.add_parser(subparsers)
     return parser
 
 

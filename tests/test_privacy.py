@@ -49,6 +49,15 @@ def test_entry_points_disclose_where_data_goes(name):
     assert expected in " ".join(text.split())
 
 
+def test_release_check_discloses_github_and_off_switch():
+    text = (ROOT / "docs/feedback.md").read_text()
+    assert "https://api.github.com/repos/cathrynlavery/yap-studio/releases/latest" in text
+    assert "no auth token and nothing about the creator's work" in text
+    assert "including your IP address" in text
+    assert "yap-studio update-notice off" in text
+    assert "YAP_STUDIO_NO_UPDATE_NOTICE=1" in text
+
+
 @pytest.mark.parametrize("via,label", TRANSPORTS)
 def test_phone_label(via, label):
     assert phone.link_label(via) == label

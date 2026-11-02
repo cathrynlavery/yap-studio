@@ -53,7 +53,8 @@ commands take `--json`. For the order you run them in, see [editing.md](editing.
 | `templates list`, `show`, `preview` | Inspect and preview card templates. |
 | `faces detect`, `check` | Measure faces and check video clearance. |
 | `matte make`, `composite`, `check` | Make a person matte for an upright video. |
-| `doctor` | Check runtime dependencies. See [install.md](install.md). |
+| `doctor` | Check runtime dependencies and quietly show newer releases, checking GitHub at most once every 24 hours. See [install.md](install.md) and [release notices](feedback.md#release-notices). |
+| `update-notice on\|off` | Enable or disable release notices in Home and doctor. `YAP_STUDIO_NO_UPDATE_NOTICE=1` also turns them off. |
 | `renderer install` | Prepare the pinned renderer. |
 | `speech download` | Prepare the speech model. |
 | `mcp` | Run the MCP stdio server. |
