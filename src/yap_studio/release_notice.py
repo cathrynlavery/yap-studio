@@ -11,6 +11,7 @@ import re
 import tempfile
 import threading
 import time
+from functools import cache
 from urllib.request import Request, urlopen
 
 from yap_studio import install_info, paths
@@ -86,6 +87,12 @@ def _refresh() -> None:
             _write(data)
 
 
+@cache
+def _running_version() -> str:
+    # Avoid spawning git on every Home state poll.
+    return install_info.running_version(install_info.source_checkout())
+
+
 def notice(*, refresh: bool = False) -> dict | None:
     """Read only the cache unless a bounded foreground refresh is requested."""
     try:
@@ -98,7 +105,7 @@ def notice(*, refresh: bool = False) -> dict | None:
                 pass
         data = _read()
         tag = data["latest_tag"] if data else None
-        version = install_info.running_version(install_info.source_checkout())
+        version = _running_version()
         if tag and install_info.compare_versions(tag[1:], version) == 1:
             return {"text": f'Yap Studio {tag[1:]} is out. Say "update Yap Studio".',
                     "url": _RELEASES + tag}

@@ -22,6 +22,7 @@ DAY = 86400
 def release(tmp_path, monkeypatch, _owner_folders):
     from yap_studio import release_notice
 
+    release_notice._running_version.cache_clear()
     monkeypatch.delenv("YAP_STUDIO_NO_UPDATE_NOTICE", raising=False)
     monkeypatch.setenv("YAP_STUDIO_CACHE", str(tmp_path / "cache"))
     monkeypatch.setenv("YAP_STUDIO_CONFIG", str(tmp_path / "config"))
@@ -36,8 +37,9 @@ def release(tmp_path, monkeypatch, _owner_folders):
                           .encode())
 
     monkeypatch.setattr(release_notice, "urlopen", urlopen)
-    return SimpleNamespace(module=release_notice, now=now, calls=calls,
-                           cache=tmp_path / "cache/release-notice.json")
+    yield SimpleNamespace(module=release_notice, now=now, calls=calls,
+                          cache=tmp_path / "cache/release-notice.json")
+    release_notice._running_version.cache_clear()
 
 
 def seed(release, **values):
@@ -60,6 +62,26 @@ def test_versions_and_safe_link(release, monkeypatch, installed, expected):
     assert dict(request.header_items()) == {"User-agent": "Yap-Studio"}
     assert 0 < timeout <= 3
     assert json.loads(release.cache.read_text())["latest_tag"] == "v2.3.4"
+
+
+def test_notice_resolves_running_version_once(release, monkeypatch, tmp_path):
+    calls = []
+
+    def source_checkout():
+        calls.append("checkout")
+        return tmp_path
+
+    def version(root):
+        assert root == tmp_path
+        calls.append("version")
+        return "1.0.0"
+
+    monkeypatch.setattr(release.module.install_info, "source_checkout", source_checkout)
+    monkeypatch.setattr(release.module.install_info, "running_version", version)
+    seed(release)
+    assert release.module.notice() == NOTICE
+    assert release.module.notice() == NOTICE
+    assert calls == ["checkout", "version"]
 
 
 def test_source_checkout_version_overrides_older_metadata(release, monkeypatch, tmp_path):
