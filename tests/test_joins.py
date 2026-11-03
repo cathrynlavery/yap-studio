@@ -2942,6 +2942,112 @@ def test_contiguous_boundary_keeps_last_word_voice(small_media: SimpleNamespace)
     assert [cut.index for cut in result.cuts] == [1]
 
 
+def _speech_word_backend(
+    plan: Plan, words: list[synth.WordSpan], clock_offset_s: float = 0.0,
+) -> ScriptedBackend:
+    def script(path: Path) -> Transcript:
+        if path.name.startswith("edge-"):
+            first_side = "first" in path.name
+            segment = plan.segments[0] if first_side else plan.segments[-1]
+        elif path.stem.endswith(("left", "right")):
+            first_side = path.stem.endswith("right")
+            cut = plan.cuts[int(path.name.split("-")[1]) - 1]
+            segment = cut.right if first_side else cut.left
+        else:
+            return Transcript([Word("quiet", 1.2, 1.4), Word("garden", 2.8, 3.2)])
+        point = (segment.src_f0 if first_side else segment.src_f1) / float(plan.fps)
+        before, after = (1.0, 1.5) if first_side else (1.5, 1.0)
+        return Transcript([
+            Word(word.text, word.start - point + before + 1 + clock_offset_s,
+                 word.end - point + before + 1 + clock_offset_s)
+            for word in words if point - before <= (word.start + word.end) / 2 <= point + after
+        ])
+
+    return ScriptedBackend(script)
+
+
+@pytest.fixture(scope="module", params=[
+    "Then I typed the command.",
+    "Then I looked at our garden.",
+    "Then I looked at what we found.",
+    "Then I looked at the last word.",
+], ids=["command", "garden", "found", "word"])
+def speech_word_clips(request: pytest.FixtureRequest, tmp_path_factory) -> SimpleNamespace:
+    directory = tmp_path_factory.mktemp("speech-word-clips")
+    source, words = synth.speech_source(directory / "source.mov", [
+        request.param, "We used it every day after that.",
+    ])
+    first = [next(word for word in words if word.sentence == i) for i in range(2)]
+    last = [[word for word in words if word.sentence == i][-1] for i in range(2)]
+    results = {}
+    for side in ("last", "first"):
+        word = last[0] if side == "last" else first[1]
+        anchor = word.end if side == "last" else word.start
+        for clip_ms in (-30, 0, 60, 90, 120, 150, 180):
+            work_dir = directory / f"{side}-{clip_ms}"
+            work_dir.mkdir()
+            spans = [(first[0].start - 0.1, last[0].end + 0.1),
+                     (first[1].start, last[1].end + 0.1)]
+            if side == "last":
+                spans[0] = (spans[0][0], word.end - clip_ms / 1000)
+            else:
+                spans[1] = (word.start + clip_ms / 1000, spans[1][1])
+            render = synth.render_clean(source, spans, work_dir / "render.mp4", fade_s=0.005)
+            plan = _with_intent(_plan(directory, source, spans), directory,
+                                **{f"{side}_word": {1 if side == "last" else 2: word.text}})
+            intent = directory / "intent.json"
+            data = json.loads(intent.read_bytes())
+            data["segments"][0 if side == "last" else 1][f"{side}_word_anchor_s"] = anchor
+            intent.write_text(json.dumps(data), encoding="utf-8")
+            plan = Plan.build(load_edit_list(intent), plan.fps, plan.sample_rate)
+            measured = sync.check_sync(render, plan, {"main": source})
+            result = joins.check_joins(render, plan, {"main": source}, measured,
+                                       backend=_speech_word_backend(plan, words), work_dir=work_dir)
+            results[side, clip_ms] = result
+    (directory / "report.json").write_text(json.dumps({
+        f"{side}-{clip}": result.to_dict() for (side, clip), result in results.items()
+    }), encoding="utf-8")
+    return SimpleNamespace(results=results, first=first[1], last=last[0])
+
+
+@pytest.mark.parametrize("side", ["last", "first"])
+@pytest.mark.parametrize("clip_ms", [-30, 0, 60, 90, 120, 150, 180])
+def test_synthetic_speech_planned_word_deep_clip(
+    speech_word_clips: SimpleNamespace, side: str, clip_ms: int,
+) -> None:
+    """Whole source word voice stays measurable as the cut moves deeper into it."""
+    result = speech_word_clips.results[side, clip_ms]
+    failures = [row for row in result.findings if row.check == "join.words"]
+    # Short releases near the gate stay observational at 60 ms.
+    clear_tail = side == "first" or speech_word_clips.last.text in ("command.", "garden.")
+    if clip_ms <= 0:
+        assert not failures, result.to_dict()
+        assert result.cuts[0].words.status == "pass"
+    elif clip_ms >= 90 or (clip_ms == 60 and clear_tail):
+        assert len(failures) == 1, result.to_dict()
+    for failure in failures:
+        word = getattr(speech_word_clips, side)
+        assert failure.cut == 1 and failure.severity == "fail"
+        assert f'"{word.text}"' in failure.message
+        assert failure.evidence["side"] == side
+        assert result.cuts[0].words.status == "fail"
+        anchor = word.end if side == "last" else word.start
+        suggested = snap_frame(Fraction(str(anchor + failure.evidence["suggested_offset_s"])),
+                               Fraction(30)) / 30
+        assert suggested >= word.end if side == "last" else suggested <= word.start
+
+
+@pytest.mark.parametrize("side", ["last", "first"])
+def test_synthetic_speech_planned_word_clips_are_monotonic(
+    speech_word_clips: SimpleNamespace, side: str,
+) -> None:
+    failures = [
+        any(row.check == "join.words" for row in speech_word_clips.results[side, clip].findings)
+        for clip in (0, 60, 90, 120, 150, 180)
+    ]
+    assert failures == sorted(failures), failures
+
+
 @_LOCAL_ONLY
 @pytest.mark.parametrize("case", ["exact", "clipped", "missing"])
 @pytest.mark.parametrize("outer", [False, True])
@@ -2970,27 +3076,10 @@ def test_synthetic_speech_keeps_planned_boundary_words(
                         first_word={1 if outer else 2: first[1].text},
                         last_word={1 if outer else 2: last[1].text})
 
-    def script(path: Path) -> Transcript:
-        if path.name.startswith("edge-"):
-            first_side = "first" in path.name
-            segment = plan.segments[0] if first_side else plan.segments[-1]
-        elif path.stem.endswith(("left", "right")):
-            first_side = path.stem.endswith("right")
-            cut = plan.cuts[int(path.name.split("-")[1]) - 1]
-            segment = cut.right if first_side else cut.left
-        else:
-            return Transcript([Word("quiet", 1.2, 1.4), Word("garden", 2.8, 3.2)])
-        point = (segment.src_f0 if first_side else segment.src_f1) / float(plan.fps)
-        before, after = (1.0, 1.5) if first_side else (1.5, 1.0)
-        return Transcript([
-            Word(word.text, word.start - point + before + 1 + clock_offset_s,
-                 word.end - point + before + 1 + clock_offset_s)
-            for word in words if point - before <= (word.start + word.end) / 2 <= point + after
-        ])
-
     measured = sync.check_sync(render, plan, {"main": source})
     result = joins.check_joins(render, plan, {"main": source}, measured,
-                               backend=ScriptedBackend(script), work_dir=tmp_path)
+                               backend=_speech_word_backend(plan, words, clock_offset_s),
+                               work_dir=tmp_path)
     failures = [row for row in result.findings if row.check == "join.words"]
     expected = [] if case == "exact" else ([None, None] if outer else [1, 2])
     assert [row.cut for row in failures] == expected, result.to_dict()

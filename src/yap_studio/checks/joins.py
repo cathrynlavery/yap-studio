@@ -1102,7 +1102,7 @@ def _word_nuclei(levels: np.ndarray, hop_s: float) -> list[int]:
     if len(levels) < 3:
         return []
     edges = [0, *(np.flatnonzero(np.abs(np.diff(levels)) > 0.1) + 1).tolist(), len(levels)]
-    radius = max(1, round(0.15 / hop_s))
+    radius = max(1, round(_WORD_SEARCH_S / hop_s))
     gate = max(-55.0, float(np.percentile(levels, 95)) - _WORD_PEAK_DROP_DB)
     candidates = []
     for start, end in zip(edges, edges[1:], strict=False):
@@ -1208,7 +1208,7 @@ def _locate_word_shape(
     shapes: Sequence[_WordShape], start_s: float, end_s: float,
     side: Literal["first", "last"], point_s: float, neighbour_s: float | None,
 ) -> _WordShape | None:
-    """Associate the word with an edge-facing nucleus within the clock uncertainty."""
+    """Associate the word with its outermost nucleus within the clock uncertainty."""
     candidates = [shape for shape in shapes
                   if start_s - _WORD_CLOCK_S <= shape.nucleus_s <= end_s + _WORD_CLOCK_S]
     if not candidates:
@@ -1249,11 +1249,13 @@ def _locate_word_shape(
         candidates = [shape for shape in candidates if counts(shape)]
     center = start_s + min(end_s - start_s, _WORD_SEARCH_S) / 2
     if side == "first":
-        facing = [shape for shape in candidates if shape.nucleus_s >= point_s - _WORD_OVERLAP_S]
+        facing = [shape for shape in candidates if start_s <= shape.nucleus_s <= end_s
+                  or shape.nucleus_s >= point_s - _WORD_OVERLAP_S]
         if facing:
             return min(facing, key=lambda shape: shape.nucleus_s)
     else:
-        facing = [shape for shape in candidates if shape.nucleus_s <= point_s + _WORD_OVERLAP_S]
+        facing = [shape for shape in candidates if start_s <= shape.nucleus_s <= end_s
+                  or shape.nucleus_s <= point_s + _WORD_OVERLAP_S]
         if facing and start_s <= point_s + _WORD_OVERLAP_S:
             return max(facing, key=lambda shape: shape.nucleus_s)
     return min(candidates, key=lambda shape: abs(shape.nucleus_s - center))
