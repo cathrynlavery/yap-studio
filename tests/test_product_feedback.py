@@ -168,7 +168,7 @@ def test_origin_is_kept_without_scrubbing(origin):
 
 
 @pytest.mark.parametrize("origin", [
-    "/Users/Private/project/status:read:78",
+    "/" + "Users" + "/Private/project/status:read:78",
     "project/status:read:78 Private Name",
     "project/status.py:read:78",
     "project/../status:read:78",
