@@ -1,0 +1,1 @@
+- Automatic failure reports show where in Yap Studio's code the error happened, without sharing the error message or your file paths.

@@ -18,10 +18,13 @@ sent flag and a count. GitHub issues include the latest entry and count; a repea
 issue gets a comment with the version and count.
 
 The command scrubs paths, file names, emails, URLs, IP addresses, local hostnames
-and common secret patterns on write and again before sharing. Links to github.com
-and yapstudio.app retain only their domain. Automatic failure notes contain only
-the command name, registered subcommand when present (such as `versions save`),
-and error code. Other arguments and the error message are never included.
+and common secret patterns on write and again before sharing. Yap Studio's own fixed
+file names, such as `edit.json`, and the abbreviations e.g. and i.e. stay readable.
+Links to github.com and yapstudio.app retain only their domain. Automatic failure
+notes contain the command name, registered subcommand when present (such as
+`versions save`), the error code and where in Yap Studio's code it was raised
+(module, function and line). Wrapped errors also name the original exception's class.
+Other arguments and the error message are never included.
 No footage, transcripts, spoken words, names or project files are attached or read.
 Write about the tool only: do not put names or the creator's words in a note.
 The scrubber recognizes patterns; read free text before agreeing to share it.
@@ -60,9 +63,11 @@ reports the effective mode and whether an endpoint or logged-in `gh` is availabl
 With `YAP_STUDIO_FEEDBACK_ENDPOINT` set, pending entries are grouped by fingerprint
 and POSTed as JSON to that address with a 15 second timeout. Otherwise a logged-in
 `gh` creates issues on cathrynlavery/yap-studio with the `feedback` label when
-permissions allow, or comments on an open issue with the same fingerprint,
-even if it has no label. If `gh` is missing or logged out, the
-command prints a prefilled issue link for you to open. Those notes stay pending.
+permissions allow, or comments on the issue with the same fingerprint, open or
+closed, even if it has no label. An open issue comes first, locked issues are
+skipped, and reports sent before code locations were added still match. If `gh` is
+missing or logged out, the command prints a prefilled issue link for you to open.
+Those notes stay pending.
 
 `send --dry-run` prints the exact JSON, issue body or comment that would be posted
 and changes nothing. `list` shows every entry after the same scrub used for sending.

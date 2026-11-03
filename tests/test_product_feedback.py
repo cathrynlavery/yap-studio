@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import sys
 import threading
@@ -67,6 +68,32 @@ def test_scrubber_adversarial(value, private, marker):
     assert feedback.scrub(cleaned) == cleaned
 
 
+@pytest.mark.parametrize("value,expected", [
+    ("e.g. lower band", "e.g. lower band"),
+    ("i.e. the title", "i.e. the title"),
+    ("fillers needs edit.json", "fillers needs edit.json"),
+    ("new_project.py --name", "new_project.py --name"),
+    ("plans/text-hook.json", "plans/text-hook.json"),
+    ("cut/cut.mp4", "cut/cut.mp4"),
+    ("see style.json top_px", "see style.json top_px"),
+    ("project.json removals.json cut-words.json", "project.json removals.json cut-words.json"),
+    ("final.mp4 cards.json faces.json layout.json", "final.mp4 cards.json faces.json layout.json"),
+    ("progress.json answers.json setup.py", "progress.json answers.json setup.py"),
+    ("words.json transcript.json phrases.json", "words.json transcript.json phrases.json"),
+    ("spans.json receipt.json report.json verify.json",
+     "spans.json receipt.json report.json verify.json"),
+    ("E.G. lower band; I.E. the title", "E.G. lower band; I.E. the title"),
+    ("EDIT.JSON PLANS/TEXT-HOOK.JSON", "EDIT.JSON PLANS/TEXT-HOOK.JSON"),
+    ("my-holiday-clip.mov", "[file]"),
+    ("Smith-contract.pdf", "[file]"),
+    ("my-edit.json edit.json.backup edit-private.json", "[file] [file] [file]"),
+    ("private.e.g private.i.e", "[file] [file]"),
+])
+def test_scrubber_keeps_product_file_names_and_abbreviations(value, expected):
+    assert feedback.scrub(value) == expected
+    assert feedback.scrub(expected) == expected
+
+
 def test_home_scrub_limits_and_safe_domains(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path / "unique-home"))
     assert "unique-home" not in feedback.scrub(f"{Path.home()}/Secret Folder/file")
@@ -85,7 +112,8 @@ def test_entry_shape_permissions_and_stdin(monkeypatch, capsys):
     result = json.loads(capsys.readouterr().out)
     entry = result["entry"]
     assert set(entry) == {"time", "version", "macos", "arch", "step", "code", "kind",
-                          "text", "agent", "fingerprint", "sent"}
+                          "text", "agent", "origin", "fingerprint", "sent"}
+    assert entry["origin"] is None
     assert before <= datetime.fromisoformat(entry["time"]) <= datetime.now(UTC)
     assert entry["version"] == __version__
     assert entry["step"] == "verify" and entry["code"] == "invalid_input"
@@ -113,6 +141,92 @@ def test_fingerprint_stability_and_distinctions():
     assert first != feedback.fingerprint("bug", "run", "other", "try again")
     assert feedback.fingerprint("bug", None, None, "/" + "Users/A/take.mov") == (
         feedback.fingerprint("bug", None, None, "/" + "Users/B/other.mov"))
+
+
+@pytest.mark.parametrize("cause", ["", " FileNotFoundError"])
+def test_fingerprint_groups_origins_without_line_numbers(cause):
+    first = feedback.record("Failure", kind="bug", code="invalid_input",
+                            origin=f"project/status:read:78{cause}")
+    repeat = feedback.record("Failure", kind="bug", code="invalid_input",
+                             origin=f"project/status:read:109{cause}")
+    assert first["fingerprint"] == repeat["fingerprint"]
+    for origin in ("project/status:json:78" + cause, "project/model:read:78" + cause,
+                   "project/status:read:78 RuntimeError", None):
+        other = feedback.record("Failure", kind="bug", code="invalid_input", origin=origin)
+        assert first["fingerprint"] != other["fingerprint"]
+
+
+@pytest.mark.parametrize("origin", [
+    "project/status:read:78 FileNotFoundError",
+    "stages/assemble_picture:prepare_background_video:372",
+    "product_feedback:<lambda>:123",
+])
+def test_origin_is_kept_without_scrubbing(origin):
+    entry = feedback.record("Failure", origin=origin)
+    assert entry["origin"] == origin
+    assert feedback.entries()[0]["origin"] == origin
+
+
+@pytest.mark.parametrize("origin", [
+    "/" + "Users" + "/Private/project/status:read:78",
+    "project/status:read:78 Private Name",
+    "project/status.py:read:78",
+    "project/../status:read:78",
+    "project/status:read:78\n",
+    "project/status:read:78 FileNotFoundError\n",
+    123, {"private": "value"},
+])
+def test_safe_drops_tampered_origins(origin):
+    entry = feedback.record("Failure")
+    ledger = feedback.data_dir() / "feedback.jsonl"
+    entry["origin"] = origin
+    ledger.write_text(json.dumps(entry) + "\n")
+    assert feedback.entries()[0]["origin"] is None
+
+
+@pytest.mark.parametrize("raised", [False, True])
+def test_cli_failure_records_origin_in_ledger_and_reports(monkeypatch, capsys, raised):
+    monkeypatch.setattr(feedback, "_config", lambda: {"feedback_mode": "invalid"})
+
+    def fail(_arguments):
+        if raised:
+            feedback.mode()
+        try:
+            feedback.mode()
+        except YapError as exc:
+            print(exc, file=sys.stderr)
+        return 2
+
+    monkeypatch.setattr(cli, "_main", fail)
+    if raised:
+        with pytest.raises(YapError):
+            cli.main(["verify", "Private input.mov"])
+    else:
+        assert cli.main(["verify", "Private input.mov"]) == 2
+    capsys.readouterr()
+    entry, = feedback.entries()
+    assert re.fullmatch(r"product_feedback:mode:[0-9]+", entry["origin"])
+    ledger = feedback.data_dir() / "feedback.jsonl"
+    assert json.loads(ledger.read_text())["origin"] == entry["origin"]
+    assert "Private" not in json.dumps(entry)
+    monkeypatch.setattr(feedback, "_config", lambda: {})
+    monkeypatch.setattr(feedback, "availability", lambda: {
+        "endpoint": False, "gh_logged_in": False})
+    plan, = feedback.send(dry_run=True)
+    assert f"Code: invalid_parameter\nWhere: {entry['origin']}\n" in plan["body"]
+    monkeypatch.setattr(feedback, "availability", lambda: {"endpoint": True})
+    plan, = feedback.send(dry_run=True)
+    assert plan["json"]["entries"][0]["origin"] == entry["origin"]
+
+
+def test_cli_wrapped_failure_records_original_exception_site(tmp_path, capsys):
+    # edit.json exists, so fillers reaches the project reads and wraps their OSError.
+    (tmp_path / "edit.json").write_text("{}")
+    assert cli.main(["fillers", str(tmp_path), "--json"]) == 2
+    capsys.readouterr()
+    entry, = feedback.entries()
+    assert re.fullmatch(r"project/status:read:[0-9]+ FileNotFoundError", entry["origin"])
+    assert str(tmp_path) not in json.dumps(entry)
 
 
 @pytest.mark.parametrize("arguments", [[], [""], ["--kind", "invalid", "note"],
@@ -309,9 +423,9 @@ def test_automatic_grouped_failure_records_subcommand(monkeypatch, capsys, argum
     assert "Private" not in json.dumps(entry)
     assert feedback.scrub(step) == step
     assert entry["fingerprint"] == feedback.fingerprint(
-        "bug", step, "invalid_input", entry["text"])
+        "bug", step, "invalid_input", entry["text"], entry["origin"])
     assert entry["fingerprint"] != feedback.fingerprint(
-        "bug", arguments[0], "invalid_input", entry["text"])
+        "bug", arguments[0], "invalid_input", entry["text"], entry["origin"])
     preview, = feedback.send(dry_run=True)
     assert preview["title"] == f"bug: {step} invalid_input"
     assert f"Step: {step}\n" in preview["body"]
@@ -377,8 +491,11 @@ def fake_gh(tmp_path, monkeypatch, *, logged_in=True, pages=None):
         "if '--body-file' in args else None\n"
         "with log.open('a') as out: out.write(json.dumps({'args': args, 'body': body})+'\\n')\n"
         f"if args[0] == 'auth': sys.exit({0 if logged_in else 1})\n"
-        f"if args[0] == 'api': print('[[]]' if 'labels=feedback' in args[-1] "
-        f"else {json.dumps(pages or [[]])!r})\n"
+        f"pages = {pages or [[]]!r}\n"
+        "if 'state=open' in args[-1]: pages = [[item for item in page "
+        "if item.get('state') != 'closed'] for page in pages]\n"
+        "if args[0] == 'api': print('[[]]' if 'labels=feedback' in args[-1] "
+        "else json.dumps(pages))\n"
     )
     binary.chmod(0o755)
     monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ.get("PATH", ""))
@@ -427,9 +544,82 @@ def test_gh_unlabelled_fingerprint_comments_instead_of_creating(tmp_path, monkey
     assert writes[0]["body"] == f"seen again in {__version__}, 1 times"
     assert next(call["args"] for call in calls if call["args"][0] == "api") == [
         "api", "--paginate", "--slurp", "-X", "GET",
-        f"repos/{feedback.REPO}/issues?state=open&per_page=100",
+        f"repos/{feedback.REPO}/issues?state=all&per_page=100",
     ]
     assert feedback.entries(pending=True) == []
+
+
+def test_gh_closed_fingerprint_comments_instead_of_creating(tmp_path, monkeypatch):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    feedback.record("check needed retry", kind="bug", step="verify")
+    pages = [[{"number": 12, "body": "Fingerprint: " + entry["fingerprint"],
+               "state": "closed"}]]
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 12
+    assert plan["body"] == f"seen again in {__version__}, 2 times"
+
+
+@pytest.mark.parametrize("state", ["open", "closed"])
+def test_gh_legacy_fingerprint_comments_with_origin(tmp_path, monkeypatch, state):
+    entry = feedback.record("verify failed with invalid_input", kind="bug", step="verify",
+                            code="invalid_input", origin="project/status:read:78")
+    legacy = feedback.fingerprint(entry["kind"], entry["step"], entry["code"], entry["text"])
+    assert legacy != entry["fingerprint"]
+    pages = [[{"number": 12, "body": "Fingerprint: " + legacy, "state": state}]]
+    log = fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 12
+    result, = feedback.send(yes=True)
+    assert result["fingerprint"] == entry["fingerprint"]
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    writes = [call for call in calls if call["args"][0] == "issue"]
+    assert [call["args"][:3] for call in writes] == [["issue", "comment", "12"]]
+    assert writes[0]["body"] == f"seen again in {__version__}, 1 times"
+    assert feedback.entries(pending=True) == []
+
+
+@pytest.mark.parametrize("locked", [True, False])
+def test_gh_closed_fingerprint_creates_only_when_locked(tmp_path, monkeypatch, locked):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    pages = [[{"number": 12, "body": "Fingerprint: " + entry["fingerprint"],
+               "state": "closed", "locked": locked}]]
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == ("create" if locked else "comment")
+    if locked:
+        assert "Fingerprint: " + entry["fingerprint"] in plan["body"]
+    else:
+        assert plan["issue"] == 12
+
+
+def test_gh_fingerprint_skips_locked_open_issue_for_unlocked_closed(tmp_path, monkeypatch):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    body = "Fingerprint: " + entry["fingerprint"]
+    pages = [[{"number": 12, "body": body, "state": "open", "locked": True}],
+             [{"number": 21, "body": body, "state": "closed", "locked": False}]]
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 21
+
+
+@pytest.mark.parametrize("closed_first", [True, False])
+def test_gh_fingerprint_prefers_open_issue(tmp_path, monkeypatch, closed_first):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    body = "Fingerprint: " + entry["fingerprint"]
+    pages = [[{"number": 12, "body": body, "state": "closed"}],
+             [{"number": 21, "body": body, "state": "open"}]]
+    if not closed_first:
+        pages.reverse()
+    pages[0].insert(0, {"number": 20, "body": body, "state": "open", "pull_request": {}})
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 21
+    assert plan["body"] == f"seen again in {__version__}, 1 times"
 
 
 @pytest.mark.parametrize("installed", [False, True])

@@ -2025,4 +2025,4 @@ def main(argv: Sequence[str] | None = None) -> int:
                             if (isinstance(subaction, argparse._SubParsersAction)
                                     and arguments[1] in subaction.choices):
                                 step = f"{step} {arguments[1]}"
-            automatic(step, observed[-1].code)
+            automatic(step, observed[-1])

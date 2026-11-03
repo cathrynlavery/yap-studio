@@ -49,6 +49,12 @@ def test_entry_points_disclose_where_data_goes(name):
     assert expected in " ".join(text.split())
 
 
+def test_automatic_feedback_discloses_code_location_without_message():
+    text = " ".join((ROOT / "docs/feedback.md").read_text().split())
+    assert "where in Yap Studio's code it was raised (module, function and line)" in text
+    assert "Other arguments and the error message are never included." in text
+
+
 def test_release_check_discloses_github_and_off_switch():
     text = (ROOT / "docs/feedback.md").read_text()
     assert "https://api.github.com/repos/cathrynlavery/yap-studio/releases/latest" in text

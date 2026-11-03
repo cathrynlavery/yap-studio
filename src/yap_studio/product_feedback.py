@@ -71,16 +71,27 @@ def scrub(text: str) -> str:
                   "[secret]", text, flags=re.I)
     text = re.sub(r"(?<![\w/+.-])[a-z0-9_/+.-]{32,}={0,2}(?![\w/+.-])",
                   "[secret]", text, flags=re.I)
+    public_names = {
+        "github.com", "yapstudio.app", "e.g", "i.e",
+        "project.json", "edit.json", "removals.json", "cut-words.json", "cut.mp4", "final.mp4",
+        "text-hook.json", "cards.json", "faces.json", "layout.json", "progress.json",
+        "answers.json", "new_project.py", "setup.py", "style.json", "words.json",
+        "transcript.json", "phrases.json", "spans.json", "receipt.json", "report.json",
+        "verify.json",
+    }
     text = re.sub(r"(?<!\w)[\w@~-]+(?:[.-][\w@~-]+)*\.[a-z][a-z0-9]{0,15}\b",
-                  lambda m: m[0] if m[0] in {"github.com", "yapstudio.app"} else "[file]",
+                  lambda m: m[0] if m[0].casefold() in public_names else "[file]",
                   text, flags=re.I)
     text = re.sub(r"(?<!\w)\.[a-z][\w.-]*", "[file]", text, flags=re.I)
     return " ".join(text.split())[:500]
 
 
-def fingerprint(kind: str, step: str | None, code: str | None, text: str) -> str:
+def fingerprint(kind: str, step: str | None, code: str | None, text: str,
+                origin: str | None = None) -> str:
     """Group equivalent scrubbed notes independently of time and machine."""
     values = [kind, step or "", code or "", " ".join(scrub(text).casefold().split())]
+    if origin:
+        values.append(re.sub(r":[0-9]+(?= |$)", "", origin))
     return hashlib.sha256(json.dumps(values, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -139,8 +150,12 @@ def _safe(entry: dict) -> dict:
     result = {key: scrub(str(entry[key])) if entry.get(key) is not None else None
               for key in ("time", "version", "macos", "arch", "step", "code",
                           "kind", "text", "agent")}
+    origin = entry.get("origin")
+    result["origin"] = origin if isinstance(origin, str) and re.fullmatch(
+        r"[a-z0-9_]+(/[a-z0-9_]+)*:[A-Za-z0-9_<>]+:[0-9]+( [A-Za-z][A-Za-z0-9_]*)?",
+        origin) else None
     result["fingerprint"] = fingerprint(result["kind"], result["step"],
-                                        result["code"], result["text"])
+                                        result["code"], result["text"], result["origin"])
     result["sent"] = entry.get("sent") is True
     return result
 
@@ -156,11 +171,11 @@ def entries(*, pending: bool = False) -> list[dict]:
 
 
 def record(text: str, *, kind: str = "confusing", step: str | None = None,
-           code: str | None = None) -> dict:
+           code: str | None = None, origin: str | None = None) -> dict:
     """Append one scrubbed entry with owner-only permissions before any send."""
     entry = _safe({"time": datetime.now(UTC).isoformat(), "version": __version__,
                    "macos": platform.mac_ver()[0], "arch": platform.machine(),
-                   "step": step, "code": code, "kind": kind, "text": text,
+                   "step": step, "code": code, "kind": kind, "text": text, "origin": origin,
                    "agent": os.environ.get("AGENT_ID"), "sent": False})
     with _lock():
         fd = os.open(data_dir() / "feedback.jsonl",
@@ -206,6 +221,7 @@ def _issue(group: dict) -> dict:
         f"Time (UTC): {entry['time']}", f"Yap Studio version: {entry['version']}",
         f"macOS version: {entry['macos']}", f"CPU arch: {entry['arch']}",
         f"Step: {entry['step'] or ''}", f"Code: {entry['code'] or ''}",
+        f"Where: {entry['origin'] or ''}",
         f"Kind: {entry['kind']}", f"Agent: {entry['agent'] or ''}",
         f"Count: {group['count']}", "", f"Fingerprint: {group['fingerprint']}",
     ])
@@ -228,17 +244,22 @@ def _plan(group: dict, state: dict) -> dict:
         return {"transport": "endpoint", "method": "POST", "json": group}
     issue = _issue(group)
     if state["gh_logged_in"]:
+        entry = group["entries"][-1]
+        fingerprints = {group["fingerprint"]}
+        if entry["origin"]:
+            fingerprints.add(fingerprint(entry["kind"], entry["step"],
+                                         entry["code"], entry["text"]))
         # Walk every page; a full page is never evidence that the search is complete.
         issues = json.loads(_gh("api", "--paginate", "--slurp", "-X", "GET",
-                                f"repos/{REPO}/issues?state=open&per_page=100"))
-        for page in issues:
-            for item in page:
-                if ("pull_request" not in item
-                        and group["fingerprint"] in (item.get("body") or "")):
-                    entry = group["entries"][-1]
-                    body = f"seen again in {entry['version']}, {group['count']} times"
-                    return {"transport": "gh", "action": "comment", "issue": item["number"],
-                            "body": body}
+                                f"repos/{REPO}/issues?state=all&per_page=100"))
+        for item in sorted((item for page in issues for item in page),
+                           key=lambda item: item.get("state") != "open"):
+            if ("pull_request" not in item
+                    and not item.get("locked")
+                    and any(value in (item.get("body") or "") for value in fingerprints)):
+                body = f"seen again in {entry['version']}, {group['count']} times"
+                return {"transport": "gh", "action": "comment", "issue": item["number"],
+                        "body": body}
         return {"transport": "gh", "action": "create", **issue}
     return {"transport": "link", "url": _link(issue), **issue}
 
@@ -308,10 +329,11 @@ def auto_send(*, requested: bool = False, yes: bool = False, quiet: bool = False
     return result
 
 
-def automatic(command: str, code: str) -> None:
-    """Capture only the command and code, preserving all failing-command output."""
+def automatic(command: str, error: YapError) -> None:
+    """Capture the command, code and source location, preserving failing-command output."""
     try:
-        record(f"{command} failed with {code}", kind="bug", step=command, code=code)
+        record(f"{command} failed with {error.code}", kind="bug", step=command,
+               code=error.code, origin=error.origin)
         # Automatic capture must leave stdout and stderr exactly as they were.
         auto_send(quiet=True)
     except Exception:

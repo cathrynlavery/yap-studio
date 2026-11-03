@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import platform
 import re
+import sys
 from collections.abc import Sequence
 from contextvars import ContextVar
 from pathlib import Path
+from traceback import walk_stack, walk_tb
 
 _command_error: ContextVar[list[YapError] | None] = ContextVar("command_error", default=None)
 
@@ -47,6 +49,20 @@ class YapError(Exception):
         self.code = code
         self.suggested_action = suggested_action
         self.docs_url = docs_url
+        self.origin: str | None = None
+        cause = sys.exception()
+        wrapping = cause is not None and not isinstance(cause, YapError)
+        frames = (list(walk_tb(cause.__traceback__))[::-1] if wrapping
+                  else walk_stack(sys._getframe(1)))
+        source = Path(__file__)
+        for frame, line in frames:
+            filename = Path(frame.f_code.co_filename)
+            if filename.is_relative_to(source.parent) and (wrapping or filename != source):
+                module = filename.relative_to(source.parent).with_suffix("").as_posix()
+                self.origin = f"{module}:{frame.f_code.co_name}:{line}"
+                if wrapping:
+                    self.origin += f" {type(cause).__name__}"
+                break
 
     @property
     def message(self) -> str:
