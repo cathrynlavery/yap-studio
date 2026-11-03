@@ -1424,6 +1424,7 @@ def captions(project_dir: Path, *, force: bool = False,
         root = context.project_dir
         run = StageRun(root, "captions")
         layer = snapshot.plan.placement("captions/captions.mov") if snapshot.phrases else None
+        allow_face_overlap = snapshot.caption_settings.get("allow_face_overlap", False)
         result = {"status": "verified", "out": layer["path"] if layer else None,
                   "frames": snapshot.plan.frames,
                   "phrases": len(snapshot.phrases), "layer": layer,
@@ -1436,7 +1437,7 @@ def captions(project_dir: Path, *, force: bool = False,
         if not force and not legacy_blocked and run.up_to_date(snapshot.inputs):
             warnings = previous.get("warnings", []) if previous else []
             face_overlaps = previous.get("face_overlaps", []) if previous else []
-            if face_overlaps and not allow_violations:
+            if face_overlaps and not (allow_violations or allow_face_overlap):
                 raise YapError(face_overlaps[0],
                                code="caption_face_clearance",
                                suggested_action=CAPTION_FACE_ACTION)
@@ -1452,6 +1453,7 @@ def captions(project_dir: Path, *, force: bool = False,
 
                 layout = {"schema": LAYOUT_SCHEMA, "width": frame.width, "height": frame.height,
                           "caption_placement": context.creator_caption_placement,
+                          **({"face_overlap_ok": True} if allow_face_overlap else {}),
                           "measured": True, "reason": None, "elements": [], "captions": []}
                 documents = {"phrases.json": {"schema": "yap-studio/phrases@1",
                              "time_base": "output", "fps": 30, "layer": None, "phrases": []},
@@ -1535,6 +1537,8 @@ def captions(project_dir: Path, *, force: bool = False,
             run.progress("checking captions", 0.9)
             layout = caption_layout(rendered.checks, plan)
             layout["caption_placement"] = context.creator_caption_placement
+            if allow_face_overlap:
+                layout["face_overlap_ok"] = True
             face_overlaps = []
             if (candidates and faces is not None
                     and context.creator_caption_placement == "avoid_face"):
@@ -1555,11 +1559,13 @@ def captions(project_dir: Path, *, force: bool = False,
                     message = (
                         f"{len(blocked)} caption {'phrase' if len(blocked) == 1 else 'phrases'} "
                         f"did not clear the face at {times}.")
-                    if not allow_violations:
+                    if not (allow_violations or allow_face_overlap):
                         raise YapError(message, code="caption_face_clearance",
                                        suggested_action=CAPTION_FACE_ACTION)
                     face_overlaps.append(message)
-                    result["warnings"].append(f"{message} {CAPTION_FACE_ACTION}")
+                    result["warnings"].append(
+                        f"{message} The creator allowed captions over their face."
+                        if allow_face_overlap else f"{message} {CAPTION_FACE_ACTION}")
             subtitles = work / "captions.srt"
             subtitles.write_text(_srt_text(snapshot.phrases), encoding="utf-8")
             phrases_path = work / "phrases.json"

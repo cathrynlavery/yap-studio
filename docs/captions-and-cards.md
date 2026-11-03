@@ -33,9 +33,12 @@ publishing if the phrase still fails face clearance, and lists the times. Earlie
 captions with no clear position are checked again by captions or assembly. If the
 rendered phrase cannot be measured, captions warns why and publishes. That warning
 does not stop later runs. Frame the shot wider, use smaller captions, or set
-`captions.placement` to `"fixed"` in this project's style to accept captions over
-your face. Face overlaps then warn and
-allow the final to verify. Cards and overlays still have to clear your face.
+`captions.allow_face_overlap: true` in this project's style if you allow captions
+over your face. It defaults to false. Captions still move clear where they can;
+only phrases with no clear position stay where the style puts them, with a warning
+that lists the times and says you allowed it. `captions.placement: "fixed"` keeps
+every phrase where the style puts it and accepts face overlaps as warnings too.
+Cards, titles and overlays still have to clear your face.
 Approved taste rules can change the placement choice too.
 Horizontal videos always keep captions in the bottom band; that alone does not accept face overlaps.
 `run --allow-violations` reports confirmed overlaps as warnings and continues to assembly.

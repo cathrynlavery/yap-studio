@@ -1579,11 +1579,67 @@ def test_blocked_collision_stops_before_publishing(
         assert "and 1 more" in caught.value.message
         assert "0:01.2 to" not in caught.value.message
     assert all(text in caught.value.suggested_action for text in (
-        "wider", "smaller captions", 'captions.placement', '"fixed"', "this project",
+        "Ask the creator", "wider", "smaller captions", "captions.allow_face_overlap",
+        "true", "this project",
     ))
     assert len(fake_layers) == 1
     assert all(not (layer_project / "captions" / name).exists()
                for name in ("captions.mov", "captions.srt", "phrases.json", "layout.json"))
+
+
+def test_allowed_face_overlap_keeps_blocked_phrases_and_moves_clearable_ones(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    checked_layers: list[dict], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    style = json.loads((layer_project / "style.json").read_bytes())
+    before = caption_snapshot(ProjectContext(layer_project)).inputs
+    style["captions"]["allow_face_overlap"] = True
+    write(layer_project / "style.json", style)
+    after = caption_snapshot(ProjectContext(layer_project)).inputs
+    assert before["style:captions"] != after["style:captions"]
+    faces = cut_faces(layer_project, layer_project / "cut/cut.mp4", detector=measured_faces)
+    frames = tuple((FaceBox(Box(0, 640, 1080, 1100) if n < 30 else measured_faces.box,
+                            0.95, "detected"),) for n in range(faces.video.frames))
+    faces = replace(faces, frames=frames, gaps=())
+    monkeypatch.setattr(caption_stage, "cut_faces", lambda *args: faces)
+
+    result = captions(layer_project)
+    assert not result["noop"] and len(result["warnings"]) == 1
+    assert "0:00.1" in result["warnings"][0]
+    assert "creator allowed" in result["warnings"][0].lower()
+    assert "0:01.0" not in result["warnings"][0]
+    slots = json.loads(fake_layers[0]["variables"]["phrases"])
+    assert slots[0]["offset_px"] == 0 and slots[1]["offset_px"] < 0
+    layout = json.loads((layer_project / "captions/layout.json").read_bytes())
+    assert layout["caption_placement"] == "avoid_face" and layout["face_overlap_ok"] is True
+    assert all((layer_project / "captions" / name).is_file()
+               for name in ("captions.mov", "captions.srt", "phrases.json", "layout.json"))
+    record = read_receipt(layer_project / "captions")
+    assert record["face_overlaps"] and record["warnings"] == result["warnings"]
+    again = captions(layer_project)
+    assert again["noop"] and again["warnings"] == result["warnings"]
+    assert len(fake_layers) == 1
+
+    style["captions"]["allow_face_overlap"] = False
+    write(layer_project / "style.json", style)
+    with pytest.raises(YapError) as caught:
+        captions(layer_project)
+    assert caught.value.code == "caption_face_clearance" and len(fake_layers) == 2
+
+
+@pytest.mark.parametrize("allowed", [False, True])
+def test_caption_face_overlap_style_accepts_booleans(allowed: bool) -> None:
+    assert resolve_style_data({"schema_version": 1})["captions"]["allow_face_overlap"] is False
+    data = resolve_style_data({"schema_version": 1, "captions": {"allow_face_overlap": allowed}})
+    assert data["captions"]["allow_face_overlap"] is allowed
+
+
+@pytest.mark.parametrize("allowed", [None, 0, 1, "true", [], {}])
+def test_caption_face_overlap_style_refuses_non_booleans(allowed: Any) -> None:
+    from yap_studio.style import StyleError
+
+    with pytest.raises(StyleError, match="allow_face_overlap"):
+        resolve_style_data({"schema_version": 1, "captions": {"allow_face_overlap": allowed}})
 
 
 def test_blocked_face_only_on_undrawn_frame_does_not_stop_captions(
@@ -1613,7 +1669,7 @@ def test_blocked_collision_is_listed_in_receipt_with_warning(
     chain._captions(layer_project, state)
     assert len(state["warnings"]) == 1
     assert "0:00.1" in state["warnings"][0]
-    assert "fixed" in state["warnings"][0]
+    assert "captions.allow_face_overlap" in state["warnings"][0]
     placement = read_receipt(layer_project / "captions")["caption_placement"]
     assert placement["phrases"][0]["offset_px"] == 0
     assert placement["phrases"][0]["reason"].startswith("kept: no position in the band")

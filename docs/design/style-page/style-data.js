@@ -244,6 +244,11 @@ window.YAP_STYLE_DATA = {
               "avoid_face"
             ]
           },
+          "allow_face_overlap": {
+            "type": "boolean",
+            "description": "With avoid_face, captions still move clear of the face where they can; true keeps phrases that cannot clear where they are instead of stopping.",
+            "default": false
+          },
           "top_px": {
             "type": "integer",
             "description": "Top edge of the caption line.",

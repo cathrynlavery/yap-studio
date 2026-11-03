@@ -1,0 +1,1 @@
+- Allow captions over your face for one video when no clear position fits, with a warning, while captions that can move clear still do.
