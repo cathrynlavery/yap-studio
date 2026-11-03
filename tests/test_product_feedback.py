@@ -561,6 +561,51 @@ def test_gh_closed_fingerprint_comments_instead_of_creating(tmp_path, monkeypatc
     assert plan["body"] == f"seen again in {__version__}, 2 times"
 
 
+@pytest.mark.parametrize("state", ["open", "closed"])
+def test_gh_legacy_fingerprint_comments_with_origin(tmp_path, monkeypatch, state):
+    entry = feedback.record("verify failed with invalid_input", kind="bug", step="verify",
+                            code="invalid_input", origin="project/status:read:78")
+    legacy = feedback.fingerprint(entry["kind"], entry["step"], entry["code"], entry["text"])
+    assert legacy != entry["fingerprint"]
+    pages = [[{"number": 12, "body": "Fingerprint: " + legacy, "state": state}]]
+    log = fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 12
+    result, = feedback.send(yes=True)
+    assert result["fingerprint"] == entry["fingerprint"]
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    writes = [call for call in calls if call["args"][0] == "issue"]
+    assert [call["args"][:3] for call in writes] == [["issue", "comment", "12"]]
+    assert writes[0]["body"] == f"seen again in {__version__}, 1 times"
+    assert feedback.entries(pending=True) == []
+
+
+@pytest.mark.parametrize("locked", [True, False])
+def test_gh_closed_fingerprint_creates_only_when_locked(tmp_path, monkeypatch, locked):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    pages = [[{"number": 12, "body": "Fingerprint: " + entry["fingerprint"],
+               "state": "closed", "locked": locked}]]
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == ("create" if locked else "comment")
+    if locked:
+        assert "Fingerprint: " + entry["fingerprint"] in plan["body"]
+    else:
+        assert plan["issue"] == 12
+
+
+def test_gh_fingerprint_skips_locked_open_issue_for_unlocked_closed(tmp_path, monkeypatch):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    body = "Fingerprint: " + entry["fingerprint"]
+    pages = [[{"number": 12, "body": body, "state": "open", "locked": True}],
+             [{"number": 21, "body": body, "state": "closed", "locked": False}]]
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 21
+
+
 @pytest.mark.parametrize("closed_first", [True, False])
 def test_gh_fingerprint_prefers_open_issue(tmp_path, monkeypatch, closed_first):
     entry = feedback.record("Check needed retry", kind="bug", step="verify")

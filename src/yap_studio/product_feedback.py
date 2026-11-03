@@ -244,14 +244,19 @@ def _plan(group: dict, state: dict) -> dict:
         return {"transport": "endpoint", "method": "POST", "json": group}
     issue = _issue(group)
     if state["gh_logged_in"]:
+        entry = group["entries"][-1]
+        fingerprints = {group["fingerprint"]}
+        if entry["origin"]:
+            fingerprints.add(fingerprint(entry["kind"], entry["step"],
+                                         entry["code"], entry["text"]))
         # Walk every page; a full page is never evidence that the search is complete.
         issues = json.loads(_gh("api", "--paginate", "--slurp", "-X", "GET",
                                 f"repos/{REPO}/issues?state=all&per_page=100"))
         for item in sorted((item for page in issues for item in page),
                            key=lambda item: item.get("state") != "open"):
             if ("pull_request" not in item
-                    and group["fingerprint"] in (item.get("body") or "")):
-                entry = group["entries"][-1]
+                    and not item.get("locked")
+                    and any(value in (item.get("body") or "") for value in fingerprints)):
                 body = f"seen again in {entry['version']}, {group['count']} times"
                 return {"transport": "gh", "action": "comment", "issue": item["number"],
                         "body": body}
