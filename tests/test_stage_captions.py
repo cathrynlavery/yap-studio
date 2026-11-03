@@ -2375,22 +2375,56 @@ def test_caption_outputs_use_cut_frames_output_times_and_last_frame(
     assert len(fake_layers) == 1
 
 
-def test_bottom_caption_clamp_warning_survives_project_receipt_and_noop(
-    layer_project: Path, fake_layers: list[dict],
+@pytest.mark.parametrize("position,top_px,safe_bottom_px,warns", [
+    ("bottom", 1180, 1740, True), ("bottom", 1339, 1740, True),
+    ("bottom", 1340, 1740, False), ("bottom", 1490, 1740, False),
+    ("bottom", 1503, 1740, False), ("middle", 1180, 1740, False),
+    pytest.param("bottom", 864, 1008, False, id="horizontal"),
+])
+def test_caption_band_warns_for_bottom_with_mid_frame_top_px(
+    position: str, top_px: int, safe_bottom_px: int, warns: bool,
+) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": position, "top_px": top_px,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=safe_bottom_px)
+    if warns:
+        assert geometry.warnings, "bottom with mid-frame top_px must warn"
+        warning, = geometry.warnings
+        assert "captions.position=bottom" in warning
+        assert f"captions.top_px={top_px}" in warning
+        assert "last line sits mid-frame" in warning
+        assert "Bottom placement uses top_px=1500" in warning
+    else:
+        assert geometry.warnings == ()
+    if position == "bottom":
+        assert (geometry.y + geometry.height - geometry.bottom_padding
+                - geometry.line_height) == pytest.approx(top_px)
+    else:
+        assert geometry.y + geometry.height / 2 == pytest.approx(top_px, abs=0.5)
+
+
+@pytest.mark.parametrize("top_px", [1180, 1650])
+def test_bottom_caption_warning_survives_project_receipt_and_noop(
+    layer_project: Path, fake_layers: list[dict], top_px: int,
 ) -> None:
     style_path = layer_project / "style.json"
     style = json.loads(style_path.read_text())
     style["captions"].update({
-        "position": "bottom", "top_px": 1650, "size_px": 104,
+        "position": "bottom", "top_px": top_px, "size_px": 104,
         "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
     })
     write(style_path, style)
     result = captions(layer_project)
     layer = result["layer"]
     warnings = layer["warnings"]
-    assert len(warnings) == 1 and "clamped" in warnings[0]
-    assert "1650" in warnings[0] and "1740" in warnings[0]
-    assert layer["y"] + layer["height"] == 1740
+    assert len(warnings) == 1
+    assert str(top_px) in warnings[0]
+    if top_px == 1650:
+        assert "clamped" in warnings[0] and "1740" in warnings[0]
+        assert layer["y"] + layer["height"] == 1740
+    else:
+        assert "last line sits mid-frame" in warnings[0]
     record = read_receipt(layer_project / "captions")
     assert record["layer"]["warnings"] == warnings
     phrases = json.loads((layer_project / "captions/phrases.json").read_text())

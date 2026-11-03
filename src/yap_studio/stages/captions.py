@@ -275,8 +275,15 @@ def caption_band_geometry(
         y = max(0, band_bottom - height)
         # Carry the fractional inset so rounding the band does not move the line box.
         bottom_padding = y + height - line_top - line_height
-        if line_top < captions["top_px"]:
+        # Mid-frame: safe bottom - 400 px; vertical 1340, halfway from Middle 1180 to Bottom 1500.
+        if captions["top_px"] < safe_bottom_px - 400:
             warnings = (
+                f"captions.position=bottom with captions.top_px={captions['top_px']}: "
+                "the last line sits mid-frame; the style page's Bottom placement "
+                "uses top_px=1500.",
+            )
+        if line_top < captions["top_px"]:
+            warnings += (
                 f"captions.top_px={captions['top_px']} clamped to {line_top:g}: "
                 "one line plus entry rise and padding would exceed "
                 f"internal.caption_safe_bottom_px={safe_bottom}.",

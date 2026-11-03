@@ -26,6 +26,9 @@ the same height. If one line plus entry rise and shadow padding cannot fit above
 `internal.caption_safe_bottom_px`, the plan and receipt report the clamp in
 `warnings`. With `position: middle`, the band stays centered on `top_px` with its
 existing safe-boundary clamp.
+Changing `position` alone keeps `top_px`; captions warn when `bottom` is paired
+with a mid-frame `top_px` more than 400 px above the safe bottom (below 1340 on
+vertical videos, where the style page's Bottom uses 1500).
 
 Project captions use `captions.placement: "avoid_face"` by default. When placement
 finds no clear position, captions checks the rendered phrase. It stops before
