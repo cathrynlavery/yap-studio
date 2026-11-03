@@ -17,7 +17,7 @@
 
   /* ---------- Choices ---------- */
 
-  const PRESET_ORDER = ['editorial_serif', 'clean_minimal', 'warm_editorial', 'cobalt', 'mono', 'headline', 'electric', 'candy', 'marker', 'one_word', 'hf_bold', 'hf_editorial', 'hf_neutral'];
+  const PRESET_ORDER = ['editorial_serif', 'clean_minimal', 'warm_editorial', 'cobalt', 'mono', 'headline', 'electric', 'candy', 'marker', 'one_word', 'hf_bold', 'hf_editorial', 'hf_neutral', 'lo_fi', 'hi_fi', 'showcase'];
   const PRESET_BLURBS = {
     editorial_serif: 'Serif captions, gold word color',
     clean_minimal: 'Small sans, no highlight',
@@ -29,6 +29,9 @@
     one_word: 'One huge word at a time',
     candy: 'Round, pink block',
     marker: 'Hand-drawn, yellow underline',
+    lo_fi: 'Plain serif captions, text label, hard cuts',
+    hi_fi: 'Film grade, smooth cuts, punch-ins',
+    showcase: 'Pages behind you, video cards',
   };
   const PALETTE_NAMES = {
     editorial_serif: 'Newsprint', clean_minimal: 'Sage', warm_editorial: 'Rust', cobalt: 'Cobalt', mono: 'Terminal',

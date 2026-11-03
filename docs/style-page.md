@@ -17,9 +17,10 @@ work. [Styles](styles.md#pick-your-look) covers `--detach` and `--stop`.
 
 The page opens on looks under your video. Your saved styles come first, newest first,
 with the names you gave them. The presets follow: Editorial Serif, Clean Minimal, Warm
-Editorial, Cobalt, Mono, Headline, Electric, Candy, Marker, One Word, Bold, Editorial
-and Neutral. A look sets every choice, from fonts to sound. Tap a look to see it on
-your take. If it is right, press Save style, answer Text at the top, and save it.
+Editorial, Cobalt, Mono, Headline, Electric, Candy, Marker, One Word, Bold, Editorial,
+Neutral, Lo-fi, Hi-fi and Showcase. A look sets every choice, from fonts to sound.
+Tap a look to see it on your take. If it is right, press Save style, answer Text at
+the top, and save it.
 
 Customize opens four screens: Font, Captions, Colors and Text at the top.
 Back and Next move through them, then on to More choices and the

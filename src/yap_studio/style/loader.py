@@ -21,6 +21,7 @@ PRESETS_DIR = Path(__file__).parent / "presets"
 SHIPPED_PRESETS = (
     "editorial_serif", "clean_minimal", "warm_editorial", "cobalt", "mono",
     "headline", "electric", "candy", "marker", "one_word", "hf_bold", "hf_editorial", "hf_neutral",
+    "lo_fi", "hi_fi", "showcase",
 )
 RESOLVED_SCHEMA = "yap-studio/resolved-style@1"
 

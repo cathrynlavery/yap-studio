@@ -72,9 +72,11 @@ def test_minimal_file_fills_clean_minimal_settings(tmp_path: Path) -> None:
 def test_grade_defaults_and_presets() -> None:
     assert resolve_style_data({"schema_version": 1})["grade"] == {
         "look": "none", "strength": 1, "color": None, "slider": False}
-    for name in SHIPPED_PRESETS:
+    for name in (preset for preset in SHIPPED_PRESETS if preset != "hi_fi"):
         assert resolve(f"preset:{name}").data["grade"]["look"] == "none"
         assert resolve(f"preset:{name}").data["grade"]["slider"] is False
+    assert resolve("preset:hi_fi").data["grade"]["look"] == "film"
+    assert resolve("preset:hi_fi").data["grade"]["slider"] is False
     for bad in ({"look": "other"}, {"strength": -1}, {"strength": True}, {"extra": 1}):
         with pytest.raises(StyleError):
             resolve_style_data({"schema_version": 1, "grade": bad})
@@ -329,7 +331,7 @@ def test_schema_is_read_once(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_engine_presets_are_exactly_allowlisted() -> None:
     expected = {"clean_minimal", "electric", "warm_editorial", "editorial_serif", "one_word",
                 "cobalt", "mono", "headline", "candy", "marker",
-                "hf_bold", "hf_editorial", "hf_neutral"}
+                "hf_bold", "hf_editorial", "hf_neutral", "lo_fi", "hi_fi", "showcase"}
     assert set(SHIPPED_PRESETS) == expected
     assert {path.stem for path in PRESETS_DIR.glob("*.json")} == expected
 
@@ -788,7 +790,7 @@ def test_moves_defaults_and_presets() -> None:
                 "transitions": ["whip_pan", "cinematic_zoom", "light_leak"],
                 "jump_cuts": "hard", "opening_push": False}
     assert resolve_style_data({"schema_version": 1})["moves"] == defaults
-    for preset in SHIPPED_PRESETS:
+    for preset in (name for name in SHIPPED_PRESETS if name not in ("lo_fi", "hi_fi", "showcase")):
         assert resolve(f"preset:{preset}").data["moves"] == defaults
 
 

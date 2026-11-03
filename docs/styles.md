@@ -25,7 +25,13 @@ block, in the brand accent colour, else the caption ground colour.
 List the shipped looks and make a named style file:
 
 The shipped presets are Candy, Clean Minimal, Cobalt, Editorial Serif, Electric, Headline,
-Bold, Editorial, Neutral, Marker, Mono, One Word and Warm Editorial.
+Bold, Editorial, Neutral, Marker, Mono, One Word, Warm Editorial, Lo-fi, Hi-fi and Showcase.
+
+Lo-fi, Hi-fi and Showcase also set picture, camera and B-roll choices. Lo-fi turns
+transitions and sound effects off and keeps hard cuts with a Text hook label. Hi-fi uses
+the film grade, smooth jump cuts, punch-ins and slow pushes, and light leak transitions.
+Showcase puts long pages and screenshots behind you with scroll, and turns on Playing grid
+and Video card.
 
 Set `captions.entrance` to `slide` (the default) or `rise` for a clipped entrance per word.
 Set `captions.camera_3d` to `true` for the 3D camera caption look. It defaults to `false`.
@@ -49,8 +55,9 @@ or greeting. You can pass a take path in place of `--inbox`.
 
 The `grade` section sets the picture colour. `look` is `none` by default or `film` for
 matte blacks, teal shadows and warm highlights. `strength` runs from 0 to 1 and
-defaults to 1. All shipped presets use `none`. Assembly grades footage after HDR
-conversion to BT.709. Captions, cards and titles keep their own colours.
+defaults to 1. Hi-fi uses `film`; the other shipped presets use `none`.
+Assembly grades footage after HDR conversion to BT.709. Captions, cards and titles
+keep their own colours.
 Use `yap-studio grade show DIR` to see the effective grade. A project override takes
 precedence over the style; `yap-studio grade set DIR --clear` restores the style choice.
 
