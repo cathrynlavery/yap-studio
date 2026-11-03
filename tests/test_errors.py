@@ -183,6 +183,31 @@ def test_input_error_contract() -> None:
     assert InputError("take.mov", None).reason == "no file at this path"
 
 
+@pytest.mark.parametrize("suffix", [
+    ".mov", ".mp4", ".m4v", ".mkv", ".webm", ".wav", ".m4a", ".mp3",
+    ".aac", ".flac", ".aif", ".aiff", ".caf", ".MOV",
+])
+def test_input_error_media_advice(suffix: str) -> None:
+    assert InputError(f"take{suffix}").suggested_action == (
+        "Check that the path points to an existing audio or video file."
+    )
+
+
+@pytest.mark.parametrize("path", ["cards.json", "cut-words.json", "faces.json", "cards.JSON"])
+def test_input_error_json_advice(path: str) -> None:
+    assert InputError(path).suggested_action == (
+        "Check that the path points to an existing JSON file. "
+        "If a Yap Studio step writes it, run that step first."
+    )
+
+
+@pytest.mark.parametrize("path", [
+    "project", "project/", "image.png", "notes.txt", "", ".json", "project.json/takes",
+])
+def test_input_error_other_path_advice(path: str) -> None:
+    assert InputError(path).suggested_action == "Check that the path exists and can be read."
+
+
 @pytest.mark.parametrize("tool", ["ffmpeg", "ffprobe"])
 def test_processing_error_strips_realistic_preamble(tool: str) -> None:
     preamble = (

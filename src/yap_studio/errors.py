@@ -6,6 +6,7 @@ import platform
 import re
 from collections.abc import Sequence
 from contextvars import ContextVar
+from pathlib import Path
 
 _command_error: ContextVar[list[YapError] | None] = ContextVar("command_error", default=None)
 
@@ -223,11 +224,24 @@ class InputError(YapError):
         prefix = (
             f"Cannot read input {shorten_text(self.path)}" if self.path else "Cannot read input"
         )
+        suffix = Path(self.path).suffix.lower()
+        if suffix in {
+            ".mov", ".mp4", ".m4v", ".mkv", ".webm", ".wav", ".m4a", ".mp3",
+            ".aac", ".flac", ".aif", ".aiff", ".caf",
+        }:
+            action = "Check that the path points to an existing audio or video file."
+        elif suffix == ".json":
+            action = (
+                "Check that the path points to an existing JSON file. "
+                "If a Yap Studio step writes it, run that step first."
+            )
+        else:
+            action = "Check that the path exists and can be read."
         super().__init__(
             f"{prefix}: {self.reason}",
             error_type="input_error",
             code="invalid_input",
-            suggested_action="Check that the path points to an existing audio or video file.",
+            suggested_action=action,
         )
 
 
