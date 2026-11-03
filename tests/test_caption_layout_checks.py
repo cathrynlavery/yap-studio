@@ -95,6 +95,22 @@ def test_write_layout_record_round_trip(media, document, tmp_path):
     assert record.face_windows == {}
     assert record.element_ids == {"card-1": "card-1"}
     assert record.layout.caption_gap_px == 100
+    assert record.face_overlap_ok is False
+
+
+@pytest.mark.parametrize("allowed", [False, True])
+def test_read_face_overlap_consent(media, document, allowed):
+    document["face_overlap_ok"] = allowed
+    assert _read(media, document).face_overlap_ok is allowed
+
+
+@pytest.mark.parametrize("measured", [False, True])
+@pytest.mark.parametrize("allowed", [None, 0, 1, "true", [], {}])
+def test_read_invalid_face_overlap_consent(media, document, measured, allowed):
+    document.update(measured=measured, face_overlap_ok=allowed)
+    write_layout_record(media, document)
+    with pytest.raises(InputError, match="face_overlap_ok must be a boolean"):
+        read_layout_record(media, width=320, height=180)
 
 
 @pytest.mark.parametrize("element_id", ["intro~alt", "intro#alt", "card~2", "card#2"])

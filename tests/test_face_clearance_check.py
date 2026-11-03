@@ -159,8 +159,9 @@ def test_face_violation_names_target_time_and_geometry(caption, kind):
     )
     assert finding.time_s == 1.0
     assert finding.suggested_action == (
-        "Frame the shot wider, use smaller captions, or set captions.placement to "
-        '"fixed" in this project\'s style to accept captions over the face.' if caption else
+        "Ask the creator if captions may sit over their face here; if yes, set "
+        "captions.allow_face_overlap to true in this project's style. "
+        "Or frame the shot wider or use smaller captions." if caption else
         "Move the overlay in the timeline (change its placement or box) "
         "so it sits clear of the face." if kind == "overlay" else
         "Plan the card again (run graphics) so it sits clear of the face."
@@ -206,6 +207,26 @@ def test_layout_refuses_invalid_caption_placement(tmp_path, placement):
     write_layout_record(media, document)
     with pytest.raises(InputError, match="caption_placement"):
         read_layout_record(media, width=320, height=180)
+
+
+@pytest.mark.parametrize("kind", ["card", "title", "overlay"])
+def test_face_overlap_consent_warns_for_captions_and_still_fails_elements(tmp_path, kind):
+    media = tmp_path / "final.mp4"
+    media.write_bytes(b"synthetic render")
+    document = _record(caption=True).layout.to_dict()
+    document.update(measured=True, reason=None, caption_placement="avoid_face",
+                    face_overlap_ok=True, elements=_record(kind=kind).layout.to_dict()["elements"])
+    document["captions"][0]["words"] = [{"text": "First words", "start_s": 1, "end_s": 2.5}]
+    write_layout_record(media, document)
+    record = read_layout_record(media, width=320, height=180)
+    findings, coverage = check_face_clearance(record, _faces(), faces_source="record")
+    assert coverage["ran"]
+    assert {finding.evidence["target_kind"]: finding.severity for finding in findings} == {
+        "caption": "warn", kind: "fail",
+    }
+    caption = next(finding for finding in findings if finding.evidence["target_type"] == "caption")
+    assert "style allows captions over the face" in caption.message
+    assert caption.suggested_action is None
 
 
 def test_card_fully_covering_face_fails():

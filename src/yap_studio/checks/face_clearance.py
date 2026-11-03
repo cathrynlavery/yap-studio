@@ -18,8 +18,9 @@ from yap_studio.receipt import sha256_file
 
 FACES_SUFFIX = ".faces.json"
 CAPTION_FACE_ACTION = (
-    "Frame the shot wider, use smaller captions, or set captions.placement to "
-    '"fixed" in this project\'s style to accept captions over the face.'
+    "Ask the creator if captions may sit over their face here; if yes, set "
+    "captions.allow_face_overlap to true in this project's style. "
+    "Or frame the shot wider or use smaller captions."
 )
 
 
@@ -95,7 +96,7 @@ def check_face_clearance(
         if violation.kind != "face":
             continue
         caption = violation.target_type == "caption"
-        allowed = caption and record.caption_placement == "fixed"
+        allowed = caption and (record.caption_placement == "fixed" or record.face_overlap_ok)
         label = "Caption" if caption else violation.target_kind.capitalize()
         piece_id = violation.target_id
         element_id = record.element_ids.get(piece_id, piece_id)

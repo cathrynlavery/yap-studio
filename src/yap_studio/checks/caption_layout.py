@@ -42,6 +42,7 @@ class LayoutRecord:
     element_ids: dict[str, str] = field(default_factory=dict)
     labels: dict[str, str] = field(default_factory=dict)
     caption_placement: str = "avoid_face"
+    face_overlap_ok: bool = False
 
 
 def write_layout_record(
@@ -121,6 +122,9 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
         caption_placement = document.get("caption_placement", "avoid_face")
         if caption_placement not in ("avoid_face", "fixed"):
             raise ValueError("layout record caption_placement must be avoid_face or fixed")
+        face_overlap_ok = document.get("face_overlap_ok", False)
+        if type(face_overlap_ok) is not bool:
+            raise ValueError("layout record face_overlap_ok must be a boolean")
         words = {}
         if measured:
             for caption in document.get("captions", []):
@@ -140,7 +144,7 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
     if (layout.width, layout.height) != (width, height):
         raise InputError(str(target), "layout size does not match the render's display size")
     return LayoutRecord(layout, measured, reason, words, face_windows, element_ids, labels,
-                        caption_placement)
+                        caption_placement, face_overlap_ok)
 
 
 def check_caption_timing(

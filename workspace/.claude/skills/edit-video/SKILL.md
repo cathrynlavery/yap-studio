@@ -457,6 +457,9 @@ when they pressed a page button.
    `yap-studio faces check DIR/final/NAME.mp4 --layout DIR/final/NAME.layout.json --faces
    DIR/final/NAME.faces.json`. Run `yap-studio taste check DIR/final/NAME.mp4`. Repair
    failures and run it again. `yap-studio run DIR --stop` stops the background render.
+   If captions stop with `caption_face_clearance`, show the times and ask the creator whether
+   captions may sit over their face there. Set `captions.allow_face_overlap: true` in this
+   project's style only if they say yes; never set it on your own or in the saved style.
    Captions that are hard to read get a dark halo automatically; if `warnings` still name a
    caption, tell the creator the time and offer `yap-studio captions DIR --back box`.
    If `warnings` name a word heard with no caption, or a caption that is not heard, tell the

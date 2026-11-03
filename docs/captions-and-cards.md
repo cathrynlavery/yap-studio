@@ -26,6 +26,11 @@ the same height. If one line plus entry rise and shadow padding cannot fit above
 `internal.caption_safe_bottom_px`, the plan and receipt report the clamp in
 `warnings`. With `position: middle`, the band stays centered on `top_px` with its
 existing safe-boundary clamp.
+Plain one-line bottom captions look for one line of clear space; captions with a
+visible background, and captions over a split b-roll layout, keep the full two-line band.
+Changing `position` alone keeps `top_px`; captions warn when `bottom` is paired
+with a mid-frame `top_px` more than 400 px above the safe bottom (below 1340 on
+vertical videos, where the style page's Bottom uses 1500).
 
 Project captions use `captions.placement: "avoid_face"` by default. When placement
 finds no clear position, captions checks the rendered phrase. It stops before
@@ -33,9 +38,12 @@ publishing if the phrase still fails face clearance, and lists the times. Earlie
 captions with no clear position are checked again by captions or assembly. If the
 rendered phrase cannot be measured, captions warns why and publishes. That warning
 does not stop later runs. Frame the shot wider, use smaller captions, or set
-`captions.placement` to `"fixed"` in this project's style to accept captions over
-your face. Face overlaps then warn and
-allow the final to verify. Cards and overlays still have to clear your face.
+`captions.allow_face_overlap: true` in this project's style if you allow captions
+over your face. It defaults to false. Captions still move clear where they can;
+only phrases with no clear position stay where the style puts them, with a warning
+that lists the times and says you allowed it. `captions.placement: "fixed"` keeps
+every phrase where the style puts it and accepts face overlaps as warnings too.
+Cards, titles and overlays still have to clear your face.
 Approved taste rules can change the placement choice too.
 Horizontal videos always keep captions in the bottom band; that alone does not accept face overlaps.
 `run --allow-violations` reports confirmed overlaps as warnings and continues to assembly.

@@ -228,7 +228,7 @@ window.YAP_STYLE_DATA = {
           },
           "position": {
             "type": "string",
-            "description": "Vertical caption placement.",
+            "description": "bottom anchors the last caption line at top_px and wraps upward; middle centres the caption band on top_px.",
             "default": "bottom",
             "enum": [
               "bottom",
@@ -244,9 +244,14 @@ window.YAP_STYLE_DATA = {
               "avoid_face"
             ]
           },
+          "allow_face_overlap": {
+            "type": "boolean",
+            "description": "With avoid_face, captions still move clear of the face where they can; true keeps phrases that cannot clear where they are instead of stopping.",
+            "default": false
+          },
           "top_px": {
             "type": "integer",
-            "description": "Top edge of the caption line.",
+            "description": "With bottom, the top edge of the last caption line (the style page's Bottom uses 1500); with middle, the centre of the caption band.",
             "default": 1503,
             "minimum": 700,
             "maximum": 1700

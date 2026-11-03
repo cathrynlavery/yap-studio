@@ -1,0 +1,1 @@
+- Warn when bottom captions keep a mid-frame height, and explain how caption position and height work together.

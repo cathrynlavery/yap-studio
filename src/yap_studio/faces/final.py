@@ -79,6 +79,8 @@ def final_layout(
         "measured": captions_layout["measured"], "reason": captions_layout["reason"],
         **({"caption_placement": captions_layout["caption_placement"]}
            if "caption_placement" in captions_layout else {}),
+        **({"face_overlap_ok": captions_layout["face_overlap_ok"]}
+           if captions_layout.get("face_overlap_ok") is True else {}),
         "captions": captions_layout["captions"], "elements": list(elements),
         "clearance_px": clearance_px, "caption_gap_px": caption_gap_px,
         "hair": DEFAULT_HAIR.to_dict(),

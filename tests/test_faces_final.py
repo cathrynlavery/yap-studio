@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
 import synth
 
+from yap_studio.checks.caption_layout import read_layout_record, write_layout_record
+from yap_studio.checks.face_clearance import check_face_clearance
 from yap_studio.errors import ValidationError
 from yap_studio.faces.clearance import DEFAULT_HAIR, LAYOUT_SCHEMA, Layout
 from yap_studio.faces.final import drawn_box, drawn_boxes, final_layout
-from yap_studio.faces.model import Box
+from yap_studio.faces.model import Box, FaceBox, FacesData, VideoIdentity
+from yap_studio.receipt import sha256_file
 
 
 def test_drawn_box_excludes_faint_border_and_unions_frames(tmp_path: Path) -> None:
@@ -83,6 +87,38 @@ def test_final_layout_keeps_caption_evidence_and_element_kinds(measured: bool) -
                         **source, "elements": elements, "clearance_px": 24,
                         "caption_gap_px": 60, "hair": DEFAULT_HAIR.to_dict()}
     assert document["captions"] is captions
+
+
+@pytest.mark.parametrize("allowed", [None, False, True])
+def test_final_layout_preserves_caption_face_consent_only_when_true(tmp_path, allowed) -> None:
+    source = synth.calibration_layout(caption_over_face=True, card_over_face=True)
+    source["caption_placement"] = "avoid_face"
+    if allowed is not None:
+        source["face_overlap_ok"] = allowed
+    elements = [{**source["elements"][0], "id": kind, "kind": kind}
+                for kind in ("card", "title", "overlay")]
+    document = final_layout(source, elements, width=320, height=180, clearance_px=24,
+                            caption_gap_px=60)
+    if allowed is True:
+        assert document["face_overlap_ok"] is True
+    else:
+        assert "face_overlap_ok" not in document
+    assert len(Layout.from_dict(document).elements) == 3
+    media = tmp_path / "final.mp4"
+    media.write_bytes(b"synthetic final render")
+    write_layout_record(media, document)
+    record = read_layout_record(media, width=320, height=180)
+    assert record.face_overlap_ok is (allowed is True)
+    frames = ((FaceBox(Box(140, 90, 20, 15), 0.9, "detected"),),) * 600
+    faces = FacesData("measured", None, VideoIdentity(
+        media.name, sha256_file(media), 600, Fraction(30), 320, 180,
+    ), {}, {}, frames, ())
+    findings, coverage = check_face_clearance(record, faces, faces_source="record")
+    assert coverage["ran"]
+    assert {finding.evidence["target_kind"]: finding.severity for finding in findings} == {
+        "caption": "warn" if allowed is True else "fail",
+        "card": "fail", "title": "fail", "overlay": "fail",
+    }
 
 
 def test_final_layout_refuses_invalid_elements() -> None:

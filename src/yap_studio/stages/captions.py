@@ -275,8 +275,15 @@ def caption_band_geometry(
         y = max(0, band_bottom - height)
         # Carry the fractional inset so rounding the band does not move the line box.
         bottom_padding = y + height - line_top - line_height
-        if line_top < captions["top_px"]:
+        # Mid-frame: safe bottom - 400 px; vertical 1340, halfway from Middle 1180 to Bottom 1500.
+        if captions["top_px"] < safe_bottom_px - 400:
             warnings = (
+                f"captions.position=bottom with captions.top_px={captions['top_px']}: "
+                "the last line sits mid-frame; the style page's Bottom placement "
+                "uses top_px=1500.",
+            )
+        if line_top < captions["top_px"]:
+            warnings += (
                 f"captions.top_px={captions['top_px']} clamped to {line_top:g}: "
                 "one line plus entry rise and padding would exceed "
                 f"internal.caption_safe_bottom_px={safe_bottom}.",
@@ -542,6 +549,17 @@ def caption_offsets(
         phrase_band = phrase.get("band", {})
         top = plain.y + phrase_band.get("top_px", 0)
         height = phrase_band.get("height_px", plain.height)
+        # Custom looks can wrap or center text without planned breaks.
+        if (phrase_ground == "none" and captions["position"] == "bottom"
+                and captions["highlight_style"] in {
+            "none", "moving_block", "underline", "color", "pill", "gradient", "editorial",
+        } and not phrase.get("breaks") and _phrase_box_width(phrase, captions) < 940
+                and not any(phrase["start"] * fps < end and phrase["end"] * fps > start
+                            for start, end, _ in splits)):
+            one_line_height = math.ceil(plain.line_height + captions["entry_rise_px"]
+                                        + 2 * phrase_band.get("padding_px", plain.padding))
+            top += height - one_line_height
+            height = one_line_height
         original_top, phrase_bounds = top, band
         if bounds := caption_split_band(phrase, height, top, splits,
                                         data["internal"]["caption_safe_bottom_px"], fps=fps):
@@ -1424,6 +1442,7 @@ def captions(project_dir: Path, *, force: bool = False,
         root = context.project_dir
         run = StageRun(root, "captions")
         layer = snapshot.plan.placement("captions/captions.mov") if snapshot.phrases else None
+        allow_face_overlap = snapshot.caption_settings.get("allow_face_overlap", False)
         result = {"status": "verified", "out": layer["path"] if layer else None,
                   "frames": snapshot.plan.frames,
                   "phrases": len(snapshot.phrases), "layer": layer,
@@ -1436,7 +1455,7 @@ def captions(project_dir: Path, *, force: bool = False,
         if not force and not legacy_blocked and run.up_to_date(snapshot.inputs):
             warnings = previous.get("warnings", []) if previous else []
             face_overlaps = previous.get("face_overlaps", []) if previous else []
-            if face_overlaps and not allow_violations:
+            if face_overlaps and not (allow_violations or allow_face_overlap):
                 raise YapError(face_overlaps[0],
                                code="caption_face_clearance",
                                suggested_action=CAPTION_FACE_ACTION)
@@ -1452,6 +1471,7 @@ def captions(project_dir: Path, *, force: bool = False,
 
                 layout = {"schema": LAYOUT_SCHEMA, "width": frame.width, "height": frame.height,
                           "caption_placement": context.creator_caption_placement,
+                          **({"face_overlap_ok": True} if allow_face_overlap else {}),
                           "measured": True, "reason": None, "elements": [], "captions": []}
                 documents = {"phrases.json": {"schema": "yap-studio/phrases@1",
                              "time_base": "output", "fps": 30, "layer": None, "phrases": []},
@@ -1535,6 +1555,8 @@ def captions(project_dir: Path, *, force: bool = False,
             run.progress("checking captions", 0.9)
             layout = caption_layout(rendered.checks, plan)
             layout["caption_placement"] = context.creator_caption_placement
+            if allow_face_overlap:
+                layout["face_overlap_ok"] = True
             face_overlaps = []
             if (candidates and faces is not None
                     and context.creator_caption_placement == "avoid_face"):
@@ -1555,11 +1577,13 @@ def captions(project_dir: Path, *, force: bool = False,
                     message = (
                         f"{len(blocked)} caption {'phrase' if len(blocked) == 1 else 'phrases'} "
                         f"did not clear the face at {times}.")
-                    if not allow_violations:
+                    if not (allow_violations or allow_face_overlap):
                         raise YapError(message, code="caption_face_clearance",
                                        suggested_action=CAPTION_FACE_ACTION)
                     face_overlaps.append(message)
-                    result["warnings"].append(f"{message} {CAPTION_FACE_ACTION}")
+                    result["warnings"].append(
+                        f"{message} The creator allowed captions over their face."
+                        if allow_face_overlap else f"{message} {CAPTION_FACE_ACTION}")
             subtitles = work / "captions.srt"
             subtitles.write_text(_srt_text(snapshot.phrases), encoding="utf-8")
             phrases_path = work / "phrases.json"

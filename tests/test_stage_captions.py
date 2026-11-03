@@ -1497,6 +1497,120 @@ def test_fitted_ground_placement_uses_each_phrases_width(
             assert geometry.y + item["offset_px"] + geometry.height <= 1740
 
 
+@pytest.mark.parametrize("position", ["bottom", "middle"])
+@pytest.mark.parametrize("text", [
+    "Hi", "small steps", "thoughtful wonderful thoughtful wonderful",
+    "W" * 20 + " " + "W" * 20,
+])
+@pytest.mark.parametrize("backing", [None, "shadow", "box"])
+@pytest.mark.parametrize("near", [False, True])
+def test_caption_offsets_reserve_only_known_bottom_lines(
+    position: str, text: str, backing: str | None, near: bool,
+) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": position, "top_px": 1503, "size_px": 64, "highlight_style": "underline",
+        "max_words_per_phrase": 4, "max_characters_per_phrase": 48,
+        "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
+    }})
+    style = ResolvedStyle(data["name"], "test", data)
+    words = [CaptionWord(str(i), word, .2 + i * .1, .3 + i * .1)
+             for i, word in enumerate(text.split())]
+    phrases = build_phrases(words, data["captions"])
+    assert len(phrases) == 1
+    plan = caption_stage.caption_layer_plan(phrases, style, frames=30, backing=[backing])
+    slots = json.loads(plan.variables["phrases"])
+    wrapped = len(words) == 4
+    assert bool(slots[0].get("breaks")) == wrapped
+    plain = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    assert plain.height == 222
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740, backing=[backing])
+    face = Box(400, geometry.y + 36 - 180 if near else 300, 200, 180)
+    assert not near or gap_px(
+        Box(70, geometry.y + 72, 940, geometry.height - 72), head_box(face),
+    ) >= face_clearance_px(data)
+    faces = FacesData("measured", None,
+                      VideoIdentity("cut.mp4", "a" * 64, 30, Fraction(30), 1080, 1920),
+                      {}, {}, ((FaceBox(face, .9, "detected"),),) * 30, ())
+    placement = caption_offsets(slots, geometry, faces, style)[0]
+    expected = 60 if near and (position == "middle" or len(text) > 30 or backing == "box") else 0
+    assert placement["offset_px"] == expected
+    assert placement["reason"] == (
+        "moved down 60 px to stay 24 px clear of the head" if expected
+        else "kept: clear of the head"
+    )
+    if not expected:
+        assert caption_stage.caption_layer_plan(
+            phrases, style, frames=30, backing=[backing], offsets=[0],
+        ) == plan
+
+
+@pytest.mark.parametrize("highlight", ["slam", "weight_shift", "clip_wipe", "gradient_fill"])
+def test_caption_offsets_keep_custom_layout_band(highlight: str) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 1503, "size_px": 64, "highlight_style": highlight,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    face = Box(400, geometry.y + 36 - 180, 200, 180)
+    placement = caption_offsets(
+        [{"start": .2, "end": .7, "words": [{"text": "Hi"}]}], geometry, None, data,
+        still_faces=[face],
+    )[0]
+    assert placement["offset_px"] == 60
+
+
+def test_one_line_caption_search_fits_below_low_chin() -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 1503, "size_px": 64, "highlight_style": "underline",
+        "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    placement = caption_offsets(
+        [{"start": .2, "end": .7, "words": [{"text": "Hi"}]}], geometry, None, data,
+        still_faces=[Box(0, 0, 1080, 1550)],
+    )[0]
+    assert placement["offset_px"] == 104
+    assert placement["reason"] == "moved down 104 px to stay 24 px clear of the head"
+
+
+@pytest.mark.parametrize("mode", ["band", "box"])
+@pytest.mark.parametrize("opacity", [0, 1])
+def test_one_line_caption_search_keeps_visible_ground_band(mode: str, opacity: int) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 1503, "size_px": 64, "highlight_style": "underline",
+        "background_mode": mode, "background_opacity": opacity,
+        "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    face = Box(400, geometry.y + 36 - 180, 200, 180)
+    placement = caption_offsets(
+        [{"start": .2, "end": .7, "words": [{"text": "Hi"}]}], geometry, None, data,
+        still_faces=[face],
+    )[0]
+    assert placement["offset_px"] == (60 if opacity else 0)
+    if opacity:
+        assert gap_px(Box(70, geometry.y + placement["offset_px"], 940, geometry.height),
+                      head_box(face)) >= face_clearance_px(data)
+
+
+@pytest.mark.parametrize("placement", ["fixed", "avoid_face"])
+def test_one_line_split_caption_keeps_full_band_below_seam(placement: str) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 900, "size_px": 64, "highlight_style": "underline",
+        "placement": placement,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    slots = [{"start": .2, "end": .7, "words": [{"text": "Hi"}]},
+             {"start": 1.2, "end": 1.7, "words": [{"text": "Again"}]}]
+    faces = [Box(400, geometry.y + 36 - 180, 200, 180)]
+    ordinary = caption_offsets(slots, geometry, None, data, still_faces=faces)
+    actual = caption_offsets(slots, geometry, None, data, still_faces=faces,
+                             splits=[(0, 30, 960)])
+    top = geometry.y + actual[0]["offset_px"]
+    assert top == 960 + 24
+    assert top + geometry.height <= 1740
+    assert actual[1] == ordinary[1]
+
+
 @pytest.mark.parametrize("case", ["no_face", "clear", "unmeasured", "blocked", "boundary"])
 def test_caption_offsets_keep_clear_empty_and_blocked_windows(case: str) -> None:
     style = resolve("preset:electric")
@@ -1579,11 +1693,67 @@ def test_blocked_collision_stops_before_publishing(
         assert "and 1 more" in caught.value.message
         assert "0:01.2 to" not in caught.value.message
     assert all(text in caught.value.suggested_action for text in (
-        "wider", "smaller captions", 'captions.placement', '"fixed"', "this project",
+        "Ask the creator", "wider", "smaller captions", "captions.allow_face_overlap",
+        "true", "this project",
     ))
     assert len(fake_layers) == 1
     assert all(not (layer_project / "captions" / name).exists()
                for name in ("captions.mov", "captions.srt", "phrases.json", "layout.json"))
+
+
+def test_allowed_face_overlap_keeps_blocked_phrases_and_moves_clearable_ones(
+    layer_project: Path, measured_faces: _CaptionDetector, fake_layers: list[dict],
+    checked_layers: list[dict], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    style = json.loads((layer_project / "style.json").read_bytes())
+    before = caption_snapshot(ProjectContext(layer_project)).inputs
+    style["captions"]["allow_face_overlap"] = True
+    write(layer_project / "style.json", style)
+    after = caption_snapshot(ProjectContext(layer_project)).inputs
+    assert before["style:captions"] != after["style:captions"]
+    faces = cut_faces(layer_project, layer_project / "cut/cut.mp4", detector=measured_faces)
+    frames = tuple((FaceBox(Box(0, 640, 1080, 1100) if n < 30 else measured_faces.box,
+                            0.95, "detected"),) for n in range(faces.video.frames))
+    faces = replace(faces, frames=frames, gaps=())
+    monkeypatch.setattr(caption_stage, "cut_faces", lambda *args: faces)
+
+    result = captions(layer_project)
+    assert not result["noop"] and len(result["warnings"]) == 1
+    assert "0:00.1" in result["warnings"][0]
+    assert "creator allowed" in result["warnings"][0].lower()
+    assert "0:01.0" not in result["warnings"][0]
+    slots = json.loads(fake_layers[0]["variables"]["phrases"])
+    assert slots[0]["offset_px"] == 0 and slots[1]["offset_px"] < 0
+    layout = json.loads((layer_project / "captions/layout.json").read_bytes())
+    assert layout["caption_placement"] == "avoid_face" and layout["face_overlap_ok"] is True
+    assert all((layer_project / "captions" / name).is_file()
+               for name in ("captions.mov", "captions.srt", "phrases.json", "layout.json"))
+    record = read_receipt(layer_project / "captions")
+    assert record["face_overlaps"] and record["warnings"] == result["warnings"]
+    again = captions(layer_project)
+    assert again["noop"] and again["warnings"] == result["warnings"]
+    assert len(fake_layers) == 1
+
+    style["captions"]["allow_face_overlap"] = False
+    write(layer_project / "style.json", style)
+    with pytest.raises(YapError) as caught:
+        captions(layer_project)
+    assert caught.value.code == "caption_face_clearance" and len(fake_layers) == 2
+
+
+@pytest.mark.parametrize("allowed", [False, True])
+def test_caption_face_overlap_style_accepts_booleans(allowed: bool) -> None:
+    assert resolve_style_data({"schema_version": 1})["captions"]["allow_face_overlap"] is False
+    data = resolve_style_data({"schema_version": 1, "captions": {"allow_face_overlap": allowed}})
+    assert data["captions"]["allow_face_overlap"] is allowed
+
+
+@pytest.mark.parametrize("allowed", [None, 0, 1, "true", [], {}])
+def test_caption_face_overlap_style_refuses_non_booleans(allowed: Any) -> None:
+    from yap_studio.style import StyleError
+
+    with pytest.raises(StyleError, match="allow_face_overlap"):
+        resolve_style_data({"schema_version": 1, "captions": {"allow_face_overlap": allowed}})
 
 
 def test_blocked_face_only_on_undrawn_frame_does_not_stop_captions(
@@ -1613,7 +1783,7 @@ def test_blocked_collision_is_listed_in_receipt_with_warning(
     chain._captions(layer_project, state)
     assert len(state["warnings"]) == 1
     assert "0:00.1" in state["warnings"][0]
-    assert "fixed" in state["warnings"][0]
+    assert "captions.allow_face_overlap" in state["warnings"][0]
     placement = read_receipt(layer_project / "captions")["caption_placement"]
     assert placement["phrases"][0]["offset_px"] == 0
     assert placement["phrases"][0]["reason"].startswith("kept: no position in the band")
@@ -2244,22 +2414,56 @@ def test_caption_outputs_use_cut_frames_output_times_and_last_frame(
     assert len(fake_layers) == 1
 
 
-def test_bottom_caption_clamp_warning_survives_project_receipt_and_noop(
-    layer_project: Path, fake_layers: list[dict],
+@pytest.mark.parametrize("position,top_px,safe_bottom_px,warns", [
+    ("bottom", 1180, 1740, True), ("bottom", 1339, 1740, True),
+    ("bottom", 1340, 1740, False), ("bottom", 1490, 1740, False),
+    ("bottom", 1503, 1740, False), ("middle", 1180, 1740, False),
+    pytest.param("bottom", 864, 1008, False, id="horizontal"),
+])
+def test_caption_band_warns_for_bottom_with_mid_frame_top_px(
+    position: str, top_px: int, safe_bottom_px: int, warns: bool,
+) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": position, "top_px": top_px,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=safe_bottom_px)
+    if warns:
+        assert geometry.warnings, "bottom with mid-frame top_px must warn"
+        warning, = geometry.warnings
+        assert "captions.position=bottom" in warning
+        assert f"captions.top_px={top_px}" in warning
+        assert "last line sits mid-frame" in warning
+        assert "Bottom placement uses top_px=1500" in warning
+    else:
+        assert geometry.warnings == ()
+    if position == "bottom":
+        assert (geometry.y + geometry.height - geometry.bottom_padding
+                - geometry.line_height) == pytest.approx(top_px)
+    else:
+        assert geometry.y + geometry.height / 2 == pytest.approx(top_px, abs=0.5)
+
+
+@pytest.mark.parametrize("top_px", [1180, 1650])
+def test_bottom_caption_warning_survives_project_receipt_and_noop(
+    layer_project: Path, fake_layers: list[dict], top_px: int,
 ) -> None:
     style_path = layer_project / "style.json"
     style = json.loads(style_path.read_text())
     style["captions"].update({
-        "position": "bottom", "top_px": 1650, "size_px": 104,
+        "position": "bottom", "top_px": top_px, "size_px": 104,
         "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
     })
     write(style_path, style)
     result = captions(layer_project)
     layer = result["layer"]
     warnings = layer["warnings"]
-    assert len(warnings) == 1 and "clamped" in warnings[0]
-    assert "1650" in warnings[0] and "1740" in warnings[0]
-    assert layer["y"] + layer["height"] == 1740
+    assert len(warnings) == 1
+    assert str(top_px) in warnings[0]
+    if top_px == 1650:
+        assert "clamped" in warnings[0] and "1740" in warnings[0]
+        assert layer["y"] + layer["height"] == 1740
+    else:
+        assert "last line sits mid-frame" in warnings[0]
     record = read_receipt(layer_project / "captions")
     assert record["layer"]["warnings"] == warnings
     phrases = json.loads((layer_project / "captions/phrases.json").read_text())
