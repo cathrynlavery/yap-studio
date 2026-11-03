@@ -220,6 +220,8 @@ def test_cli_failure_records_origin_in_ledger_and_reports(monkeypatch, capsys, r
 
 
 def test_cli_wrapped_failure_records_original_exception_site(tmp_path, capsys):
+    # edit.json exists, so fillers reaches the project reads and wraps their OSError.
+    (tmp_path / "edit.json").write_text("{}")
     assert cli.main(["fillers", str(tmp_path), "--json"]) == 2
     capsys.readouterr()
     entry, = feedback.entries()
