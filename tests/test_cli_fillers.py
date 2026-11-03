@@ -8,12 +8,40 @@ import re
 from pathlib import Path
 
 import pytest
-from test_fillers import install_engine, make_project
+from test_fillers import install_engine, make_project, write_json
 
 from yap_studio import receipt
 from yap_studio.cli import main
 from yap_studio.project.status import ProjectContext, fillers_inputs, status
 from yap_studio.stages import fillers as stage
+
+
+@pytest.mark.parametrize("edit_directory", [False, True], ids=["missing", "directory"])
+def test_fillers_requires_edit_list(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], edit_directory: bool,
+) -> None:
+    root = tmp_path / "project"
+    write_json(root / "project.json", {
+        "schema": "yap-studio/project@1", "name": "story",
+        "takes": [{"id": "t1", "path": "takes/source.mov"}],
+    })
+    write_json(root / "ingest/t1/words.json", {
+        "schema": "yap-studio/words@1", "take": "t1", "take_sha256": "1" * 64,
+        "time_base": "source", "audio_offset_s": 0, "engine": "none", "model": None,
+        "transcript_sha256": "2" * 64,
+        "words": [{"id": "t1:0", "text": "garden", "start": 0.2, "end": 0.5}],
+    })
+    if edit_directory:
+        (root / "edit.json").mkdir()
+
+    assert main(["fillers", str(root), "--json"]) == 2
+    stderr = capsys.readouterr().err
+    error = json.loads(stderr)["error"]
+    assert error["code"] == "missing_edit_list"
+    assert str(root / "edit.json") in error["message"]
+    assert "write the story cut to edit.json first" in error["suggested_action"].lower()
+    assert "yap-studio edit schema" in error["suggested_action"]
+    assert "audio or video file" not in stderr
 
 
 def test_fillers_defaults_to_proposals_then_apply(tmp_path: Path,

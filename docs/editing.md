@@ -122,7 +122,9 @@ yap-studio fillers project
 yap-studio fillers project --apply
 ```
 
-The first command proposes removals; `--apply` applies those that pass the join test.
+Fillers reads the story cut, so write `edit.json` first; `yap-studio edit schema` shows
+its format. The first command proposes removals; `--apply` applies those that pass the
+join test.
 A join that could not be verified stays proposed with a listen flag.
 Every speech removal is checked by comparing a spliced clip with its uncut control,
 preserving the surrounding words and checking for clicks.

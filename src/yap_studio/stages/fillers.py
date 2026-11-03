@@ -23,7 +23,7 @@ import numpy as np
 
 from yap_studio import audio, paths, receipt
 from yap_studio.checks.joins import click_at, pause_len_at
-from yap_studio.errors import InputError, YapError
+from yap_studio.errors import EditListError, InputError, YapError
 from yap_studio.plan import snap_frame
 from yap_studio.project.lock import ConflictError, _write_json, pid_alive, project_lock, timestamp
 from yap_studio.project.model import (
@@ -1883,6 +1883,12 @@ def fillers(project_dir: Path, *, apply: bool = False, force: bool = False,
             propose_only: bool = False,
             expected_max_pause_s: float | None = None) -> dict[str, Any]:
     """Test proposals and publish removals; apply passing speech cuts only on request."""
+    if not (Path(project_dir) / "edit.json").is_file():
+        raise EditListError(
+            f"{Path(project_dir) / 'edit.json'} is missing.", code="missing_edit_list",
+            suggested_action=("Write the story cut to edit.json first. "
+                              "Run yap-studio edit schema to see the format."),
+        )
     started = time.monotonic()
     with paths.operation():
         _check_removals_receipt(Path(project_dir))

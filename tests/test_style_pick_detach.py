@@ -371,6 +371,8 @@ def test_failed_replacement_keeps_earlier_style_page(page, tmp_path, failure):
     result = command(env, "--detach", "--json", "--no-open", *options)
     assert result.returncode == 2, result.stderr
     assert json.loads(result.stderr)["error"]["message"]
+    if failure == "renderer":
+        assert json.loads(result.stderr)["error"]["code"] == "renderer_not_found"
     os.kill(first["detached"]["pid"], 0)
     assert request(first["url"])["style"]
     assert record.read_bytes() == original

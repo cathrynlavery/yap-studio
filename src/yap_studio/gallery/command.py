@@ -15,7 +15,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from yap_studio.errors import ValidationError, YapError
+from yap_studio.errors import DependencyError, ValidationError, YapError
 
 _STILL_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 IDLE_AFTER_SAVE_S = 120
@@ -89,8 +89,7 @@ def pick(args: argparse.Namespace) -> int:
             raise ValidationError("phone", "use --phone or --host, not both")
         install = hyperframes.installed()
         if install is None:
-            raise ValidationError("renderer", "the pinned renderer is missing; "
-                                  "run yap-studio renderer install")
+            raise DependencyError.missing_renderer()
         gsap = hyperframes.gsap_file(install)
         inbox = Path(args.inbox).expanduser() if args.inbox else None
         workspace = Path(args.workspace).expanduser() if args.workspace else None

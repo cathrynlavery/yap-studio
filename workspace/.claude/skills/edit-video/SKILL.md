@@ -61,6 +61,9 @@ lane, keeping the existing timing and line layout rules below. Never render an
 opening title without chosen text. The engine refuses a missing choice or different
 title text. The review page saves either kind of choice with a note.
 
+When graphics stops with `title_face_clearance`, ask the creator for shorter opening
+text or Text at the top: None for this video. Never move the title lower.
+
 ### Whole-video label
 
 When the saved style uses `hook.style: text_hook`, its plain label stays on screen
@@ -328,16 +331,15 @@ when they pressed a page button.
      taking rows from their words and numbers, keeping their exact figure, with cues as word anchors.
      Motion streak follows `graphics.card_motion`; do not add a second card entrance.
      Keep the planner's rest box and motion evidence. Unsupported cards or unsafe paths enter as usual.
-     Run `yap-studio faces detect DIR/cut/cut.mp4 --out DIR/plans/faces.json`. Write
-     `DIR/plans/cards.json` (`yap-studio/card-requests@1`: `id` starting `agent-`,
+     Write `DIR/plans/cards.json` (`yap-studio/card-requests@1`: `id` starting `agent-`,
      `template`, `slots`, a word `start`, an `end` or `hold_s`, `placement` `top` or
      `behind_head`). Word ids come from `DIR/cut/cut-words.json`. For example:
      ```json
      {"schema":"yap-studio/card-requests@1","cards":[{"id":"agent-terms","template":"text_tag","slots":{"text":"Technical terms","variant":"sign"},"start":{"word":"t1:12"},"hold_s":2.5,"placement":"top"}]}
      ```
      Run `yap-studio cards plan DIR/plans/cards.json --cut-words
-     DIR/cut/cut-words.json --style STYLE --frames N --faces DIR/plans/faces.json --out
-     DIR/plans/cards`. Rework any card it reports blocked (shorter text, or another
+     DIR/cut/cut-words.json --frames N --out DIR/plans/cards`. In a project it uses the
+     project's own style and face data. Rework any card it reports blocked (shorter text, or another
      moment with more room), then run `yap-studio timeline add
      DIR/plans/cards/agent-lane.json DIR --lane agent`.
      With `captions.camera_3d` on, add no zooms, jump cut punches, moments,
