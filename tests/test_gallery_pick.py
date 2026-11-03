@@ -799,7 +799,7 @@ def test_remote_binding_requires_token_and_origin(tmp_path, monkeypatch):
         server.server_close()
 
 
-def test_parser_is_lazy_and_missing_renderer_has_fix(capsys, monkeypatch):
+def test_parser_is_lazy_and_missing_renderer_has_fix(capsys, monkeypatch, tmp_path):
     code = ("import sys; from yap_studio.cli import _parser; "
             "assert _parser().parse_args(['style','pick']).style_command == 'pick'; "
             "assert 'yap_studio.gallery.server' not in sys.modules; "
@@ -812,6 +812,11 @@ def test_parser_is_lazy_and_missing_renderer_has_fix(capsys, monkeypatch):
 
     assert main(["style", "pick", "--no-open"]) == 2
     assert "fix: run yap-studio renderer install" in capsys.readouterr().err
+    assert main(["style", "pick", "--no-open", "--json", "--detached-record",
+                 str(tmp_path / "style-pick.json")]) == 2
+    error = json.loads(capsys.readouterr().err)["error"]
+    assert error["code"] == "renderer_not_found"
+    assert error["suggested_action"] == "run yap-studio renderer install"
 
 
 def test_parallel_layer_requests_succeed(gallery):

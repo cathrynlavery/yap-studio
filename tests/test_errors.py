@@ -323,7 +323,7 @@ def test_renderer_blocked_error_dict_has_code_and_fix() -> None:
     ("constructor", "code", "hint"),
     [
         (DependencyError.missing_node, "node_not_found", "Node 22 or newer"),
-        (DependencyError.missing_renderer, "renderer_not_found", "yap-studio doctor"),
+        (DependencyError.missing_renderer, "renderer_not_found", "yap-studio renderer install"),
         (DependencyError.missing_xcode_tools, "xcode_tools_not_found", "xcode-select --install"),
         (DependencyError.missing_elevenlabs_cli, "elevenlabs_cli_not_found", "auth set-token"),
     ],

@@ -156,7 +156,7 @@ class DependencyError(YapError):
             "Renderer not found.",
             error_type="dependency_error",
             code="renderer_not_found",
-            suggested_action="Run yap-studio doctor to install the pinned renderer.",
+            suggested_action="Run yap-studio renderer install.",
         )
 
     @classmethod
