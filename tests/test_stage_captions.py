@@ -1532,7 +1532,7 @@ def test_caption_offsets_reserve_only_known_bottom_lines(
                       VideoIdentity("cut.mp4", "a" * 64, 30, Fraction(30), 1080, 1920),
                       {}, {}, ((FaceBox(face, .9, "detected"),),) * 30, ())
     placement = caption_offsets(slots, geometry, faces, style)[0]
-    expected = 60 if near and (position == "middle" or len(text) > 30) else 0
+    expected = 60 if near and (position == "middle" or len(text) > 30 or backing == "box") else 0
     assert placement["offset_px"] == expected
     assert placement["reason"] == (
         "moved down 60 px to stay 24 px clear of the head" if expected
@@ -1570,6 +1570,45 @@ def test_one_line_caption_search_fits_below_low_chin() -> None:
     )[0]
     assert placement["offset_px"] == 104
     assert placement["reason"] == "moved down 104 px to stay 24 px clear of the head"
+
+
+@pytest.mark.parametrize("mode", ["band", "box"])
+@pytest.mark.parametrize("opacity", [0, 1])
+def test_one_line_caption_search_keeps_visible_ground_band(mode: str, opacity: int) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 1503, "size_px": 64, "highlight_style": "underline",
+        "background_mode": mode, "background_opacity": opacity,
+        "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    face = Box(400, geometry.y + 36 - 180, 200, 180)
+    placement = caption_offsets(
+        [{"start": .2, "end": .7, "words": [{"text": "Hi"}]}], geometry, None, data,
+        still_faces=[face],
+    )[0]
+    assert placement["offset_px"] == (60 if opacity else 0)
+    if opacity:
+        assert gap_px(Box(70, geometry.y + placement["offset_px"], 940, geometry.height),
+                      head_box(face)) >= face_clearance_px(data)
+
+
+@pytest.mark.parametrize("placement", ["fixed", "avoid_face"])
+def test_one_line_split_caption_keeps_full_band_below_seam(placement: str) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 900, "size_px": 64, "highlight_style": "underline",
+        "placement": placement,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    slots = [{"start": .2, "end": .7, "words": [{"text": "Hi"}]},
+             {"start": 1.2, "end": 1.7, "words": [{"text": "Again"}]}]
+    faces = [Box(400, geometry.y + 36 - 180, 200, 180)]
+    ordinary = caption_offsets(slots, geometry, None, data, still_faces=faces)
+    actual = caption_offsets(slots, geometry, None, data, still_faces=faces,
+                             splits=[(0, 30, 960)])
+    top = geometry.y + actual[0]["offset_px"]
+    assert top == 960 + 24
+    assert top + geometry.height <= 1740
+    assert actual[1] == ordinary[1]
 
 
 @pytest.mark.parametrize("case", ["no_face", "clear", "unmeasured", "blocked", "boundary"])

@@ -550,9 +550,12 @@ def caption_offsets(
         top = plain.y + phrase_band.get("top_px", 0)
         height = phrase_band.get("height_px", plain.height)
         # Custom looks can wrap or center text without planned breaks.
-        if (captions["position"] == "bottom" and captions["highlight_style"] in {
+        if (phrase_ground == "none" and captions["position"] == "bottom"
+                and captions["highlight_style"] in {
             "none", "moving_block", "underline", "color", "pill", "gradient", "editorial",
-        } and not phrase.get("breaks") and _phrase_box_width(phrase, captions) < 940):
+        } and not phrase.get("breaks") and _phrase_box_width(phrase, captions) < 940
+                and not any(phrase["start"] * fps < end and phrase["end"] * fps > start
+                            for start, end, _ in splits)):
             one_line_height = math.ceil(plain.line_height + captions["entry_rise_px"]
                                         + 2 * phrase_band.get("padding_px", plain.padding))
             top += height - one_line_height

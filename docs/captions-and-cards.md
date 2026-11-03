@@ -26,6 +26,8 @@ the same height. If one line plus entry rise and shadow padding cannot fit above
 `internal.caption_safe_bottom_px`, the plan and receipt report the clamp in
 `warnings`. With `position: middle`, the band stays centered on `top_px` with its
 existing safe-boundary clamp.
+Plain one-line bottom captions look for one line of clear space; captions with a
+visible background, and captions over a split b-roll layout, keep the full two-line band.
 Changing `position` alone keeps `top_px`; captions warn when `bottom` is paired
 with a mid-frame `top_px` more than 400 px above the safe bottom (below 1340 on
 vertical videos, where the style page's Bottom uses 1500).
