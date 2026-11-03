@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
+from traceback import extract_tb
 
 import pytest
 
@@ -15,6 +17,60 @@ from yap_studio.errors import (
     ValidationError,
     YapError,
 )
+
+
+def test_error_origin_points_to_package_raise_site(monkeypatch) -> None:
+    from yap_studio import product_feedback
+
+    monkeypatch.setattr(product_feedback, "_config", lambda: {"feedback_mode": "invalid"})
+    with pytest.raises(ValidationError) as caught:
+        product_feedback.mode()
+    site = extract_tb(caught.value.__traceback__)[-1]
+    assert caught.value.origin == f"product_feedback:mode:{site.lineno}"
+
+
+def test_error_origin_skips_dependency_factory() -> None:
+    from yap_studio import tools
+
+    error = tools._missing_tool("node")
+    assert re.fullmatch(r"tools:_missing_tool:[0-9]+", error.origin)
+
+
+def test_error_origin_uses_innermost_package_frame_when_wrapped(tmp_path, capsys) -> None:
+    from yap_studio.project.status import ProjectContext
+
+    try:
+        ProjectContext(tmp_path)
+    except FileNotFoundError as exc:
+        site = extract_tb(exc.__traceback__)[-1]
+        error = InputError(str(exc.filename))
+    else:
+        pytest.fail("expected a missing synthetic project")
+    print(error)
+    assert "Cannot read input" in capsys.readouterr().out
+    assert error.origin == f"project/status:read:{site.lineno} FileNotFoundError"
+
+
+def test_error_origin_does_not_wrap_another_yap_error(monkeypatch) -> None:
+    from yap_studio import product_feedback
+
+    monkeypatch.setattr(product_feedback, "_config", lambda: {"feedback_mode": "invalid"})
+    try:
+        raise YapError("earlier error")
+    except YapError:
+        with pytest.raises(ValidationError) as caught:
+            product_feedback.mode()
+    site = extract_tb(caught.value.__traceback__)[-1]
+    assert caught.value.origin == f"product_feedback:mode:{site.lineno}"
+
+
+def test_error_origin_is_none_without_a_package_frame() -> None:
+    assert YapError("synthetic error").origin is None
+    assert DependencyError.missing_node().origin is None
+    try:
+        raise ValueError("synthetic external error")
+    except ValueError:
+        assert InputError("synthetic input").origin is None
 
 
 @pytest.mark.parametrize("name", ["ffmpeg", "ffprobe"])

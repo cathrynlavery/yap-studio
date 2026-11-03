@@ -21,9 +21,10 @@ The command scrubs paths, file names, emails, URLs, IP addresses, local hostname
 and common secret patterns on write and again before sharing. Yap Studio's own fixed
 file names, such as `edit.json`, and the abbreviations e.g. and i.e. stay readable.
 Links to github.com and yapstudio.app retain only their domain. Automatic failure
-notes contain only
-the command name, registered subcommand when present (such as `versions save`),
-and error code. Other arguments and the error message are never included.
+notes contain the command name, registered subcommand when present (such as
+`versions save`), the error code and where in Yap Studio's code it was raised
+(module, function and line). Wrapped errors also name the original exception's class.
+Other arguments and the error message are never included.
 No footage, transcripts, spoken words, names or project files are attached or read.
 Write about the tool only: do not put names or the creator's words in a note.
 The scrubber recognizes patterns; read free text before agreeing to share it.

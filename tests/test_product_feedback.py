@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import sys
 import threading
@@ -111,7 +112,8 @@ def test_entry_shape_permissions_and_stdin(monkeypatch, capsys):
     result = json.loads(capsys.readouterr().out)
     entry = result["entry"]
     assert set(entry) == {"time", "version", "macos", "arch", "step", "code", "kind",
-                          "text", "agent", "fingerprint", "sent"}
+                          "text", "agent", "origin", "fingerprint", "sent"}
+    assert entry["origin"] is None
     assert before <= datetime.fromisoformat(entry["time"]) <= datetime.now(UTC)
     assert entry["version"] == __version__
     assert entry["step"] == "verify" and entry["code"] == "invalid_input"
@@ -139,6 +141,90 @@ def test_fingerprint_stability_and_distinctions():
     assert first != feedback.fingerprint("bug", "run", "other", "try again")
     assert feedback.fingerprint("bug", None, None, "/" + "Users/A/take.mov") == (
         feedback.fingerprint("bug", None, None, "/" + "Users/B/other.mov"))
+
+
+@pytest.mark.parametrize("cause", ["", " FileNotFoundError"])
+def test_fingerprint_groups_origins_without_line_numbers(cause):
+    first = feedback.record("Failure", kind="bug", code="invalid_input",
+                            origin=f"project/status:read:78{cause}")
+    repeat = feedback.record("Failure", kind="bug", code="invalid_input",
+                             origin=f"project/status:read:109{cause}")
+    assert first["fingerprint"] == repeat["fingerprint"]
+    for origin in ("project/status:json:78" + cause, "project/model:read:78" + cause,
+                   "project/status:read:78 RuntimeError", None):
+        other = feedback.record("Failure", kind="bug", code="invalid_input", origin=origin)
+        assert first["fingerprint"] != other["fingerprint"]
+
+
+@pytest.mark.parametrize("origin", [
+    "project/status:read:78 FileNotFoundError",
+    "stages/assemble_picture:prepare_background_video:372",
+    "product_feedback:<lambda>:123",
+])
+def test_origin_is_kept_without_scrubbing(origin):
+    entry = feedback.record("Failure", origin=origin)
+    assert entry["origin"] == origin
+    assert feedback.entries()[0]["origin"] == origin
+
+
+@pytest.mark.parametrize("origin", [
+    "/Users/Private/project/status:read:78",
+    "project/status:read:78 Private Name",
+    "project/status.py:read:78",
+    "project/../status:read:78",
+    "project/status:read:78\n",
+    "project/status:read:78 FileNotFoundError\n",
+    123, {"private": "value"},
+])
+def test_safe_drops_tampered_origins(origin):
+    entry = feedback.record("Failure")
+    ledger = feedback.data_dir() / "feedback.jsonl"
+    entry["origin"] = origin
+    ledger.write_text(json.dumps(entry) + "\n")
+    assert feedback.entries()[0]["origin"] is None
+
+
+@pytest.mark.parametrize("raised", [False, True])
+def test_cli_failure_records_origin_in_ledger_and_reports(monkeypatch, capsys, raised):
+    monkeypatch.setattr(feedback, "_config", lambda: {"feedback_mode": "invalid"})
+
+    def fail(_arguments):
+        if raised:
+            feedback.mode()
+        try:
+            feedback.mode()
+        except YapError as exc:
+            print(exc, file=sys.stderr)
+        return 2
+
+    monkeypatch.setattr(cli, "_main", fail)
+    if raised:
+        with pytest.raises(YapError):
+            cli.main(["verify", "Private input.mov"])
+    else:
+        assert cli.main(["verify", "Private input.mov"]) == 2
+    capsys.readouterr()
+    entry, = feedback.entries()
+    assert re.fullmatch(r"product_feedback:mode:[0-9]+", entry["origin"])
+    ledger = feedback.data_dir() / "feedback.jsonl"
+    assert json.loads(ledger.read_text())["origin"] == entry["origin"]
+    assert "Private" not in json.dumps(entry)
+    monkeypatch.setattr(feedback, "_config", lambda: {})
+    monkeypatch.setattr(feedback, "availability", lambda: {
+        "endpoint": False, "gh_logged_in": False})
+    plan, = feedback.send(dry_run=True)
+    assert f"Code: invalid_parameter\nWhere: {entry['origin']}\n" in plan["body"]
+    monkeypatch.setattr(feedback, "availability", lambda: {"endpoint": True})
+    plan, = feedback.send(dry_run=True)
+    assert plan["json"]["entries"][0]["origin"] == entry["origin"]
+
+
+def test_cli_wrapped_failure_records_original_exception_site(tmp_path, capsys):
+    assert cli.main(["fillers", str(tmp_path), "--json"]) == 2
+    capsys.readouterr()
+    entry, = feedback.entries()
+    assert re.fullmatch(r"project/status:read:[0-9]+ FileNotFoundError", entry["origin"])
+    assert str(tmp_path) not in json.dumps(entry)
 
 
 @pytest.mark.parametrize("arguments", [[], [""], ["--kind", "invalid", "note"],
@@ -335,9 +421,9 @@ def test_automatic_grouped_failure_records_subcommand(monkeypatch, capsys, argum
     assert "Private" not in json.dumps(entry)
     assert feedback.scrub(step) == step
     assert entry["fingerprint"] == feedback.fingerprint(
-        "bug", step, "invalid_input", entry["text"])
+        "bug", step, "invalid_input", entry["text"], entry["origin"])
     assert entry["fingerprint"] != feedback.fingerprint(
-        "bug", arguments[0], "invalid_input", entry["text"])
+        "bug", arguments[0], "invalid_input", entry["text"], entry["origin"])
     preview, = feedback.send(dry_run=True)
     assert preview["title"] == f"bug: {step} invalid_input"
     assert f"Step: {step}\n" in preview["body"]
