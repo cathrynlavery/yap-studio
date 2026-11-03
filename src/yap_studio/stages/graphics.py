@@ -23,7 +23,7 @@ from yap_studio.card_motion import plan_motion
 from yap_studio.card_project import PROJECT_CARD_TEMPLATES, CardShot, project_facts
 from yap_studio.card_stills import cached_frame, cached_still
 from yap_studio.cards_video import caption_ceiling
-from yap_studio.errors import ValidationError
+from yap_studio.errors import ValidationError, YapError
 from yap_studio.faces.clearance import (
     DEFAULT_HAIR,
     face_boxes_per_frame,
@@ -369,8 +369,13 @@ def place_title(plan: LayerPlan, style: ResolvedStyle, faces: FacesData) -> tupl
                                + (f"; shrank from {original_size} to {size} px"
                                   if size != original_size else ""))
         return candidate, evidence
-    raise ValidationError("title.clearance", "no readable title size fits above the head; "
-                          "shorten the title or choose a different window")
+    raise YapError(
+        "The opening title does not fit above the head after trying every size "
+        f"from {original_size} down to 40 px.",
+        error_type="validation_error", code="title_face_clearance",
+        suggested_action="Ask the creator for shorter opening text or set "
+                         "Text at the top: None for this video.",
+    )
 
 
 def _caption_top(context: ProjectContext, style: ResolvedStyle, start: int, end: int) -> int:

@@ -133,6 +133,8 @@ in `plans/text-hook.json` with `kind: "opening"`, three `ideas`, `chosen` and
 `source`. Put exactly the chosen text in the title's timeline `lines`.
 Rendering refuses missing choices and titles with different text. Existing projects
 keep their title layers until the creator answers Text at the top once.
+If the head fills the top and the opening title cannot fit above it, graphics stops
+and asks for shorter opening text or Text at the top: None for this video.
 
 Kinetic hook fills short lines with giant type and punches each word over the
 picture as it is spoken. It centres above the head when face data is available

@@ -20,7 +20,7 @@ from test_stage_graphics import graphic, title
 from yap_studio import cards, cli, ffmpeg, receipt
 from yap_studio.checks.caption_layout import LayoutRecord, check_caption_cards
 from yap_studio.checks.face_clearance import check_face_clearance
-from yap_studio.errors import ValidationError
+from yap_studio.errors import ValidationError, YapError
 from yap_studio.faces.clearance import (
     DEFAULT_HAIR,
     CaptionPhrase,
@@ -477,8 +477,16 @@ def test_kinetic_title_only_uses_faces_in_its_own_window() -> None:
 def test_title_refuses_when_even_the_readable_minimum_cannot_clear() -> None:
     style = resolve("preset:clean_minimal")
     default = title_layer_plan("", "", style, lines=["Small steps"], frames=30)
-    with pytest.raises(ValidationError, match="no readable title size"):
+    with pytest.raises(YapError) as caught:
         stage.place_title(default, style, synthetic_faces(Box(0, 0, 1080, 1920)))
+    error = caught.value
+    assert error.code == "title_face_clearance"
+    assert error.error_type == "validation_error"
+    assert "opening title does not fit above the head" in error.message
+    assert f"from {default.variables['size_px']} down to 40 px" in error.message
+    assert "shorter opening text" in error.suggested_action
+    assert "Text at the top: None for this video" in error.suggested_action
+    assert "title.clearance" not in error.message + error.suggested_action
 
 
 def test_title_clears_face_through_opening_push() -> None:

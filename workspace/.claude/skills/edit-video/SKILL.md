@@ -61,6 +61,9 @@ lane, keeping the existing timing and line layout rules below. Never render an
 opening title without chosen text. The engine refuses a missing choice or different
 title text. The review page saves either kind of choice with a note.
 
+When graphics stops with `title_face_clearance`, ask the creator for shorter opening
+text or Text at the top: None for this video. Never move the title lower.
+
 ### Whole-video label
 
 When the saved style uses `hook.style: text_hook`, its plain label stays on screen
