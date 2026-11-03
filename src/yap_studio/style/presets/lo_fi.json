@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "name": "Lo-fi",
+  "captions": {
+    "font": "Instrument Serif",
+    "size_px": 83,
+    "text_color": "#FFFFFF",
+    "highlight_color": "#E8452C",
+    "highlight_text_color": "#FFFFFF",
+    "highlight_style": "none",
+    "position": "bottom",
+    "top_px": 1503,
+    "max_words_per_phrase": 5,
+    "max_characters_per_phrase": 24,
+    "shadow_opacity": 0.95,
+    "shadow_blur_px": 7,
+    "shadow_x_px": 0,
+    "shadow_y_px": 3,
+    "letter_spacing_px": -0.5,
+    "italic_stress": false,
+    "entry_rise_px": 0,
+    "entry_ms": 0
+  },
+  "hook": {
+    "style": "text_hook",
+    "text_hook_color": "white",
+    "font": "Geist",
+    "text_color": "#111111",
+    "background_color": "#FFFFFF",
+    "accent_color": "#E8452C"
+  },
+  "graphics": {
+    "style": "minimal",
+    "font": "Geist",
+    "paper_color": "#FFFFFF",
+    "titlebar_color": "#EDEDED",
+    "ink_color": "#111111",
+    "accent_color": "#E8452C"
+  },
+  "moves": {
+    "zoom_mode": "none",
+    "transitions": [],
+    "jump_cuts": "hard",
+    "opening_push": false
+  },
+  "music": {
+    "level": 0.04,
+    "sound_effects": "none"
+  }
+}

@@ -57,6 +57,7 @@ No source argument is needed. `sync_data.py` only copies the engine presets on i
 | Preset | Status |
 | --- | --- |
 | Editorial Serif, Clean Minimal, Warm Editorial, Cobalt, Mono, Headline, Electric, Candy, Marker, One Word | Shipped in the engine |
+| Bold, Editorial, Neutral, Lo-fi, Hi-fi, Showcase | Shipped in the engine |
 
 The last five proposed files moved unchanged into the engine; `proposed-presets/order.json` is now empty. Every shipped preset passes the engine's style validation and uses bundled fonts. Editorial Serif uses Instrument Serif with a gold colored word, a quiet title and cream cards.
 

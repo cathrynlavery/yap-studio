@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "name": "Showcase",
+  "captions": {
+    "font": "Instrument Serif",
+    "size_px": 80,
+    "text_color": "#FFFFFF",
+    "highlight_color": "#3D7BFF",
+    "highlight_text_color": "#FFFFFF",
+    "highlight_style": "underline",
+    "position": "bottom",
+    "top_px": 1503,
+    "max_words_per_phrase": 5,
+    "max_characters_per_phrase": 24,
+    "shadow_opacity": 0.95,
+    "shadow_blur_px": 7,
+    "shadow_x_px": 0,
+    "shadow_y_px": 3,
+    "letter_spacing_px": -0.5,
+    "italic_stress": false,
+    "entry_rise_px": 8,
+    "entry_ms": 120
+  },
+  "hook": {
+    "style": "quiet_serif",
+    "font": "Geist",
+    "size_px": 84,
+    "text_color": "#101418",
+    "background_color": "#FFFFFF",
+    "accent_color": "#3D7BFF"
+  },
+  "graphics": {
+    "style": "minimal",
+    "font": "Geist",
+    "card_kinds_on": ["playing_grid", "video_card"],
+    "paper_color": "#FFFFFF",
+    "titlebar_color": "#EEF1F5",
+    "ink_color": "#101418",
+    "accent_color": "#3D7BFF"
+  },
+  "broll": {
+    "overlay_box": "tall_behind",
+    "overlay_motion": "scroll"
+  },
+  "moves": {
+    "zoom_mode": "none",
+    "transitions": [],
+    "jump_cuts": "hard",
+    "opening_push": false
+  },
+  "music": {
+    "level": 0.06
+  }
+}

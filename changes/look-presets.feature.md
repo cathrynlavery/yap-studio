@@ -1,0 +1,1 @@
+- Add three looks: Lo-fi for a plain phone look, Hi-fi with the film grade, smooth jump cuts and punch-ins, and Showcase with long pages behind you and video cards.

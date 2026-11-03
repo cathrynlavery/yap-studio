@@ -131,6 +131,26 @@ FINAL_MEASUREMENT_LIMITS: dict[str, dict[str, str]] = {
         "captions.highlight_color": "Highlight is disabled; its configured color is invisible.",
         "captions.highlight_text_color": "Highlight is disabled; active ink is invisible.",
     },
+    "lo_fi": {
+        "captions.font_class": "Instrument Serif's contrasting strokes straddle the family "
+        "classifier's refusal band; naming the font requires OCR.",
+        "captions.highlight_color": "Highlight is disabled; its configured color is invisible.",
+        "captions.highlight_text_color": "Highlight is disabled; active ink is invisible.",
+    },
+    "hi_fi": {
+        "captions.font_class": "Instrument Serif's contrasting strokes straddle the family "
+        "classifier's refusal band; naming the font requires OCR.",
+        "captions.highlight_color": "Highlight is disabled; its configured color is invisible.",
+        "captions.highlight_text_color": "Highlight is disabled; active ink is invisible.",
+        "captions.words_per_caption": "Italic active words change glyph extents within a phrase; "
+        "pixel layout changes do not uniquely identify phrase boundaries.",
+        "captions.max_words_per_phrase": "Depends on the unidentifiable italic caption partition.",
+        "captions.max_characters_per_phrase": "Depends on the unidentifiable italic partition.",
+    },
+    "showcase": {
+        "captions.font_class": "Instrument Serif's contrasting strokes straddle the family "
+        "classifier's refusal band; naming the font requires OCR.",
+    },
 }
 # Independent expected layout of TITLE in the pinned bundled fonts. All other
 # titles wrap to two lines; these short/condensed titles have a different layout.

@@ -263,7 +263,7 @@ def test_file_drop_gallery_builds_a_clip_from_its_still(
 
 
 def test_state_reports_opt_in_kinds(gallery, monkeypatch):
-    monkeypatch.setattr(cards, "OPT_IN_KINDS", ("stat",))
+    monkeypatch.setattr(cards, "OPT_IN_KINDS", (*cards.OPT_IN_KINDS, "stat"))
     kinds = gallery.state()["card_kinds"]
     assert kinds["stat"] == {"category": "Numbers", "opt_in": True, "off": True}
     assert kinds["text_tag"] == {"category": "Words", "opt_in": False, "off": False}

@@ -343,6 +343,7 @@ def test_style_presets_json(style_config: Path, capsys: pytest.CaptureFixture[st
     assert {preset["name"] for preset in presets} == {
         "Clean Minimal", "Electric", "Warm Editorial", "Editorial Serif", "One Word",
         "Cobalt", "Mono", "Headline", "Candy", "Marker", "Bold", "Editorial", "Neutral",
+        "Lo-fi", "Hi-fi", "Showcase",
     }
     assert all(set(preset) == {"id", "name"} for preset in presets)
     assert not style_config.exists()

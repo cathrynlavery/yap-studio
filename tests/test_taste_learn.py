@@ -695,6 +695,9 @@ def test_words_have_fixed_pauses_and_two_wide_phrases(tmp_path: Path) -> None:
         ("hf_bold", "sans", "heavy"),
         ("hf_editorial", "serif", "regular"),
         ("hf_neutral", "sans", "regular"),
+        ("lo_fi", "serif", "regular"),
+        ("hi_fi", "serif", "regular"),
+        ("showcase", "serif", "regular"),
     ],
 )
 def test_final_truth_caption_measurements_without_rendering(

@@ -33,6 +33,7 @@ PROPOSED = HERE / "proposed-presets"
 SHIPPED = [
     "editorial_serif", "clean_minimal", "warm_editorial", "cobalt", "mono",
     "headline", "electric", "candy", "marker", "one_word", "hf_bold", "hf_editorial", "hf_neutral",
+    "lo_fi", "hi_fi", "showcase",
 ]
 
 
