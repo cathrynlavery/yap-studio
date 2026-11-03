@@ -17,9 +17,11 @@ from test_cli_captions import fake_layers  # noqa: F401
 
 from yap_studio import ffmpeg, receipt
 from yap_studio.audio_chain import voice_filters
+from yap_studio.captions import CaptionWord
 from yap_studio.project.model import AUDIO_DEFAULTS
 from yap_studio.project.receipts import projection_sha256
 from yap_studio.project.status import ProjectContext
+from yap_studio.sfx import bleep
 from yap_studio.stages import assemble as assembly
 from yap_studio.stages import assemble_audio as stage
 from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline
@@ -171,6 +173,47 @@ def test_music_dry_open_windows_ducking_and_hold(tmp_path: Path) -> None:
 
     assert rms(1.5, 1.9) < rms(3, 3.5) * 0.5
     assert rms(4.1, 4.9) == pytest.approx(rms(3, 3.5) * 0.25, rel=0.01)
+
+
+@pytest.mark.parametrize("bleep_on", [False, True])
+@pytest.mark.parametrize("hold", [0, 15])
+def test_level_ducking_keeps_bed_tail_when_key_ends_early(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bleep_on: bool, hold: int,
+) -> None:
+    count = stage.RATE
+    samples = count + hold * stage.SAMPLES_PER_FRAME
+    voice = np.full(count, 0.01, dtype=np.float32)
+    synth.float_audio(tmp_path / "cut/voice.wav", voice)
+    bed = np.zeros((samples, 2), dtype=np.float32)
+    bed[:count] = 0.1
+    source = synth.float_audio(tmp_path / "bed.wav", bed)
+    run = stage._run
+
+    def short_key(command, commands, **kwargs):
+        if "-filter_complex" in command:
+            command = list(command)
+            index = command.index("-filter_complex") + 1
+            # End the key upstream of the compressor's input padding.
+            command[index] = command[index].replace("[key]", "[short_key]", 1)
+            command[index] += ";[short_key]atrim=end_sample=1024[key]"
+        return run(command, commands, **kwargs)
+
+    monkeypatch.setattr(stage, "_run", short_key)
+    music = {**resolve("preset:clean_minimal").data["music"], "level": 1, "dry_open_s": 0}
+    result = stage.render_audio(
+        tmp_path, tmp_path / "audio.m4a", work_dir=tmp_path / "work",
+        timeline=ResolvedTimeline((), (), (), 30, hold), policy={"mode": "preserve"},
+        music=music, bed=source, bleeps=bleep.find(
+            [CaptionWord("0", "shit", 0.2, 0.3)], bleep.listed({})) if bleep_on else None,
+    )
+    expected = bed.copy()
+    expected[:count] += voice[:, None]
+    mix = stage.decode(tmp_path / "work/mix.wav", [], channels=2)
+    np.testing.assert_array_equal(mix[count // 2:], expected[count // 2:])
+    np.testing.assert_array_equal(stage.decode(result.click_stem, [], channels=2)[:count],
+                                  np.repeat(voice[:, None], 2, axis=1))
+    if bleep_on:
+        np.testing.assert_array_equal(stage.decode(result.words_stem, [], channels=2), expected)
 
 
 def test_click_stem_absent_without_bed(tmp_path: Path) -> None:

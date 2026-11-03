@@ -355,9 +355,11 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
             if not bleeps:
                 filters.append(f"[voice]asplit={3 if click_mix else 2}[voice_mix][key]"
                                + ("[voice_stem]" if click_mix else ""))
+            # Keep either input's EOF beyond the downstream content trim.
             filters.extend([
-                f"[{index}:a:0]asetpts=N/SR/TB[bed]",
-                f"[bed][key]sidechaincompress=threshold={music['duck_threshold']}:"
+                f"[{index}:a:0]asetpts=N/SR/TB,apad[bed]",
+                "[key]apad[key_padded]",
+                f"[bed][key_padded]sidechaincompress=threshold={music['duck_threshold']}:"
                 f"ratio={music['duck_ratio']}:attack={music['duck_attack_ms']}:"
                 f"release={music['duck_release_ms']}:makeup=1[ducked]",
                 f"[ducked]atrim=end_sample={cut_samples},apad=whole_len={samples},"
