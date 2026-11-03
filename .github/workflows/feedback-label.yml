@@ -1,0 +1,27 @@
+name: Feedback label
+
+# Label reports from the app, including reports opened by outside testers.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      issues: write
+    if: >-
+      contains(github.event.issue.body, '## Product feedback') &&
+      contains(github.event.issue.body, 'Fingerprint: ') &&
+      !contains(github.event.issue.labels.*.name, 'feedback')
+    steps:
+      - name: Add the feedback label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: gh issue edit "$NUMBER" --repo "$REPO" --add-label feedback
