@@ -22,6 +22,7 @@ from yap_studio.hf_registry.catalog import TRIAGE_SCHEMA
 from yap_studio.style import resolve
 
 STYLE = "preset:clean_minimal"
+SAMPLE_TEXT = "Ship it now"
 MIN_S = 1.5
 FRAMES = 90
 STILL_FRAME = 54
@@ -112,9 +113,10 @@ def classify(name, manifest, files, source, *, error=None) -> dict:
             continue
         default = rule.get("default")
         if rule["type"] == "string":
-            sample = default if isinstance(default, str) and default.strip() else "Sample text"
+            sample = SAMPLE_TEXT
             slots[slot] = {"type": "string", "required": True, "min_length": 1,
-                           "max_length": max(12, len(sample))}
+                           "max_length": (max(12, len(default))
+                                          if isinstance(default, str) and default.strip() else 12)}
         elif (rule["type"] == "number" and rule.get("role") == "content" and _integral(default)
               and ("step" not in rule or _integral(rule["step"]))):
             low = int(rule["min"]) if _integral(rule.get("min")) else 0

@@ -76,7 +76,7 @@ def test_fixture_titles_and_cards(records):
     assert title["reason"] == "Title: text slots headline, kicker."
     entry = title["entry"]
     assert entry["mount"] == "fill"
-    assert entry["preview"] == {"headline": "Less, but better", "kicker": "DESIGN PRINCIPLE"}
+    assert entry["preview"] == {"headline": "Ship it now", "kicker": "Ship it now"}
     assert entry["variables"] == {"headline": "{headline}", "kicker": "{kicker}"}
     assert entry["kind"] == {"role": "titles", "category": "Words", "label": "Titlecard Calm",
                              "use": "text up to 16 characters; text up to 16 characters"}
@@ -91,13 +91,32 @@ def test_fixture_titles_and_cards(records):
         "progress": {"type": "integer", "required": True, "minimum": 0, "maximum": 100},
         "label": {"type": "string", "required": True, "min_length": 1, "max_length": 12},
     }
-    assert entry["preview"] == {"progress": 100, "label": "100"}
+    assert entry["preview"] == {"progress": 100, "label": "Ship it now"}
     assert entry["tokens"] == {"--brand": "accent", "--surface": "accent_tint", "--fg": "paper"}
     push = records["push-in"]
     assert push["use"] == "card"
     assert push["entry"]["kind"]["category"] == "Words"
     assert list(push["entry"]["slots"]) == ["text"]
     assert "--bg" not in push["entry"]["tokens"]
+
+
+def test_fixture_records_do_not_store_string_defaults(registry, records):
+    for name, (manifest, _, _) in registry.items():
+        encoded = json.dumps(records[name])
+        for rule in manifest.get("variables", []):
+            default = rule.get("default")
+            if rule["type"] == "string" and isinstance(default, str) and default:
+                assert json.dumps(default) not in encoded, f"{name}: upstream string default leaked"
+
+
+@pytest.mark.parametrize(("default", "max_length"), [
+    (None, 12), (42, 12), ("", 12), (" " * 20, 12), ("Tiny", 12),
+    ("A longer synthetic headline", 27),
+])
+def test_string_previews_keep_default_length_only(default, max_length):
+    entry = classify(variables=[{"id": "text", "type": "string", "default": default}])["entry"]
+    assert entry["preview"] == {"text": "Ship it now"}
+    assert entry["slots"]["text"]["max_length"] == max_length
 
 
 def test_fixture_caption_and_exclusions(records):
@@ -213,8 +232,8 @@ def test_slots_use_all_declarations_and_skip_comments_and_duplicates():
     assert list(entry["slots"]) == ["board_text", "from_text", "tail"]
     assert entry["variables"] == {"boardText": "{board_text}", "from-text": "{from_text}",
                                   "tail": "{tail}"}
-    assert entry["preview"] == {"board_text": "Synthetic text", "from_text": "Sample text",
-                                "tail": "End"}
+    assert entry["preview"] == {"board_text": "Ship it now", "from_text": "Ship it now",
+                                "tail": "Ship it now"}
 
 
 def test_roleless_number_is_not_a_slot():
@@ -229,7 +248,7 @@ def test_roleless_string_remains_a_slot_without_number_knobs():
         {"id": "stars", "type": "number", "default": 100},
     ])["entry"]
     assert list(entry["slots"]) == ["board_text"]
-    assert entry["preview"] == {"board_text": "Synthetic title"}
+    assert entry["preview"] == {"board_text": "Ship it now"}
     assert entry["variables"] == {"boardText": "{board_text}"}
     assert entry["kind"]["category"] == "Words"
 
