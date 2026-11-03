@@ -1,1 +1,1 @@
-- Pin the renderer to HyperFrames 0.8.230. Captions, titles, cards, covers and transitions render the same as before, frame for frame, and beat snapping finds the same beats.
+- Pin the renderer to HyperFrames 0.9.9. Captions, titles, cards, covers and transitions render the same as before, frame for frame, and beat snapping finds the same beats.
