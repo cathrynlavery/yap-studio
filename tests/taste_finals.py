@@ -136,6 +136,16 @@ FINAL_MEASUREMENT_LIMITS: dict[str, dict[str, str]] = {
         "classifier's refusal band; naming the font requires OCR.",
         "captions.highlight_color": "Highlight is disabled; its configured color is invisible.",
         "captions.highlight_text_color": "Highlight is disabled; active ink is invisible.",
+        "captions.size_px": "Instrument Serif at 83 px and a 24-character limit keeps captions on "
+        "one line; no line pitch identifies the em size.",
+        "captions.words_per_caption": "Near-identical thin one-line phrases leave phrase windows "
+        "undetected; pixel layout changes do not uniquely identify phrase boundaries.",
+        "captions.max_words_per_phrase": "Depends on the undetected thin one-line phrase windows.",
+        "captions.max_characters_per_phrase": "Depends on the undetected thin one-line windows.",
+        "hook.style": "The learner has no Text hook class; its white label reads as a paper card.",
+        "hook.accent_color": "The Text hook draws no accent color.",
+        "hook.size_px": "The Text hook fits its own 60 to 72 px Inter size; "
+        "hook.size_px is not drawn.",
     },
     "hi_fi": {
         "captions.font_class": "Instrument Serif's contrasting strokes straddle the family "
@@ -150,12 +160,22 @@ FINAL_MEASUREMENT_LIMITS: dict[str, dict[str, str]] = {
     "showcase": {
         "captions.font_class": "Instrument Serif's contrasting strokes straddle the family "
         "classifier's refusal band; naming the font requires OCR.",
+        "captions.size_px": "Instrument Serif at 80 px and a 24-character limit keeps captions on "
+        "one line; no line pitch identifies the em size.",
+        "captions.words_per_caption": "Near-identical thin one-line phrases leave phrase windows "
+        "undetected; pixel layout changes do not uniquely identify phrase boundaries.",
+        "captions.max_words_per_phrase": "Depends on the undetected thin one-line phrase windows.",
+        "captions.max_characters_per_phrase": "Depends on the undetected thin one-line windows.",
+        "hook.size_px": "Geist fits the fixture title on one line; "
+        "no line pitch identifies the em size.",
     },
 }
 # Independent expected layout of TITLE in the pinned bundled fonts. All other
 # titles wrap to two lines; these short/condensed titles have a different layout.
-FINAL_TITLE_LINES = {"editorial_serif": 1, "cobalt": 1, "hf_bold": 1, "one_word": 3}
-FINAL_SINGLE_LINE_TITLE_WIDTHS = {"editorial_serif": 668, "cobalt": 746}
+FINAL_TITLE_LINES = {
+    "editorial_serif": 1, "cobalt": 1, "hf_bold": 1, "one_word": 3, "lo_fi": 1, "showcase": 1,
+}
+FINAL_SINGLE_LINE_TITLE_WIDTHS = {"editorial_serif": 668, "cobalt": 746, "showcase": 754}
 _SEED = 20_261_005
 _WIDE_LINE = "MMMMMMMM WWWWWWWW."
 # Integer centiseconds keep the run boundaries and pause lengths exact.
