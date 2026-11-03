@@ -377,7 +377,7 @@ def add_pickups(root: Path, directory: Path, memos: list[str] | None, newest: in
 
 
 def rename_project(root: Path, directory: Path, topic: str) -> Path:
-    """Set the topic name before the story cut and keep the ledger in sync."""
+    """Set the topic name before rendering the cut and keep the ledger in sync."""
     with _project_lock(root / "projects"):
         return _rename_project_locked(root, directory, topic)
 
@@ -388,8 +388,20 @@ def _rename_project_locked(root: Path, directory: Path, topic: str) -> Path:
     if (directory.parent.resolve() != projects.resolve() or directory.is_symlink()
             or not (directory / "project.json").is_file()):
         raise ValueError("DIR must be a project directly inside projects/ with project.json.")
-    if (directory / "cut").exists() or (directory / "edit.json").exists():
-        raise ValueError("Name the project before writing the story cut or edit.json.")
+    if (directory / "cut").exists():
+        raise ValueError("Name the project before rendering the story cut.")
+    for progress in directory.glob("*/progress.json"):
+        pid = json.loads(progress.read_bytes()).get("pid")
+        if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+            continue
+        try:
+            os.kill(pid, 0)
+        except PermissionError:
+            pass
+        except OSError:
+            continue
+        raise ValueError(f"A step is still running in {directory.name}. "
+                         "Name the project when it finishes.")
     match = re.match(r"^(\d{4}-\d{2}-\d{2})-", directory.name)
     if not match:
         raise ValueError("DIR must start with a YYYY-MM-DD date.")

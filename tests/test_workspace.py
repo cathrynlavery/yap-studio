@@ -1024,7 +1024,7 @@ def test_new_project_rename_write_failure_restores_folder_manifest_and_ledger(
         "projects/" + renamed.name)
 
 
-def test_new_project_name_updates_manifest_and_refuses_after_story(
+def test_new_project_name_updates_manifest_and_refuses_after_cut(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:
     module = _module(ROOT / "workspace/new_project.py", "workspace_rename")
@@ -1045,15 +1045,94 @@ def test_new_project_name_updates_manifest_and_refuses_after_story(
     second = module.start(tmp_path, takes=["first.mp4"])
     collision = module.rename_project(tmp_path, second, "Inference Basics")
     assert collision.name == renamed.name + "-2"
-    (collision / "edit.json").write_text("{}")
-    with pytest.raises(ValueError, match="story"):
-        module.rename_project(tmp_path, collision, "Other")
-    (collision / "edit.json").unlink()
     (collision / "cut").mkdir()
     with pytest.raises(ValueError, match="story"):
         module.rename_project(tmp_path, collision, "Other")
     assert module.main(["--name", str(collision), "Other"]) == 1
     assert "Could not name the project:" in capsys.readouterr().err
+
+
+def test_fillers_survive_project_rename_after_story(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from test_fillers import install_engine, make_project, write_json
+
+    prepared = make_project(tmp_path / "prepared")
+    module = _module(ROOT / "workspace/new_project.py", "workspace_story_rename")
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    shutil.copy2(prepared / "takes/source.mov", inbox / "source.mov")
+    with monkeypatch.context() as patch:
+        _fake_project_runner(module, patch, tmp_path)
+        project = module.start(tmp_path)
+    manifest = json.loads((prepared / "project.json").read_text())
+    manifest["name"] = project.name
+    write_json(project / "project.json", manifest)
+    shutil.copytree(prepared / "ingest", project / "ingest")
+    shutil.copy2(prepared / "edit.json", project / "edit.json")
+    install_engine(monkeypatch)
+    assert cli.main(["fillers", str(project), "--apply", "--json"]) == 0
+    capsys.readouterr()
+    saved = {relative: (project / relative).read_bytes() for relative in (
+        "edit.json", "removals.json", "fillers/report.json", "fillers/receipt.json",
+    )}
+    assert not (project / "cut").exists()
+
+    renamed = module.rename_project(tmp_path, project, "Bright Morning")
+
+    assert renamed.name.endswith("-bright-morning")
+    assert not project.exists()
+    assert json.loads((renamed / "project.json").read_text())["name"] == renamed.name
+    assert json.loads((inbox / ".used.json").read_text())["takes"][0]["project"] == (
+        "projects/" + renamed.name)
+    assert {relative: (renamed / relative).read_bytes() for relative in saved} == saved
+    assert cli.main(["status", str(renamed), "--json"]) == 0
+    stages = json.loads(capsys.readouterr().out)["stages"]
+    assert next(stage for stage in stages if stage["name"] == "fillers")["state"] == "done"
+
+
+@pytest.mark.parametrize("stage", ["ingest", "fillers"])
+def test_new_project_rename_refuses_while_stage_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stage: str,
+) -> None:
+    module = _module(ROOT / "workspace/new_project.py", "workspace_running_rename")
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    (inbox / "take.mp4").write_bytes(b"synthetic take")
+    _fake_project_runner(module, monkeypatch, tmp_path)
+    project = module.start(tmp_path)
+    folder = project / stage
+    folder.mkdir()
+    (folder / "progress.json").write_text(json.dumps({"pid": os.getpid()}))
+    before = (project / "project.json").read_bytes(), (inbox / ".used.json").read_bytes()
+
+    with pytest.raises(ValueError, match=r"A step is still running in .*finishes"):
+        module.rename_project(tmp_path, project, "New Topic")
+
+    assert project.is_dir()
+    assert ((project / "project.json").read_bytes(), (inbox / ".used.json").read_bytes()) == before
+
+
+def test_new_project_rename_allows_finished_stage_progress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module(ROOT / "workspace/new_project.py", "workspace_finished_rename")
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    (inbox / "take.mp4").write_bytes(b"synthetic take")
+    _fake_project_runner(module, monkeypatch, tmp_path)
+    project = module.start(tmp_path)
+    folder = project / "fillers"
+    folder.mkdir()
+    (folder / "progress.json").write_text(json.dumps({"pid": 123456789}))
+
+    def finished(pid: int, signal: int) -> None:
+        assert (pid, signal) == (123456789, 0)
+        raise ProcessLookupError
+
+    monkeypatch.setattr(module.os, "kill", finished)
+    assert module.rename_project(tmp_path, project, "New Topic").name.endswith("-new-topic")
 
 
 def test_ingest_survives_project_rename_and_words_remain_readable(

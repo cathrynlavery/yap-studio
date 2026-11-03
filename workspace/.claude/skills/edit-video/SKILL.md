@@ -163,7 +163,8 @@ when they pressed a page button.
    If ingest or status warns that speech has no words, listen to
    that part before using it in the story. Read the transcript and source. Choose a short
    topic of one to three words and run `python3 new_project.py --name DIR TOPIC`. Use the
-   DIR it prints from then on.
+   DIR it prints from then on. You can still name the project after choosing the story,
+   before rendering the cut, when no step is running.
    Run `yap-studio status DIR`; its first line names the video type and B-roll sources. If the
    type or B-roll is not chosen yet, ask as in What are you making? in `AGENTS.md` and record it
    with `yap-studio video-type set DIR --type TYPE --broll SOURCE ...`. If only B-roll is not
