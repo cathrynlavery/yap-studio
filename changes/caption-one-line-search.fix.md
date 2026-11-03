@@ -1,0 +1,1 @@
+- One-line bottom captions look for a clear spot using one line of space, so an empty second line no longer pushes them away from your face.

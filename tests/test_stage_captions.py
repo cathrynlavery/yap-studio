@@ -1497,6 +1497,81 @@ def test_fitted_ground_placement_uses_each_phrases_width(
             assert geometry.y + item["offset_px"] + geometry.height <= 1740
 
 
+@pytest.mark.parametrize("position", ["bottom", "middle"])
+@pytest.mark.parametrize("text", [
+    "Hi", "small steps", "thoughtful wonderful thoughtful wonderful",
+    "W" * 20 + " " + "W" * 20,
+])
+@pytest.mark.parametrize("backing", [None, "shadow", "box"])
+@pytest.mark.parametrize("near", [False, True])
+def test_caption_offsets_reserve_only_known_bottom_lines(
+    position: str, text: str, backing: str | None, near: bool,
+) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": position, "top_px": 1503, "size_px": 64, "highlight_style": "underline",
+        "max_words_per_phrase": 4, "max_characters_per_phrase": 48,
+        "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
+    }})
+    style = ResolvedStyle(data["name"], "test", data)
+    words = [CaptionWord(str(i), word, .2 + i * .1, .3 + i * .1)
+             for i, word in enumerate(text.split())]
+    phrases = build_phrases(words, data["captions"])
+    assert len(phrases) == 1
+    plan = caption_stage.caption_layer_plan(phrases, style, frames=30, backing=[backing])
+    slots = json.loads(plan.variables["phrases"])
+    wrapped = len(words) == 4
+    assert bool(slots[0].get("breaks")) == wrapped
+    plain = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    assert plain.height == 222
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740, backing=[backing])
+    face = Box(400, geometry.y + 36 - 180 if near else 300, 200, 180)
+    assert not near or gap_px(
+        Box(70, geometry.y + 72, 940, geometry.height - 72), head_box(face),
+    ) >= face_clearance_px(data)
+    faces = FacesData("measured", None,
+                      VideoIdentity("cut.mp4", "a" * 64, 30, Fraction(30), 1080, 1920),
+                      {}, {}, ((FaceBox(face, .9, "detected"),),) * 30, ())
+    placement = caption_offsets(slots, geometry, faces, style)[0]
+    expected = 60 if near and (position == "middle" or len(text) > 30) else 0
+    assert placement["offset_px"] == expected
+    assert placement["reason"] == (
+        "moved down 60 px to stay 24 px clear of the head" if expected
+        else "kept: clear of the head"
+    )
+    if not expected:
+        assert caption_stage.caption_layer_plan(
+            phrases, style, frames=30, backing=[backing], offsets=[0],
+        ) == plan
+
+
+@pytest.mark.parametrize("highlight", ["slam", "weight_shift", "clip_wipe", "gradient_fill"])
+def test_caption_offsets_keep_custom_layout_band(highlight: str) -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 1503, "size_px": 64, "highlight_style": highlight,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    face = Box(400, geometry.y + 36 - 180, 200, 180)
+    placement = caption_offsets(
+        [{"start": .2, "end": .7, "words": [{"text": "Hi"}]}], geometry, None, data,
+        still_faces=[face],
+    )[0]
+    assert placement["offset_px"] == 60
+
+
+def test_one_line_caption_search_fits_below_low_chin() -> None:
+    data = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "bottom", "top_px": 1503, "size_px": 64, "highlight_style": "underline",
+        "shadow_blur_px": 5, "shadow_x_px": 3, "shadow_y_px": 4, "entry_rise_px": 12,
+    }})
+    geometry = caption_band_geometry(data["captions"], safe_bottom_px=1740)
+    placement = caption_offsets(
+        [{"start": .2, "end": .7, "words": [{"text": "Hi"}]}], geometry, None, data,
+        still_faces=[Box(0, 0, 1080, 1550)],
+    )[0]
+    assert placement["offset_px"] == 104
+    assert placement["reason"] == "moved down 104 px to stay 24 px clear of the head"
+
+
 @pytest.mark.parametrize("case", ["no_face", "clear", "unmeasured", "blocked", "boundary"])
 def test_caption_offsets_keep_clear_empty_and_blocked_windows(case: str) -> None:
     style = resolve("preset:electric")
