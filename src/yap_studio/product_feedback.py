@@ -230,15 +230,15 @@ def _plan(group: dict, state: dict) -> dict:
     if state["gh_logged_in"]:
         # Walk every page; a full page is never evidence that the search is complete.
         issues = json.loads(_gh("api", "--paginate", "--slurp", "-X", "GET",
-                                f"repos/{REPO}/issues?state=open&per_page=100"))
-        for page in issues:
-            for item in page:
-                if ("pull_request" not in item
-                        and group["fingerprint"] in (item.get("body") or "")):
-                    entry = group["entries"][-1]
-                    body = f"seen again in {entry['version']}, {group['count']} times"
-                    return {"transport": "gh", "action": "comment", "issue": item["number"],
-                            "body": body}
+                                f"repos/{REPO}/issues?state=all&per_page=100"))
+        for item in sorted((item for page in issues for item in page),
+                           key=lambda item: item.get("state") != "open"):
+            if ("pull_request" not in item
+                    and group["fingerprint"] in (item.get("body") or "")):
+                entry = group["entries"][-1]
+                body = f"seen again in {entry['version']}, {group['count']} times"
+                return {"transport": "gh", "action": "comment", "issue": item["number"],
+                        "body": body}
         return {"transport": "gh", "action": "create", **issue}
     return {"transport": "link", "url": _link(issue), **issue}
 

@@ -60,9 +60,10 @@ reports the effective mode and whether an endpoint or logged-in `gh` is availabl
 With `YAP_STUDIO_FEEDBACK_ENDPOINT` set, pending entries are grouped by fingerprint
 and POSTed as JSON to that address with a 15 second timeout. Otherwise a logged-in
 `gh` creates issues on cathrynlavery/yap-studio with the `feedback` label when
-permissions allow, or comments on an open issue with the same fingerprint,
-even if it has no label. If `gh` is missing or logged out, the
-command prints a prefilled issue link for you to open. Those notes stay pending.
+permissions allow, or comments on the issue with the same fingerprint, open or
+closed, even if it has no label. An open issue comes first. If `gh` is missing or
+logged out, the command prints a prefilled issue link for you to open. Those notes
+stay pending.
 
 `send --dry-run` prints the exact JSON, issue body or comment that would be posted
 and changes nothing. `list` shows every entry after the same scrub used for sending.

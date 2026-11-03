@@ -1,0 +1,1 @@
+- A problem report that repeats one already closed adds to that issue instead of opening a new one.

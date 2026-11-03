@@ -377,8 +377,11 @@ def fake_gh(tmp_path, monkeypatch, *, logged_in=True, pages=None):
         "if '--body-file' in args else None\n"
         "with log.open('a') as out: out.write(json.dumps({'args': args, 'body': body})+'\\n')\n"
         f"if args[0] == 'auth': sys.exit({0 if logged_in else 1})\n"
-        f"if args[0] == 'api': print('[[]]' if 'labels=feedback' in args[-1] "
-        f"else {json.dumps(pages or [[]])!r})\n"
+        f"pages = {pages or [[]]!r}\n"
+        "if 'state=open' in args[-1]: pages = [[item for item in page "
+        "if item.get('state') != 'closed'] for page in pages]\n"
+        "if args[0] == 'api': print('[[]]' if 'labels=feedback' in args[-1] "
+        "else json.dumps(pages))\n"
     )
     binary.chmod(0o755)
     monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ.get("PATH", ""))
@@ -427,9 +430,37 @@ def test_gh_unlabelled_fingerprint_comments_instead_of_creating(tmp_path, monkey
     assert writes[0]["body"] == f"seen again in {__version__}, 1 times"
     assert next(call["args"] for call in calls if call["args"][0] == "api") == [
         "api", "--paginate", "--slurp", "-X", "GET",
-        f"repos/{feedback.REPO}/issues?state=open&per_page=100",
+        f"repos/{feedback.REPO}/issues?state=all&per_page=100",
     ]
     assert feedback.entries(pending=True) == []
+
+
+def test_gh_closed_fingerprint_comments_instead_of_creating(tmp_path, monkeypatch):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    feedback.record("check needed retry", kind="bug", step="verify")
+    pages = [[{"number": 12, "body": "Fingerprint: " + entry["fingerprint"],
+               "state": "closed"}]]
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 12
+    assert plan["body"] == f"seen again in {__version__}, 2 times"
+
+
+@pytest.mark.parametrize("closed_first", [True, False])
+def test_gh_fingerprint_prefers_open_issue(tmp_path, monkeypatch, closed_first):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+    body = "Fingerprint: " + entry["fingerprint"]
+    pages = [[{"number": 12, "body": body, "state": "closed"}],
+             [{"number": 21, "body": body, "state": "open"}]]
+    if not closed_first:
+        pages.reverse()
+    pages[0].insert(0, {"number": 20, "body": body, "state": "open", "pull_request": {}})
+    fake_gh(tmp_path, monkeypatch, pages=pages)
+    plan, = feedback.send(dry_run=True)
+    assert plan["action"] == "comment"
+    assert plan["issue"] == 21
+    assert plan["body"] == f"seen again in {__version__}, 1 times"
 
 
 @pytest.mark.parametrize("installed", [False, True])
