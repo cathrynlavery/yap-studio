@@ -739,7 +739,7 @@ def _owner_folders(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
     _shared_helpers: Path, _shared_renderer_install: Path | None,
-    _shared_cache_root: Path, _npm_cache: Path,
+    _shared_cache_root: Path, _shared_hf_home: Path, _npm_cache: Path,
 ) -> Iterator[Path]:
     """Isolate creator stores and check HOME outside the render and speech suites."""
     from yap_studio import tools
@@ -798,6 +798,10 @@ def _owner_folders(
 
         folders.setattr(tools, "run_tool", run_tool)
 
+        if request.node.get_closest_marker("asr"):
+            # huggingface_hub follows XDG_CACHE_HOME unless HF_HOME is set.
+            folders.setenv("HF_HOME", str(_shared_hf_home))
+
         # The matte model directory is hard-coded under HOME. Render and ASR tests
         # retain HOME and skip its leak check to reuse installed browser/model caches.
         # Their data, config and engine cache folders are still isolated.
@@ -828,6 +832,12 @@ def _shared_cache_root() -> Path:
     from yap_studio.cache import cache_root
 
     return cache_root().resolve()
+
+
+@pytest.fixture(scope="session")
+def _shared_hf_home() -> Path:
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+    return Path(os.environ.get("HF_HOME", cache / "huggingface")).expanduser().resolve()
 
 
 @pytest.fixture(scope="session")
