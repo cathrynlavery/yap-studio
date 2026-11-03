@@ -1,0 +1,1 @@
+- When edit.json is missing, filler removal asks you to write the story cut first and shows how to find the format.
