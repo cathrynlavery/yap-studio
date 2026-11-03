@@ -1,0 +1,1 @@
+- Check every HyperFrames registry item at the pinned release and record whether it could become a card, title, caption look or helper, and why. New items stay off until someone reviews them.
