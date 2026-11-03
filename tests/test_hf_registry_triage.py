@@ -5,19 +5,27 @@ from __future__ import annotations
 import copy
 import hashlib
 import html
+import importlib.util
+import io
 import json
 import re
+import sys
 from pathlib import Path
+from types import SimpleNamespace
+from urllib.error import HTTPError, URLError
 
+import numpy as np
 import pytest
+from test_hf_registry import synthetic as synthetic
 
-from yap_studio import cards
-from yap_studio.errors import ValidationError
+from yap_studio import cards, ffmpeg, paths
+from yap_studio.errors import DependencyError, ValidationError, YapError
 from yap_studio.hf_registry import cards as registry_cards
-from yap_studio.hf_registry import catalog
-from yap_studio.render.hyperframes import HYPERFRAMES_VERSION
+from yap_studio.hf_registry import catalog, install, localize, triage
+from yap_studio.render.hyperframes import HYPERFRAMES_VERSION, RendererInstall
 from yap_studio.style import resolve
 
+pytestmark = pytest.mark.usefixtures("_no_real_node")
 FIXTURE = Path(__file__).parent / "fixtures" / "hf-registry"
 
 
@@ -463,3 +471,369 @@ def test_load_triage_unreadable(triage_path, content):
     with pytest.raises(ValidationError, match="cannot read metadata") as raised:
         catalog.load_triage()
     assert raised.value.parameter == "HyperFrames registry triage"
+
+
+@pytest.fixture
+def registry_add(tmp_path):
+    audit = tmp_path / "adds.jsonl"
+    control = tmp_path / "add-control.json"
+    control.write_text("{}")
+    executable = tmp_path / "fake-hyperframes"
+    executable.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, shutil, sys\nfrom pathlib import Path\n"
+        f"fixture = Path({str(FIXTURE.resolve())!r})\n"
+        f"control = json.loads(Path({str(control)!r}).read_text())\n"
+        "name = sys.argv[2]\nroot = Path(sys.argv[4])\n"
+        "assert sys.argv[1:] == ['add', name, '--dir', str(root), '--json', '--no-clipboard']\n"
+        "assert Path(os.environ['HOME']).is_dir()\n"
+        "assert Path(os.environ['HYPERFRAMES_HISTORY_ROOT']).is_dir()\n"
+        f"assert json.loads((root / 'hyperframes.json').read_text())['registry'] == "
+        f"{catalog.registry_url()!r}\n"
+        f"with Path({str(audit)!r}).open('a') as stream:\n"
+        "    stream.write(json.dumps({'name': name, 'staging': str(root), "
+        "'history': os.environ['HYPERFRAMES_HISTORY_ROOT']}) + '\\n')\n"
+        "assert name != 'decision-tree'\n"
+        "mode = control.get('mode') if control.get('name') == name else None\n"
+        "if mode == 'error':\n"
+        "    print(json.dumps({'ok': False, 'error': 'synthetic add failed'}))\n"
+        "    sys.exit(1)\n"
+        "item = next(item for item in json.loads((fixture / 'registry.json').read_text())"
+        "['items'] if item['name'] == name)\n"
+        "folder = fixture / (item['type'].removeprefix('hyperframes:') + 's') / name\n"
+        "written = []\n"
+        "for file in json.loads((folder / 'registry-item.json').read_text())['files']:\n"
+        "    target = root / file['target']\n"
+        "    target.parent.mkdir(parents=True, exist_ok=True)\n"
+        "    shutil.copyfile(folder / file['path'], target)\n"
+        "    written.append(str(target))\n"
+        "if mode == 'outside': written.append(str(root.parent / 'outside.html'))\n"
+        "if mode == 'relative': written = ['relative.html']\n"
+        "if mode == 'symlink':\n"
+        "    target.unlink()\n"
+        "    target.symlink_to(folder / file['path'])\n"
+        "if mode == 'missing': written = []\n"
+        "print(json.dumps({'ok': True, 'written': written}))\n",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    renderer = RendererInstall(HYPERFRAMES_VERSION, tmp_path / "renderer", executable,
+                              None, "v26.1.0")
+
+    def fetch(url):
+        prefix = catalog.registry_url() + "/"
+        assert url.startswith(prefix)
+        return (FIXTURE / url.removeprefix(prefix)).read_bytes()
+
+    return renderer, fetch, audit, control
+
+
+def test_survey_stages_every_non_example_and_matches_classification(
+    registry_add, records, tmp_path,
+):
+    renderer, fetch, audit, _ = registry_add
+    work = tmp_path / "survey"
+    result = triage.survey(catalog.registry_url(), executable=renderer.executable, work=work,
+                           home=paths.validate_output_dir(install.registry_home()), fetch=fetch)
+    assert result == records
+    assert len(result) == 8 and list(result) == sorted(result)
+    calls = [json.loads(line) for line in audit.read_text().splitlines()]
+    assert {call["name"] for call in calls} == records.keys() - {"decision-tree"}
+    assert len(calls) == len({call["staging"] for call in calls}) == 7
+    assert len({call["history"] for call in calls}) == 7
+    assert not list(work.iterdir())
+    assert all(not Path(call["history"]).exists() for call in calls)
+
+
+@pytest.mark.parametrize(("mode", "reason"), [
+    ("error", "synthetic add failed"),
+    ("outside", "HyperFrames add wrote outside its staging folder."),
+    ("relative", "HyperFrames add wrote outside its staging folder."),
+    ("symlink", "HyperFrames add wrote outside its staging folder."),
+    ("missing", "HyperFrames add did not write its main file."),
+])
+def test_survey_add_failures_are_item_local(registry_add, tmp_path, mode, reason):
+    renderer, fetch, _, control = registry_add
+    control.write_text(json.dumps({"name": "conic-progress-ring", "mode": mode}))
+    result = triage.survey(catalog.registry_url(), executable=renderer.executable,
+                           work=tmp_path / "survey",
+                           home=paths.validate_output_dir(install.registry_home()), fetch=fetch)
+    assert result["conic-progress-ring"]["use"] == "none"
+    assert reason in result["conic-progress-ring"]["reason"]
+    assert "entry" not in result["conic-progress-ring"]
+    assert result["titlecard-calm"]["use"] == "title"
+
+
+@pytest.mark.parametrize("failure", [URLError("offline"), TimeoutError("timed out"),
+                                    HTTPError("https://example.invalid", 404, "missing", {}, None)])
+@pytest.mark.parametrize("target", ["registry.json", "examples/decision-tree/registry-item.json"])
+def test_survey_fetch_failure_stops_without_classifying(
+    registry_add, tmp_path, monkeypatch, failure, target,
+):
+    renderer, fetch, audit, _ = registry_add
+
+    def urlopen(url, *, timeout):
+        assert timeout == 60
+        if url == catalog.registry_url() + "/" + target:
+            raise failure
+        return io.BytesIO(fetch(url))
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    with pytest.raises(DependencyError) as raised:
+        triage.survey(catalog.registry_url(), executable=renderer.executable, work=tmp_path,
+                      home=paths.validate_output_dir(install.registry_home()))
+    assert raised.value.code == "registry_triage_fetch"
+    assert raised.value.suggested_action == "Check the network and run the triage again."
+    assert not audit.exists()
+
+
+@pytest.mark.parametrize("status", ["pass", "fail"])
+def test_merge_carries_completed_checks_for_identical_usable_entries(records, status):
+    previous = copy.deepcopy(records)
+    previous["titlecard-calm"]["check"] = {"status": status, "detail": "Earlier result."}
+    previous["titlecard-calm"]["reason"] = "Earlier wording."
+    assert triage.merge(previous, records) is records
+    assert records["titlecard-calm"]["check"] == previous["titlecard-calm"]["check"]
+    assert records["decision-tree"] == previous["decision-tree"]
+
+
+@pytest.mark.parametrize("change", ["entry", "use", "pending", "new", "no-previous"])
+def test_merge_leaves_new_or_changed_items_pending(records, change):
+    previous = copy.deepcopy(records)
+    old = previous["titlecard-calm"]
+    old["check"] = {"status": "pass", "detail": "Earlier result."}
+    if change == "entry":
+        old["entry"]["preview"]["headline"] = "Changed"
+    elif change == "use":
+        old["use"] = "card"
+    elif change == "pending":
+        old["check"] = {"status": "pending", "detail": "Earlier pending."}
+    elif change == "new":
+        del previous["titlecard-calm"]
+    else:
+        previous = None
+    expected = copy.deepcopy(records)
+    assert triage.merge(previous, records) == expected
+
+
+@pytest.mark.parametrize(("drawn", "opaque", "padding", "status", "detail"), [
+    (0, 0, False, "fail", "Nothing drew in the card panel at 1.8 s."),
+    (99, 0, False, "fail", "Nothing drew in the card panel at 1.8 s."),
+    (100, 0, False, "pass", "Draws on 1% of the panel."),
+    (1250, 0, False, "pass", "Draws on 12% of the panel."),
+    (10000, 10000, False, "fail", "An opaque backdrop covers the card band."),
+    (10000, 9000, False, "fail", "An opaque backdrop covers the card band."),
+    (10000, 8999, False, "pass", "Draws on 100% of the panel."),
+    (0, 0, True, "fail", "Nothing drew in the card panel at 1.8 s."),
+])
+def test_verdict_counts_only_panel_alpha(drawn, opaque, padding, status, detail):
+    rgba = np.zeros((cards.PAD_TOP + 100 + cards.PAD_BOTTOM, 2 * cards.PAD_X + 100, 4),
+                    dtype=np.uint8)
+    if padding:
+        rgba[:] = 255
+    panel = rgba[cards.PAD_TOP:-cards.PAD_BOTTOM, cards.PAD_X:-cards.PAD_X]
+    alpha = np.zeros(10000, dtype=np.uint8)
+    alpha[:drawn] = 249
+    alpha[:opaque] = 250
+    panel[:, :, 3] = alpha.reshape(100, 100)
+    assert triage.verdict(rgba) == (status, detail)
+
+
+@pytest.mark.parametrize("failure", [YapError("Synthetic render failed.\nSecond line."),
+                                    OSError("x" * 400 + "\nSecond line."), ValueError("")])
+def test_check_render_failure_continues_and_cleans_work(
+    registry_add, records, tmp_path, monkeypatch, capsys, failure,
+):
+    renderer, _, audit, _ = registry_add
+    selected = {name: records[name] for name in ("titlecard-calm", "decision-tree",
+                                                "conic-progress-ring")}
+    original = copy.deepcopy(catalog.items())
+    calls = []
+
+    def render(plan, work_dir, out, *, install):
+        assert install is renderer and plan.frames == 90
+        name = plan.template.removeprefix("hf:")
+        assert catalog.item(name)["status"] == "on"
+        work_dir.mkdir(parents=True)
+        (work_dir / "partial.html").write_text("synthetic")
+        out.write_bytes(b"partial")
+        calls.append((name, work_dir, out))
+        if name == "conic-progress-ring":
+            raise failure
+        assert not calls[0][1].exists() and not calls[0][2].exists()
+        raise YapError("Next item attempted.")
+
+    monkeypatch.setattr(cards, "render_card", render)
+    result = triage.check(selected, install=renderer, work=tmp_path / "checks")
+    message = failure.message if isinstance(failure, YapError) else str(failure)
+    assert result is selected
+    assert selected["conic-progress-ring"]["check"] == {
+        "status": "fail", "detail": message.split("\n", 1)[0][:300]}
+    assert selected["titlecard-calm"]["check"] == {"status": "fail",
+                                                  "detail": "Next item attempted."}
+    assert selected["decision-tree"] == records["decision-tree"]
+    assert [call[0] for call in calls] == ["conic-progress-ring", "titlecard-calm"]
+    assert all(not folder.exists() and not movie.exists() for _, folder, movie in calls)
+    assert len(audit.read_text().splitlines()) == 2
+    assert catalog.items() == original
+    assert capsys.readouterr().err.splitlines() == ["conic-progress-ring card fail",
+                                                  "titlecard-calm title fail"]
+
+
+def test_check_install_failure_continues(registry_add, records, tmp_path, monkeypatch):
+    renderer, _, audit, control = registry_add
+    control.write_text(json.dumps({"name": "conic-progress-ring", "mode": "error"}))
+    selected = {name: records[name] for name in ("conic-progress-ring", "titlecard-calm")}
+
+    def render(*args, **kwargs):
+        raise YapError("Next item attempted.")
+
+    monkeypatch.setattr(cards, "render_card", render)
+    triage.check(selected, install=renderer, work=tmp_path / "checks")
+    assert "synthetic add failed" in selected["conic-progress-ring"]["check"]["detail"]
+    assert selected["titlecard-calm"]["check"]["detail"] == "Next item attempted."
+    assert [json.loads(line)["name"] for line in audit.read_text().splitlines()] == [
+        "conic-progress-ring", "titlecard-calm"]
+
+
+def test_check_helper_localizes_offline_and_reuses_installed_item(synthetic, tmp_path, monkeypatch):
+    _, registry_install, _, renderer, add, audit = synthetic
+    source = "<script>window.sampleHelper = () => {};</script>"
+    main = add("sample-helper", source=source)
+    record = classify("sample-helper", source=source)
+    record["entry"]["main"] = main
+    record["entry"]["files"] = catalog.item("sample-helper")["files"]
+    calls = []
+    original = localize.localize
+
+    def localized(name, dest, *, install):
+        result = original(name, dest, install=install)
+        assert "window.sampleHelper" in (dest / result.main).read_text()
+        calls.append(dest)
+        return result
+
+    monkeypatch.setattr(localize, "localize", localized)
+    with catalog.trial({"sample-helper": {**record["entry"], "status": "helper"}}):
+        registry_install.install_items(["sample-helper"], install=renderer)
+    selected = {"sample-helper": record}
+    assert triage.check(selected, install=renderer, work=tmp_path / "checks") is selected
+    assert record["check"] == {"status": "pass", "detail": "Its script runs offline."}
+    assert len(calls) == 1 and not calls[0].exists()
+    assert len(audit.read_text().splitlines()) == 1
+
+
+@pytest.mark.parametrize("keep_still", [False, True])
+def test_check_reads_selected_frame_and_keeps_only_requested_stills(
+    registry_add, records, tmp_path, monkeypatch, capsys, keep_still,
+):
+    renderer, _, audit, _ = registry_add
+    selected = {name: records[name] for name in ("caption-kinetic-slam", "titlecard-calm")}
+    drafts = {name: {**record["entry"], "status": "on"} for name, record in selected.items()}
+    with catalog.trial(drafts):
+        install.install_items(list(drafts), install=renderer)
+    calls = []
+
+    def render(plan, work_dir, out, *, install):
+        assert install is renderer and plan.frames == 90
+        name = plan.template.removeprefix("hf:")
+        entry = selected[name]["entry"]
+        assert plan.variables == {key: value.format_map(entry["preview"])
+                                  for key, value in entry["variables"].items()}
+        work_dir.mkdir(parents=True)
+        out.write_bytes(b"synthetic movie")
+        calls.append((plan, work_dir, out))
+
+    def extract(movie, still, frame):
+        assert movie == calls[-1][2] and frame == 54
+        still.write_bytes(b"synthetic still")
+
+    def read_pixels(args, *, timeout_s, binary):
+        assert binary and timeout_s > 0
+        assert args[args.index("-pix_fmt") + 1] == "rgba"
+        assert args[args.index("-f") + 1] == "rawvideo" and args[-1] == "pipe:1"
+        plan = calls[-1][0]
+        rgba = np.zeros((plan.height, plan.width, 4), dtype=np.uint8)
+        rgba[cards.PAD_TOP:cards.PAD_TOP + 20, cards.PAD_X:cards.PAD_X + 20, 3] = 255
+        return SimpleNamespace(stdout=rgba.tobytes())
+
+    from yap_studio import templates_command
+
+    monkeypatch.setattr(cards, "render_card", render)
+    monkeypatch.setattr(templates_command, "_extract_still", extract)
+    monkeypatch.setattr(ffmpeg, "run", read_pixels)
+    work = tmp_path / "checks"
+    stills = tmp_path / "stills" if keep_still else None
+    triage.check(selected, install=renderer, work=work, stills=stills)
+    assert all(record["check"]["status"] == "pass" for record in selected.values())
+    assert len(audit.read_text().splitlines()) == 2
+    assert len(calls) == 2 and not list(work.iterdir())
+    if stills:
+        assert sorted(file.name for file in stills.iterdir()) == [name + ".png" for name in drafts]
+    assert capsys.readouterr().err.splitlines() == ["caption-kinetic-slam caption pass",
+                                                  "titlecard-calm title pass"]
+
+
+@pytest.fixture
+def triage_script(monkeypatch):
+    source = Path(__file__).parents[1] / "scripts" / "triage_registry.py"
+    spec = importlib.util.spec_from_file_location("triage_registry_fixture", source)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(sys, "argv", [str(source)])
+    return module
+
+
+def test_script_writes_valid_document_and_summary(
+    triage_script, triage_path, triage_document, tmp_path, monkeypatch, capsys,
+):
+    script = triage_script
+    records = triage_document["items"]
+    renderer = SimpleNamespace(executable=tmp_path / "renderer")
+    calls = []
+
+    def ensure(*, notice):
+        notice("Synthetic renderer ready.")
+        return renderer
+
+    def survey(url, *, executable, work, home):
+        assert url == catalog.registry_url() and executable == renderer.executable
+        assert work.is_dir() and home == install.registry_home() and home.is_dir()
+        calls.append(work)
+        return records
+
+    def check(items, *, install, work, stills):
+        assert items is records and install is renderer and work == calls[0]
+        assert stills == tmp_path / "stills"
+        items["titlecard-calm"]["check"] = {"status": "pass", "detail": "Synthetic pass."}
+        items["conic-progress-ring"]["check"] = {"status": "fail", "detail": "Synthetic fail."}
+        return items
+
+    monkeypatch.setattr(script, "TRIAGE", triage_path)
+    monkeypatch.setattr(script.hyperframes, "ensure_installed", ensure)
+    monkeypatch.setattr(script, "survey", survey)
+    monkeypatch.setattr(script, "check", check)
+    monkeypatch.setattr(sys, "argv", ["triage_registry.py", "--stills", str(tmp_path / "stills")])
+    assert script.main() == 0
+    assert catalog.load_triage() == triage_document
+    output = capsys.readouterr()
+    summary = json.loads(output.out)
+    assert summary.keys() == {"items", "usable", "passed", "failed", "seconds"}
+    assert summary["items"] == len(records) and summary["usable"] == 4
+    assert summary["passed"] == summary["failed"] == 1 and summary["seconds"] >= 0
+    assert output.err == "Synthetic renderer ready.\n"
+    assert not calls[0].exists()
+
+
+def test_script_reports_errors_without_overwriting(triage_script, triage_path, monkeypatch, capsys):
+    triage_path.write_text("Earlier triage.")
+
+    def ensure(**kwargs):
+        raise DependencyError("Synthetic renderer unavailable.", suggested_action="Try again.")
+
+    monkeypatch.setattr(triage_script, "TRIAGE", triage_path)
+    monkeypatch.setattr(triage_script.hyperframes, "ensure_installed", ensure)
+    assert triage_script.main() == 1
+    assert triage_path.read_text() == "Earlier triage."
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == "Synthetic renderer unavailable.\nTry again.\n"

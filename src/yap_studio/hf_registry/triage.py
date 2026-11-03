@@ -2,17 +2,29 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import shutil
+import sys
+import tempfile
+import urllib.request
 from html.parser import HTMLParser
+from pathlib import Path
 
-from yap_studio import cards
-from yap_studio.hf_registry import catalog
+import numpy as np
+
+from yap_studio import cards, ffmpeg
+from yap_studio.errors import DependencyError, YapError
+from yap_studio.hf_registry import catalog, localize
+from yap_studio.hf_registry import install as registry_install
 from yap_studio.hf_registry.catalog import TRIAGE_SCHEMA
 from yap_studio.style import resolve
 
 STYLE = "preset:clean_minimal"
 MIN_S = 1.5
+FRAMES = 90
+STILL_FRAME = 54
 
 
 class _Metadata(HTMLParser):
@@ -191,6 +203,130 @@ def classify(name, manifest, files, source, *, error=None) -> dict:
                           style["internal"]["key_text_bottom_px"]
                           - style["internal"]["key_text_top_px"] - cards.PAD_TOP - cards.PAD_BOTTOM]
     return record
+
+
+def _fetch(url: str) -> bytes:
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            return response.read()
+    except (OSError, ValueError) as exc:
+        raise DependencyError(
+            f"Could not fetch the HyperFrames registry: {exc}",
+            error_type="dependency_error", code="registry_triage_fetch",
+            suggested_action="Check the network and run the triage again.",
+        ) from exc
+
+
+def survey(registry_url, *, executable, work, home, timeout_s=300, fetch=None) -> dict[str, dict]:
+    """Stage and classify every item at the pinned registry URL."""
+    fetch = fetch or _fetch
+    index = json.loads(fetch(f"{registry_url}/registry.json"))
+    work.mkdir(parents=True, exist_ok=True)
+    records = {}
+    for item in index["items"]:
+        name = item["name"]
+        kind = item["type"].removeprefix("hyperframes:")
+        manifest = json.loads(fetch(f"{registry_url}/{kind}s/{name}/registry-item.json"))
+        if kind == "example":
+            records[name] = classify(name, manifest, None, None)
+            continue
+        with (
+            tempfile.TemporaryDirectory(dir=work, prefix="item-") as temporary,
+            tempfile.TemporaryDirectory(dir=work, prefix="history-") as history,
+        ):
+            staging = Path(temporary).resolve()
+            try:
+                response = registry_install.stage_item(
+                    name, executable, staging, registry_url, home=home,
+                    history=Path(history), timeout_s=timeout_s,
+                )
+            except YapError as exc:
+                records[name] = classify(name, manifest, None, None, error=exc.message)
+                continue
+            written = response.get("written", [])
+            if not isinstance(written, list):
+                written = []
+            if any(not isinstance(file, str) or not Path(file).is_absolute()
+                   or not Path(file).resolve().is_relative_to(staging) for file in written):
+                records[name] = {"type": kind, "use": "none",
+                                 "reason": "HyperFrames add wrote outside its staging folder."}
+                continue
+            files = {Path(file).relative_to(staging).as_posix():
+                     hashlib.sha256(Path(file).read_bytes()).hexdigest() for file in written}
+            main = next((file["target"] for file in manifest["files"]
+                         if file["type"] in ("hyperframes:snippet", "hyperframes:composition")),
+                        None)
+            if main not in files:
+                records[name] = {"type": kind, "use": "none",
+                                 "reason": "HyperFrames add did not write its main file."}
+                continue
+            records[name] = classify(name, manifest, files,
+                                     (staging / main).read_text(encoding="utf-8"))
+    return dict(sorted(records.items()))
+
+
+def merge(previous, records) -> dict[str, dict]:
+    """Keep completed checks only while an item's use and draft entry are unchanged."""
+    for name, record in records.items():
+        old = (previous or {}).get(name, {})
+        if (record["use"] != "none" and old.get("use") == record["use"]
+                and old.get("entry") == record["entry"]
+                and old.get("check", {}).get("status", "pending") != "pending"):
+            record["check"] = old["check"].copy()
+    return records
+
+
+def verdict(rgba) -> tuple[str, str]:
+    """Judge whether the still draws inside the transparent card band."""
+    alpha = rgba[cards.PAD_TOP:-cards.PAD_BOTTOM, cards.PAD_X:-cards.PAD_X, 3]
+    drawn = np.count_nonzero(alpha > 0)
+    if drawn < 100:
+        return "fail", "Nothing drew in the card panel at 1.8 s."
+    if np.count_nonzero(alpha >= 250) >= alpha.size * 0.9:
+        return "fail", "An opaque backdrop covers the card band."
+    return "pass", f"Draws on {round(100 * drawn / alpha.size)}% of the panel."
+
+
+def check(records, *, install, work, stills=None) -> dict[str, dict]:
+    """Test each usable draft through the card adapter or offline script localizer."""
+    from yap_studio.templates_command import _extract_still
+
+    drafts = {name: {**record["entry"],
+                     "status": "helper" if record["use"] == "helper" else "on"}
+              for name, record in records.items() if record["use"] != "none"}
+    work.mkdir(parents=True, exist_ok=True)
+    with catalog.trial(drafts):
+        for name in sorted(drafts):
+            record = records[name]
+            directory = work / name
+            movie = directory / f"{name}.mov"
+            try:
+                registry_install.install_items([name], install=install)
+                if record["use"] == "helper":
+                    localize.localize(name, directory, install=install)
+                    status, detail = "pass", "Its script runs offline."
+                else:
+                    plan = cards.card_layer_plan("hf:" + name, record["entry"]["preview"],
+                                                 resolve(STYLE), frames=FRAMES)
+                    cards.render_card(plan, directory, movie, install=install)
+                    still = (stills if stills is not None else directory) / f"{name}.png"
+                    still.parent.mkdir(parents=True, exist_ok=True)
+                    _extract_still(movie, still, STILL_FRAME)
+                    raw = ffmpeg.run(
+                        ["ffmpeg", "-v", "error", "-i", str(still), "-frames:v", "1",
+                         "-pix_fmt", "rgba", "-f", "rawvideo", "pipe:1"],
+                        timeout_s=90, binary=True,
+                    ).stdout
+                    rgba = np.frombuffer(raw, dtype=np.uint8).reshape(plan.height, plan.width, 4)
+                    status, detail = verdict(rgba)
+            except (YapError, OSError, ValueError) as exc:
+                message = exc.message if isinstance(exc, YapError) else str(exc)
+                status, detail = "fail", (message.splitlines() or [""])[0][:300]
+            finally:
+                shutil.rmtree(directory, ignore_errors=True)
+            record["check"] = {"status": status, "detail": detail}
+            print(name, record["use"], status, file=sys.stderr)
+    return records
 
 
 def document(records, *, commit, version) -> dict:
