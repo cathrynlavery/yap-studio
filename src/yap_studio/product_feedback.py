@@ -71,8 +71,16 @@ def scrub(text: str) -> str:
                   "[secret]", text, flags=re.I)
     text = re.sub(r"(?<![\w/+.-])[a-z0-9_/+.-]{32,}={0,2}(?![\w/+.-])",
                   "[secret]", text, flags=re.I)
+    public_names = {
+        "github.com", "yapstudio.app", "e.g", "i.e",
+        "project.json", "edit.json", "removals.json", "cut-words.json", "cut.mp4", "final.mp4",
+        "text-hook.json", "cards.json", "faces.json", "layout.json", "progress.json",
+        "answers.json", "new_project.py", "setup.py", "style.json", "words.json",
+        "transcript.json", "phrases.json", "spans.json", "receipt.json", "report.json",
+        "verify.json",
+    }
     text = re.sub(r"(?<!\w)[\w@~-]+(?:[.-][\w@~-]+)*\.[a-z][a-z0-9]{0,15}\b",
-                  lambda m: m[0] if m[0] in {"github.com", "yapstudio.app"} else "[file]",
+                  lambda m: m[0] if m[0].casefold() in public_names else "[file]",
                   text, flags=re.I)
     text = re.sub(r"(?<!\w)\.[a-z][\w.-]*", "[file]", text, flags=re.I)
     return " ".join(text.split())[:500]

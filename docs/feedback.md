@@ -18,8 +18,10 @@ sent flag and a count. GitHub issues include the latest entry and count; a repea
 issue gets a comment with the version and count.
 
 The command scrubs paths, file names, emails, URLs, IP addresses, local hostnames
-and common secret patterns on write and again before sharing. Links to github.com
-and yapstudio.app retain only their domain. Automatic failure notes contain only
+and common secret patterns on write and again before sharing. Yap Studio's own fixed
+file names, such as `edit.json`, and the abbreviations e.g. and i.e. stay readable.
+Links to github.com and yapstudio.app retain only their domain. Automatic failure
+notes contain only
 the command name, registered subcommand when present (such as `versions save`),
 and error code. Other arguments and the error message are never included.
 No footage, transcripts, spoken words, names or project files are attached or read.

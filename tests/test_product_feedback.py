@@ -67,6 +67,32 @@ def test_scrubber_adversarial(value, private, marker):
     assert feedback.scrub(cleaned) == cleaned
 
 
+@pytest.mark.parametrize("value,expected", [
+    ("e.g. lower band", "e.g. lower band"),
+    ("i.e. the title", "i.e. the title"),
+    ("fillers needs edit.json", "fillers needs edit.json"),
+    ("new_project.py --name", "new_project.py --name"),
+    ("plans/text-hook.json", "plans/text-hook.json"),
+    ("cut/cut.mp4", "cut/cut.mp4"),
+    ("see style.json top_px", "see style.json top_px"),
+    ("project.json removals.json cut-words.json", "project.json removals.json cut-words.json"),
+    ("final.mp4 cards.json faces.json layout.json", "final.mp4 cards.json faces.json layout.json"),
+    ("progress.json answers.json setup.py", "progress.json answers.json setup.py"),
+    ("words.json transcript.json phrases.json", "words.json transcript.json phrases.json"),
+    ("spans.json receipt.json report.json verify.json",
+     "spans.json receipt.json report.json verify.json"),
+    ("E.G. lower band; I.E. the title", "E.G. lower band; I.E. the title"),
+    ("EDIT.JSON PLANS/TEXT-HOOK.JSON", "EDIT.JSON PLANS/TEXT-HOOK.JSON"),
+    ("my-holiday-clip.mov", "[file]"),
+    ("Smith-contract.pdf", "[file]"),
+    ("my-edit.json edit.json.backup edit-private.json", "[file] [file] [file]"),
+    ("private.e.g private.i.e", "[file] [file]"),
+])
+def test_scrubber_keeps_product_file_names_and_abbreviations(value, expected):
+    assert feedback.scrub(value) == expected
+    assert feedback.scrub(expected) == expected
+
+
 def test_home_scrub_limits_and_safe_domains(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path / "unique-home"))
     assert "unique-home" not in feedback.scrub(f"{Path.home()}/Secret Folder/file")
