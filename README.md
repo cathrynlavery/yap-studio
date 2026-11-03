@@ -29,10 +29,10 @@ You leave notes from your phone, and the next version follows them.
 <p align="center">If it saves you an evening of editing, star the repo so other creators can find it.</p>
 
 Yap Studio is an open-source add-on for [HyperFrames](https://www.npmjs.com/package/hyperframes)
-that edits vertical videos on your own computer. It is for people who talk to a camera and would
-rather not spend the evening in an editor. There is no timeline to drag. A page in your browser
-walks you through each video, and the notes you approve become taste rules, so the next video
-starts closer to how you like it.
+that edits vertical and horizontal videos on your own computer. It is for people who talk to a
+camera and would rather not spend the evening in an editor. There is no timeline to drag. A page
+in your browser walks you through each video, and the notes you approve become taste rules, so
+the next video starts closer to how you like it.
 
 Your video files stay on your computer. Still frames from pinned notes and contact sheets of
 your clips go to Anthropic in Claude Code and the Claude app's Code tab, or OpenAI in Codex,
@@ -262,16 +262,19 @@ step yourself, see [docs/editing.md](https://github.com/cathrynlavery/yap-studio
 
 ## Version 1 limits
 
-- Vertical 9:16 at 1080 by 1920 stays the default. New horizontal talking-head videos at
-  1920 by 1080 support hard cuts and captions: use `init DIR --take FILE --shape horizontal`.
-  Titles, cards, B-roll, zooms, effects, grades, taste preferences and studio exports
-  are not supported horizontally yet; use platform `youtube` or `none`.
+- Vertical 9:16 at 1080 by 1920 stays the default. Horizontal talking-head videos at
+  1920 by 1080 support hard cuts, audio/music, captions, opening titles, chapter cards, name tags,
+  floating cards, full-frame or boxed B-roll and YouTube thumbnails; use platform `youtube` or `none`.
+  Start with `init DIR --take FILE --shape horizontal`.
+  Split B-roll, video letters, transitions, zooms, person effects, grades, applied taste
+  preferences, 3D captions and studio export are refused.
 - The filler and restart rules are English only. For other languages, `fillers` proposes
   pauses only.
 - Person cutouts, face detection and backgrounds behind you need macOS with the Xcode command
   line tools.
 
-The rest, and what Yap Studio never judges, is in [docs/limits.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/limits.md).
+The full list, including card and layout limits and what Yap Studio never judges, is in
+[docs/limits.md](https://github.com/cathrynlavery/yap-studio/blob/main/docs/limits.md).
 
 ## Docs
 
