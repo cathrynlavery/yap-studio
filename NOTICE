@@ -19,6 +19,8 @@ at commit 12ce8c2ffd37757204afa0ab170df27e0a384162 into the user's cache with th
 HyperFrames CLI. These items are not included in this repository and are licensed under the
 Apache License 2.0 (LICENSES/Apache-2.0.txt). Yap Studio modifies the copies it renders to use
 local scripts and fonts; each modified copy says so at the top.
+The registry triage tests use unmodified manifests and files of eight registry items at commit
+12ce8c2ffd37757204afa0ab170df27e0a384162, kept in tests/fixtures/hf-registry under the same license.
 
 HyperFrames theme packs at commit 6afcb48395632b85663b9b9486e1b47fd175f8bc also supply the Bold, Editorial and Neutral style presets. Palette mappings, upstream file hashes and bundled font substitutions are recorded in src/yap_studio/style/PROVENANCE.json.
 
