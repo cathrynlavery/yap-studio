@@ -128,6 +128,9 @@ join test.
 A join that could not be verified stays proposed with a listen flag.
 Every speech removal is checked by comparing a spliced clip with its uncut control,
 preserving the surrounding words and checking for clicks.
+`--max-pause` caps the measured silence between words and also trims silence at the
+start and end of each story segment.
+Pause trims keep words whose timestamps fall entirely in silence.
 
 Whole-take speech transcripts can hide false starts. Fillers checks the planned segment's
 audio in 10 ms frames at the existing -45 dB silence floor. A word containing at least
