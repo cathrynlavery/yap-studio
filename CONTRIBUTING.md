@@ -53,6 +53,13 @@ main, puts the PR back in draft, rewrites `changes/hyperframes.dependencies.md` 
 the new pin and closes older bump PRs. A commit pushed to that branch stops the
 rebuilds until the PR is merged or closed.
 
+The bump also re-reads every registry item at the new commit and refreshes
+`src/yap_studio/hf_registry/triage.json`: each item's kind, whether Yap Studio could
+use it as a card, title, caption look or helper, and why. New or changed items wait
+for a test render. Run `uv run python scripts/triage_registry.py --stills DIR` on a
+Mac to render them through the card adapter. The triage never turns an item on.
+Adding one to `catalog.json` with status `on` stays a person's call after review.
+
 Releases are small and frequent, cut from a `release/vX.Y.Z` pull request whenever
 main is green:
 

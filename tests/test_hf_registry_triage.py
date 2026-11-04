@@ -406,6 +406,23 @@ def test_document_and_dumps_sort_and_round_trip(records):
         "items"]) == sorted(records)
 
 
+def test_shipped_triage_matches_the_catalog():
+    catalog.load_triage.cache_clear()
+    try:
+        records = catalog.load_triage()["items"]
+        helpers = []
+        for name, entry in catalog.load_catalog()["items"].items():
+            if entry["status"] == "on":
+                assert records[name]["use"] != "none", name
+                assert records[name]["check"]["status"] == "pass", name
+            elif entry["status"] == "helper":
+                helpers.append(name)
+                assert records[name]["use"] == "helper", name
+        assert helpers
+    finally:
+        catalog.load_triage.cache_clear()
+
+
 def test_load_triage_valid_and_cached(triage_path, triage_document):
     triage_path.write_text(json.dumps(triage_document))
     assert catalog.load_triage() == triage_document

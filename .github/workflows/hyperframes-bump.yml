@@ -183,11 +183,13 @@ jobs:
           lock = "\n".join(f"- {line}" for line in bump["lock_changes"]) or "- None"
           flagged = ", ".join(sorted(mentions)) or "none of beats, fonts, captions, hf-seek, audio or capture"
           registry = ", ".join(bump["registry"]["changed"]) or "none"
+          pending = ", ".join(bump["triage"]["pending"]) or "none"
           text = f"""Moves the renderer pin from HyperFrames {current} to {latest}. The HyperFrames bump workflow keeps this one draft PR and rebuilds it from main for each new release, so it never conflicts or goes stale. A commit pushed here stops the rebuilds until the PR is merged or closed.
 
           ## What this does
 
           Pins HyperFrames {latest} in `hyperframes.py`, the renderer lock, the transition templates, the font and export tests and the release note in `changes/hyperframes.dependencies.md`. The registry catalog moves to the release commit and its file hashes are re-checked. `scripts/bump_hyperframes.py` checked the locked integrity against npm.
+          The registry triage in `triage.json` moves to the release commit; items that are new or changed wait for a test render.
 
           Lock changes:
 
@@ -200,6 +202,7 @@ jobs:
           - [ ] Read the notes below for anything that changes renders, captions, fonts, `hf-seek` or `hyperframes beats`.
           - [ ] The `render` CI job passes and layers match the previous pin.
           - [ ] Run the registry render tests and look at registry items whose files changed: {registry}.
+          - [ ] On a Mac, run `uv run python scripts/triage_registry.py` to test-render the registry items the triage marked pending, and commit `triage.json`: {pending}.
           - [ ] If beat detection changed, compare beat grids on real music, as in #193.
           - [ ] Add what changed for creators to the pin note in `changes/hyperframes.dependencies.md`.
 

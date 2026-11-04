@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import importlib.util
 import json
@@ -17,10 +18,12 @@ from types import ModuleType
 import pytest
 
 from yap_studio.errors import ValidationError, YapError
+from yap_studio.hf_registry import triage
 
 ROOT = Path(__file__).parents[1]
 LOCK = "src/yap_studio/render/renderer-lock/package-lock.json"
 CATALOG = "src/yap_studio/hf_registry/catalog.json"
+TRIAGE = "src/yap_studio/hf_registry/triage.json"
 COMMIT = "b" * 40
 pytestmark = pytest.mark.usefixtures("_no_real_node")
 
@@ -38,10 +41,28 @@ def _load(root: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 
 
 @pytest.fixture
-def bump_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, ModuleType]:
+def triage_records() -> dict:
+    records = {}
+    for name in ("sample-helper", "changed-helper", "added-helper"):
+        main = f"compositions/components/{name}.html"
+        records[name] = {
+            "type": "component", "use": "helper", "reason": "A synthetic script-only helper.",
+            "entry": {"type": "component", "main": main,
+                      "upstream_path": f"registry/components/{name}/{name}.html",
+                      "files": {main: _digest(_content(name))}},
+            "check": {"status": "pending", "detail": ""},
+        }
+    records["sample-example"] = {"type": "example", "use": "none", "reason": "An example."}
+    return records
+
+
+@pytest.fixture
+def bump_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, triage_records: dict,
+) -> tuple[Path, ModuleType]:
     """Copy every pinned file so a bump cannot change the real checkout."""
     module = _load(ROOT, monkeypatch)
-    files = [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, "NOTICE",
+    files = [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, TRIAGE, "NOTICE",
              "scripts/bump_hyperframes.py", "scripts/bump_version.py"]
     if (ROOT / module.CHANGE_NOTE).exists():
         files.append(module.CHANGE_NOTE)
@@ -65,6 +86,18 @@ def bump_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Mo
         return f"{'a' * 40}\trefs/tags/v{version}\n{COMMIT}\trefs/tags/v{version}^{{}}\n"
 
     monkeypatch.setattr(module, "run_git", run_git)
+
+    def survey(url, *, executable, work, home, timeout_s):
+        assert url == f"https://raw.githubusercontent.com/heygen-com/hyperframes/{COMMIT}/registry"
+        renderer = executable.parents[2]
+        assert renderer.name == "renderer" and not renderer.is_relative_to(tmp_path)
+        assert executable == renderer / "node_modules/.bin/hyperframes" and executable.is_file()
+        assert work.is_relative_to(renderer.parent) and work != renderer.parent
+        assert home == renderer.parent / "home" and home.is_dir()
+        assert timeout_s == 300
+        return copy.deepcopy(triage_records)
+
+    monkeypatch.setattr(triage, "survey", survey)
     return tmp_path, module
 
 
@@ -85,7 +118,7 @@ def _next(version: str) -> str:
 def _snapshot(root: Path, module: ModuleType) -> dict[str, str | None]:
     """Read every file a bump may write."""
     snapshot = {relative: (root / relative).read_bytes().decode("utf-8")
-                for relative in [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, "NOTICE"]}
+                for relative in [*module.PINS, "CHANGELOG.md", LOCK, CATALOG, TRIAGE, "NOTICE"]}
     note = root / module.CHANGE_NOTE
     snapshot[module.CHANGE_NOTE] = note.read_bytes().decode("utf-8") if note.exists() else None
     return snapshot
@@ -179,7 +212,9 @@ def test_bump_moves_every_pin_and_reports_lock_changes(
     entries = json.loads(before[CATALOG])["items"]
     assert result == {"current": current, "new": new, "changed": True,
                       "lock_changes": [f"hyperframes {current} -> {new}"],
-                      "registry": {"commit": COMMIT, "changed": [], "unchanged": list(entries)}}
+                      "registry": {"commit": COMMIT, "changed": [], "unchanged": list(entries)},
+                      "triage": {"items": 4, "usable": 3,
+                                 "pending": ["added-helper", "changed-helper", "sample-helper"]}}
     assert calls[1][:2] == ["install", "--package-lock-only"]
     assert "--ignore-scripts" in calls[1]
     for relative, pattern in module.PINS.items():
@@ -250,7 +285,7 @@ def test_bump_updates_only_the_registry_notice_commit(
     if registry_only:
         after = _snapshot(root, module)
         for relative, content in before.items():
-            if relative not in {CATALOG, "NOTICE"}:
+            if relative not in {CATALOG, TRIAGE, "NOTICE"}:
                 assert after[relative] == content
 
 
@@ -396,6 +431,62 @@ def test_bump_refreshes_changed_item_files(
         assert source.read_text(encoding="utf-8") == expected_text
 
 
+@pytest.mark.parametrize("registry_only", [False, True])
+@pytest.mark.parametrize("status", ["pass", "fail"])
+def test_bump_writes_triage_and_keeps_only_unchanged_completed_checks(
+    bump_copy, monkeypatch, triage_records, registry_only, status,
+):
+    root, module = bump_copy
+    current = module.pinned_version(root)
+    previous = copy.deepcopy(triage_records)
+    check = {"status": status, "detail": "An earlier synthetic render."}
+    previous["sample-helper"]["check"] = check
+    previous["changed-helper"]["check"] = check
+    entry = previous["changed-helper"]["entry"]
+    entry["files"][entry["main"]] = _digest("Earlier synthetic helper.")
+    del previous["added-helper"]
+    target = root / TRIAGE
+    target.write_text(triage.dumps(triage.document(
+        previous, commit="a" * 40, version=current,
+    )), encoding="utf-8")
+    new = current if registry_only else _next(current)
+    _stub_npm(module, monkeypatch, new)
+    if registry_only:
+        monkeypatch.setattr(module, "run_git", lambda args, cwd: f"{COMMIT}\trefs/tags/v{new}\n")
+    result = module.bump(root, new, registry_only=registry_only)
+    expected = copy.deepcopy(triage_records)
+    expected["sample-helper"]["check"] = check
+    assert json.loads(target.read_text(encoding="utf-8")) == triage.document(
+        expected, commit=COMMIT, version=new,
+    )
+    assert result["triage"] == {"items": 4, "usable": 3,
+                                "pending": ["added-helper", "changed-helper"]}
+
+
+@pytest.mark.parametrize("registry_only", [False, True])
+def test_survey_failure_restores_every_file(bump_copy, monkeypatch, registry_only):
+    root, module = bump_copy
+    target = root / TRIAGE
+    target.write_bytes(target.read_bytes().replace(b"\n", b"\r\n"))
+    before = _snapshot(root, module)
+    current = module.pinned_version(root)
+    new = current if registry_only else _next(current)
+    _stub_npm(module, monkeypatch, new)
+    if registry_only:
+        monkeypatch.setattr(module, "run_git", lambda args, cwd: f"{COMMIT}\trefs/tags/v{new}\n")
+    survey = triage.survey
+
+    def fail(*args, **kwargs):
+        survey(*args, **kwargs)
+        target.write_bytes(b"Partial synthetic triage.\n")
+        raise ValidationError("registry", "fixture survey failed")
+
+    monkeypatch.setattr(triage, "survey", fail)
+    with pytest.raises(YapError, match="fixture survey failed.*files were restored"):
+        module.bump(root, new, registry_only=registry_only)
+    assert _snapshot(root, module) == before
+
+
 @pytest.mark.parametrize("failure", ["tag", "ci", "add"])
 def test_registry_failure_restores_every_file(
     bump_copy: tuple[Path, ModuleType], monkeypatch: pytest.MonkeyPatch, failure: str,
@@ -421,7 +512,7 @@ def test_registry_failure_restores_every_file(
 @pytest.mark.parametrize("note_exists", [False, True])
 def test_registry_flag_refreshes_the_current_pin_without_writing(
     bump_copy: tuple[Path, ModuleType], monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str], annotated: bool, note_exists: bool,
+    capsys: pytest.CaptureFixture[str], annotated: bool, note_exists: bool, triage_records: dict,
 ) -> None:
     """Refresh uses the pinned release, never looks up npm latest, and preserves all bytes."""
     root, module = bump_copy
@@ -441,9 +532,15 @@ def test_registry_flag_refreshes_the_current_pin_without_writing(
     notice = root / "NOTICE"
     notice.write_bytes(re.sub(rb"(?m)(^at commit )[0-9a-f]{40}\b",
                              lambda match: match[1] + COMMIT.encode(), notice.read_bytes()))
+    current = module.pinned_version(root)
+    target = root / TRIAGE
+    target.write_text(triage.dumps(triage.document(
+        triage_records, commit=COMMIT, version=current,
+    )), encoding="utf-8")
+    triage_bytes = target.read_bytes()
+    triage_mtime = target.stat().st_mtime_ns
     before = _snapshot(root, module)
     before_bytes = source.read_bytes()
-    current = module.pinned_version(root)
 
     def run_git(args: list[str], cwd: Path) -> str:
         assert args == ["ls-remote", "https://github.com/heygen-com/hyperframes",
@@ -461,10 +558,14 @@ def test_registry_flag_refreshes_the_current_pin_without_writing(
     assert result["registry"] == {
         "commit": COMMIT, "changed": [], "unchanged": list(data["items"]),
     }
+    assert result["triage"] == {"items": 4, "usable": 3,
+                                "pending": ["added-helper", "changed-helper", "sample-helper"]}
     assert result["changed"] is False
     assert calls == [["ci", "--ignore-scripts", "--no-audit", "--no-fund"]]
     assert _snapshot(root, module) == before
     assert source.read_bytes() == before_bytes
+    assert target.read_bytes() == triage_bytes
+    assert target.stat().st_mtime_ns == triage_mtime
 
 
 def test_registry_refresh_preserves_helper_metadata(bump_copy, monkeypatch):
@@ -564,6 +665,16 @@ def _step(name: str) -> str:
             break
         script.append(line[10:])
     return "\n".join(script) + "\n"
+
+
+def test_bump_pr_body_lists_pending_triage_renders() -> None:
+    script = _step("Bump the pin and write the PR body")
+    assert 'bump["triage"]' in script
+    assert '", ".join(bump["triage"]["pending"]) or "none"' in script
+    assert "- [ ] On a Mac, run `uv run python scripts/triage_registry.py`" in script
+    assert "and commit `triage.json`: {pending}." in script
+    assert ("The registry triage in `triage.json` moves to the release commit; "
+            "items that are new or changed wait for a test render.") in script
 
 
 def _open_pr(number: int, ref: str, sha: str, *, owner: str = "cathrynlavery",
