@@ -102,6 +102,7 @@ def require_supported(context: ProjectContext,
                 continue
             if item.kind not in {
                 "caption_gap", "sound", "insert", "overlay", "title", "chapter", "zoom",
+                "transition",
             }:
                 unsupported(f"{item.kind} element {item.id}",
                             f"Remove {item.id} from the {lane.lane} timeline")

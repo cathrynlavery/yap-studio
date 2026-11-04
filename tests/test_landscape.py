@@ -152,7 +152,7 @@ def test_horizontal_full_frame_regions_cover_the_wide_canvas(
     assert edl["overlays"] == [{"start_in_output": 1, "duration": 1, "region": region}]
 
 
-@pytest.mark.parametrize("kind", ["background", "transition", "moment"])
+@pytest.mark.parametrize("kind", ["background", "moment"])
 def test_visual_lanes_refused_even_with_rule_override(tmp_path: Path, kind: str) -> None:
     from yap_studio.project.model import Anchor, Element, TimelineLane
     from yap_studio.stages.timeline import _resolve

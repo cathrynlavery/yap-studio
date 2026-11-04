@@ -1259,7 +1259,7 @@ def render_picture(
             if (placement["start_frame"] != item.start_frame
                     or placement["frames"] != item.end_frame - item.start_frame):
                 raise PictureError(f"{item.id}: rendered transition window differs from timeline.")
-            layer = _layer(graph, root, {**placement, "width": WIDTH, "height": HEIGHT},
+            layer = _layer(graph, root, {**placement, "width": frame.width, "height": frame.height},
                            timeline, commands, conversions)
             base = graph.overlay(base, layer, item.start_frame, item.end_frame)
             decode_seconds += placement["frames"] / FPS

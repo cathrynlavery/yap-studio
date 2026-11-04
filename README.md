@@ -269,7 +269,8 @@ step yourself, see [docs/editing.md](https://github.com/cathrynlavery/yap-studio
   Punches, slow pushes, the opening push and punch, smooth or step-in jump cuts are framed
   for the wide picture.
   Start with `init DIR --take FILE --shape horizontal`.
-  Split B-roll, video letters, transitions, person effects, before/after grade comparisons,
+  Whip pan, cinematic zoom and light leak transitions fill the wide picture.
+  Split B-roll, video letters, person effects, before/after grade comparisons,
   applied taste preferences, 3D captions and studio export are refused.
 - The filler and restart rules are English only. For other languages, `fillers` proposes
   pauses only.
