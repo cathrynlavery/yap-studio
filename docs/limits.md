@@ -10,11 +10,12 @@ What version 1 does not do yet, and what it never judges.
   and fixed lower captions with wider lines and safe margins at 1920 × 1080, plus full-frame
   B-roll clips and stills and B-roll in explicit boxes, opening titles, chapter cards,
   name tags, floating cards and the Film and Eyedropper colour grades; platform is
-  `youtube` or `none`. Valid chapters include a copyable YouTube list. Floating paper
-  cards use the creator's fonts and colours, a 660 px panel, 24 px corners and a soft
-  shadow. They sit beside the speaker, inside title-safe and above captions. Face
-  measurement is required; if neither side clears every face during the card, choose a
-  moment with room beside the speaker. Only the card animates.
+  `youtube` or `none`. Valid chapters include a copyable YouTube list. Punches, slow
+  pushes, the opening push and punch, smooth or step-in jump cuts are framed for the wide
+  picture. Floating paper cards use the creator's fonts and colours, a 660 px panel, 24 px
+  corners and a soft shadow. They sit beside the speaker, inside title-safe and above
+  captions. Face measurement is required; if neither side clears every face during the
+  card, choose a moment with room beside the speaker. Only the card animates.
   Available built-ins: terminal, stat, checklist, text_tag, image_card, transfer,
   image_compare, steps, flow, chart, quote, progress_stat, specs_list, callout_circle,
   name_tag, success_check, edit_timeline, storyboard, jiggle_delete, file_drop, video_card,
@@ -27,7 +28,7 @@ What version 1 does not do yet, and what it never judges.
   (behind-speaker layout; use stat). Side panels and full-frame blurred card layouts are later
   options. Explicit card boxes and behind-person floating cards are unavailable.
   Portrait and square inserts use blurred, darkened fill. Split B-roll, video letters,
-  zooms, transitions, person effects, 3D captions, before/after grade comparisons,
+  transitions, person effects, 3D captions, before/after grade comparisons,
   applied taste preferences and studio export fail with a fix line.
   Finished horizontal projects support 1280x720 YouTube thumbnails with `yap-studio cover`.
   Style/gallery samples remain vertical. Use the review page for final horizontal playback.

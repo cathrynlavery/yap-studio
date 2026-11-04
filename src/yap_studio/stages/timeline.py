@@ -547,7 +547,7 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                   if item.kind == "zoom" and "move" in item.fields]
     camera_3d = style["captions"].get("camera_3d", False)
     step_in = style["moves"].get("jump_cuts") == "step_in" and not camera_3d
-    bottom = CANVAS_HEIGHT_PX
+    bottom = delivery.height
     bottom_margin = FACE_MARGIN_PX
     if (move_zooms or step_in) and style["captions"]["position"] == "bottom":
         bottom = _caption_band_top(style)
@@ -819,7 +819,8 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                     payload["center_from"] = "set"
                     if _zoom_needs_center(payload):
                         aimed = face_center(boxes, range(start, end), maximum, bottom=bottom,
-                                            bottom_margin=bottom_margin)
+                                            bottom_margin=bottom_margin,
+                                            width=delivery.width, height=delivery.height)
                         if aimed is None:
                             center = (.5, .42)
                             payload["center_from"] = "default"
@@ -874,7 +875,8 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                         finding("zoom_peak", "zoom scale must be greater than 1 "
                                 f"and at most {limit:g}", item)
                     if faces is not None:
-                        outside = face_leaves_frame(curve, boxes, bottom=bottom)
+                        outside = face_leaves_frame(curve, boxes, bottom=bottom,
+                                                    width=delivery.width, height=delivery.height)
                         if outside is not None:
                             frame, reason = outside
                             fix = ("lower the scale or set center" if move == "opening" else
@@ -1065,6 +1067,7 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                                  boxes if faces is not None else None,
                                  front_cards, bottom=bottom, bottom_margin=bottom_margin,
                                  card_margin=face_clearance_px(style),
+                                 width=delivery.width, height=delivery.height,
                                  wide_from=[(item.end_frame,
                                              "The opening push cuts back wide here.")
                                             for item in resolved if item.kind == "zoom"

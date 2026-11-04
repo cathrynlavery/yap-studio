@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from yap_studio import ffmpeg, paths, process, receipt
+from yap_studio.canvas import canvas
 from yap_studio.joins import helper, plan
 from yap_studio.joins.helper import Interpolator, JoinError
 from yap_studio.joins.plan import JoinDecision, JoinPlan, build_plan
@@ -34,10 +35,12 @@ def identity(moves: dict) -> dict[str, Any]:
 
 def _assert_layer(movie: Path, frames: int) -> None:
     info = ffmpeg.probe(movie)
-    if ((info.width, info.height, info.video_frames, info.fps) != (1080, 1920, frames, 30)
+    if ((info.width, info.height) not in {
+            (frame.width, frame.height) for frame in (canvas("vertical"), canvas("horizontal"))}
+            or (info.video_frames, info.fps) != (frames, 30)
             or (info.color_primaries, info.color_transfer, info.color_space) != ("bt709",) * 3
             or info.has_audio):
-        raise JoinError("Smooth join movie must be silent BT.709, 1080x1920 at 30 fps "
+        raise JoinError("Smooth join movie must be silent BT.709, 1080x1920 or 1920x1080 at 30 fps "
                         f"with exactly {frames} frames; found {info}.")
 
 

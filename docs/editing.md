@@ -193,6 +193,9 @@ It has no end anchor or hold. See [Sound effects](audio.md#sound-effects).
 
 ## Camera moves
 
+Horizontal videos use the same moves, framed on the 1920 x 1080 picture with the same face
+and caption rules.
+
 A zoom is a timeline element on the agent lane. The style's `moves.zoom_mode` says which
 zooms the agent uses: `none` (the default), `punches`, or `punches_and_push`. With `none`, add
 a zoom only when a review comment asks for one. Punch in on a word that carries the point,

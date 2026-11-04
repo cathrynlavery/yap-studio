@@ -32,9 +32,9 @@ def picture_zooms(inputs: Sequence[tuple], cut_source: Any) -> list[ZoomPiece]:
     """Use the renderer's actual source ranges and native cover dimensions."""
     zooms = []
     for item, piece, source, _ in inputs:
-        base_w, base_h = 1080, 1920
+        base_w, base_h = cut_source.info.width, cut_source.info.height
         if source is not cut_source:
-            factor = max(1080 / source.info.width, 1920 / source.info.height)
+            factor = max(base_w / source.info.width, base_h / source.info.height)
             base_w = math.ceil(source.info.width * factor / 2) * 2
             base_h = math.ceil(source.info.height * factor / 2) * 2
         zooms.append(ZoomPiece(
@@ -85,7 +85,8 @@ def map_picture_faces(
     return FacesData.from_dict(mapped.to_dict()), sources
 
 
-def zoom_ratios(piece: ZoomPiece, frame: int) -> tuple[float, float]:
+def zoom_ratios(piece: ZoomPiece, frame: int,
+                size: tuple[int, int] = (1080, 1920)) -> tuple[float, float]:
     """Match the picture scale's even-pixel truncation at an output frame.
 
     Unknown take geometry uses the cut canvas; mapping adds a 2 px allowance
@@ -93,7 +94,7 @@ def zoom_ratios(piece: ZoomPiece, frame: int) -> tuple[float, float]:
     """
     scale = piece.curve.at(frame)[0]
     base_w, base_h = (
-        (1080, 1920) if piece.base_w is None or piece.base_h is None
+        size if piece.base_w is None or piece.base_h is None
         else (piece.base_w, piece.base_h)
     )
     return math.trunc(base_w * scale / 2) * 2 / base_w, (
@@ -151,9 +152,9 @@ def map_cut_faces(
                                       face.confidence, face.source) for face in faces)
                 source = "camera3d"
             if piece is not None:
-                rx, ry = zoom_ratios(piece, frame)
+                rx, ry = zoom_ratios(piece, frame, (video.width, video.height))
                 _, cx, cy = piece.curve.at(frame)
-                cx, cy = cx * 1080, cy * 1920
+                cx, cy = cx * video.width, cy * video.height
                 pad = 2 if piece.base_w is None or piece.base_h is None else 0
                 faces = tuple(FaceBox(Box(
                     cx + (face.box.x - cx) * rx - pad,

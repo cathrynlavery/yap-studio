@@ -18,7 +18,7 @@ from typing import Any
 import numpy as np
 
 from yap_studio import ffmpeg, letters, paths, receipt
-from yap_studio.canvas import Canvas
+from yap_studio.canvas import Canvas, canvas
 from yap_studio.cards_video import window_rect
 from yap_studio.edl import load_edit_list
 from yap_studio.errors import ProcessingError, YapError
@@ -529,29 +529,29 @@ def _insert(graph: _Graph, source: _Source, item: ResolvedElement, *,
 
 
 def _zoom(graph: _Graph, source: _Source, item: ResolvedElement, *, first: int,
-          last: int, src_first: int, crop_x: float, from_cut: bool) -> str:
+          last: int, src_first: int, crop_x: float, from_cut: bool, frame: Canvas) -> str:
     """Scale directly from the take, retaining a canvas-relative fixed zoom centre."""
     assert source.info.width is not None and source.info.height is not None
-    factor = max(WIDTH / source.info.width, HEIGHT / source.info.height)
+    factor = max(frame.width / source.info.width, frame.height / source.info.height)
     base_w = math.ceil(source.info.width * factor / 2) * 2
     base_h = math.ceil(source.info.height * factor / 2) * 2
     if from_cut:
-        base_w, base_h = WIDTH, HEIGHT
+        base_w, base_h = frame.width, frame.height
     curve = ZoomCurve.from_payload(item.start_frame, item.end_frame, item.payload)
     scale, cx, cy = curve.expressions(first)
     # Keep constant crop centers identical for existing swell renders.
-    center_x = (f"{WIDTH * float(cx):.12f}" if "(" not in cx else f"{WIDTH}*({cx})")
-    center_y = (f"{HEIGHT * float(cy):.12f}" if "(" not in cy else f"{HEIGHT}*({cy})")
+    center_x = (f"{frame.width * float(cx):.12f}" if "(" not in cx else f"{frame.width}*({cx})")
+    center_y = (f"{frame.height * float(cy):.12f}" if "(" not in cy else f"{frame.height}*({cy})")
     if curve.peak is not None:
-        center_x = f"{WIDTH * item.payload['center'][0]:.12f}"
-        center_y = f"{HEIGHT * item.payload['center'][1]:.12f}"
+        center_x = f"{frame.width * item.payload['center'][0]:.12f}"
+        center_y = f"{frame.height * item.payload['center'][1]:.12f}"
     scaled_w, scaled_h = f"trunc({base_w}*{scale}/2)*2", f"trunc({base_h}*{scale}/2)*2"
     # Scale counts its first frame as 1; crop counts it as 0. Preserve the legacy clock.
     resize_scale = scale if curve.peak is not None else scale.replace("(n+", "(n-1+")
     resize_w = f"trunc({base_w}*{resize_scale}/2)*2"
     resize_h = f"trunc({base_h}*{resize_scale}/2)*2"
     resize_flags = ":flags=lanczos" if curve.peak is None else ""
-    origin_x, origin_y = (base_w - WIDTH) * crop_x, (base_h - HEIGHT) / 2
+    origin_x, origin_y = (base_w - frame.width) * crop_x, (base_h - frame.height) / 2
     # crop's iw/ih retain initial link dimensions when upstream scale changes per frame.
     ratio_x, ratio_y = f"({scaled_w}/{base_w})", f"({scaled_h}/{base_h})"
     return graph.filter(
@@ -559,7 +559,7 @@ def _zoom(graph: _Graph, source: _Source, item: ResolvedElement, *, first: int,
         f"{_prefix(source)},fps={FPS}:start_time=0:round=near,"
         f"trim=start_frame={src_first}:end_frame={src_first + last - first},"
         f"setpts=PTS-STARTPTS,scale=w='{resize_w}':h='{resize_h}':eval=frame{resize_flags},"
-        f"crop={WIDTH}:{HEIGHT}:x='{origin_x:.12f}*{ratio_x}+"
+        f"crop={frame.width}:{frame.height}:x='{origin_x:.12f}*{ratio_x}+"
         f"{center_x}*({ratio_x}-1)':y='{origin_y:.12f}*{ratio_y}+"
         f"{center_y}*({ratio_y}-1)':exact=1,"
         f"setsar=1,settb=1/{FPS},setpts=N+{first}",
@@ -750,6 +750,7 @@ def _zoom_inputs(root: Path, timeline: ResolvedTimeline, cut: _Source,
     if plan.total_frames != timeline.total_frames:
         raise PictureError("Cut spans and the resolved timeline have different frame counts.")
     project = load_project(paths.validate_input(root / "project.json"))
+    frame = canvas(project.shape)
     crops = {take.id: take.crop_x for take in project.takes}
     sources: dict[str, _Source] = {}
     result = []
@@ -772,7 +773,7 @@ def _zoom_inputs(root: Path, timeline: ResolvedTimeline, cut: _Source,
             source = sources[name]
             assert source.info.width is not None and source.info.height is not None
             # The axis that limits the cover crop determines whether native pixels remain.
-            enough = min(source.info.width / WIDTH, source.info.height / HEIGHT) > 1
+            enough = min(source.info.width / frame.width, source.info.height / frame.height) > 1
             if not enough:
                 warnings.append(f"{item.id}: take {name} is not larger than the canvas in the "
                                 "cropped axis; rendering zoom from the cut.")
@@ -1213,7 +1214,7 @@ def render_picture(
                             f"settb=1/{FPS},setpts=N,setsar=1")
         decode_seconds = (timeline.total_frames + timeline.end_hold_frames) / FPS
         for placement in smooth_layers or []:
-            layer = _layer(graph, root, {**placement, "width": WIDTH, "height": HEIGHT},
+            layer = _layer(graph, root, {**placement, "width": frame.width, "height": frame.height},
                            timeline, commands, conversions)
             start = placement["start_frame"]
             base = graph.overlay(base, layer, start, start + placement["frames"])
@@ -1224,7 +1225,7 @@ def render_picture(
             from_cut = source is cut
             src_first = first if from_cut else piece.src_f0 + first - piece.out_f0
             layer = _zoom(graph, source, item, first=first, last=last, src_first=src_first,
-                          crop_x=crop_x, from_cut=from_cut)
+                          crop_x=crop_x, from_cut=from_cut, frame=frame)
             base = graph.overlay(base, layer, first, last)
             decode_seconds += (src_first + last - first) / FPS
         for item in timeline.elements:
