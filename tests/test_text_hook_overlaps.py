@@ -341,6 +341,25 @@ def test_text_hook_moves_high_captions_only_while_visible(hooked_project, whole_
         assert moved[2:] == original[2:]
 
 
+@pytest.mark.parametrize("entry,moves", [({"entry_ms": 0}, True), ({}, False)],
+                         ids=["no-entrance", "default-entrance"])
+@pytest.mark.parametrize("placement", ["fixed", "avoid_face"])
+def test_text_hook_checks_captions_first_drawn_frame(entry, moves, placement):
+    style = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "middle", "top_px": 700, "size_px": 180,
+        "background_mode": "box", "placement": placement, "entrance": "slide", **entry,
+    }})
+    geometry = caption_band_geometry(style["captions"], safe_bottom_px=1740)
+    slots = [{"start": 133 / 30, "end": 5, "words": [{"text": "Synthetic"}]}]
+    original = caption_offsets(slots, geometry, None, style)
+    moved = caption_offsets(slots, geometry, None, style, text_hook_bottom=470,
+                            text_hook_end_frame=134)
+    if moves:
+        assert moved[0]["offset_px"] > original[0]["offset_px"]
+    else:
+        assert moved == original
+
+
 @pytest.mark.parametrize("change", ["duration", "whole_video"])
 def test_caption_inputs_include_text_hook_window(hooked_project, change):
     root = hooked_project

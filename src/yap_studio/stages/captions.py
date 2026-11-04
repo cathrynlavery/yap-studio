@@ -568,6 +568,12 @@ def caption_offsets(
         element = Box(x, top, width, height)
         offset = top - original_top
         window = []
+        first = round(phrase["start"] * fps, 6)
+        entering = captions["entry_ms"] > 0 or captions["entrance"] == "rise"
+        if captions["entrance"] == "spoken" and captions["max_words_per_phrase"] > 1:
+            entering = False
+        start = math.floor(first) + 1 if entering else math.ceil(first)
+        end = math.ceil(round(phrase["end"] * fps, 6))
         if captions["placement"] == "fixed":
             reason = "kept: fixed caption placement"
         elif faces is None and still_faces is None:
@@ -575,12 +581,6 @@ def caption_offsets(
         elif faces is not None and faces.status != "measured":
             reason = f"kept: faces not measured: {faces.reason}"
         else:
-            first = round(phrase["start"] * fps, 6)
-            entering = captions["entry_ms"] > 0 or captions["entrance"] == "rise"
-            if captions["entrance"] == "spoken" and captions["max_words_per_phrase"] > 1:
-                entering = False
-            start = math.floor(first) + 1 if entering else math.ceil(first)
-            end = math.ceil(round(phrase["end"] * fps, 6))
             if still_faces is not None:
                 window = [tuple(still_faces)]
             else:
@@ -606,11 +606,8 @@ def caption_offsets(
                             reason = "kept: clear of the head"
                 else:
                     offset, reason = hint.y - original_top, hint.reason
-        if text_hook_end_frame is not None:
-            first, last = caption_frame_window(
-                phrase["start"], phrase["end"], fps=fps, layer_start=0)
         if (text_hook_bottom is not None
-                and (text_hook_end_frame is None or max(0, first) < min(last, text_hook_end_frame))
+                and (text_hook_end_frame is None or max(0, start) < min(end, text_hook_end_frame))
                 and original_top + offset < text_hook_bottom + margin):
             floor = max(cb.top, math.ceil(text_hook_bottom + margin))
             if floor + height > phrase_bounds.bottom:
