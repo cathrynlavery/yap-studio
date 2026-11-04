@@ -1,12 +1,29 @@
 """Verifier patch audio uses the same resampling as the rendered audio."""
 
+import json
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import synth
+from test_assemble import refuse_unexpected_matte_work as refuse_unexpected_matte_work
+from test_cli_captions import fake_layers  # noqa: F401
+from test_cut import make_project, time_segment, write_edit, write_json
+from test_stage_captions import set_elements
 
-from yap_studio import audio, receipt
-from yap_studio.voice.splice import write_wav
+from yap_studio import audio, ffmpeg, receipt
+from yap_studio.edl import load_edit_list
+from yap_studio.project.receipts import StageRun, read_receipt
+from yap_studio.project.status import ProjectContext, ingest_inputs
+from yap_studio.stages import assemble as assembly
+from yap_studio.stages.captions import captions
+from yap_studio.stages.cut import cut, resolve_cut
+from yap_studio.stages.graphics import graphics
+from yap_studio.stages.music import music
+from yap_studio.style import resolve
+from yap_studio.verify import verify
+from yap_studio.voice import decide, make, propose
+from yap_studio.voice.splice import blend, decode, write_wav
 from yap_studio.voice.store import source_transform
 
 
@@ -24,6 +41,102 @@ def tones(count):
     time = np.arange(count) / 48000
     return (0.01 * np.sin(2 * np.pi * 1000 * time)
             + 0.1 * np.sin(2 * np.pi * 10000 * time)).astype(np.float32)
+
+
+@pytest.fixture
+def patched_assembly(tmp_path, request):
+    selected = getattr(request, "param", False)
+    source = synth.voiced_source(
+        tmp_path / "source.mov", [(1.2, 1.8), (2.5, 2.8), (5.2, 5.8), (6.5, 6.8)],
+        frequencies=[220, 220, 220, 880], seconds=8,
+    )
+    if selected:
+        early = synth.float_audio(tmp_path / "early.wav", np.zeros(8 * 48000))
+        multiple = tmp_path / "multiple.mov"
+        ffmpeg.run([
+            "ffmpeg", "-nostdin", "-v", "error", "-i", str(early),
+            "-itsoffset", "0.2", "-i", str(source), "-map", "1:v:0",
+            "-map", "0:a:0", "-map", "1:a:0", "-c", "copy", str(multiple),
+        ], timeout_s=60)
+        source = multiple
+    root = make_project(tmp_path / "project", [source], word_rows=[[
+        ("bright", 1.2, 1.8), ("coal", 2.5, 2.8),
+        ("light", 5.2, 5.8), ("cold", 6.5, 6.8),
+    ]])
+    project = json.loads((root / "project.json").read_text())
+    project.update(asr={"engine": "none"}, music={"mode": "none"},
+                   audio={"mode": "preserve"}, style="style.json")
+    project["takes"][0].update(voiceover=True, audio_stream=int(selected))
+    style = resolve("preset:clean_minimal").data
+    style["broll"]["color_match"] = "off"
+    style["music"]["sound_effects_fallback"] = "none"
+    write_json(root / "style.json", style)
+    write_json(root / "project.json", project)
+    previous = read_receipt(root / "ingest")
+    with StageRun(root, "ingest") as run:
+        for name, digest in ingest_inputs(ProjectContext(root)).items():
+            run.record_inputs(name, digest)
+        run.outputs.update({item["path"]: item for item in previous["outputs"]})
+        run.finish()
+    write_edit(root, [time_segment("s1", "t1", 0, 3), time_segment("s2", "t1", 5, 8)],
+               end_hold_s=0)
+    propose(root, "t1:1", "t1:1", "cold")
+    fix = make(root, ["f1"])["fixes"][0]
+    decide(root, "f1", "approve", via="chat")
+    cut(root)
+    cover = root / "takes/t1.mov"
+    set_elements(root, {"id": "broll-cover", "kind": "insert", "start": {"time": 0},
+                        "end": {"time": 6}, "media": {
+                            "path": str(cover.relative_to(root)),
+                            "sha256": receipt.sha256_file(cover),
+                        }}, lane="broll")
+    captions(root)
+    graphics(root)
+    music(root)
+    return root, fix
+
+
+@pytest.mark.parametrize("patched_assembly", [True], indirect=True)
+def test_remuxed_reference_rebases_patch_to_its_video_clock(patched_assembly, monkeypatch):
+    root, fix = patched_assembly
+    plan = resolve_cut(root)
+    assert plan.media["t1"].video_offset_s == pytest.approx(0.2)
+    check = assembly.verify
+    seen = []
+
+    def check_clock(media, **kwargs):
+        reference = load_edit_list(kwargs["edl"]).sources["t1"].path
+        info = ffmpeg.probe(reference)
+        assert info.video_offset_s == 0
+        _, actual = audio.decode(reference, sr=48000)
+        if "source_audio" in kwargs:
+            actual = kwargs["source_audio"]("t1", actual, 48000)
+        meta = fix["patch"]
+        first = meta["start_sample"] - round(plan.media["t1"].video_offset_s * 48000)
+        patch = decode(root / meta["path"], 1)
+        _, original = audio.decode(plan.sources["t1"], stream=1, sr=48000)
+        original = original[9600:9600 + len(actual)]
+        expected = blend(original[:, None], patch, {**meta, "start_sample": first},
+                         source_start_sample=0)[:, 0]
+        np.testing.assert_allclose(actual[first:first + len(patch)],
+                                   expected[first:first + len(patch)], atol=1e-6,
+                                   err_msg="patch follows the original container clock")
+        seen.append(reference)
+        return check(media, **kwargs)
+
+    monkeypatch.setattr(assembly, "verify", check_clock)
+    assembly.assemble(root)
+    assert len(seen) == 1
+
+
+def test_published_verification_reproduces_approved_fix_near_join(patched_assembly):
+    root, _ = patched_assembly
+    result = assembly.assemble(root)
+    report = verify(str(root / result["out"]), edl=str(root / "final/verify-edl.json"),
+                    asr="none", loudness="note", detail="full")
+    assert report["checks"]["join.words"]["ran"]
+    failures = [item for item in report["findings"] if item["check"] == "join.words"]
+    assert not failures, "standalone verification reconstructs the old speech"
 
 
 @pytest.mark.parametrize("rate", [16000, 48000])

@@ -128,11 +128,11 @@ def _snap(sound: np.ndarray, nominal: int) -> int:
     return int(candidates[min(best, key=lambda i: abs(candidates[i] - nominal))])
 
 
-def edge_check(sound: np.ndarray, first: int, last: int) -> dict:
+def edge_check(sound: np.ndarray, first: int, last: int, *internal: int) -> dict:
     mono = sound.mean(axis=1)
     thresholds = Thresholds()
     measurements = []
-    for point in (first, last):
+    for point in (first, last, *internal):
         point = min(len(mono) - 1, max(0, point))
         sharpness = click_at(mono, RATE, point / RATE)
         peak = click_peak_dbfs_at(mono, RATE, point / RATE)
@@ -234,6 +234,41 @@ def room_tone_check(patch: np.ndarray, floor: float) -> dict:
     }
 
 
+def fit_slot(
+    original: np.ndarray, start_s: float, end_s: float, samples: int, *,
+    word_spans: list[tuple[float, float]], word_range: tuple[int, int], pace: str = "fit",
+) -> tuple[int, int]:
+    """Share the snapped slot, stretch limit and pause borrowing with source selection."""
+    first, last = _snap(original, round(start_s * RATE)), _snap(original, round(end_s * RATE))
+    if last <= first:
+        raise VoiceError("The replacement slot is empty.", code="voice_slot_invalid")
+    before = word_spans[: word_range[0]]
+    after = word_spans[word_range[1] + 1 :]
+    if before:
+        first = max(first, math.ceil(max(b for _, b in before) * RATE))
+    if after:
+        last = min(last, math.floor(min(a for a, _ in after) * RATE))
+    if last <= first:
+        raise VoiceError(
+            "The new speech cannot fit without covering another word.", code="voice_speech_too_long"
+        )
+    needed = round(samples * (0.8 if pace == "fit" else 1))
+    if needed > last - first:
+        next_word = min(
+            (a for a, _ in after), default=min(len(original) / RATE, end_s + 0.25)
+        )
+        available = max(last, min(len(original), math.floor(next_word * RATE) - 480))
+        if needed > available - first:
+            raise VoiceError(
+                f"The new speech is {samples / RATE:.3f} s; the slot is "
+                f"{(available - first) / RATE:.3f} s, even using the next quiet gap.",
+                code="voice_speech_too_long",
+                suggested_action="Use fewer words or record the line again.",
+            )
+        last = first + needed
+    return first, last
+
+
 def build_patch(
     original: np.ndarray,
     generated: Path,
@@ -257,34 +292,8 @@ def build_patch(
     if not recorded:
         sound = sound[max(0, int(voiced[0]) * 480 - 240):
                       min(len(sound), int(voiced[-1]) * 480 + 720)]
-    first, last = _snap(original, round(start_s * RATE)), _snap(original, round(end_s * RATE))
-    if last <= first:
-        raise VoiceError("The replacement slot is empty.", code="voice_slot_invalid")
-    before = word_spans[: word_range[0]]
-    after = word_spans[word_range[1] + 1 :]
-    if before:
-        first = max(first, math.ceil(max(b for _, b in before) * RATE))
-    if after:
-        last = min(last, math.floor(min(a for a, _ in after) * RATE))
-    if last <= first:
-        raise VoiceError(
-            "The new speech cannot fit without covering another word.", code="voice_speech_too_long"
-        )
-    duration = len(sound) / RATE
-    needed = round(len(sound) * (0.8 if pace == "fit" else 1))
-    if needed > last - first:
-        next_word = min(
-            (a for a, _ in after), default=min(len(original) / RATE, end_s + 0.25)
-        )
-        available = max(last, min(len(original), math.floor(next_word * RATE) - 480))
-        if needed > available - first:
-            raise VoiceError(
-                f"The new speech is {duration:.3f} s; the slot is "
-                f"{(available - first) / RATE:.3f} s, even using the next quiet gap.",
-                code="voice_speech_too_long",
-                suggested_action="Use fewer words or record the line again.",
-            )
-        last = first + needed
+    first, last = fit_slot(original, start_s, end_s, len(sound), word_spans=word_spans,
+                           word_range=word_range, pace=pace)
     count = last - first
     stretch = max(0.8, min(1.25, count / len(sound))) if pace == "fit" else 1.0
     raw, fitted = work / "speech.wav", work / "fitted.wav"
@@ -315,15 +324,19 @@ def build_patch(
         )
     gain = level(reference) - level(speech)
     sound *= 10 ** (gain / 20)
+    speech_fade = min(FADE, len(sound) // 2)
+    internal = []
     if recorded:
         floor = _floor(original, first, last)
         patch = np.zeros((count, channels), dtype=np.float32)
         if len(sound) < count:
-            tone, floor = _tone(original, first, last, word_spans, count - len(sound))
-            patch[len(sound):] = tone
+            handoff = len(sound) - speech_fade
+            tone, floor = _tone(original, first, last, word_spans, count - handoff)
+            tone[:speech_fade] *= audio.raised_cosine(speech_fade)[:, None]
+            patch[handoff:] = tone
+            internal = [first + handoff, first + len(sound)]
     else:
         patch, floor = _tone(original, first, last, word_spans, count)
-    speech_fade = min(FADE, len(sound) // 2)
     sound[:speech_fade] *= audio.raised_cosine(speech_fade)[:, None]
     sound[-speech_fade:] *= audio.raised_cosine(speech_fade)[::-1, None]
     patch[: len(sound)] += sound
@@ -350,7 +363,7 @@ def build_patch(
         else level(_speech(sound)) - level(reference)
     )
     items = [
-        edge_check(after, first, last),
+        edge_check(after, first, last, *internal),
         {
             "id": "splice.level",
             "status": "pass" if difference <= 1.5 else "warn",

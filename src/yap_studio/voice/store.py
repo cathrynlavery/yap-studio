@@ -221,7 +221,7 @@ def replaced_text(rows: list[dict], fixes: list[dict]) -> list[dict]:
     return result
 
 
-def source_transform(plan, patches):
+def source_transform(plan, patches, *, video_offsets=None):
     """Patch the verifier's container-clock decode at its requested sample rate."""
     cache = {}
 
@@ -243,11 +243,13 @@ def source_transform(plan, patches):
                 signal[:available, 0] = mono[:available]
                 cache[key] = signal
             signal = cache[key]
+            offset = (video_offsets[take] - plan.media[take].video_offset_s
+                      if video_offsets is not None and take in video_offsets else 0)
             # blend uses only sample counts, so it works on this decode's rate too.
             scaled = {
                 **meta,
                 "samples": count,
-                "start_sample": round(meta["start_sample"] * rate / 48000),
+                "start_sample": round((meta["start_sample"] / 48000 + offset) * rate),
                 "fade_in_samples": round(meta["fade_in_samples"] * rate / 48000),
                 "fade_out_samples": round(meta["fade_out_samples"] * rate / 48000),
             }
@@ -315,8 +317,11 @@ def add_cut_checks(
                 item["status"] = "warn" if item["gap_s"] > 0.25 else "pass"
         after = work / f"voice-check-{fix['id']}-{first}.wav"
         write_wav(after, signal)
+        click = next(item for item in items if item["id"] == "splice.click")
+        internal = [first + edge["sample"] - click["edges"][0]["sample"]
+                    for edge in click["edges"][2:]]
         items = [
-            edge_check(sound, first, last),
+            edge_check(sound, first, last, *internal),
             *[item for item in items if item["id"] not in ("splice.click", "splice.heard")],
             _heard(plan, after, fix["say"], respelled=bool(
                 fix.get("from", {}).get("pronunciations")

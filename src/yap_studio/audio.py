@@ -360,7 +360,7 @@ def decode(
     command.extend(["-f", "f32le", "-"])
     result = ffmpeg.run(command, timeout_s=ffmpeg.DEFAULT_TIMEOUT_S, binary=True)
     audio = np.frombuffer(result.stdout, dtype="<f4").copy()
-    if channels > 1:
+    if not mono:
         audio = audio[: len(audio) - len(audio) % channels].reshape(-1, channels)
     # The raw PCM pipe drops timestamps; restore gaps from the frame timestamps.
     audio = _fill_gaps(audio, _clock_for(source, info), info.sample_rate, output_rate, source)

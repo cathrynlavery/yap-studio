@@ -70,6 +70,23 @@ def test_finds_other_take_not_used_by_cut(own_project, fake_voice):
     assert calls(fake_voice) == []
 
 
+def test_late_starting_mono_donor_can_supply_a_proposal(tmp_path, fake_voice):
+    source = synth.voiced_source(
+        tmp_path / "source.mov", [(0.2, 0.8), (1.2, 1.8), (2.2, 2.8)], seconds=4,
+    )
+    donor = synth.watch_audio_offset(tmp_path / "donor.mov", source, offset_s=0.2)
+    rows = [("coal", 0.4, 1), ("cold", 1.4, 2), ("light", 2.4, 3)]
+    root = make_project(tmp_path / "project", [donor], word_rows=[rows])
+    project = json.loads((root / "project.json").read_text())
+    project["takes"][0]["voiceover"] = True
+    write_json(root / "project.json", project)
+    write_edit(root, [time_segment("s1", "t1", 0, 4)])
+    fix = propose(root, "t1:0", "t1:0", "cold")
+    assert fix["from"]["kind"] == "own"
+    assert fix["from"]["words"] == ["t1:1"]
+    assert calls(fake_voice) == []
+
+
 def test_candidates_rank_take_confidence_then_distance(own_project, fake_voice):
     change_words(own_project, {
         "t1:4": {"text": "cold", "conf": 0.8}, "t1:5": {"text": "plunge", "conf": 0.8},
@@ -96,6 +113,28 @@ def test_clipped_candidate_is_skipped(own_project, fake_voice, monkeypatch):
 
     monkeypatch.setattr(module.audio, "decode", clipped)
     assert propose(own_project, "t1:2", "t1:3", "cold plunge")["from"]["take"] == "t2"
+
+
+@pytest.mark.parametrize("duration", [0.9, 2.0, 3.0])
+def test_automatic_candidates_must_fit_before_selection(own_project, fake_voice, duration):
+    changes = {}
+    for take in ("t1", "t2"):
+        changes.update({
+            f"{take}:3": {"end": 3.2},
+            f"{take}:4": {"text": "cold", "start": 4.2, "end": 4.5},
+            f"{take}:5": {"text": "plunge", "start": 8.4, "end": 8.7},
+            f"{take}:9": {"start": 9.0, "end": 9.3, "conf": 0.8},
+            f"{take}:10": {"start": 9.5, "end": 9.0 + duration, "conf": 0.8},
+            f"{take}:11": {"start": 12.1, "end": 12.2},
+        })
+    change_words(own_project, changes)
+    fix = propose(own_project, "t1:2", "t1:3", "cold plunge")
+    if duration == 3.0:
+        assert fix["from"]["kind"] == "clone"
+    else:
+        assert fix["from"]["words"] == ["t1:9", "t1:10"]
+        assert make(own_project, ["f1"])["fixes"][0]["status"] == "ready"
+    assert not any(argv[0] == "text-to-speech" for argv in calls(fake_voice))
 
 
 def test_chosen_words_must_say_the_replacement(own_project, fake_voice):
@@ -166,9 +205,15 @@ def test_normalised_phrase_can_use_more_source_words(monkeypatch):
     monkeypatch.setattr(module, "take_sound", lambda *_: (
         np.full((3 * 48000, 1), 0.1, dtype=np.float32), 0,
     ))
+    monkeypatch.setattr(import_module("yap_studio.voice.make"), "take_audio", lambda *_:
+                        np.full((3 * 48000, 1), 0.1, dtype=np.float32))
+    target = SimpleNamespace(id="t1:99", start=0, end=1)
+    plan = SimpleNamespace(context=context, source_words={
+        "t1": SimpleNamespace(words=[target, *words]),
+    })
     fix = {"id": "f1", "take": "t1", "words": ["t1:99"], "say": "gonna " * 5,
-           "source": {"start_s": 0, "end_s": 0.5}}
-    origin = module.find_own(SimpleNamespace(context=context), fix, [])
+           "source": {"start_s": 0, "end_s": 1}}
+    origin = module.find_own(plan, fix, [])
     assert origin is not None and origin["words"] == [word.id for word in words]
 
 

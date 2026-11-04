@@ -890,18 +890,41 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
                        "audio": "silence"}] if timeline.end_hold_frames else []}
 
 
-def _audio_references(snapshot: AssemblySnapshot, retained: Path, work: Path
+def _audio_references(snapshot: AssemblySnapshot, retained: Path, work: Path, *,
+                      voice_plan=None, voice_patches=(),
                       ) -> dict[str, tuple[str, Path]]:
-    """Give ranges JSON a portable one-audio source when the cut selected another stream."""
+    """Retain the selected, patched audio that standalone verification must hear."""
+    from yap_studio import audio
+    from yap_studio.voice import store as voice_store
+    from yap_studio.voice.splice import write_wav
+
     result = {}
     for index, (name, ordinal) in enumerate(snapshot.audio_streams.items()):
-        if not ordinal:
+        patched = any(fix["take"] == name for fix, _ in voice_patches)
+        if not ordinal and not patched:
             continue
+        source = retained / snapshot.sources[name]
         reference = work / f"source-{index}.mov"
-        ffmpeg.run(["ffmpeg", "-nostdin", "-v", "error", "-copyts", "-i",
-                    str(retained / snapshot.sources[name]), "-map", "0:v:0", "-map",
-                    f"0:a:{ordinal}", "-c", "copy", "-avoid_negative_ts", "disabled",
-                    str(reference)], timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
+        if ordinal:
+            ffmpeg.run(["ffmpeg", "-nostdin", "-v", "error", "-copyts", "-i",
+                        str(source), "-map", "0:v:0", "-map", f"0:a:{ordinal}",
+                        "-c", "copy", "-avoid_negative_ts", "disabled", str(reference)],
+                       timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
+            source = reference
+        if patched:
+            info = ffmpeg.probe(source)
+            _, mono = audio.decode(source, sr=48000)
+            transform = voice_store.source_transform(
+                voice_plan, voice_patches, video_offsets={name: info.video_offset_s},
+            )
+            wav = work / f"source-{index}.wav"
+            write_wav(wav, transform(name, mono, 48000)[:, None])
+            reference = work / f"patched-source-{index}.mov"
+            ffmpeg.run(["ffmpeg", "-nostdin", "-v", "error", "-copyts", "-i", str(source),
+                        "-itsoffset", str(info.format_start_s), "-i", str(wav),
+                        "-map", "0:v:0", "-map", "1:a:0", "-c", "copy",
+                        "-avoid_negative_ts", "disabled", str(reference)],
+                       timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
         result[name] = (f"source-audio/source-{index}.mov", reference)
     return result
 
@@ -1516,7 +1539,8 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                        str(Path(out).with_suffix(CONTRAST_SUFFIX)),
                        str(Path(out).with_suffix(".faces.json")), "final/verify-edl.json", *[
                 f"final/source-audio/source-{index}.mov"
-                for index, ordinal in enumerate(snapshot.audio_streams.values()) if ordinal
+                for index, (name, ordinal) in enumerate(snapshot.audio_streams.items())
+                if ordinal or any(fix["take"] == name for fix, _ in voice_patches)
             ]]
             for relative in targets:
                 paths.validate_output(root / relative, allowed_existing_suffixes=frozenset(),
@@ -1612,7 +1636,8 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                 asserts.extend(_bleep_check(context, snapshot, sound, retained, work,
                                            letters_layers=plates))
                 run.progress("verifying final", 0.9)
-                references = _audio_references(snapshot, retained, work)
+                references = _audio_references(snapshot, retained, work,
+                                                voice_plan=voice_plan, voice_patches=voice_patches)
                 edl = verification_edl(snapshot, base=root / "final",
                                        references={name: relative for name, (relative, _)
                                                    in references.items()})
@@ -1647,8 +1672,6 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                                    if click_stem is not None else {}),
                                 **({"words_audio": str(words_stem)}
                                    if words_stem is not None else {}),
-                                **({"source_audio": voice_store.source_transform(
-                                    voice_plan, voice_patches)} if voice_patches else {}),
                                 **({"transitions": windows} if windows else {}))
                 add_number_visibility(report, asserts, getattr(picture, "behind_layers", ()))
                 failures = [item for item in report.get("findings", [])

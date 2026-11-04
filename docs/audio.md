@@ -12,6 +12,10 @@ consent or account. If none fit, it offers your instant clone as the fallback.
 The rest of the take keeps its timing. Listen to Before and After, then choose
 **Use the fix** or **Keep my original**. Only approved fixes go into the next version.
 
+Recorded words must fit with a small timing adjustment or the next quiet gap.
+Short recordings fade into nearby room tone. The final keeps patched source audio in
+`final/source-audio/` so checks using `final/verify-edl.json` hear the approved fixes too.
+
 The clone fallback needs a paid [ElevenLabs](https://littlemight.com/recommend/elevenlabs)
 (affiliate link) account. Your key needs Text to Speech and Voices access.
 With Models and User read access Yap Studio can read the credit rate and your balance,

@@ -88,6 +88,40 @@ def test_recorded_room_is_not_added_under_speech(tmp_path, monkeypatch):
                 pace="off", recorded=True)
 
 
+def test_recorded_padding_handoff_is_crossfaded_and_checked(tmp_path, monkeypatch):
+    sound = fixture_sound()
+    time = np.arange(len(sound)) / splice.RATE
+    sound += (0.005 * np.cos(2 * np.pi * 50 * time))[:, None]
+    generated = synth.float_audio(tmp_path / "own.wav", np.full((9600, 1), 0.05))
+    patch, meta, checks = build_patch(
+        sound, generated, 2, 3, tmp_path,
+        word_spans=[(0.5, 1.5), (2, 3), (3.5, 4.5)], word_range=(1, 1),
+        pace="off", recorded=True,
+    )
+    actual = blend(sound, patch, meta, source_start_sample=0).mean(axis=1)
+    handoff = meta["start_sample"] + 9600
+    assert (click_at(actual, splice.RATE, handoff / splice.RATE) <= Thresholds().click_fail_db
+            or click_peak_dbfs_at(actual, splice.RATE, handoff / splice.RATE)
+            <= Thresholds().click_floor_dbfs), "recorded padding clicks inside the patch"
+    click = next(item for item in checks["items"] if item["id"] == "splice.click")
+    assert handoff in {edge["sample"] for edge in click["edges"]}
+    assert click["status"] == "pass"
+    from importlib import import_module
+
+    from yap_studio.voice.store import add_cut_checks
+
+    monkeypatch.setattr(import_module("yap_studio.voice.make"), "_heard", lambda *_, **kwargs:
+                        {"id": "splice.heard", "status": "skipped"})
+    first = meta["start_sample"]
+    applied = [{"id": "f1", "start_sample": first, "end_sample": first + len(patch)}]
+    fix = {"id": "f1", "take": "t1", "say": "test", "checks": checks}
+    report = add_cut_checks({"status": "pass", "findings": []}, actual[:, None], applied,
+                            [fix], plan=None, work=tmp_path, levels=None)
+    click = next(item for item in report["voice_fixes"][0]["checks"]["items"]
+                 if item["id"] == "splice.click")
+    assert handoff in {edge["sample"] for edge in click["edges"]}
+
+
 @pytest.mark.parametrize("next_start", [2.5, 2.4995, 2.45, 1.95, 2.69])
 def test_extension_cannot_cover_the_following_word(tmp_path, monkeypatch, next_start):
     monkeypatch.setattr(splice, "_snap", lambda _, point: point)

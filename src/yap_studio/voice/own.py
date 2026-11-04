@@ -12,7 +12,7 @@ from yap_studio.project.model import load_words
 from yap_studio.stages.cut import _selected_stream
 from yap_studio.stages.edges import heard_words
 from yap_studio.voice.model import VoiceError
-from yap_studio.voice.splice import RATE, _snap
+from yap_studio.voice.splice import RATE, _snap, fit_slot
 
 
 def take_words(context, take):
@@ -90,6 +90,7 @@ def find_own(plan, fix, fixes, *, chosen=None):
                     candidates.append((rank, origin))
                     break
     decoded = {}
+    target = None
     for _, origin in sorted(candidates, key=lambda item: item[0]):
         take = origin["take"]
         if take not in decoded:
@@ -98,6 +99,22 @@ def find_own(plan, fix, fixes, *, chosen=None):
         span = _span(sound, offset, origin["start_s"], origin["end_s"])
         if (len(span) and np.isfinite(span).all() and np.any(span)
                 and np.max(np.abs(span)) < 0.999):
+            if not chosen:
+                if target is None:
+                    from yap_studio.voice.make import take_audio
+
+                    target = take_audio(plan, fix["take"])
+                    words = plan.source_words[fix["take"]].words
+                    ids = [word.id for word in words]
+                    word_range = (ids.index(fix["words"][0]), ids.index(fix["words"][-1]))
+                    word_spans = [(word.start, word.end) for word in words]
+                try:
+                    fit_slot(target, fix["source"]["start_s"], fix["source"]["end_s"], len(span),
+                             word_spans=word_spans, word_range=word_range)
+                except VoiceError as exc:
+                    if exc.code not in {"voice_speech_too_long", "voice_slot_invalid"}:
+                        raise
+                    continue
             return origin
     if chosen:
         raise VoiceError(
