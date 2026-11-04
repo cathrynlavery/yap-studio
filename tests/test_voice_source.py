@@ -97,6 +97,62 @@ def patched_assembly(tmp_path, request):
     return root, fix
 
 
+@pytest.mark.parametrize("stage", ["cut", "final"])
+def test_retained_reference_keeps_fix_past_original_audio(tmp_path, stage):
+    source = synth.voiced_source(
+        tmp_path / "source.mov", [(0.2, 0.9), (1.6, 1.95)], seconds=3,
+    )
+    short = tmp_path / "short.mov"
+    ffmpeg.run([
+        "ffmpeg", "-nostdin", "-v", "error", "-i", str(source),
+        "-map", "0:v:0", "-map", "0:a:0", "-af", "atrim=duration=2",
+        "-c:v", "copy", "-c:a", "pcm_s16le", str(short),
+    ], timeout_s=60)
+    root = make_project(tmp_path / "project", [short], word_rows=[[
+        ("cold", 0.2, 0.9), ("coal", 1.6, 1.95),
+    ]])
+    project = json.loads((root / "project.json").read_text())
+    project.update(asr={"engine": "none"}, music={"mode": "none"},
+                   audio={"mode": "preserve"})
+    project["takes"][0]["voiceover"] = True
+    write_json(root / "project.json", project)
+    previous = read_receipt(root / "ingest")
+    with StageRun(root, "ingest") as run:
+        for name, digest in ingest_inputs(ProjectContext(root)).items():
+            run.record_inputs(name, digest)
+        run.outputs.update({item["path"]: item for item in previous["outputs"]})
+        run.finish()
+    write_edit(root, [time_segment("s1", "t1", 0, 3)], end_hold_s=0)
+    propose(root, "t1:1", "t1:1", "cold")
+    fix = make(root, ["f1"])["fixes"][0]
+    decide(root, "f1", "approve", via="chat")
+    meta = fix["patch"]
+    first, last = meta["start_sample"], meta["start_sample"] + meta["samples"]
+    _, original = audio.decode(short, sr=48000)
+    assert len(original) == 2 * 48000 < last < 3 * 48000
+    cut(root)
+    _, voice = audio.decode(root / "cut/voice.wav", sr=48000)
+    assert np.any(voice[len(original):last])
+    if stage == "final":
+        cover = root / "takes/t1.mov"
+        set_elements(root, {"id": "broll-cover", "kind": "insert", "start": {"time": 0},
+                            "end": {"time": 3}, "media": {
+                                "path": str(cover.relative_to(root)),
+                                "sha256": receipt.sha256_file(cover),
+                            }}, lane="broll")
+        captions(root)
+        graphics(root)
+        music(root)
+        assembly.assemble(root)
+        reference = load_edit_list(root / "final/verify-edl.json").sources["t1"].path
+    else:
+        reference = root / "cut/source-audio/t1.wav"
+    _, actual = audio.decode(reference, sr=48000)
+    assert len(actual) >= last, "retained reference truncates the approved voice fix"
+    # The cut's voice track is quantized to 16-bit PCM.
+    np.testing.assert_allclose(actual[first:last], voice[first:last], atol=1 / 32768, rtol=0)
+
+
 @pytest.mark.parametrize("patched_assembly", [True], indirect=True)
 def test_remuxed_reference_rebases_patch_to_its_video_clock(patched_assembly, monkeypatch):
     root, fix = patched_assembly

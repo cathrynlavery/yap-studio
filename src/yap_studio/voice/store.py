@@ -253,6 +253,9 @@ def source_transform(plan, patches, *, video_offsets=None):
                 "fade_in_samples": round(meta["fade_in_samples"] * rate / 48000),
                 "fade_out_samples": round(meta["fade_out_samples"] * rate / 48000),
             }
+            end = scaled["start_sample"] + count
+            if end > len(result):
+                result = np.pad(result, ((0, end - len(result)), (0, 0)))
             result = blend(result, signal, scaled, source_start_sample=0)
         return result[:, 0]
 
