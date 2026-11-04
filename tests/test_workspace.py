@@ -632,7 +632,8 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, s
         assert style["moves"]["jump_cuts"] == "hard"
         assert style["moves"]["opening_push"] is False
     assert style["grade"]["slider"] is False
-    assert style["moves"]["transitions"] == []
+    assert style["moves"]["transitions"] == (
+        ["whip_pan"] if branded else ["whip_pan", "cinematic_zoom", "light_leak"])
     assert style["hook"]["style"] == style["chapters"]["style"] == "none"
     assert inbox_files(tmp_path) == ([], 2)
     with pytest.raises(ValueError, match="already in a project"):
