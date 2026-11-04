@@ -434,7 +434,10 @@ function selectionWords(marked) {
     const covered = wordsInRange(wordsState.words,
       fps ? {num: start * fps.den, den: fps.num} : start,
       fps ? {num: end * fps.den, den: fps.num} : end);
-    rangeWordsCache = {state: wordsState, start, end, covered};
+    const phrases = new Set(covered.map((word) => word.phrase));
+    rangeWordsCache = {state: wordsState, start, end,
+      covered: wordsState.words.filter((word) => word.phrase === undefined
+        ? covered.includes(word) : phrases.has(word.phrase))};
   }
   return rangeWordsCache.covered;
 }
@@ -1621,7 +1624,6 @@ async function saveVoiceFixDecision(item, action) {
   const hadFocus = el.voiceFixList.contains(document.activeElement);
   voiceFixSaving.add(item.id);
   voiceFixErrors.delete(item.id);
-  loadVersion += 1;
   updateVoiceFixControls();
   renderVersions();
   updateReplyEvidenceButtons();
@@ -2511,10 +2513,12 @@ async function refreshReview() {
     || (!offline && document.activeElement?.closest('.question-card'))) return;
   refreshPending = true;
   const version = loadVersion;
+  const voiceFixes = review?.series?.voice_fixes;
   const reconnecting = offline;
   try {
     const fresh = await api(versionUrl('api/review', selectedVersion));
     if (version !== loadVersion || (!reconnecting && document.visibilityState !== 'visible')
+      || voiceFixes !== review?.series?.voice_fixes
       || composeBusy || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0 || editState?.busy
       || tasteWordingFocused() || document.activeElement?.closest('.text-hook-panel')
       || (!offline && document.activeElement?.closest('.question-card'))) return;

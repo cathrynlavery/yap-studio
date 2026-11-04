@@ -421,8 +421,9 @@ def test_words_api_uses_selected_map_and_plain_review_fallback(cut_server: Revie
         data = json.loads(payload)
         assert status == 200 and data["available"] and data["version"] == version
         assert data["words"] == [
-            {key: getattr(word, key) for key in ("id", "segment", "text", "start", "end")}
-            for word in server.series.versions[version - 1].words.words
+            {"phrase": index, **{key: getattr(word, key)
+                                 for key in ("id", "segment", "text", "start", "end")}}
+            for index, word in enumerate(server.series.versions[version - 1].words.words)
         ]
         assert len(data["words"]) == count
     assert _in_process_request(server, "GET", "/api/words", token=None)[0] == 403
@@ -532,6 +533,37 @@ def test_cut_live_http_includes_merged_voice_word_aliases(
     assert comment["request"]["words"] == expected
     assert json.loads(request(server, "GET", "/api/review?version=2")[2])[
         "comments"][0]["request"] == comment["request"]
+
+
+def test_words_preview_groups_match_saved_cut_words(cut_server: ReviewServer) -> None:
+    server = cut_server
+    words = (
+        CutWord("t1:0", "s0", "  ", 0.1, 0.3),
+        CutWord("t1:2", "s1", "Home", 0.8, 1),
+        CutWord("t1:3", "s1", "", 1, 1.2),
+        CutWord("t1:4", "s1", "Depot", 1.2, 1.4),
+        CutWord("t1:3", "s2", "", 1.4, 1.6),
+        CutWord("t1:2", "s2", "Home", 1.6, 1.8),
+        CutWord("t1:3", "s2", "", 1.8, 2),
+    )
+    server.series = replace(server.series, versions=tuple(
+        replace(item, words=CutWords("output", {}, words)) for item in server.series.versions
+    ))
+    status, _, payload = _in_process_request(server, "GET", "/api/words?version=2")
+    assert status == 200
+    preview = json.loads(payload)["words"]
+    assert [word["text"] for word in preview] == ["Home", "", "Depot", "Home", ""]
+    for frames, index in (((33, 35), 1), ((56, 58), 4)):
+        phrase = preview[index]["phrase"]
+        expected = [{key: word[key] for key in ("id", "segment", "text")}
+                    for word in preview if word["phrase"] == phrase]
+        status, _, payload = _in_process_request(server, "POST", "/api/cut?version=2",
+                                                {"start_frame": frames[0], "end_frame": frames[1]})
+        assert status == 201, payload
+        assert json.loads(payload)["request"]["words"] == expected
+    for frames in ((3, 9), (43, 47)):
+        assert _in_process_request(server, "POST", "/api/cut?version=2",
+                                   {"start_frame": frames[0], "end_frame": frames[1]})[0] == 400
 
 
 def test_cut_request_validation_keeps_empty_voice_word_aliases() -> None:

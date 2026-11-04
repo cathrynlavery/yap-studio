@@ -46,7 +46,7 @@ from yap_studio.feedback.versions import (
 from yap_studio.homepage import bridge as home_bridge
 from yap_studio.local_http import LocalHTTPServer
 from yap_studio.project.lock import project_lock, write_json_cas
-from yap_studio.project.model import CutWords, TextHook, load_words, parse_document
+from yap_studio.project.model import CutWord, CutWords, TextHook, load_words, parse_document
 from yap_studio.project.word_fixes import change_word_fix
 from yap_studio.review.captions import caption_phrases
 from yap_studio.review.export import (
@@ -783,12 +783,22 @@ class ReviewServer:
                             if series is not None and series.project_dir is not None else None)
                 return {"version": self._version_number, "lanes": video_map(manifest)}
 
+            def _word_phrases(self) -> list[list[CutWord]]:
+                words = getattr(self._selected, "words", None)
+                phrases = []
+                for word in words.words if words is not None else ():
+                    if word.text.strip() or not phrases or phrases[-1][-1].segment != word.segment:
+                        phrases.append([])
+                    phrases[-1].append(word)
+                return [phrase for phrase in phrases if any(word.text.strip() for word in phrase)]
+
             def _words(self) -> dict:
                 words = getattr(self._selected, "words", None)
                 return {"available": words is not None, "version": self._version_number,
-                        "words": [{key: getattr(word, key)
-                                   for key in ("id", "segment", "text", "start", "end")}
-                                  for word in words.words] if words is not None else []}
+                        "words": [{"phrase": index, **{key: getattr(word, key)
+                                   for key in ("id", "segment", "text", "start", "end")}}
+                                  for index, phrase in enumerate(self._word_phrases())
+                                  for word in phrase]}
 
             def _captions(self) -> dict:
                 series = self._video.series
@@ -933,17 +943,11 @@ class ReviewServer:
                      frame_start(normalized["end_frame"], facts.fps)) if facts.cfr else
                     (Fraction(str(normalized["start_s"])), Fraction(str(normalized["end_s"])))
                 )
-                phrases = []
-                for word in words.words:
-                    if word.text.strip() or not phrases or phrases[-1][-1].segment != word.segment:
-                        phrases.append([])
-                    phrases[-1].append(word)
                 covered = [{"id": word.id, "segment": word.segment, "text": word.text}
-                           for phrase in phrases
-                           if any(word.text.strip() for word in phrase)
-                           and any(start <= (Fraction(str(word.start))
-                                             + Fraction(str(word.end))) / 2 < end
-                                   for word in phrase)
+                           for phrase in self._word_phrases()
+                           if any(start <= (Fraction(str(word.start))
+                                           + Fraction(str(word.end))) / 2 < end
+                                  for word in phrase)
                            for word in phrase]
                 if not covered:
                     raise ValidationError("range", "No spoken words in this range")

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import * as helpers from '../../src/yap_studio/review/static/voice-fixes.mjs';
-import {versionUrl} from '../../src/yap_studio/review/static/timeline.mjs';
+import * as timeline from '../../src/yap_studio/review/static/timeline.mjs';
 
 const fix = Object.freeze({id: 'f1', time: '3:12', said: '<coal flunge>', say: 'cold plunge',
   generation: 'generation1',
@@ -74,17 +74,27 @@ function pageFixture() {
     focus() { active = this; }
     contains(node) { return node === this || this.children.some((child) => child.contains(node)); }
   }
-  const el = Object.fromEntries(['voiceFixes', 'voiceFixList', 'voiceFixError']
+  const el = Object.fromEntries(['voiceFixes', 'voiceFixList', 'voiceFixError', 'videoMap',
+    'markStart', 'markEnd', 'rangePanel', 'rangeLength', 'rangeWords', 'rangePlay',
+    'rangeCut', 'rangeError']
     .map((name) => [name, new Node()]));
-  const review = {media_changed: false, series: {project: true, voice_fixes: [structuredClone(fix)]}};
-  const state = {failure: null, gate: null, requests: []};
-  const context = vm.createContext({...helpers, versionUrl, selectedVersion: 2,
+  const review = {media_changed: false,
+    series: {project: true, current: 2, voice_fixes: [structuredClone(fix)]}};
+  const state = {failure: null, gate: null, requests: [], detailGate: null};
+  const context = vm.createContext({...helpers, ...timeline, selectedVersion: 2,
     el, review, token: 'token', offline: false,
+    wordsState: {available: false, version: null, words: []}, removed: {ranges: []},
+    fps: {num: 30, den: 1}, rangeWordsCache: null, cutBusy: false, composeBusy: false,
+    editState: null, answerBusy: false, cutError: '', marked: {start_frame: 33, end_frame: 35},
+    completeSelection: () => context.marked,
     switchingVersion: false, loadVersion: 0, voiceFixSaving: new Set(), voiceFixErrors: new Map(),
     tasteSaving: new Set(), releaseBusy: false, roundBusy: false,
-    voiceFixRendered: null,
-    document: {createElement: (tag) => new Node(tag), get activeElement() { return active; }},
+    voiceFixRendered: null, approvedVersion: null, refreshPending: false, refreshStatusError: false,
+    document: {visibilityState: 'visible', createElement: (tag) => new Node(tag),
+      get activeElement() { return active; }},
     renderVersions() {}, updateReplyEvidenceButtons() {}, renderSendBar() {},
+    renderReview(fresh) { context.review = fresh; }, renderVideoMap() {}, renderCaptionAccess() {},
+    renderRemoved() {}, showStatus() {},
     makeButton(text, className, handler) {
       const button = new Node('button');
       Object.assign(button, {textContent: text, className, click: handler});
@@ -93,6 +103,23 @@ function pageFixture() {
     errorMessage: (error) => error.message,
     api: async (path, options) => {
       state.requests.push({path, options});
+      if (!options?.method) {
+        if (path.startsWith('api/review')) {
+          const fresh = structuredClone(context.review);
+          state.reviewStarted?.();
+          if (state.reviewGate) await state.reviewGate;
+          return fresh;
+        }
+        if (path.startsWith('api/words')) state.wordsStarted?.();
+        if (state.detailGate) await state.detailGate;
+        if (path.startsWith('api/words')) return {available: true, version: 2, words: [
+          {id: 't1:2', segment: 's1', text: 'Home', start: 0.8, end: 1, phrase: 0},
+          {id: 't1:3', segment: 's1', text: '', start: 1, end: 1.2, phrase: 0},
+        ]};
+        if (path.startsWith('api/removed')) return {available: true, version: 2,
+          ranges: [{id: 's1.0', text: 'a removed phrase'}]};
+        return {lanes: [], phrases: []};
+      }
       if (state.gate) await state.gate;
       if (state.failure) throw new Error(state.failure);
       const saved = {...fix, status: options.body.action === 'approve' ? 'approved' : 'rejected',
@@ -103,11 +130,90 @@ function pageFixture() {
   const source = readFileSync(new URL('../../src/yap_studio/review/static/app.mjs', import.meta.url), 'utf8');
   const code = source.slice(source.indexOf('function updateVoiceFixControls()'),
     source.indexOf('function renderRemoved()'));
-  vm.runInContext(`${code}\nglobalThis.page = {renderVoiceFixes, saveVoiceFixDecision};`, context);
+  const ranges = source.slice(source.indexOf('function selectionWords('),
+    source.indexOf('async function cutSelection('));
+  const load = source.slice(source.indexOf('async function loadReview('),
+    source.indexOf('function setComposeKind('));
+  vm.runInContext(`${code}\n${ranges}\n${load}\nglobalThis.page = {
+    renderVoiceFixes, saveVoiceFixDecision, loadReview, refreshReview,
+    selectionWords, renderRangePanel};`, context);
   context.page.renderVoiceFixes();
   return {context, page: context.page, el, review, state,
     card: () => el.voiceFixList.children[0], active: () => active};
 }
+
+test('cut preview expands an alias to the phrase supplied by the server', () => {
+  const {context, page, el} = pageFixture();
+  const words = [
+    {id: 't1:2', segment: 's1', text: 'Home', start: 0.8, end: 1, phrase: 0},
+    {id: 't1:3', segment: 's1', text: '', start: 1, end: 1.2, phrase: 0},
+    {id: 't1:4', segment: 's1', text: 'Depot', start: 1.2, end: 1.4, phrase: 1},
+  ];
+  context.wordsState = {available: true, version: 2, words};
+  page.renderRangePanel();
+  assert.equal(el.rangeWords.textContent, '"Home " · 2 words');
+  assert.deepEqual(Array.from(page.selectionWords(context.marked)), words.slice(0, 2));
+  assert.equal(el.rangeCut.disabled, false);
+  context.fps = null;
+  context.marked = {start_s: 1.1, end_s: 1.2};
+  page.renderRangePanel();
+  assert.equal(el.rangeWords.textContent, '"Home " · 2 words');
+  context.marked = {start_s: 0, end_s: 0.9};
+  page.renderRangePanel();
+  assert.equal(el.rangeWords.textContent, 'No spoken words in this range.');
+  assert.equal(el.rangeCut.disabled, true);
+});
+
+test('cut limits count the entire merged phrase', () => {
+  const {context, page, el} = pageFixture();
+  context.wordsState = {available: true, version: 2, words: Array.from({length: 201}, (_, i) => ({
+    id: `t1:${i}`, segment: 's1', text: i ? '' : 'Home',
+    start: i ? 1 : 0.8, end: i ? 1.2 : 1, phrase: 0,
+  }))};
+  page.renderRangePanel();
+  assert.equal(el.rangeWords.textContent, 'Select at most 200 words to cut in one note.');
+  assert.equal(el.rangeCut.disabled, true);
+  context.wordsState = {...context.wordsState, words: context.wordsState.words.slice(0, 200)};
+  page.renderRangePanel();
+  assert.equal(el.rangeCut.disabled, false);
+});
+
+for (const action of ['approve', 'reject']) {
+  for (const failure of [null, 'Could not save']) {
+    test(`${action} preserves pending words and removed ranges when save ${failure ? 'fails' : 'succeeds'}`, async () => {
+      const {context, page, state, el} = pageFixture();
+      let release;
+      state.detailGate = new Promise((resolve) => { release = resolve; });
+      const wordsStarted = new Promise((resolve) => { state.wordsStarted = resolve; });
+      const loading = page.loadReview();
+      await wordsStarted;
+      assert.ok(state.requests.some(({path}) => path.startsWith('api/words')));
+      assert.ok(state.requests.some(({path}) => path.startsWith('api/removed')));
+      state.failure = failure;
+      await page.saveVoiceFixDecision(fix, action);
+      release();
+      await loading;
+      assert.equal(context.wordsState.available, true, 'pending word load was discarded');
+      assert.equal(context.removed.version, 2, 'pending removed ranges were discarded');
+      assert.equal(context.removed.ranges[0].id, 's1.0');
+      assert.equal(el.rangeCut.hidden, false);
+      assert.equal(el.rangeCut.disabled, false);
+    });
+  }
+}
+
+test('a poll started before saving cannot undo the saved voice choice', async () => {
+  const {context, page, state} = pageFixture();
+  let release;
+  state.reviewGate = new Promise((resolve) => { release = resolve; });
+  const reviewStarted = new Promise((resolve) => { state.reviewStarted = resolve; });
+  const polling = page.refreshReview();
+  await reviewStarted;
+  await page.saveVoiceFixDecision(fix, 'approve');
+  release();
+  await polling;
+  assert.equal(context.review.series.voice_fixes[0].status, 'approved');
+});
 
 test('page renders safe text, labelled lazy audio and preserves players during refresh', () => {
   const {page, el, card} = pageFixture();
