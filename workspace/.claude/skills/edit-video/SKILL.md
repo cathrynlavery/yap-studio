@@ -47,8 +47,8 @@ Before making the cut, follow Text at the top in `AGENTS.md`. If `hook.answered`
 is missing or false, ask once in plain words and wait. There is no default. A home's
 `top_text` answer overrides the saved choice for this video only. None needs no text.
 
-Both Just the opening and The whole video use `DIR/plans/text-hook.json`.
-For an opening title add `"kind":"opening"` to the plan below; for a whole-video
+Both Opening title and Short label use `DIR/plans/text-hook.json`.
+For an opening title add `"kind":"opening"` to the plan below; for a short
 label omit it. Use the creator's `text_hook` from the home request or their own text
 from a note as `chosen`, with `source: typed` or `source: note`. Ideas may be empty
 when they supplied the text. Otherwise write three ideas, show all three in the
@@ -64,11 +64,14 @@ title text. The review page saves either kind of choice with a note.
 When graphics stops with `title_face_clearance`, ask the creator for shorter opening
 text or Text at the top: None for this video. Never move the title lower.
 
-### Whole-video label
+### Short label
 
-When the saved style uses `hook.style: text_hook`, its plain label stays on screen
-for the whole video. Text is per video. Use the creator's `text_hook` from the home
-request or text they typed in a note. Save it as `chosen` with `source: typed` or
+When the saved style uses `hook.style: text_hook`, its plain label shows for the
+opening, as long as an opening title, then clears. When the creator asks to keep
+it on for this whole video, add `"whole_video": true` to `DIR/plans/text-hook.json`;
+it then stays until the cut ends and never runs into the end hold. Text is per
+video. Use the creator's `text_hook` from the home request or text they typed in a
+note. Save it as `chosen` with `source: typed` or
 `source: note` in `DIR/plans/text-hook.json`. Ideas may be empty for typed text.
 
 Otherwise, after reading the transcript, write three ideas to that file:
@@ -159,7 +162,7 @@ at 0:00 and lasting at least ten seconds each, including the opening and final c
 An opening before the first authored chapter gets its own 0:00 entry. Verification gives
 a plain fix when the list is invalid; a valid list is saved beside the final and is copyable
 on Home and review. Use the creator's title and card fonts and colors for wide titles,
-chapters and name tags. Offer None or Just the opening for horizontal text; the whole-video
+chapters and name tags. Offer None or Opening title for horizontal text; the short
 label remains unavailable. Wait for chosen opening text before rendering it.
 Horizontal cards use floating paper panels in the open side of the shot, with the creator's
 fonts and colours. Let the engine fit and place them against every measured face, inside

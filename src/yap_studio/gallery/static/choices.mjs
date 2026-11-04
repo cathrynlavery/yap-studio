@@ -362,8 +362,8 @@ export const openingSlots = [{
 }];
 export const topTextAnswers = [
   ["none", "None", "Nothing at the top"],
-  ["opening", "Just the opening", "A title for the first few seconds, in your title look"],
-  ["whole", "The whole video", 'A short label like "Security rant"'],
+  ["opening", "Opening title", "A title for the first few seconds, in your title look"],
+  ["whole", "Short label", 'A label like "Security rant" for the first few seconds'],
 ];
 export function topTextChoice(style) {
   if (!style.hook?.answered) return null;

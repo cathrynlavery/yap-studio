@@ -22,7 +22,7 @@ _NUMBER = re.compile(r"(?<!\w)(\$?)(-?[0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)(%?)")
 
 
 def require_top_text(context):
-    """Refuse a final until the creator chooses its title or whole-video label."""
+    """Refuse a final until the creator chooses its title or short label."""
     from yap_studio.project.model import parse_document
 
     style = context.render_style().data

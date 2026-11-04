@@ -110,8 +110,8 @@ do the editing. Setup starts it. When the creator comes back, reopen it this way
      The helper copies and records the takes and sets up a talking head for YouTube with a
      project-local style that keeps the creator's colour grade (without the before/after slider),
      zooms, jump cuts and transitions, with no 3D captions. Opening titles,
-     chapter cards and name tags use the creator's chosen fonts and colors. Whole-video text
-     hooks are not supported for horizontal; offer None or Just the opening. Apply a Home
+     chapter cards and name tags use the creator's chosen fonts and colors. Short labels
+     are not supported for horizontal; offer None or Opening title. Apply a Home
      `top_text: opening` choice and wait for chosen text as below before rendering.
      For long horizontal videos (five minutes or more), offer chapters. Plan their boundaries
      from the story, not equal time intervals, and show the creator all chapter names before
@@ -152,19 +152,22 @@ the wait running.
 ## Text at the top
 
 Before the cut, read `hook.answered` in the style. Missing or false means ask once:
-"When would you like text at the top: None, Just the opening, or The whole video?"
+"What would you like at the top: None, Opening title, or Short label?"
 There is no default. Wait for their answer and save `hook.answered: true` in the
-saved style and the project's style. Map None to `hook.style: none`, Just the opening
-to their title look, and The whole video to `hook.style: text_hook`. Keep an existing
+saved style and the project's style. Map None to `hook.style: none`, Opening title
+to their title look, and Short label to `hook.style: text_hook`. Keep an existing
 title look; if none is saved, use `quiet_serif`. Older styles keep their look until
 they answer. Do not render top text while waiting.
+A short label shows for the opening, as long as an opening title. When the creator
+asks to keep it on for a whole video, add `"whole_video": true` to that video's
+`plans/text-hook.json`. It then ends with the cut.
 
 With None chosen (`hook.style: none`, `hook.answered: true`), existing title elements
 are left out of the resolved timeline and render. Keep the creator's timeline files
 as they are; do not delete their titles. Choosing an opening again restores them.
 
-A home request's `top_text` (`none`, `opening`, `whole`) overrides that choice for
-this project only. Set the project's `hook.answered: true` and map it the same way.
+A home request's `top_text` (`none`, `opening`, or `whole` for Short label) overrides
+that choice for this project only. Set the project's `hook.answered: true` and map it the same way.
 The saved style stays as it was. Its optional `text_hook` is the creator's chosen
 text for either kind. Follow Text at the top in edit-video: show three ideas in the
 Story cut note and review page, then wait for a pick or their own text. Never choose

@@ -210,7 +210,7 @@ def create_request(
                 payload.get("text_hook") and payload.get("top_text") != "opening"
             ):
                 raise ValidationError(
-                    "shape", "Choose None or Just the opening for horizontal text. "
+                    "shape", "Choose None or Opening title for horizontal text. "
                     "Cards are coming soon.",
                 )
             payload = {**payload, "captions": payload.get("captions", False)}

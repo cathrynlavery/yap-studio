@@ -12,9 +12,9 @@ Yap Studio home opens in the browser on the Mac and walks through one video at a
 3. Your look: a few questions about your videos the first time, then the style page on a
    still from your own take.
 4. Make it: Text at the top shows your saved answer. Override it for this video with
-   None, Just the opening, or The whole video. Your saved look stays the same.
+   None, Opening title, or Short label. Your saved look stays the same.
    For either kind, type your own text or leave it empty for three ideas in the
-   Story cut note and review page. Your agent waits for your pick. The whole-video label
+   Story cut note and review page. Your agent waits for your pick. The short label
    must fit at most two balanced lines. The page sends `top_text` and any `text_hook`
    text with the request. Your look summary shows the saved answer too.
    The page shows each step as the work happens, read from the

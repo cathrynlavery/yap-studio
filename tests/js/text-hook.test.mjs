@@ -4,7 +4,7 @@ import {textHookProblem} from '../../src/yap_studio/homepage/static/home-model.m
 import {renderTextHook} from '../../src/yap_studio/review/static/text-hook.mjs';
 import {withTopText, openingMoreSlots, changeSummary} from '../../src/yap_studio/gallery/static/choices.mjs';
 
-test('The whole video offers three independent box colors', () => {
+test('Short label offers three independent box colors', () => {
   const base = {name: 'Synthetic', hook: {style: 'quiet_serif'}};
   const selected = withTopText(base, 'whole');
   assert.equal(selected.hook.style, 'text_hook');

@@ -128,7 +128,7 @@ Run `yap-studio run DIR` to render the final again.
 Titles and cards write `graphics/<element id>.mov` and a receipt with
 each layer's box position, start frame and frame count. Layers render at their
 own box sizes for assembly to place over the cut.
-Text at the top has three choices: None, Just the opening, and The whole video.
+Text at the top has three choices: None, Opening title, and Short label.
 There is no default for a new creator. For both kinds of text, the agent writes
 three ideas, shows them in the Story cut note and review page, and waits for a
 pick or the creator's own text. It never picks for them.
@@ -148,9 +148,12 @@ Kinetic hook fills short lines with giant type and punches each word over the
 picture as it is spoken. It centres above the head when face data is available
 and needs the words to be spoken inside the title window.
 
-### Whole-video label (Text hook)
+### Short label (Text hook)
 
-Text hook uses plain Inter in joined rounded boxes near the top for the whole video.
+Text hook uses plain Inter in joined rounded boxes near the top. It shows for the
+opening, as long as an opening title (`hook.duration_s`), then clears. Add
+`"whole_video": true` to a video's `plans/text-hook.json` to keep it on until the
+cut ends. It never runs into the frozen end hold.
 Choose White, Black or Accent. Text fits one or two balanced lines from 72 to 60 px.
 It waits for chosen text in `plans/text-hook.json`. Text that cannot fit or clear
 the face is refused. Captions keep their place.

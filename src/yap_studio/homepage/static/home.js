@@ -814,7 +814,7 @@ function stepMake(draft, problems) {
   let hookField = null;
   if (hasHook) {
     hookField = $('text-hook-field').content.firstElementChild.cloneNode(true);
-    hookField.querySelector('label').textContent = answer === 'opening' ? 'Opening title' : 'Whole-video label';
+    hookField.querySelector('label').textContent = answer === 'opening' ? 'Opening title' : 'Short label';
     const input = hookField.querySelector('textarea');
     input.maxLength = answer === 'opening' ? 1000 : 80;
     input.value = draft.text_hook ?? '';
