@@ -674,7 +674,9 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                                 "story join, at its start with no offset", element)
                         continue
                     join, previous = joined
-                    payload["frames"] = element.fields.get("frames", 12)
+                    payload["frames"] = element.fields.get(
+                        "frames", 8 if context.project.shape == "horizontal"
+                        and payload["look"] == "whip_pan" else 12)
                     payload["join_frame"] = join
                     start = join - payload["frames"] // 2
                     end = start + payload["frames"]

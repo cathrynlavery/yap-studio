@@ -884,8 +884,8 @@ def parse_document(
             fields.setdefault("motion", "none")
         if item["kind"] == "background":
             fields.setdefault("fit", "cover")
-        if item["kind"] == "transition":
-            fields["frames"] = int(item.get("frames", 12))
+        if item["kind"] == "transition" and "frames" in item:
+            fields["frames"] = int(item["frames"])
         elements.append(Element(
             id=item["id"], kind=item["kind"], start=_anchor(item["start"], "start"),
             end=_anchor(item["end"], "end") if "end" in item else None,

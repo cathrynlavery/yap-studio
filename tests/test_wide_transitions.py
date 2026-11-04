@@ -11,6 +11,8 @@ import synth
 from test_assemble_picture import project, write_document
 from test_cut import make_project, time_segment, write_edit, write_json
 from test_landscape import _context
+from test_timeline import add, transition, transition_story
+from test_timeline import project as _timeline_project
 from test_transitions import LOOKS, timeline
 
 from yap_studio import ffmpeg, paths
@@ -30,12 +32,35 @@ from yap_studio.stages.music import music
 from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline, resolve_timeline
 from yap_studio.verify import verify
 
+timeline_project = _timeline_project
+
 
 def test_horizontal_accepts_transition_elements(tmp_path: Path) -> None:
     context = _context(tmp_path)
     require_supported(context, {"agent": TimelineLane((Element(
         "agent-transition", "transition", Anchor(word="t1:2"), fields={"look": "whip_pan"},
     ),), lane="agent")})
+
+
+@pytest.mark.parametrize("shape,look,frames,expected", [
+    ("horizontal", "whip_pan", None, 8),
+    ("horizontal", "light_leak", None, 12),
+    ("horizontal", "cinematic_zoom", None, 12),
+    ("vertical", "whip_pan", None, 12),
+    ("horizontal", "whip_pan", 16, 16),
+])
+def test_transition_frame_window(timeline_project: Path, shape: str, look: str,
+                                 frames: int | None, expected: int) -> None:
+    data = json.loads((timeline_project / "project.json").read_bytes())
+    write_json(timeline_project / "project.json", {**data, "shape": shape})
+    transition_story(timeline_project)
+    element = transition(look=look)
+    if frames is not None:
+        element["frames"] = frames
+    item = add(timeline_project, element, lane="agent").require_valid().elements[0]
+    assert item.payload["frames"] == expected
+    join = item.payload["join_frame"]
+    assert (item.start_frame, item.end_frame) == (join - expected // 2, join + expected // 2)
 
 
 @pytest.mark.parametrize("look", LOOKS)

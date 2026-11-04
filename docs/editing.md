@@ -362,7 +362,8 @@ Save a fragment with word IDs from your cut, then add it with
 - The last word before the join must end with `.`, `!` or `?`.
 - `look` is `whip_pan`, `cinematic_zoom` or `light_leak`.
 - Horizontal projects use the same looks, rendered at 1920 × 1080 across the whole picture.
-- `frames` is even, from 6 to 24, and defaults to 12. The window is centered on the join,
+- `frames` is even, from 6 to 24, and defaults to 12. A horizontal whip pan defaults to
+  8 frames. The window is centered on the join,
   with half its frames on each side. Leave at least one content frame before its start
   and after its end. It cannot enter the frozen end hold. Do not set `end` or `hold_s`.
 - One join takes one transition. Its window cannot overlap a title, insert, overlay,
