@@ -657,7 +657,7 @@ function stepLook(draft) {
         h('label', {class: 'check-row'}, h('input', {type: 'checkbox', role: 'switch', checked: draft.captions === true,
           onchange: (event) => { saveDraft({...loadDraft(), captions: event.target.checked}); }}),
         h('span', {}, h('strong', {text: 'Add captions to this video'})))),
-      h('p', {class: 'note', text: 'Opening titles, chapter cards, name tags, B-roll and floating cards work in horizontal videos, using your fonts and colors. Floating cards sit beside the speaker, clear of faces and captions. Phone feeds, full-frame grids, falling words and behind-speaker numbers are coming later. Zooms and color grades are coming soon.'}),
+      h('p', {class: 'note', text: 'Opening titles, chapter cards, name tags, B-roll and floating cards work in horizontal videos, using your fonts and colors. Floating cards sit beside the speaker, clear of faces and captions. Phone feeds, full-frame grids, falling words and behind-speaker numbers are coming later. Zooms are coming soon.'}),
       h('div', {class: 'actions'}, h('a', {class: 'link', href: '#new/footage', text: 'Back'}), h('span', {class: 'spacer'}),
         h('button', {type: 'button', class: 'btn primary big', text: 'Next', onclick: () => navigate('#new/make')})));
   }

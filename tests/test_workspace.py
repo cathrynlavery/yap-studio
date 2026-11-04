@@ -587,6 +587,7 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, s
         (tmp_path / "style/my-style.json").write_text(json.dumps({
             "schema_version": 1, "name": "Brand", "hook": {"font": "Gelasio"},
             "graphics": {"font": "Inter", "accent_color": "#AB1256"},
+            "grade": {"look": "film", "strength": 0.6},
         }))
     calls = _fake_project_runner(module, monkeypatch, tmp_path)
     flags = [value for source in sources or [] for value in ("--broll", source)]
@@ -616,8 +617,12 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, s
     if branded:
         assert style["hook"]["font"] == "Gelasio"
         assert style["graphics"]["accent_color"] == "#AB1256"
+        assert style["grade"]["look"] == "film"
+        assert style["grade"]["strength"] == 0.6
+    else:
+        assert style["grade"]["look"] == "none"
     assert style["hook"]["style"] == style["chapters"]["style"] == "none"
-    assert style["grade"]["look"] == style["moves"]["zoom_mode"] == "none"
+    assert style["moves"]["zoom_mode"] == "none"
     assert style["moves"]["jump_cuts"] == "hard"
     assert style["moves"]["opening_push"] is False and style["moves"]["transitions"] == []
     assert inbox_files(tmp_path) == ([], 2)
