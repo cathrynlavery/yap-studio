@@ -1485,12 +1485,20 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                                               context.project_dir, snapshot, frames))
             from yap_studio.stages.cut import resolve_cut
             from yap_studio.voice import store as voice_store
+            from yap_studio.voice.model import VoiceError
 
             voice_plan = None
             voice_patches = []
-            if voice_store.approved_fixes(context.project_dir):
+            voice_fixes = voice_store.approved_fixes(context.project_dir)
+            voice_projection = voice_store.projection(context.project_dir, fixes=voice_fixes)
+            voice_digest = (projection_sha256(voice_projection)
+                            if voice_projection != {"consent": None, "approved": []} else None)
+            if voice_digest != context.json("cut/receipt.json")["inputs"].get("voice:fixes"):
+                raise VoiceError("Voice fixes changed while the final was being made. "
+                                 "Run assemble again.")
+            if voice_fixes:
                 voice_plan = resolve_cut(context.project_dir)
-                voice_patches = voice_store.patches_for_plan(voice_plan)
+                voice_patches = voice_store.patches_for_plan(voice_plan, fixes=voice_fixes)
                 talking_head = {take.id for take in context.project.takes if not take.voiceover}
                 coverage = (_graphic_picture_frames(context.project_dir, snapshot, None,
                                                      front_only=True)

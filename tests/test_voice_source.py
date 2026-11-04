@@ -26,6 +26,7 @@ from yap_studio.stages.music import music
 from yap_studio.style import resolve
 from yap_studio.verify import verify
 from yap_studio.voice import decide, make, propose
+from yap_studio.voice.model import VoiceError
 from yap_studio.voice.splice import blend, decode, write_wav
 from yap_studio.voice.store import source_transform
 
@@ -119,6 +120,21 @@ def patched_assembly(tmp_path, request, monkeypatch):
     graphics(root)
     music(root)
     return root, fix
+
+
+def test_assembly_refuses_voice_decisions_changed_after_snapshot(patched_assembly, monkeypatch):
+    root, fix = patched_assembly
+    check = assembly.require_voiceover_picture
+
+    def reject_after_picture_check(*args, **kwargs):
+        check(*args, **kwargs)
+        decide(root, fix["id"], "reject", via="chat")
+
+    monkeypatch.setattr(assembly, "require_voiceover_picture", reject_after_picture_check)
+    with pytest.raises(VoiceError, match="Voice fixes changed while the final was being made"):
+        assembly.assemble(root)
+    assert not (root / "final/verify-edl.json").exists()
+    assert not (root / "final/receipt.json").exists()
 
 
 @pytest.mark.parametrize("stage", ["cut", "final"])

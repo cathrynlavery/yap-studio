@@ -12,6 +12,7 @@ from voice_helpers import calls, move_word
 
 from yap_studio import cli, elevenlabs
 from yap_studio.errors import YapError
+from yap_studio.project.receipts import projection_sha256
 from yap_studio.stages import assemble as assemble_stage
 from yap_studio.stages import cut as cut_stage
 from yap_studio.voice import decide, make, propose
@@ -342,9 +343,12 @@ def test_voice_assembly_checks_alpha_only_for_talking_head(tmp_path, monkeypatch
         SimpleNamespace(id="t1", voiceover=not talking_head_fix),
         SimpleNamespace(id="t2", voiceover=False),
     ]
+    fix = {"id": "f1", "take": "t1"}
+    projection = {"consent": None, "approved": [fix]}
     context = SimpleNamespace(
         project_dir=tmp_path,
         project=SimpleNamespace(takes=takes, audio={}),
+        json=lambda _: {"inputs": {"voice:fixes": projection_sha256(projection)}},
         render_style=lambda: SimpleNamespace(data={
             "voice": {}, "hook": {"style": "none", "answered": True},
         }),
@@ -361,9 +365,9 @@ def test_voice_assembly_checks_alpha_only_for_talking_head(tmp_path, monkeypatch
     monkeypatch.setattr(cut_stage, "resolve_cut", lambda _: object())
     from yap_studio.voice import store
 
-    fix = {"id": "f1", "take": "t1"}
     monkeypatch.setattr(store, "approved_fixes", lambda _: [fix])
-    monkeypatch.setattr(store, "patches_for_plan", lambda _: [(fix, np.zeros((10, 1)))])
+    monkeypatch.setattr(store, "projection", lambda _, *, fixes: projection)
+    monkeypatch.setattr(store, "patches_for_plan", lambda _, *, fixes: [(fix, np.zeros((10, 1)))])
     monkeypatch.setattr(store, "require_assembly_picture", lambda *_: None)
     calls = []
     monkeypatch.setattr(
