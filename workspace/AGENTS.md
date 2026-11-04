@@ -108,7 +108,8 @@ do the editing. Setup starts it. When the creator comes back, reopen it this way
      `python3 new_project.py TAKE ... --type talking_head --shape horizontal --broll SOURCE ...`.
      Pass every source in `payload.broll_sources`, or `--broll none` for an empty list.
      The helper copies and records the takes and sets up a talking head for YouTube with a
-     project-local style: hard cuts, no grade, 3D captions, zooms or transitions. Opening titles,
+     project-local style that keeps the creator's colour grade (without the before/after slider),
+     with hard cuts and no 3D captions, zooms or transitions. Opening titles,
      chapter cards and name tags use the creator's chosen fonts and colors. Whole-video text
      hooks are not supported for horizontal; offer None or Just the opening. Apply a Home
      `top_text: opening` choice and wait for chosen text as below before rendering.
