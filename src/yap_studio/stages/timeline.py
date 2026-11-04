@@ -520,9 +520,11 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
             choice = None
         if choice is not None and choice.chosen is not None:
             agent = lanes.get("agent", TimelineLane(()))
-            hook_element = Element(TEXT_HOOK_ID, "title", Anchor(time=0),
-                                   end=Anchor(time=total_frames / 30),
-                                   fields={"lines": [choice.chosen]})
+            hook_element = Element(
+                TEXT_HOOK_ID, "title", Anchor(time=0),
+                end=Anchor(time=total_frames / 30) if choice.whole_video else None,
+                fields={"lines": [choice.chosen]},
+            )
             lanes["agent"] = replace(agent, elements=(*agent.elements, hook_element))
     beats = _beat_frames(context, style)
     beat_window = Fraction(str(style["music"]["beat_snap_window_ms"])) * FPS / 1000
@@ -751,7 +753,7 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
             layer = payload.pop("layer", "behind" if element.kind == "title" else "front")
             item = ResolvedElement(element.id, element.kind, lane, start, end, layer, payload)
             if text_hook and item.kind == "title":
-                end = total_frames + hold_frames
+                end = min(end, total_frames)
                 item = replace(item, start_frame=0, end_frame=end, layer="front")
             resolved.append(item)
             seconds = Fraction(end - start, 30)
@@ -773,14 +775,12 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                             "boundaries. This wording can stay only when the creator asked for it.")
             if end <= start:
                 finding("duration", "end must be after start on the frame grid", item)
-            if start < 0 or end > total_frames + (hold_frames if text_hook
-                                                 and item.kind == "title" else 0):
+            if start < 0 or end > total_frames:
                 finding("inside_video", "element is outside the cut or enters the end hold", item)
             if item.kind == "transition" and (start <= 0 or end >= total_frames):
                 finding("transition_bounds", "transition needs at least one content frame "
                         "before its start and after its end", item)
-            if (hold_frames and start < total_frames + hold_frames and end > total_frames
-                    and not (text_hook and item.kind == "title")):
+            if hold_frames and start < total_frames + hold_frames and end > total_frames:
                 finding("end_hold", "elements cannot enter the frozen end hold", item)
             if item.kind == "zoom":
                 curve = None

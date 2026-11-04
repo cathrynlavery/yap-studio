@@ -224,7 +224,6 @@ def live_layers(
                                               face_boxes=None if chapter else face_boxes)))
     if show_title and only in (None, "title") and style.data["hook"]["style"] != "none":
         plain, key = title if title is not None else _title_text(words)
-        hook_frames = None
         if style.data["hook"]["style"] == "text_hook":
             from yap_studio.text_hook import fit_text_hook
 
@@ -238,7 +237,6 @@ def live_layers(
                     continue
                 plain = candidate
                 break
-            hook_frames = round((words[-1].end + _TAIL_S) * FPS)
         word_times = None
         if style.data["hook"]["style"] == "kinetic":
             try:
@@ -250,7 +248,7 @@ def live_layers(
                 # Short preview windows still show every word using even spacing.
                 pass
         plans.append(("title", title_layer_plan(plain, key, style, fps=FPS,
-                                                word_times=word_times, frames=hook_frames)))
+                                                word_times=word_times)))
     if only in (None, "card") and card is not None:
         values = dict(slots) if slots is not None else card_slots(card)
         if card == "file_drop" and "clip" not in values:
