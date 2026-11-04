@@ -57,6 +57,10 @@ PILOT_CHECK_IDS: tuple[str, ...] = (
     "captions3d.contrast",
 )
 
+SPLICE_CHECK_IDS = (
+    "splice.click", "splice.level", "splice.room_tone", "splice.pace", "splice.heard",
+)
+
 
 @dataclass(frozen=True)
 class TransitionWindow:
@@ -91,7 +95,7 @@ class Finding:
     evidence: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.check not in CHECK_IDS and self.check not in PILOT_CHECK_IDS:
+        if self.check not in CHECK_IDS + PILOT_CHECK_IDS + SPLICE_CHECK_IDS:
             raise ValueError(f"unknown check id: {self.check}")
         if self.severity not in {"fail", "warn", "info"}:
             raise ValueError(f"unknown severity: {self.severity}")

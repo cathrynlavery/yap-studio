@@ -442,6 +442,24 @@ def test_new_project_kind_probes_streams(
     assert module._kind(target) == expected
 
 
+def test_voice_consent_guidance_uses_approved_statement() -> None:
+    statement = (
+        "This is my own voice. I agree to Yap Studio making an ElevenLabs voice from my "
+        "recordings and using it to re-say words I misspoke in my videos."
+    )
+    for name in ("docs/audio.md", "docs/commands.md", "docs/recipes/voiceover.md", "docs/review.md",
+                 "workspace/.claude/skills/edit-video/SKILL.md",
+                 "workspace/.claude/skills/voiceover-video/SKILL.md"):
+        text = " ".join((ROOT / name).read_text().split())
+        assert statement in text, name
+        assert "recordings in this project" not in text, name
+        assert "misspoke in this video." not in text, name
+        if name not in {"docs/review.md", "docs/recipes/voiceover.md"}:
+            assert "--samples" in text, name
+        if name == "docs/commands.md":
+            assert "1 to 25" in text, name
+
+
 def test_voiceover_skill_commands_parse_with_the_engine() -> None:
     skill = (ROOT / "workspace/.claude/skills/voiceover-video/SKILL.md").read_text()
     assert 'yap-studio run DIR --note "Final" --json --detach' in skill

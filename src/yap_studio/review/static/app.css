@@ -131,6 +131,10 @@ h1 { margin: 0; font-size: clamp(1.4rem, 2vw, 1.85rem); font-weight: 680; letter
 .taste-card button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .taste-card textarea { min-width: 0; }
 .taste-state { color: var(--ink-2); }
+.voice-fix-audio { display: flex; flex-wrap: wrap; gap: 12px; }
+.voice-fix-audio label { display: block; min-width: 0; flex: 1 1 240px; }
+.voice-fix-audio audio { display: block; width: 100%; max-width: 100%; margin-top: 6px; }
+.voice-fix-checks { padding-left: 20px; overflow-wrap: anywhere; line-height: 1.5; }
 .removed-section { margin-bottom: 22px; }
 .removed-section summary { cursor: pointer; line-height: 1.5; overflow-wrap: anywhere; min-height: 44px; display: flex; align-items: center; gap: 4px; font-weight: 600; }
 .removed-section .count { margin-left: 6px; }

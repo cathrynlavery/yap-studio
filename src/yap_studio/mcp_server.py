@@ -100,6 +100,7 @@ def build_server() -> FastMCP:
 
 def run_stdio() -> int:
     """Run the MCP server over stdio with application logs confined to stderr."""
+    server = build_server()
     logger = logging.getLogger("yap_studio")
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
@@ -108,5 +109,5 @@ def run_stdio() -> int:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False
-    build_server().run("stdio")
+    server.run("stdio")
     return 0

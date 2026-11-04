@@ -158,7 +158,8 @@ def _display_words(
     vocabulary: Sequence[str] = (), fixed: set[int] | None = None,
     *, word_text_fixes: Mapping[str, str] | None = None,
 ) -> list[PhraseWord]:
-    visible = sorted((word for word in words if not word.hidden), key=lambda word: word.start)
+    visible = sorted((word for word in words if not word.hidden and word.text.strip()),
+                     key=lambda word: word.start)
     word_text_fixes = word_text_fixes or {}
     project_keys = {key.casefold() for key in word_fixes}
     fixes = [

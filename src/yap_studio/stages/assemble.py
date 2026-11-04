@@ -145,17 +145,16 @@ def require_voiceover_picture(total_frames: int, elements: list[dict[str, Any]],
         )
 
 
-def _graphic_picture_frames(root: Path, snapshot: AssemblySnapshot,
-                            frames: tuple[int, int] | None) -> dict[str, set[int]]:
+def opaque_graphic_frames(root: Path, layers: list[dict], *,
+                          frames: tuple[int, int] | None = None) -> dict[str, set[int]]:
     """Count a graphic only where every canvas pixel is opaque."""
     result: dict[str, set[int]] = {}
-    required = frames or (0, snapshot.timeline.total_frames - 1)
-    for layer in snapshot.title_layers:
+    for layer in layers:
         if (layer["kind"] != "graphic" or layer["x"] != 0 or layer["y"] != 0 or
                 layer["width"] != 1080 or layer["height"] != 1920):
             continue
         start = layer["start_frame"]
-        if start > required[1] or start + layer["frames"] <= required[0]:
+        if frames and (start > frames[1] or start + layer["frames"] <= frames[0]):
             continue
         stream = ffmpeg.run_stream([
             "ffmpeg", "-nostdin", "-v", "error", "-i", str(root / layer["path"]),
@@ -182,6 +181,16 @@ def _graphic_picture_frames(root: Path, snapshot: AssemblySnapshot,
         finally:
             stream.close()
     return result
+
+
+def _graphic_picture_frames(root: Path, snapshot: AssemblySnapshot,
+                            frames: tuple[int, int] | None, *,
+                            front_only: bool = False) -> dict[str, set[int]]:
+    """Measure opaque canvas frames, optionally excluding layers behind the person."""
+    layers = [layer for layer in snapshot.title_layers
+              if not front_only or layer.get("layer", "front") == "front"]
+    return opaque_graphic_frames(root, layers,
+                                 frames=frames or (0, snapshot.timeline.total_frames - 1))
 
 
 def _audit_commands(event: str, args: tuple[Any, ...]) -> None:
@@ -881,20 +890,39 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
                        "audio": "silence"}] if timeline.end_hold_frames else []}
 
 
-def _audio_references(snapshot: AssemblySnapshot, retained: Path, work: Path
-                      ) -> dict[str, tuple[str, Path]]:
-    """Give ranges JSON a portable one-audio source when the cut selected another stream."""
+def _audio_references(snapshot: AssemblySnapshot, retained: Path, work: Path, *,
+                      voice_plan=None, voice_patches=(),
+                      ) -> tuple[dict[str, tuple[str, Path]], dict[str, tuple[str, Path]]]:
+    """Retain selected-stream references and patched audio for verification."""
+    from yap_studio import audio
+    from yap_studio.voice import store as voice_store
+    from yap_studio.voice.splice import write_wav
+
     result = {}
+    verification_audio = {}
     for index, (name, ordinal) in enumerate(snapshot.audio_streams.items()):
-        if not ordinal:
+        patched = any(fix["take"] == name for fix, _ in voice_patches)
+        if not ordinal and not patched:
             continue
+        source = retained / snapshot.sources[name]
         reference = work / f"source-{index}.mov"
-        ffmpeg.run(["ffmpeg", "-nostdin", "-v", "error", "-copyts", "-i",
-                    str(retained / snapshot.sources[name]), "-map", "0:v:0", "-map",
-                    f"0:a:{ordinal}", "-c", "copy", "-avoid_negative_ts", "disabled",
-                    str(reference)], timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
-        result[name] = (f"source-audio/source-{index}.mov", reference)
-    return result
+        if ordinal:
+            ffmpeg.run(["ffmpeg", "-nostdin", "-v", "error", "-copyts", "-i",
+                        str(source), "-map", "0:v:0", "-map", f"0:a:{ordinal}",
+                        "-c", "copy", "-avoid_negative_ts", "disabled", str(reference)],
+                       timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
+            source = reference
+            result[name] = (f"source-audio/source-{index}.mov", reference)
+        if patched:
+            info = ffmpeg.probe(source)
+            _, mono = audio.decode(source, sr=48000)
+            transform = voice_store.source_transform(
+                voice_plan, voice_patches, video_offsets={name: info.video_offset_s},
+            )
+            wav = work / f"source-{index}.wav"
+            write_wav(wav, transform(name, mono, 48000)[:, None])
+            verification_audio[name] = (f"source-audio/source-{index}.wav", wav)
+    return result, verification_audio
 
 
 def _camera_transforms(snapshot: AssemblySnapshot) -> list[tuple[float, float, float]]:
@@ -1455,6 +1483,39 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                                           frames=frames,
                                           graphic_coverage=_graphic_picture_frames(
                                               context.project_dir, snapshot, frames))
+            from yap_studio.stages.cut import resolve_cut
+            from yap_studio.voice import store as voice_store
+            from yap_studio.voice.model import VoiceError
+
+            voice_plan = None
+            voice_patches = []
+            try:
+                made_with = context.json("cut/receipt.json")["inputs"].get("voice:fixes")
+            except FileNotFoundError:
+                made_with = None
+
+            def checked_voice_fixes():
+                fixes = voice_store.approved_fixes(context.project_dir)
+                projection = voice_store.projection(context.project_dir, fixes=fixes)
+                digest = (projection_sha256(projection)
+                          if projection != {"consent": None, "approved": []} else None)
+                if digest != made_with:
+                    raise VoiceError("Voice fixes changed while the final was being made. "
+                                     "Run assemble again.")
+                return fixes
+
+            voice_fixes = checked_voice_fixes()
+            if voice_fixes:
+                voice_plan = resolve_cut(context.project_dir)
+                voice_patches = voice_store.patches_for_plan(voice_plan, fixes=voice_fixes)
+                talking_head = {take.id for take in context.project.takes if not take.voiceover}
+                coverage = (_graphic_picture_frames(context.project_dir, snapshot, None,
+                                                     front_only=True)
+                            if any(fix["take"] in talking_head for fix, _ in voice_patches) else {})
+                voice_store.require_assembly_picture(
+                    voice_plan,
+                    [item.to_dict() for item in snapshot.timeline.elements],
+                    coverage, fixes=[fix for fix, _ in voice_patches])
             if frames is not None:
                 assert phrases is not None
                 return {**_pilot_assemble(context, snapshot, frames, commands, *phrases,
@@ -1492,6 +1553,10 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                        str(Path(out).with_suffix(".faces.json")), "final/verify-edl.json", *[
                 f"final/source-audio/source-{index}.mov"
                 for index, ordinal in enumerate(snapshot.audio_streams.values()) if ordinal
+            ], *[
+                f"final/source-audio/source-{index}.wav"
+                for index, name in enumerate(snapshot.audio_streams)
+                if any(fix["take"] == name for fix, _ in voice_patches)
             ]]
             for relative in targets:
                 paths.validate_output(root / relative, allowed_existing_suffixes=frozenset(),
@@ -1587,10 +1652,14 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                 asserts.extend(_bleep_check(context, snapshot, sound, retained, work,
                                            letters_layers=plates))
                 run.progress("verifying final", 0.9)
-                references = _audio_references(snapshot, retained, work)
+                references, verification_audio = _audio_references(
+                    snapshot, retained, work, voice_plan=voice_plan, voice_patches=voice_patches)
                 edl = verification_edl(snapshot, base=root / "final",
                                        references={name: relative for name, (relative, _)
                                                    in references.items()})
+                if verification_audio:
+                    edl["verification_audio"] = {name: relative for name, (relative, _)
+                                                 in verification_audio.items()}
                 verify_path = work / "verify-edl.json"
                 jump_cuts.skip_grade(edl, smooth)
                 # Verification reads retained sources; publication uses portable source paths.
@@ -1598,6 +1667,10 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     name: str(references[name][1] if name in references else retained / relative)
                     for name, relative in snapshot.sources.items()
                 }}
+                if verification_audio:
+                    checking_edl["verification_audio"] = {
+                        name: str(reference) for name, (_, reference) in verification_audio.items()
+                    }
                 if "grade" in checking_edl:
                     checking_edl["grade"] = {**edl["grade"],
                                              "reference": str(source_picture)}
@@ -1691,6 +1764,8 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                         message += "; " + "; ".join(details) + ". " + action
                     raise AssemblyError(message, failed_checks=True, suggested_action=action)
                 verify_path.write_text(json.dumps(edl, indent=2) + "\n", encoding="utf-8")
+                with project_lock(root):
+                    checked_voice_fixes()
                 run.replace_output(root / out, final)
                 if report.get("youtube_chapters"):
                     chapter_path = work / "chapters.txt"
@@ -1715,7 +1790,7 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     )
                 run.replace_output((root / out).with_suffix(".taste.json"), taste_record)
                 run.replace_output(root / "final/verify-edl.json", verify_path)
-                for relative, reference in references.values():
+                for relative, reference in (*references.values(), *verification_audio.values()):
                     run.replace_output(root / "final" / relative, reference)
                 run.finish(asserts=asserts, extra=extra)
             with project_lock(root):

@@ -1,0 +1,1 @@
+- Make recorded voice fixes fit reliably, blend smoothly into room tone, and stay correct when the final video is checked again.

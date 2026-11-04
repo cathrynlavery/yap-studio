@@ -1616,6 +1616,7 @@ def check_joins(
     work_dir: Path,
     artifacts_dir: Path | None = None,
     grade: GradeSpec | None = None,
+    source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None,
 ) -> JoinsResult:
     """Check every join, batching all speech windows in one transcription call."""
     outer_intent = bool(plan.segments and (
@@ -1631,8 +1632,8 @@ def check_joins(
     words_sound = audio.decode(words_audio, sr=sr)[1] if words_audio is not None else sound
     rendered = _Media(info, sound, video.grey_frames(render, w=64) if info.has_video else None)
     # A VFR render's native decode cannot stand in for a source on the plan grid.
-    cache: dict[tuple[Path, int | None], _Media | None] = (
-        {} if info.variable_frame_rate else {(Path(render).resolve(), None): rendered}
+    cache: dict[tuple[Path, int | None, str | None], _Media | None] = (
+        {} if info.variable_frame_rate else {(Path(render).resolve(), None, None): rendered}
     )
 
     def source(source_id: str | None) -> _Media | None:
@@ -1641,7 +1642,7 @@ def check_joins(
             return None
         path = Path(path).resolve()
         stream = (source_streams or {}).get(source_id)
-        key = (path, stream)
+        key = (path, stream, source_id if source_audio is not None else None)
         if key not in cache:
             metadata = ffmpeg.probe(path, count_frames=False)
             rate = video.source_rate(metadata, plan.fps)
@@ -1655,6 +1656,8 @@ def check_joins(
             except InputError:
                 cache[key] = None
                 return None
+            if source_audio is not None and source_sound is not None:
+                source_sound = source_audio(source_id, source_sound, sr)
             cache[key] = _Media(
                 metadata,
                 source_sound,

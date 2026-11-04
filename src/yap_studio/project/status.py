@@ -312,9 +312,10 @@ def _edge_engine_identity(context: ProjectContext) -> dict[str, str | None]:
             "model": backend.model if backend else None}
 
 
-def cut_inputs(context: ProjectContext) -> dict[str, str]:
+def cut_inputs(context: ProjectContext, *, voice_fixes: dict | None = None) -> dict[str, str]:
     """Hash the edit snapshot, applied trims, source facts, and edge speech settings."""
     from yap_studio.stages import edges, take_levels
+    from yap_studio.voice.store import projection
 
     edit_bytes = context.read("edit.json")
     edit = cast(Edit, parse_document("edit", json.loads(edit_bytes)))
@@ -344,10 +345,13 @@ def cut_inputs(context: ProjectContext) -> dict[str, str]:
         for snapshot in source_words.values()
     )
     engine_identity = _edge_engine_identity(context) if needs_engine else {"engine": "not-needed"}
+    voice_fixes = projection(context.project_dir) if voice_fixes is None else voice_fixes
     return {
         "edit.json": hashlib.sha256(edit_bytes).hexdigest(),
         **({"project:shape": projection_sha256(context.project.shape)}
            if context.project.shape != "vertical" else {}),
+        **({"voice:fixes": projection_sha256(voice_fixes)}
+           if voice_fixes != {"consent": None, "approved": []} else {}),
         "removals:applied": projection_sha256(applied),
         "asr": projection_sha256(context.project.asr),
         "asr:resolved": projection_sha256(engine_identity),

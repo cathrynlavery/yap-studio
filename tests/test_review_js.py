@@ -101,7 +101,7 @@ def test_static_page_obeys_csp_and_escapes_user_content(page: str) -> None:
             assert attrs.get("src", "").startswith("static/")
         if tag == "link":
             assert attrs.get("href", "").startswith("static/")
-    for name in ("app.mjs", "timeline.mjs", "taste.mjs"):
+    for name in ("app.mjs", "timeline.mjs", "taste.mjs", "voice-fixes.mjs"):
         source = (STATIC / name).read_text()
         for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "eval(", "new Function"):
             assert forbidden not in source
@@ -119,7 +119,7 @@ def test_series_controls_are_accessible_and_modules_parse() -> None:
     assert tags["compare-version"][1]["aria-label"] == "Compare version"
     assert tags["map-status"][1]["aria-live"] == "polite"
     assert "hidden" in tags["earlier-threads"][1]
-    for name in ("app.mjs", "timeline.mjs", "taste.mjs"):
+    for name in ("app.mjs", "timeline.mjs", "taste.mjs", "voice-fixes.mjs"):
         result = run_node("--check", str(STATIC / name))
         assert result.returncode == 0, result.stderr
 
@@ -153,6 +153,27 @@ def test_taste_section_is_accessible_and_wraps_on_phones() -> None:
     assert re.search(r"\.taste-notes-heading\s*\{[^}]*display: block[^}]*margin-top: 10px", css)
     assert re.search(r"@media \(max-width: 480px\).*?\.taste-card textarea\s*"
                      r"\{[^}]*font-size: 16px", css, re.DOTALL)
+
+
+def test_voice_fixes_are_accessible_and_wrap_on_phones() -> None:
+    parser = PageParser()
+    html = (STATIC / "index.html").read_text()
+    parser.feed(html)
+    tags = {attrs["id"]: (tag, attrs) for tag, attrs in parser.tags if "id" in attrs}
+    assert tags["voice-fixes-section"][0] == "section"
+    assert "hidden" in tags["voice-fixes-section"][1]
+    assert tags["voice-fixes-section"][1]["aria-labelledby"] == "voice-fixes-heading"
+    assert tags["voice-fixes-heading"][0] == "h2"
+    assert tags["voice-fixes-list"][0] == "ol"
+    assert tags["voice-fixes-error"][1]["role"] == "alert"
+    assert "Only fixes you approve go into the next version." in html
+    assert html.index('id="voice-fixes-section"') < html.index('id="removed-section"')
+    source = (STATIC / "app.mjs").read_text()
+    assert "audio.controls = true" in source and "audio.preload = 'none'" in source
+    assert "audio.setAttribute('aria-label'" in source
+    css = (STATIC / "app.css").read_text()
+    assert re.search(r"\.voice-fix-audio\s*\{[^}]*flex-wrap: wrap", css)
+    assert re.search(r"\.voice-fix-audio audio\s*\{[^}]*max-width: 100%", css)
 
 
 def test_round_controls_are_accessible_and_wrap() -> None:

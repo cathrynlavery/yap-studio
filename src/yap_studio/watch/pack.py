@@ -253,6 +253,7 @@ def _validate_transcript(result: Transcript) -> Transcript:
             and not math.isfinite(word.conf)
         ):
             raise ValidationError("words", "word times must be finite, non-negative, and ordered")
+    result.words = [word for word in result.words if word.text.strip()]
     result.words.sort(key=lambda word: (word.start, word.end, word.text))
     return result
 

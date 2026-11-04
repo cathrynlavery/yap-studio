@@ -6,6 +6,7 @@ import asyncio
 import builtins
 import inspect
 import json
+import logging
 import queue
 import subprocess
 import threading
@@ -175,7 +176,14 @@ def test_cli_mcp_without_extra_prints_install_hint(
         return real_import(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", missing_mcp)
+    logger = logging.getLogger("yap_studio")
+    handlers = list(logger.handlers)
+    level = logger.level
+    propagate = logger.propagate
     assert main(["mcp"]) == 2
+    assert logger.handlers == handlers
+    assert logger.level == level
+    assert logger.propagate == propagate
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "error: MCP support is not installed." in captured.err

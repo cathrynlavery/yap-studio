@@ -1,0 +1,1 @@
+- Keep the whole approved voice fix in verification audio when the original recording ends before the video.

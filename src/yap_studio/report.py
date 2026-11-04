@@ -55,6 +55,11 @@ _SOUND_CHECKS = (
     "loudness.parts",
 )
 _CHECK_LABELS = {
+    "splice.click": "Clicks at voice fixes",
+    "splice.level": "Voice fix loudness",
+    "splice.room_tone": "Voice fix room tone",
+    "splice.pace": "Voice fix pace",
+    "splice.heard": "Voice fix speech check",
     "join.click": "Clicks at the cuts",
     "join.gap": "Gaps at the cuts",
     "join.words": "Words at the cuts",

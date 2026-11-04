@@ -6,14 +6,16 @@ import json
 import logging
 import shutil
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Literal
 
-from yap_studio import ffmpeg, paths, receipt
+import numpy as np
+
+from yap_studio import audio, ffmpeg, paths, receipt
 from yap_studio.checks.caption_contrast import (
     CONTRAST_SUFFIX,
     check_caption_contrast,
@@ -612,16 +614,39 @@ def _verify(
         words_path = paths.validate_input(words_audio) if words_audio is not None else None
         edit_list = None
         edl_receipt_path = None
+        references = {}
         if edl is not None:
             _LOGGER.info("Reading the edit list")
             load_path, edl_receipt_path = _edit_list_input(edl)
             edit_list = load_edit_list(load_path)
+            if load_path.suffix == ".json":
+                retained = json.loads(load_path.read_text()).get("verification_audio", {})
+                if not isinstance(retained, dict) or any(
+                    name not in edit_list.sources or not isinstance(value, str) or not value
+                    for name, value in retained.items()
+                ):
+                    raise ValidationError("verification_audio",
+                                          "must map source ids to audio paths")
+                references = {name: paths.validate_input(load_path.parent / value)
+                              for name, value in retained.items()}
             if source:
                 edit_list = _apply_overrides(edit_list, _absolute_overrides(source))
         elif source:
             raise ValidationError("source", "requires an edit list")
 
-        input_paths = [media_path]
+        source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None
+        if references:
+            retained_audio = {}
+
+            def source_audio(take, sound, rate):
+                if take not in references:
+                    return sound
+                key = (take, rate)
+                if key not in retained_audio:
+                    _, retained_audio[key] = audio.decode(references[take], sr=rate)
+                return retained_audio[key]
+
+        input_paths = [media_path, *references.values()]
         if edl_receipt_path is not None:
             input_paths.append(edl_receipt_path)
         if click_path is not None:
@@ -695,6 +720,7 @@ def _verify(
                     masks=edit_list.picture_masks,
                     regions=edit_list.picture_regions,
                     thresholds=thresholds,
+                    **({"source_audio": source_audio} if source_audio is not None else {}),
                     **grade_args,
                 )
                 _LOGGER.info("Checking joins")
@@ -706,6 +732,7 @@ def _verify(
                     source_streams={key: item.audio_stream
                                     for key, item in edit_list.sources.items()},
                     backend=backend,
+                    **({"source_audio": source_audio} if source_audio is not None else {}),
                     second_backend=second_backend,
                     masks=edit_list.picture_masks,
                     regions=edit_list.picture_regions,

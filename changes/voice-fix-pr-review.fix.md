@@ -1,0 +1,4 @@
+- Stop before publishing a final if voice choices or consent changed during assembly.
+- Skip approved voice fixes for phrases removed from the edit, while still refusing partly kept slots.
+- Check that recorded words you choose fit the retained slot before saving a proposal.
+- Keep shared voices protected from deletion when you link the same voice again.

@@ -153,6 +153,33 @@ the range and its words. Text in the open comment box goes with it as a note. Cu
 needs a project review (`review --versions` on a project folder), because the words come
 from the project.
 
+## Voice fixes
+
+Voice fixes use clean words from your own recordings first, with an instant clone as the
+fallback. Recorded words cost 0 credits and need no clone consent or account.
+Before using the clone, Yap Studio asks for this agreement:
+
+"This is my own voice. I agree to Yap Studio making an ElevenLabs voice from my
+recordings and using it to re-say words I misspoke in my videos."
+
+Open a project with `yap-studio review --versions DIR`. Ready voice fixes appear near
+Rules for future videos. Each shows what you said, the proposed words and the time in
+the video. Listen to Before and After. Read the checks and the ElevenLabs credit cost.
+The card says "From your own recording at 3:28" or "Re-said by your ElevenLabs voice".
+Recorded fixes show 0 credits. Clone costs say whether they were charged or estimated.
+
+The clone recipe is `voice/recipe.json` in the creator's Yap Studio data folder
+(`YAP_STUDIO_DATA_DIR`), schema `yap-studio/voice-recipe@1`. It can set `voice_name`,
+`model_id`, `voice_settings`, `tag`, `strong_tag`, `strong_tag_words`, `context`, `pace`
+(`fit` or `off`) and `pronunciations` (`word`, `type`: `ipa` or `alias`, `value`).
+Example: `{"schema":"yap-studio/voice-recipe@1","tag":"[test accent]"}`.
+Missing settings are neutral. Tags and respellings never appear on the card or in captions.
+If a respelled fix warns, the next step is `voice make --plain`.
+
+Choose **Use the fix** or **Keep my original**. You can change your choice.
+Only fixes you approve go into the next version. This does not change a saved video.
+Projects without voice fixes show no Voice fixes section.
+
 ## Copy and export feedback
 
 Pinned notes add `(pinned ...)` to the text export and a `pin` field to JSON.

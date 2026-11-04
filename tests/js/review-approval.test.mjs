@@ -32,7 +32,7 @@ test('successful approve stays visible without another server request', async ()
       roundBusy = false, answerBusy = false, editState = null, selectedVersion = 3,
       approvedVersion = null, refreshTimer = null, loadVersion = 0,
       playerGeneration = 0, playerRecoveryPending = false;
-    const tasteSaving = new Set(), location = {hostname: 'localhost'};
+    const tasteSaving = new Set(), voiceFixSaving = new Set(), location = {hostname: 'localhost'};
     const confirm = () => true, renderVersions = () => {}, renderSendBar = () => {},
       showStatus = (text) => { throw new Error(text); }, errorMessage = (error) => error.message,
       seriesVersion = () => ({number: 3, name: 'sample-v3.mp4'}), clearInterval = () => {},
@@ -72,7 +72,8 @@ for (const approvedOnLoad of [false, true]) {
         playerGeneration = 0, playerRecoveryPending = false;
       const {reportStatusLabel, versionBadges, storyCutStep, versionUrl,
         defaultCompareVersion, approvalConfirmation} = model;
-      const tasteSaving = new Set(), location = new URL('http://localhost/?t=token'), token = 'token';
+      const tasteSaving = new Set(), voiceFixSaving = new Set(),
+        location = new URL('http://localhost/?t=token'), token = 'token';
       const document = {createElement: node}, history = {replaceState() {}};
       const confirm = () => true, renderSendBar = () => {}, updateFindingControls = () => {},
         makeButton = node, clearInterval = () => {}, clearPlayerDeadlines = () => {},
