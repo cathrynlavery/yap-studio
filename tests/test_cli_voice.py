@@ -7,6 +7,30 @@ import pytest
 from yap_studio.cli import main
 
 
+def test_link_pages_through_personal_voices(voice_project, fake_voice, monkeypatch, capsys):
+    from voice_helpers import calls, linked
+
+    linked(voice_project, monkeypatch)
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_PAGES", json.dumps([
+        {"voices": [{"name": "Other voice"}], "has_more": True,
+         "next_page_token": "page-two", "total_count": 2},
+        {"voices": [{"name": "My voice", "category": "cloned",
+                     "voice_id": "fake-personal-voice-secret"}], "has_more": False,
+         "next_page_token": None, "total_count": 2},
+    ]))
+    before = len(calls(fake_voice))
+    assert main(["voice", "link", str(voice_project), "--name", "My voice",
+                 "--yes", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["voice"]["made"] == "linked"
+    lookups = [argv for argv in calls(fake_voice)[before:]
+               if argv[:2] == ["voices", "get-user-v2"]]
+    assert len(lookups) == 2
+    assert all("--all" not in argv and argv[argv.index("--page-size") + 1] == "100"
+               for argv in lookups)
+    assert "--next-page-token" not in lookups[0]
+    assert lookups[1][lookups[1].index("--next-page-token") + 1] == "page-two"
+
+
 @pytest.mark.parametrize("as_json", [False, True])
 def test_samples_reports_files_left_behind(tmp_path, monkeypatch, capsys, as_json):
     from yap_studio import voice

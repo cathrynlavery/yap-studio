@@ -1,0 +1,1 @@
+- Voice fixes recheck consent before uploads and paid calls, reuse saved audio for free, respect the remaining credit limit, and find your personal voice reliably.

@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from importlib import import_module
 
 import pytest
-from test_cut import write_json
+from test_cut import time_segment, write_edit, write_json
 from voice_helpers import calls, linked
 
 from yap_studio import receipt
@@ -26,7 +26,8 @@ def test_generation_rechecks_cache_before_reserving(tmp_path, monkeypatch):
 
     def other_caller_finishes():
         monkeypatch.setattr(module, "require_account", lambda: None)
-        module._generated(tmp_path, "voice", request, request_hash, 11, {}, confirm_retry=False)
+        module._generated(tmp_path, "voice", request, request_hash, 11, {},
+                          consent=None, max_credits=11, confirm_retry=False)
 
     monkeypatch.setattr(module, "require_account", other_caller_finishes)
     monkeypatch.setattr(module, "require_consent", lambda _: None)
@@ -34,10 +35,12 @@ def test_generation_rechecks_cache_before_reserving(tmp_path, monkeypatch):
     monkeypatch.setattr(module.elevenlabs, "generate_voice", generate)
     monkeypatch.setattr(module.elevenlabs, "voice_charge",
                         lambda *_: {"credits": 9, "source": "history"})
-    cache, _ = module._generated(
-        tmp_path, "voice", request, request_hash, 11, {}, confirm_retry=False,
+    cache, _, fresh = module._generated(
+        tmp_path, "voice", request, request_hash, 11, {},
+        consent=None, max_credits=11, confirm_retry=False,
     )
     assert cache.read_bytes() == b"cached speech"
+    assert fresh is False
     assert len(generated) == 1
     assert not (tmp_path / ".yap/voice/pending.json").exists()
 
@@ -61,7 +64,7 @@ def test_generation_validates_cache_that_appeared_before_reserving(tmp_path, mon
     with pytest.raises(YapError) as caught:
         module._generated(tmp_path, "voice", {"text": "cold plunge"}, request_hash, 11,
                           {"request_sha256": request_hash, "output_sha256": "b" * 64},
-                          confirm_retry=False)
+                          consent=None, max_credits=11, confirm_retry=False)
     assert caught.value.code == "voice_cache_invalid"
     assert not (tmp_path / ".yap/voice/pending.json").exists()
 
@@ -69,6 +72,83 @@ def test_generation_validates_cache_that_appeared_before_reserving(tmp_path, mon
 def prepared(root, monkeypatch):
     linked(root, monkeypatch)
     return propose(root, "t1:2", "t1:3", "cold plunge", clone=True)
+
+
+def test_reservation_rechecks_captured_consent(voice_project, fake_voice, monkeypatch):
+    from yap_studio.voice import link
+
+    module = import_module("yap_studio.voice.make")
+    prepared(voice_project, monkeypatch)
+    take_audio = module.take_audio
+
+    def relink(*args):
+        original = take_audio(*args)
+        monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_ID", "replacement-personal-voice")
+        link(voice_project, name="My voice", yes=True)
+        return original
+
+    monkeypatch.setattr(module, "take_audio", relink)
+    with pytest.raises(YapError, match="consent changed"):
+        make(voice_project, ["f1"], yes=True, max_credits=11)
+    assert not any(argv[0] == "text-to-speech" for argv in calls(fake_voice))
+    assert not (voice_project / ".yap/voice/pending.json").exists()
+
+
+def test_rebuilt_billable_text_needs_new_cost(voice_project, fake_voice, monkeypatch, tmp_path):
+    recipe = import_module("yap_studio.voice.recipe")
+    monkeypatch.setattr(recipe, "data_dir", lambda: tmp_path / "creator")
+    write_json(tmp_path / "creator/voice/recipe.json", {
+        "schema": "yap-studio/voice-recipe@1",
+        "pronunciations": [{"word": "cold", "type": "alias", "value": "c" * 50}],
+    })
+    prepared(voice_project, monkeypatch)
+    write_edit(voice_project, [time_segment("s1", "t1", 2, 12)])
+    estimates = []
+
+    def add_context(cost):
+        estimates.append(cost["credits"])
+        write_edit(voice_project, [time_segment("s1", "t1", 0, 12)])
+
+    with pytest.raises(YapError) as caught:
+        make(voice_project, ["f1"], yes=True, max_credits=11, show_cost=add_context)
+    assert estimates == [11]
+    assert caught.value.code == "voice_request_changed"
+    assert "voice make" in caught.value.suggested_action
+    assert "without --yes" in caught.value.suggested_action
+    assert not any(argv[0] == "text-to-speech" for argv in calls(fake_voice))
+
+
+def test_reconciled_charge_limits_remaining_batch(voice_project, fake_voice, monkeypatch):
+    prepared(voice_project, monkeypatch)
+    propose(voice_project, "t1:6", "t1:6", "water", clone=True)
+    monkeypatch.setenv("FAKE_ELEVENLABS_CHARGED", "20")
+    with pytest.raises(YapError) as caught:
+        make(voice_project, ["f1", "f2"], yes=True, max_credits=16)
+    assert sum(argv[0] == "text-to-speech" for argv in calls(fake_voice)) == 1
+    assert caught.value.code == "voice_over_ceiling"
+    assert "f2" in str(caught.value) and "credit ceiling" in str(caught.value)
+    fixes = list_fixes(voice_project)["fixes"]
+    assert fixes[0]["status"] == "ready"
+    assert fixes[0]["generation"]["cost"] == {"credits": 20, "source": "history"}
+    assert fixes[1]["status"] == "proposed" and "generation" not in fixes[1]
+
+
+@pytest.mark.parametrize("mixed", [False, True])
+def test_cached_audio_costs_zero_in_run_estimate(voice_project, fake_voice, monkeypatch, mixed):
+    prepared(voice_project, monkeypatch)
+    first = make(voice_project, ["f1"], yes=True, max_credits=11)["fixes"][0]
+    fix_ids, ceiling = ["f1"], 0
+    if mixed:
+        propose(voice_project, "t1:6", "t1:6", "water", clone=True)
+        monkeypatch.setenv("FAKE_ELEVENLABS_SPEECH_SECONDS", "0.6")
+        fix_ids, ceiling = ["f1", "f2"], 5
+    preview = make(voice_project, fix_ids, dry_run=True, max_credits=ceiling)
+    assert preview["cost"]["credits"] == ceiling
+    assert "0 credits" in preview["cost"]["lines"][0]
+    result = make(voice_project, fix_ids, yes=True, max_credits=ceiling)
+    assert result["cost"]["credits"] == ceiling
+    assert result["fixes"][0]["generation"]["cost"] == first["generation"]["cost"]
+    assert sum(argv[0] == "text-to-speech" for argv in calls(fake_voice)) == 1 + mixed
 
 
 def test_cost_and_no_spend(voice_project, fake_voice, monkeypatch):

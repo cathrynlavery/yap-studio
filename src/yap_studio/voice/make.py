@@ -78,7 +78,7 @@ def _check_pending(root: Path, confirm_retry: bool) -> None:
     local_path(root, ".yap/voice/pending.json").unlink()
 
 
-def _cost(fixes: list[dict], budget: dict, requests: dict) -> dict:
+def _cost(root: Path, fixes: list[dict], budget: dict, requests: dict) -> dict:
     lines = []
     total = 0.0
     characters = 0
@@ -96,7 +96,11 @@ def _cost(fixes: list[dict], budget: dict, requests: dict) -> dict:
         if fix.get("from", {}).get("kind") == "own":
             lines.append(f"Using your own recording for '{fix['say']}' costs 0 credits.")
             continue
-        row = estimate(fix["say"], budget, sent=requests[fix["id"]]["text"])
+        request, request_hash = requests[fix["id"]]
+        row = estimate(fix["say"], budget, sent=request["text"])
+        if _cached(root, request_hash, row["credits"], fix.get("generation", {})) is not None:
+            lines.append(f"Reusing cached audio for '{fix['say']}' costs 0 credits.")
+            continue
         total += row["credits"]
         characters += row["characters"]
         lines.append(
@@ -156,6 +160,39 @@ def _request(plan, fix: dict, consent: dict, *, new: bool, plain: bool = False) 
     return request, digest(json.dumps(request, sort_keys=True, separators=(",", ":")))
 
 
+def _cached(root: Path, request_hash: str, estimate_credits: float,
+            previous: dict) -> tuple[Path, dict] | None:
+    cache = local_path(root, f".yap/cache/voice/{request_hash}.mp3")
+    cache_record = local_path(root, f".yap/cache/voice/{request_hash}.json")
+    if not cache.is_file():
+        return None
+    if not cache.stat().st_size:
+        raise VoiceError(
+            "The cached voice audio is empty. Use --new.", code="voice_cache_invalid"
+        )
+    try:
+        entry = json.loads(cache_record.read_text())
+    except (OSError, ValueError, UnicodeError):
+        entry = None
+    matching = (isinstance(entry, dict)
+                and entry.get("schema") == "yap-studio/voice-cache@1"
+                and entry.get("request_sha256") == request_hash)
+    expected = (previous.get("output_sha256")
+                if previous.get("request_sha256") == request_hash else None)
+    if matching:
+        expected = entry.get("output_sha256") or expected
+    if expected and receipt.sha256_file(cache) != expected:
+        raise VoiceError(
+            "The cached voice audio changed. Use --new.", code="voice_cache_invalid"
+        )
+    charge = entry.get("cost") if matching else None
+    if (not isinstance(charge, dict) or type(charge.get("credits")) not in (int, float)
+            or not math.isfinite(charge["credits"]) or charge["credits"] < 0
+            or charge.get("source") not in {"history", "estimate"}):
+        charge = {"credits": estimate_credits, "source": "estimate"}
+    return cache, charge
+
+
 def _generated(
     root: Path,
     identifier: str,
@@ -164,46 +201,19 @@ def _generated(
     estimate_credits: float,
     previous: dict,
     *,
+    consent: dict,
+    max_credits: float,
     confirm_retry: bool,
-) -> tuple[Path, dict]:
+) -> tuple[Path, dict, bool]:
     cache = local_path(root, f".yap/cache/voice/{request_hash}.mp3")
     cache_record = local_path(root, f".yap/cache/voice/{request_hash}.json")
     pending_path = local_path(root, ".yap/voice/pending.json")
 
-    def cached() -> tuple[Path, dict] | None:
-        if cache.is_file():
-            if not cache.stat().st_size:
-                raise VoiceError(
-                    "The cached voice audio is empty. Use --new.", code="voice_cache_invalid"
-                )
-            try:
-                entry = json.loads(cache_record.read_text())
-            except (OSError, ValueError, UnicodeError):
-                entry = None
-            matching = (isinstance(entry, dict)
-                        and entry.get("schema") == "yap-studio/voice-cache@1"
-                        and entry.get("request_sha256") == request_hash)
-            expected = (previous.get("output_sha256")
-                        if previous.get("request_sha256") == request_hash else None)
-            if matching:
-                expected = entry.get("output_sha256") or expected
-            if expected and receipt.sha256_file(cache) != expected:
-                raise VoiceError(
-                    "The cached voice audio changed. Use --new.", code="voice_cache_invalid"
-                )
-            charge = entry.get("cost") if matching else None
-            if (not isinstance(charge, dict) or type(charge.get("credits")) not in (int, float)
-                    or not math.isfinite(charge["credits"]) or charge["credits"] < 0
-                    or charge.get("source") not in {"history", "estimate"}):
-                charge = {"credits": estimate_credits, "source": "estimate"}
-            return cache, charge
-        return None
-
     with project_lock(root):
         _check_pending(root, confirm_retry)
-        result = cached()
+        result = _cached(root, request_hash, estimate_credits, previous)
         if result is not None:
-            return result
+            return *result, False
     require_account()
     work_root = paths.validate_output_dir(root / ".yap/work")
     with tempfile.TemporaryDirectory(prefix="voice-generate-", dir=work_root) as folder:
@@ -218,10 +228,16 @@ def _generated(
         }
         with project_lock(root):
             _check_pending(root, False)
-            result = cached()
+            result = _cached(root, request_hash, estimate_credits, previous)
             if result is not None:
-                return result
-            require_consent(root)
+                return *result, False
+            if require_consent(root) != consent:
+                raise VoiceError("Voice consent changed. Read it again before generating.")
+            if estimate_credits > max_credits:
+                raise VoiceError(
+                    "This voice fix costs more than your remaining credit ceiling.",
+                    code="voice_over_ceiling",
+                )
             write(root, "pending", pending)
         started = math.floor(time.time())
         try:
@@ -267,7 +283,7 @@ def _generated(
             with project_lock(root):
                 write(root, "pending", {**pending, "state": "unreconciled"})
             raise _pending_error() from None
-        return cache, charge
+        return cache, charge, True
 
 
 def _heard(plan, patch: Path, say: str, *, respelled: bool = False) -> dict:
@@ -346,13 +362,13 @@ def make(
         for fix in fixes:
             validate_words(plan, fix)
             require_picture(plan, fix)
-        requests = {fix["id"]: _request(plan, fix, consent, new=new, plain=plain)[0]
+        requests = {fix["id"]: _request(plan, fix, consent, new=new, plain=plain)
                     for fix in clones}
-        model_id = next(iter(requests.values()))["model"] if clones else "own"
+        model_id = next(iter(requests.values()))[0]["model"] if clones else "own"
         budget = {**elevenlabs.voice_budget(model_id), "model": model_id} if clones else {
             "multiplier": 0, "source": "own", "remaining": None, "model": "own",
         }
-        cost = _cost(fixes, budget, requests)
+        cost = _cost(root, fixes, budget, requests)
         if show_cost:
             show_cost(cost)
         if clones and not yes and not dry_run:
@@ -384,6 +400,7 @@ def make(
             with project_lock(root):
                 _check_pending(root, confirm_retry)
         results = []
+        spent = 0
         work_root = paths.validate_output_dir(root / ".yap/work")
         for fix in fixes:
             own = fix.get("from", {}).get("kind") == "own"
@@ -401,6 +418,16 @@ def make(
             request, request_hash = ({}, "") if own else _request(
                 plan, fix, consent, new=new, plain=plain,
             )
+            if not own:
+                approved = requests[fix["id"]][0]
+                if request["recipe_sha256"] != approved["recipe_sha256"]:
+                    raise VoiceError("The voice recipe changed. Read the cost again.")
+                if request["text"] != approved["text"]:
+                    raise VoiceError(
+                        "The speech text changed since the cost was shown.",
+                        code="voice_request_changed",
+                        suggested_action="Run voice make again without --yes to see the new cost.",
+                    )
             old_hash = fix.get("generation", {}).get("request_sha256")
             previous = fix.get("generation", {})
             recipe_changed = (previous.get("recipe_sha256") != request.get("recipe_sha256")
@@ -425,14 +452,23 @@ def make(
                     donor, request_hash = recorded_audio(plan, fix, data["fixes"])
                     cache, charge = None, {"credits": 0, "source": "own"}
                 else:
-                    if request["recipe_sha256"] != requests[fix["id"]]["recipe_sha256"]:
-                        raise VoiceError("The voice recipe changed. Read the cost again.")
-                    cache, charge = _generated(
+                    cache, charge, fresh = _generated(
                         root, identifier, request, request_hash,
                         estimate(fix["say"], cost, sent=request["text"])["credits"],
-                        fix.get("generation", {}), confirm_retry=False,
+                        fix.get("generation", {}), consent=consent,
+                        max_credits=max_credits - spent, confirm_retry=False,
                     )
-            except VoiceError:
+                    if fresh:
+                        spent += charge["credits"]
+            except VoiceError as exc:
+                if exc.code == "voice_over_ceiling":
+                    remaining = ", ".join(row["id"] for row in fixes[len(results):])
+                    raise VoiceError(
+                        f"Voice fixes {remaining} were not made because the remaining "
+                        "credit ceiling is too low.",
+                        code=exc.code, cost=cost,
+                        suggested_action="Read the cost again before approving the fixes left.",
+                    ) from None
                 with project_lock(root):
                     saved = list_fixes(root)
                     for row in saved["fixes"]:

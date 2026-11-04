@@ -246,12 +246,23 @@ def _voice_json(args: list[str], *, voice_id: str | None = None) -> Any:
 
 def personal_voices(name: str) -> list[dict[str, Any]]:
     """Find exact personal names without retaining the response."""
-    data = _voice_json(["voices", "get-user-v2", "--search", name,
-                        "--voice-type", "personal", "--all", "--json"])
-    rows = data.get("voices", []) if isinstance(data, dict) else data
-    if not isinstance(rows, list):
-        raise GenerationError("ElevenLabs returned unreadable voices.", refused=True)
-    return [row for row in rows if isinstance(row, dict) and row.get("name") == name]
+    args = ["voices", "get-user-v2", "--search", name,
+            "--voice-type", "personal", "--page-size", "100", "--json"]
+    matches = []
+    next_page = []
+    for _ in range(10):
+        data = _voice_json([*args, *next_page])
+        rows = data.get("voices") if isinstance(data, dict) else data
+        if not isinstance(rows, list):
+            break
+        matches.extend(row for row in rows if isinstance(row, dict) and row.get("name") == name)
+        if isinstance(data, list) or data.get("has_more", False) is False:
+            return matches
+        token = data.get("next_page_token")
+        if data.get("has_more") is not True or not isinstance(token, str) or not token:
+            break
+        next_page = ["--next-page-token", token]
+    raise GenerationError("ElevenLabs returned unreadable voices.", refused=True)
 
 
 def voice_details(voice_id: str) -> dict[str, Any]:

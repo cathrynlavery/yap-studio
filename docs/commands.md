@@ -145,6 +145,10 @@ size, because ElevenLabs lists an uploaded WAV as an MP3. If the CLI cannot uplo
 prints steps to upload the selected files on the ElevenLabs site; then run `link`. Listen on
 the review page before choosing a fix. `--new` makes another paid generation. Use
 `--confirm-retry` only after checking the earlier call and account history.
+Valid cached audio costs 0 credits and can be reused with `--max-credits 0`.
+Fresh charges reduce the batch's remaining credit ceiling. The command lists any fixes
+it stops before making. If the speech text changes, run `voice make` again without `--yes`
+to see the new cost. Consent withdrawal works even when the original takes are offline.
 See [audio.md](audio.md#voice-fixes) for consent and cost.
 
 Recorded-word fixes need no clone consent, account or paid approval. The mouth coverage rule

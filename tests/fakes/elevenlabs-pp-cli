@@ -51,6 +51,9 @@ def main():
              "category": os.environ.get("FAKE_ELEVENLABS_VOICE_CATEGORY", "cloned"),
              "samples": json.loads(os.environ.get("FAKE_ELEVENLABS_VOICE_SAMPLES", "[]"))}
     if args[:2] == ["voices", "get-user-v2"]:
+        if "--all" in args:
+            print("[]")
+            return 0
         count = int(os.environ.get("FAKE_ELEVENLABS_VOICE_DUPLICATES", "1"))
         if os.environ.get("FAKE_ELEVENLABS_VOICE_APPEARS_AFTER_ADD"):
             count = int(bool(log) and any(
@@ -58,8 +61,16 @@ def main():
                 for line in Path(log).read_text().splitlines()
             ))
         rows = [voice] * count
+        pages = json.loads(os.environ.get("FAKE_ELEVENLABS_VOICE_PAGES", "[]"))
+        page = {"voices": rows, "has_more": False, "next_page_token": None,
+                "total_count": count}
+        if pages:
+            token = args[args.index("--next-page-token") + 1] if "--next-page-token" in args else None
+            index = next((i + 1 for i, row in enumerate(pages[:-1])
+                          if token is not None and row.get("next_page_token") == token), 0)
+            page = pages[index]
         print(json.dumps(rows if os.environ.get("FAKE_ELEVENLABS_RAW") else
-                         {"meta": {}, "results": rows}))
+                         {"meta": {}, "results": page}))
         return 0
     if args[:2] == ["voices", "get-by-id"]:
         print(json.dumps(voice))

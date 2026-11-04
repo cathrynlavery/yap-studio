@@ -48,8 +48,12 @@ Propose with `yap-studio voice propose DIR --from WORD --to WORD --say "cold plu
 Use `--from-take-words FIRST LAST` to choose recorded words, or `--clone` to skip the search.
 `voice list DIR` shows the source kind. `voice make DIR --fix f1` builds an own-recording fix
 for free. For a clone fix it shows the cost; approve with `--yes --max-credits N`.
-The estimate counts the text actually sent. Repeating a request reuses its audio;
-`--new` spends credits again. A recipe change makes a new request.
+The estimate counts the text actually sent. Valid cached audio costs 0 credits in the
+estimate, so you can reuse it with `--max-credits 0`. `--new` spends credits again.
+A recipe change makes a new request. If the speech text changes after the estimate,
+run `voice make` again without `--yes` to see the new cost.
+Each fresh call's charge reduces the credit ceiling left for the batch. If the next fix
+would exceed it, the command lists the fixes it did not make.
 
 Your clone recipe lives at `voice/recipe.json` in your Yap Studio data folder, selected by
 `YAP_STUDIO_DATA_DIR`. Without it, settings are neutral. This synthetic example lists the fields:
@@ -74,7 +78,8 @@ For talking-head takes, full-frame B-roll must cover your face at the fix.
 If it does not, the proposal explains why it was refused.
 You can record the line again instead. `yap-studio voice consent DIR --withdraw`
 stops clone fixes from applying to later cuts. Recorded-word fixes remain usable.
-It does not change saved videos.
+You can withdraw even when the original takes are offline. Consent is checked again
+before uploading recordings or starting a paid request. It does not change saved videos.
 See [commands.md](commands.md#voice-fixes) for all voice commands.
 
 ## Music

@@ -169,15 +169,16 @@ def validate(root: Path, kind: str, data: Any) -> dict:
                 duration = _sample_duration(row)
                 _require(_number(duration) and 15 - 1e-8 <= duration <= 30 + 1e-8)
                 if "ranges" in row:
-                    if context is None:
-                        from yap_studio.project.status import ProjectContext
+                    if kind == "samples":
+                        if context is None:
+                            from yap_studio.project.status import ProjectContext
 
-                        context = ProjectContext(root)
-                    _require(any(take.id == row["take"] for take in context.project.takes))
-                    if row["take"] not in durations:
-                        info = ffmpeg.probe(context.take_path(row["take"]))
-                        durations[row["take"]] = info.video_duration_s or info.duration_s
-                    _sample_ranges(row, durations[row["take"]])
+                            context = ProjectContext(root)
+                        _require(any(take.id == row["take"] for take in context.project.takes))
+                        if row["take"] not in durations:
+                            info = ffmpeg.probe(context.take_path(row["take"]))
+                            durations[row["take"]] = info.video_duration_s or info.duration_s
+                    _sample_ranges(row, durations.get(row["take"]))
             _require(45 <= sum(_sample_duration(row) for row in data["samples"]) <= 150)
             _require(len({row["path"] for row in data["samples"]}) == len(data["samples"]))
         if kind == "consent":

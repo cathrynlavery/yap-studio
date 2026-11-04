@@ -284,19 +284,20 @@ def create(project_dir: Path, *, yes: bool = False, dry_run: bool = False,
                     "A voice with this name already exists. Link it or choose a new name.",
                     code="voice_name_ambiguous",
                 )
-            elevenlabs.add_voice(name, files)
+            with project_lock(root):
+                if require_consent(root, linked=False) != base:
+                    raise VoiceError("Voice consent changed. Read it again before uploading.")
+                elevenlabs.add_voice(name, files)
         except YapError as exc:
             if exc.code != "voice_cli_cannot_upload":
                 raise
             upload = (f"the files listed in {samples}: " + ", ".join(str(row) for row in files)
                       if samples is not None else
                       "these files: " + ", ".join(str(row) for row in files))
-            link_command = f'yap-studio voice link {root} --name "{name}" --yes'
+            link_args = ["yap-studio", "voice", "link", str(root), "--name", name, "--yes"]
             if samples is not None:
-                link_command = shlex.join([
-                    "yap-studio", "voice", "link", str(root), "--name", name, "--yes",
-                    "--samples", str(samples),
-                ])
+                link_args.extend(["--samples", str(samples)])
+            link_command = shlex.join(link_args)
             raise VoiceError(
                 str(exc),
                 code=exc.code,

@@ -2,10 +2,11 @@
 
 import json
 import os
+import shlex
 
 import pytest
 from test_cut import write_json
-from voice_helpers import linked
+from voice_helpers import calls, linked
 
 from yap_studio.errors import YapError
 from yap_studio.voice import consent, create, delete_voice, link
@@ -19,6 +20,64 @@ def test_consent_required(voice_project, fake_voice):
     ):
         with pytest.raises(YapError):
             operation()
+
+
+@pytest.mark.parametrize("during", ["account_state", "personal_voices"])
+def test_create_rechecks_consent_before_upload(voice_project, fake_voice, monkeypatch, during):
+    from yap_studio import elevenlabs
+
+    linked(voice_project, monkeypatch)
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_DUPLICATES", "0")
+    lookup = getattr(elevenlabs, during)
+
+    def withdraw(*args):
+        result = lookup(*args)
+        consent(voice_project, withdraw=True)
+        return result
+
+    monkeypatch.setattr(elevenlabs, during, withdraw)
+    with pytest.raises(YapError):
+        create(voice_project, yes=True)
+    assert not any(argv[:2] == ["voices", "add"] for argv in calls(fake_voice))
+    assert json.loads((voice_project / "voice/consent.json").read_text())["status"] == "withdrawn"
+
+
+def test_withdraw_without_original_take(tmp_path, fake_voice, monkeypatch):
+    import synth
+    from test_cut import make_project
+
+    from yap_studio.voice.model import read
+
+    source = synth.voiced_source(tmp_path / "take.mov", [(0.2, 0.8)], seconds=60)
+    root = make_project(tmp_path / "project", [source], word_rows=[[("morning", 0.2, 0.8)]])
+    linked(root, monkeypatch)
+    target = root / "voice/consent.json"
+    record = json.loads(target.read_text())
+    for row in record["samples"]:
+        row.update(ranges=[[row["start_s"], row["end_s"]]], duration_s=15)
+    write_json(target, record)
+    assert read(root, "consent")["status"] == "given"
+    (root / "takes/t1.mov").rename(root / "offline.mov")
+    assert consent(root, withdraw=True)["status"] == "withdrawn"
+    assert read(root, "consent")["status"] == "withdrawn"
+    assert all((root / row["path"]).is_file() for row in record["samples"])
+
+
+def test_local_upload_recovery_command_is_shell_quoted(tmp_path, fake_voice, monkeypatch):
+    root = tmp_path / "project with spaces"
+    root.mkdir()
+    linked(root, monkeypatch)
+    name = 'My "voice" isn\'t $simple'
+    consent(root, yes=True, voice_name=name)
+    monkeypatch.setenv("FAKE_ELEVENLABS_ADD_FILES_ERROR", "1")
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_DUPLICATES", "0")
+    with pytest.raises(YapError) as caught:
+        create(root, yes=True)
+    assert caught.value.code == "voice_cli_cannot_upload"
+    command = caught.value.suggested_action.split("Then run ")[1].removesuffix(".")
+    assert shlex.split(command) == [
+        "yap-studio", "voice", "link", str(root), "--name", name, "--yes",
+    ]
 
 
 @pytest.mark.parametrize(
