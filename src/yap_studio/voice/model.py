@@ -11,6 +11,7 @@ from typing import Any
 
 from yap_studio import ffmpeg, paths, receipt
 from yap_studio.errors import YapError
+from yap_studio.project.lock import pid_alive
 
 STATEMENT = (
     "This is my own voice. I agree to Yap Studio making an ElevenLabs voice from my "
@@ -41,6 +42,20 @@ class VoiceError(YapError):
     def to_dict(self) -> dict[str, str]:
         """Include the missing permission when the account needs an edit."""
         return {**super().to_dict(), **({"permission": self.permission} if self.permission else {})}
+
+
+def require_idle_stages(root: Path) -> None:
+    """Refuse voice changes while cut or final owns an active run or journal."""
+    for stage in ("cut", "final"):
+        folder = root / stage
+        progress = folder / "progress.json"
+        if ((progress.exists() and pid_alive(json.loads(progress.read_bytes()).get("pid")))
+                or (folder / "receipt.pending.json").exists()):
+            raise VoiceError(
+                f"The {stage} video is being made, so voice choices can't change right now.",
+                code="stage_running",
+                suggested_action="Wait for the video to finish, then decide.",
+            )
 
 
 def digest(text: str) -> str:

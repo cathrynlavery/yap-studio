@@ -150,10 +150,20 @@ def test_assembly_refuses_voice_changes_during_render(patched_assembly, monkeypa
 
     def change_after_verification(*args, **kwargs):
         report = check(*args, **kwargs)
-        if fix["from"]["kind"] == "clone":
-            consent(root, withdraw=True)
+        cloned = fix["from"]["kind"] == "clone"
+        with pytest.raises(VoiceError) as caught:
+            if cloned:
+                consent(root, withdraw=True)
+            else:
+                decide(root, fix["id"], "reject", via="chat")
+        assert caught.value.code == "stage_running"
+        target = root / "voice" / ("consent.json" if cloned else "fixes.json")
+        data = json.loads(target.read_text())
+        if cloned:
+            data.update(status="withdrawn", withdrawn_at="now")
         else:
-            decide(root, fix["id"], "reject", via="chat")
+            next(row for row in data["fixes"] if row["id"] == fix["id"])["status"] = "rejected"
+        write_json(target, data)
         return report
 
     def record_output(run, target, staged):

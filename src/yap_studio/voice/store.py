@@ -12,7 +12,14 @@ from yap_studio.checks.model import Finding
 from yap_studio.project.lock import project_lock, timestamp
 from yap_studio.stages import take_levels
 from yap_studio.voice.consent import require_consent
-from yap_studio.voice.model import VoiceError, checked_file, read, require_generation, write
+from yap_studio.voice.model import (
+    VoiceError,
+    checked_file,
+    read,
+    require_generation,
+    require_idle_stages,
+    write,
+)
 from yap_studio.voice.plan import (
     list_fixes,
     occurrences,
@@ -93,6 +100,7 @@ def decide(
             "Use approve or reject, via review or chat.", code="voice_decision_invalid"
         )
     with paths.operation(), project_lock(root):
+        require_idle_stages(root)
         data = list_fixes(root)
         fix = next((fix for fix in data["fixes"] if fix["id"] == fix_id), None)
         if fix is None:

@@ -99,6 +99,9 @@ You can record the line again instead. `yap-studio voice consent DIR --withdraw`
 stops clone fixes from applying to later cuts. Recorded-word fixes remain usable.
 You can withdraw even when the original takes are offline. Consent is checked again
 before uploading recordings or starting a paid request. It does not change saved videos.
+Voice choices and consent cannot change while the cut or final video is being made.
+You also cannot link, create or delete your voice during a run. Wait for the video to
+finish, then try again. The review page shows the reason beside the fix.
 If voice choices or consent change during assembly, it stops before publishing and asks
 you to run assemble again.
 See [commands.md](commands.md#voice-fixes) for all voice commands.

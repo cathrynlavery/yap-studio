@@ -10,6 +10,75 @@ from voice_helpers import calls, linked
 
 from yap_studio.errors import YapError
 from yap_studio.voice import consent, create, delete_voice, link
+from yap_studio.voice.model import VoiceError
+
+
+@pytest.mark.parametrize("stage", ["cut", "final"])
+@pytest.mark.parametrize("marker", ["progress.json", "receipt.pending.json"])
+@pytest.mark.parametrize("withdraw", [False, True])
+def test_consent_refuses_a_running_stage(tmp_path, stage, marker, withdraw):
+    consent(tmp_path, yes=True)
+    if not withdraw:
+        consent(tmp_path, withdraw=True)
+    target = tmp_path / "voice/consent.json"
+    before = target.read_bytes()
+    running = tmp_path / stage / marker
+    write_json(running, {"pid": os.getpid()} if marker == "progress.json" else {})
+    with pytest.raises(VoiceError) as caught:
+        consent(tmp_path, yes=True, withdraw=withdraw)
+    assert caught.value.code == "stage_running"
+    assert stage in caught.value.message
+    assert target.read_bytes() == before
+    if marker == "progress.json":
+        write_json(running, {"pid": 0})
+    else:
+        running.unlink()
+    expected = "withdrawn" if withdraw else "given"
+    assert consent(tmp_path, yes=True, withdraw=withdraw)["status"] == expected
+
+
+@pytest.mark.parametrize("command", ["link", "create", "delete-voice"])
+@pytest.mark.parametrize("stage", ["cut", "final"])
+def test_voice_identity_refuses_a_running_stage(tmp_path, fake_voice, monkeypatch, command, stage):
+    linked(tmp_path, monkeypatch)
+    if command == "create":
+        monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_DUPLICATES", "0")
+    target = tmp_path / "voice/consent.json"
+    before = target.read_bytes()
+    write_json(tmp_path / stage / "progress.json", {"pid": os.getpid()})
+    operations = {
+        "link": lambda: link(tmp_path, name="My voice", yes=True),
+        "create": lambda: create(tmp_path, yes=True),
+        "delete-voice": lambda: delete_voice(tmp_path, yes=True),
+    }
+    previous_calls = len(calls(fake_voice))
+    with pytest.raises(VoiceError) as caught:
+        operations[command]()
+    assert caught.value.code == "stage_running"
+    assert target.read_bytes() == before
+    assert not any(argv[:2] in (["voices", "add"], ["voices", "delete"])
+                   for argv in calls(fake_voice)[previous_calls:])
+
+
+def test_create_rechecks_stage_before_linking(tmp_path, fake_voice, monkeypatch):
+    from yap_studio import elevenlabs
+
+    linked(tmp_path, monkeypatch)
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_DUPLICATES", "0")
+    before = (tmp_path / "voice/consent.json").read_bytes()
+    add_voice = elevenlabs.add_voice
+
+    def start_final(*args):
+        result = add_voice(*args)
+        monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_DUPLICATES", "1")
+        write_json(tmp_path / "final/progress.json", {"pid": os.getpid()})
+        return result
+
+    monkeypatch.setattr(elevenlabs, "add_voice", start_final)
+    with pytest.raises(VoiceError) as caught:
+        create(tmp_path, yes=True)
+    assert caught.value.code == "stage_running"
+    assert (tmp_path / "voice/consent.json").read_bytes() == before
 
 
 def test_consent_required(voice_project, fake_voice):

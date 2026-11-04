@@ -328,6 +328,42 @@ test('page blocks double saves, shows refusal and allows retry', async () => {
   assert.equal(card().querySelectorAll('button')[0].disabled, false);
 });
 
+for (const stage of ['cut', 'final']) {
+  for (const action of ['approve', 'reject']) {
+    test(`${action} shows a running ${stage} refusal on the card and allows retry`, async () => {
+      const {context, page, card} = pageFixture();
+      const message = `The ${stage} video is being made, so voice choices can't change right now.`;
+      let running = true;
+      Object.assign(context, {
+        activeWrites: 0, updateFindingControls() {}, setOffline() {}, offlineState: () => false,
+        fetch: async () => ({
+          ok: !running, status: running ? 409 : 200,
+          json: async () => running
+            ? {error: {code: 'stage_running', message,
+              suggested_action: 'Wait for the video to finish, then decide.'}}
+            : {voice_fixes: [{...fix, status: action === 'approve' ? 'approved' : 'rejected'}]},
+        }),
+      });
+      const source = readFileSync(new URL('../../src/yap_studio/review/static/app.mjs', import.meta.url), 'utf8');
+      vm.runInContext(source.slice(source.indexOf('function errorMessage('),
+        source.indexOf('function schedulePoll(')), context);
+      await card().querySelectorAll('button').find((node) =>
+        node.textContent === (action === 'approve' ? 'Use the fix' : 'Keep my original')).click();
+      assert.ok(card().querySelectorAll('p').some((node) => node.attributes.role === 'alert'
+        && node.textContent === message));
+      assert.equal(context.review.series.voice_fixes[0].status, 'ready');
+      assert.equal(card().attributes['aria-busy'], 'false');
+      assert.ok(card().querySelectorAll('button').every((node) => !node.disabled));
+      running = false;
+      await page.saveVoiceFixDecision(fix, action);
+      assert.equal(context.review.series.voice_fixes[0].status,
+        action === 'approve' ? 'approved' : 'rejected');
+      assert.ok(card().querySelectorAll('p').filter((node) => node.attributes.role === 'alert')
+        .every((node) => node.textContent === ''));
+    });
+  }
+}
+
 test('page hides empty projects and blocks offline or changed media', async () => {
   const {context, page, el, card, review, state} = pageFixture();
   for (const reason of ['offline', 'changed']) {

@@ -1,6 +1,8 @@
 """Approved patches affect only their samples and participate in cut freshness."""
 
 import json
+import os
+from contextlib import contextmanager
 
 import numpy as np
 import pytest
@@ -12,6 +14,47 @@ from yap_studio.errors import YapError
 from yap_studio.project.status import ProjectContext, cut_inputs
 from yap_studio.stages.cut import cut
 from yap_studio.voice import consent, decide, list_fixes, make, propose
+
+
+@pytest.mark.parametrize("action", ["approve", "reject"])
+@pytest.mark.parametrize("via", ["review", "chat"])
+def test_decide_refuses_a_final_started_before_the_lock(
+    voice_project, fake_voice, monkeypatch, action, via,
+):
+    from yap_studio.voice import store
+    from yap_studio.voice.model import VoiceError
+
+    linked(voice_project, monkeypatch)
+    propose(voice_project, "t1:2", "t1:3", "cold plunge")
+    make(voice_project, ["f1"], yes=True, max_credits=20)
+    if action == "reject":
+        decide(voice_project, "f1", "approve", via=via)
+    target = voice_project / "voice/fixes.json"
+    before = target.read_bytes()
+    progress = voice_project / "final/progress.json"
+    project_lock = store.project_lock
+
+    @contextmanager
+    def start_final(root):
+        with project_lock(root):
+            write_json(progress, {"pid": os.getpid()})
+            yield
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "project_lock", start_final)
+        with pytest.raises(VoiceError) as caught:
+            decide(voice_project, "f1", action, via=via)
+    assert caught.value.code == "stage_running"
+    assert caught.value.message == (
+        "The final video is being made, so voice choices can't change right now."
+    )
+    assert caught.value.suggested_action == "Wait for the video to finish, then decide."
+    assert target.read_bytes() == before
+    write_json(progress, {"pid": 0})
+    expected = "approved" if action == "approve" else "rejected"
+    assert decide(voice_project, "f1", action, via=via)["status"] == expected
+    progress.unlink()
+    assert decide(voice_project, "f1", action, via=via)["status"] == expected
 
 
 @pytest.mark.parametrize("channels,gain,change", [(1, 0, 0), (1, 3, 0), (2, 0, 0), (1, 0, 4)])
@@ -406,7 +449,10 @@ def test_cut_uses_one_voice_snapshot(
     def change_decision(*args, **kwargs):
         nonlocal changed
         if not changed:
-            decide(voice_project, "f1", "reject" if approved else "approve", via="review")
+            # Commands refuse during rendering, but a file edit can still change the projection.
+            data = list_fixes(voice_project)
+            data["fixes"][0]["status"] = "rejected" if approved else "approved"
+            write_json(voice_project / "voice/fixes.json", data)
             changed = True
         return original(*args, **kwargs)
 

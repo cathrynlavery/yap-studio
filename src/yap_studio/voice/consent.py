@@ -16,6 +16,7 @@ from yap_studio.voice.model import (
     checked_file,
     digest,
     read,
+    require_idle_stages,
     validate_samples_manifest,
     write,
 )
@@ -109,6 +110,7 @@ def consent(
                 "samples": samples["samples"],
                 "withdrawn_at": None,
             }
+        require_idle_stages(root)
         write(root, "consent", data)
     return data
 
@@ -230,6 +232,7 @@ def _attach(root: Path, name: str, *, made: str, base: dict, samples: Path | Non
                               + ", ".join(str(row) for row in files) + "."),
         )
     with project_lock(root):
+        require_idle_stages(root)
         if require_consent(root, linked=False) != base:
             raise VoiceError("Voice consent changed. Read it again before linking.")
         if _sample_files(root, base, samples, max_files=max_files) != selection:
@@ -298,6 +301,7 @@ def create(project_dir: Path, *, yes: bool = False, dry_run: bool = False,
                     code="voice_name_ambiguous",
                 )
             with project_lock(root):
+                require_idle_stages(root)
                 if require_consent(root, linked=False) != base:
                     raise VoiceError("Voice consent changed. Read it again before uploading.")
                 try:
@@ -350,6 +354,7 @@ def delete_voice(project_dir: Path, *, yes: bool = False) -> dict:
             raise VoiceError(
                 "Deleting your ElevenLabs voice needs --yes.", code="voice_approval_required"
             )
+        require_idle_stages(root)
         identifier = _resolve_voice(record)
         if read(root, "consent") != record:
             raise VoiceError("Voice consent changed. Read it again before deleting.")

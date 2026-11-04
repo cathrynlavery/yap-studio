@@ -3,10 +3,12 @@
 import copy
 import hashlib
 import json
+import os
 from contextlib import contextmanager
 from dataclasses import replace
 
 import pytest
+from test_cut import write_json
 from test_review_taste import project_server as project_server
 from test_review_taste import round_project as round_project
 from test_review_taste import socket_access as socket_access
@@ -191,6 +193,33 @@ def test_estimated_cost_and_short_note(taste_client, ready_fix):
     assert (fix["credits"], fix["credits_source"]) == (11, "estimated")
     assert fix["cost_note"] == "Credits left could not be read"
     assert "models_read" not in json.dumps(fix) and "user_read" not in json.dumps(fix)
+
+
+@pytest.mark.parametrize("stage", ["cut", "final"])
+@pytest.mark.parametrize("marker", ["progress.json", "receipt.pending.json"])
+@pytest.mark.parametrize("action", ["approve", "reject"])
+def test_voice_decision_refuses_a_running_stage(taste_client, ready_fix, stage, marker, action):
+    server, send = taste_client
+    root = server.series.project_dir
+    if action == "reject":
+        store.decide(root, "f1", "approve", via="review")
+    before = (root / "voice/fixes.json").read_bytes()
+    running = root / stage / marker
+    write_json(running, {"pid": os.getpid()} if marker == "progress.json" else {})
+    decision = {"fix": "f1", "action": action, "generation": fingerprint(ready_fix)}
+    status, _, body = send("POST", "/api/voice-fixes", decision)
+    assert status == 409
+    error = json.loads(body)["error"]
+    assert error["code"] == "stage_running"
+    assert error["message"] == (
+        f"The {stage} video is being made, so voice choices can't change right now."
+    )
+    assert error["suggested_action"] == "Wait for the video to finish, then decide."
+    assert (root / "voice/fixes.json").read_bytes() == before
+    assert send("GET", "/api/review")[0] == 200
+    assert send("GET", "/voice-fix-audio?fix=f1&clip=before")[0] == 200
+    running.unlink()
+    assert send("POST", "/api/voice-fixes", decision)[0] == 200
 
 
 def test_decisions_can_be_changed_and_use_review(taste_client, ready_fix):
