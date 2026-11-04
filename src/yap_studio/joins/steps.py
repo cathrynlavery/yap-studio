@@ -78,9 +78,10 @@ class StepPlan:
 
 def _blocking_card(cards: Sequence[tuple[int, int, str, Box]],
                    boxes: Mapping[int, Sequence[Box]], start: int, end: int, scale: float,
-                   center: tuple[float, float], margin: float) -> str | None:
+                   center: tuple[float, float], margin: float,
+                   width: int, height: int) -> str | None:
     """Check each overlapping face with the supplied card's head clearance rule."""
-    cx, cy = center[0] * 1080, center[1] * 1920
+    cx, cy = center[0] * width, center[1] * height
     for first, last, card_id, card_box in cards:
         for frame in range(max(start, first), min(end, last)):
             for face in boxes.get(frame, ()):
@@ -95,7 +96,7 @@ def plan_steps(pieces: Sequence[dict], words: Sequence[dict | CutWord], total_fr
                covers: Sequence[tuple[int, int, str, str]],
                boxes: Mapping[int, Sequence[Box]] | None,
                cards: Sequence[tuple[int, int, str, Box]], *, bottom: float,
-               bottom_margin: float, card_margin: float,
+               bottom_margin: float, card_margin: float, width: int = 1080, height: int = 1920,
                wide_from: Sequence[tuple[int, str]] = ()) -> StepPlan:
     """Walk in on story and removal cuts and return wide when the picture needs it."""
     boundaries = list(jumps(pieces))
@@ -137,11 +138,12 @@ def plan_steps(pieces: Sequence[dict], words: Sequence[dict | CutWord], total_fr
         elif level:
             scale = LADDER[level - 1]
             aimed = face_center(boxes, range(frame, end), scale, bottom=bottom,
-                                bottom_margin=bottom_margin)
+                                bottom_margin=bottom_margin, width=width, height=height)
             fits = aimed is not None and aimed[1]
             if short and center is not None and fits:
                 curve = ZoomCurve(frame, end, (ZoomKey(frame, scale, center),))
-                fits = face_leaves_frame(curve, boxes, bottom=bottom) is None
+                fits = face_leaves_frame(curve, boxes, bottom=bottom,
+                                         width=width, height=height) is None
             if not fits:
                 level = 0
                 reason = NO_FACE if aimed is None else (
@@ -149,18 +151,18 @@ def plan_steps(pieces: Sequence[dict], words: Sequence[dict | CutWord], total_fr
             elif not short:
                 center = aimed[0]
             if level and (card_id := _blocking_card(
-                cards, boxes, frame, end, scale, center, card_margin,
+                cards, boxes, frame, end, scale, center, card_margin, width, height,
             )) is not None:
                 reason = f"A card needs the room around your head ({card_id})."
                 lower_levels = range(level - 1, 0, -1) if not short else ()
                 for lower in lower_levels:
                     scale = LADDER[lower - 1]
                     aimed = face_center(boxes, range(frame, end), scale, bottom=bottom,
-                                        bottom_margin=bottom_margin)
+                                        bottom_margin=bottom_margin, width=width, height=height)
                     if aimed is None or not aimed[1]:
                         continue
                     blocked = _blocking_card(cards, boxes, frame, end, scale, aimed[0],
-                                             card_margin)
+                                             card_margin, width, height)
                     if blocked is None:
                         level, center = lower, aimed[0]
                         break
@@ -170,9 +172,9 @@ def plan_steps(pieces: Sequence[dict], words: Sequence[dict | CutWord], total_fr
         scale = LADDER[level - 1] if level else 1.0
         if level and level == previous.level and previous.center is not None:
             curve = ZoomCurve(frame, end, (ZoomKey(frame, scale, previous.center),))
-            if (face_leaves_frame(curve, boxes, bottom=bottom) is None
+            if (face_leaves_frame(curve, boxes, bottom=bottom, width=width, height=height) is None
                     and _blocking_card(cards, boxes, frame, end, scale, previous.center,
-                                       card_margin) is None):
+                                       card_margin, width, height) is None):
                 center = previous.center
         center = center if level else None
         shots.append(StepShot(frame, end, level, scale, center, reason))

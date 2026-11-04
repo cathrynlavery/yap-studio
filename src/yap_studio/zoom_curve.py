@@ -232,9 +232,11 @@ def _boxes_at(boxes_by_frame: Mapping[int, Sequence[Box]] | Sequence[Sequence[Bo
 
 def face_center(boxes_by_frame: Mapping[int, Sequence[Box]] | Sequence[Sequence[Box]],
                 frames: Sequence[int],
-                scale: float, *, bottom: float = 1920,
+                scale: float, *, width: int = 1080, height: int = 1920,
+                bottom: float | None = None,
                 bottom_margin: float = FACE_MARGIN_PX) -> tuple[tuple[float, float], bool] | None:
     """Aim at the speaker's head and keep the face clear of edges and captions."""
+    bottom = height if bottom is None else bottom
     boxes = [max(per_frame, key=lambda box: box.w * box.h)
              for frame in frames if (per_frame := _boxes_at(boxes_by_frame, frame))]
     if not boxes:
@@ -242,9 +244,9 @@ def face_center(boxes_by_frame: Mapping[int, Sequence[Box]] | Sequence[Sequence[
     center = []
     fits = True
     for size, limit, lows, highs, preferred, end_margin in (
-        (1080, 1080, [box.x for box in boxes], [box.x1 for box in boxes],
+        (width, width, [box.x for box in boxes], [box.x1 for box in boxes],
          [(box.x + box.x1) / 2 for box in boxes], FACE_MARGIN_PX),
-        (1920, bottom, [box.y for box in boxes], [box.y1 for box in boxes],
+        (height, bottom, [box.y for box in boxes], [box.y1 for box in boxes],
          [(box.y - HEAD_TOP * box.h + box.y1) / 2 for box in boxes], bottom_margin),
     ):
         middle = median(preferred)
@@ -265,12 +267,13 @@ def face_center(boxes_by_frame: Mapping[int, Sequence[Box]] | Sequence[Sequence[
 
 def face_leaves_frame(
     curve: ZoomCurve, boxes_by_frame: Mapping[int, Sequence[Box]] | Sequence[Sequence[Box]],
-    *, bottom: float = 1920,
+    *, width: int = 1080, height: int = 1920, bottom: float | None = None,
 ) -> tuple[int, str] | None:
     """Find the first speaker face edge pushed outside or into captions."""
+    bottom = height if bottom is None else bottom
     for frame in range(curve.start_frame, curve.end_frame):
         scale, cx, cy = curve.at(frame)
-        cx, cy = cx * 1080, cy * 1920
+        cx, cy = cx * width, cy * height
         per_frame = _boxes_at(boxes_by_frame, frame)
         if not per_frame:
             continue
@@ -281,8 +284,8 @@ def face_leaves_frame(
         chin = cy + (box.y1 - cy) * scale
         if ((left < 0 and left < box.x - 1e-9)
                 or (top < 0 and top < box.y - 1e-9)
-                or (right > 1080 and right > box.x1 + 1e-9)
-                or (chin > 1920 and chin > box.y1 + 1e-9)):
+                or (right > width and right > box.x1 + 1e-9)
+                or (chin > height and chin > box.y1 + 1e-9)):
             return frame, "frame"
         if chin > bottom and chin > box.y1 + 1e-9:
             return frame, "captions"

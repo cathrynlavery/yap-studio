@@ -108,8 +108,6 @@ def test_horizontal_init_refuses_voiceover_before_creating_standin(tmp_path: Pat
 @pytest.mark.parametrize("settings,style,feature", [
     ({"platform": "shorts"}, {}, "platform"),
     ({"video_type": "green_screen"}, {}, "video type"),
-    ({}, {"moves": {"jump_cuts": "smooth"}}, "joins"),
-    ({}, {"moves": {"opening_push": True}}, "zoom"),
     ({}, {"captions": {"camera_3d": True}}, "3D"),
     ({}, {"hook": {"style": "text_hook"}}, "text hooks"),
 ])
@@ -154,7 +152,7 @@ def test_horizontal_full_frame_regions_cover_the_wide_canvas(
     assert edl["overlays"] == [{"start_in_output": 1, "duration": 1, "region": region}]
 
 
-@pytest.mark.parametrize("kind", ["background", "zoom", "transition", "moment"])
+@pytest.mark.parametrize("kind", ["background", "transition", "moment"])
 def test_visual_lanes_refused_even_with_rule_override(tmp_path: Path, kind: str) -> None:
     from yap_studio.project.model import Anchor, Element, TimelineLane
     from yap_studio.stages.timeline import _resolve

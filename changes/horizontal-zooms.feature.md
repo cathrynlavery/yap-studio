@@ -1,0 +1,1 @@
+- Horizontal videos can use punches, slow pushes, the opening push and punch, smooth or step-in jump cuts, framed on the speaker's face in the wide picture.

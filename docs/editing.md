@@ -193,6 +193,9 @@ It has no end anchor or hold. See [Sound effects](audio.md#sound-effects).
 
 ## Camera moves
 
+Horizontal videos use the same moves, framed on the 1920 x 1080 picture with the same face
+and caption rules.
+
 A zoom is a timeline element on the agent lane. The style's `moves.zoom_mode` says which
 zooms the agent uses: `none` (the default), `punches`, or `punches_and_push`. With `none`, add
 a zoom only when a review comment asks for one. Punch in on a word that carries the point,
@@ -309,6 +312,7 @@ area and clear of captions. Steps may sit under titles and front cards. They nev
 an insert, overlay, background, transition, moment, grade compare, another zoom or a card
 behind the head, including big numbers. Step in counts against no zoom cap.
 A card placed by `cards plan` keeps its room; Step in stays at a wider framing under it.
+Horizontal Step in stays wide while a floating card is on screen.
 `timeline check` reports how many jump cuts changed framing.
 
 Smoothing works only when little moves across the join. The engine compares the frames on both

@@ -76,9 +76,6 @@ def require_supported(context: ProjectContext,
     style = context.render_style().data
     if style["captions"].get("camera_3d", False):
         unsupported("3D camera captions", "Set captions.camera_3d to false in the style")
-    if style["moves"]["jump_cuts"] != "hard" or style["moves"]["opening_push"]:
-        unsupported("zoom moves or smooth joins",
-                    "Set moves.jump_cuts to hard and moves.opening_push to false in the style")
     if style["hook"]["style"] == "text_hook":
         unsupported("text hooks", "Choose a style without text_hook")
     if context.taste_application().applied:
@@ -104,7 +101,7 @@ def require_supported(context: ProjectContext,
                 require_template(item.fields.get("template", ""))
                 continue
             if item.kind not in {
-                "caption_gap", "sound", "insert", "overlay", "title", "chapter",
+                "caption_gap", "sound", "insert", "overlay", "title", "chapter", "zoom",
             }:
                 unsupported(f"{item.kind} element {item.id}",
                             f"Remove {item.id} from the {lane.lane} timeline")

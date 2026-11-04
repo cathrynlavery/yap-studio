@@ -588,6 +588,9 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, s
             "schema_version": 1, "name": "Brand", "hook": {"font": "Gelasio"},
             "graphics": {"font": "Inter", "accent_color": "#AB1256"},
             "grade": {"look": "film", "strength": 0.6, "slider": True},
+            "moves": {"zoom_mode": "punches_and_push", "punch_scale": 2,
+                      "jump_cuts": "step_in", "opening_push": True,
+                      "transitions": ["whip_pan"]},
         }))
     calls = _fake_project_runner(module, monkeypatch, tmp_path)
     flags = [value for source in sources or [] for value in ("--broll", source)]
@@ -619,13 +622,18 @@ def test_new_project_horizontal_records_takes_and_style(tmp_path, monkeypatch, s
         assert style["graphics"]["accent_color"] == "#AB1256"
         assert style["grade"]["look"] == "film"
         assert style["grade"]["strength"] == 0.6
+        assert style["moves"]["zoom_mode"] == "punches_and_push"
+        assert style["moves"]["punch_scale"] == 2
+        assert style["moves"]["jump_cuts"] == "step_in"
+        assert style["moves"]["opening_push"] is True
     else:
         assert style["grade"]["look"] == "none"
+        assert style["moves"]["zoom_mode"] == "none"
+        assert style["moves"]["jump_cuts"] == "hard"
+        assert style["moves"]["opening_push"] is False
     assert style["grade"]["slider"] is False
+    assert style["moves"]["transitions"] == []
     assert style["hook"]["style"] == style["chapters"]["style"] == "none"
-    assert style["moves"]["zoom_mode"] == "none"
-    assert style["moves"]["jump_cuts"] == "hard"
-    assert style["moves"]["opening_push"] is False and style["moves"]["transitions"] == []
     assert inbox_files(tmp_path) == ([], 2)
     with pytest.raises(ValueError, match="already in a project"):
         module.start(tmp_path, shape="horizontal")
