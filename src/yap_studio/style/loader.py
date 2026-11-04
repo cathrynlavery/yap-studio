@@ -126,7 +126,7 @@ def _merge(value: dict[str, Any], rule: dict[str, Any]) -> dict[str, Any]:
 
 def _style_data(data: dict[str, Any]) -> dict[str, Any]:
     if isinstance(data, dict) and data.get("schema") == RESOLVED_SCHEMA:
-        return {key: value for key, value in data.items() if key != "schema"}
+        return {key: value for key, value in data.items() if key not in {"schema", "internal"}}
     return data
 
 
