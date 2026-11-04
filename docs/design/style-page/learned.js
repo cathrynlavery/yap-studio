@@ -145,8 +145,10 @@
   }
 
   const clone = (value) => JSON.parse(JSON.stringify(value));
-  const buyerStyle = (style) => Object.fromEntries(SECTIONS
-    .filter((key) => !['broll', 'grade', 'chapters'].includes(key) || own(style, key))
+  const buyerStyle = (style) => Object.fromEntries([
+    'brand', 'captions', 'hook', 'graphics', 'music', 'broll', 'grade', 'moves', 'chapters',
+  ]
+    .filter((key) => own(style, key))
     .map((key) => [key, clone(style[key])]));
 
   function switchPreset(state, preset) {
@@ -173,7 +175,7 @@
     return {...state, ...clone(previous)};
   }
 
-  const api = {readLearned, switchPreset, undoPreset};
+  const api = {readLearned, buyerStyle, switchPreset, undoPreset};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.YapLearned = api;
 })();

@@ -9,7 +9,6 @@
   const SCHEMA = DATA.schema;
   const LOOKS = window.YapLooks.highlightLooks(SCHEMA);
   const WIDTHS = window.YapLooks.widthChoices(SCHEMA);
-  const BUYER_SECTIONS = ['brand', 'captions', 'hook', 'graphics', 'music', 'broll'];
   // Saved styles live in this browser for the prototype; the product keeps them in the account.
   const STYLES_KEY = 'yap-studio:styles:v1';
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -115,7 +114,11 @@
 
   // Same rules as loader._check, collected instead of raised.
   function check(value, r, loc, errors) {
-    const t = r.type;
+    let t = r.type;
+    if (Array.isArray(t)) {
+      if (value === null && t.includes('null')) return;
+      t = t.find((kind) => kind !== 'null');
+    }
     const ok = {
       object: (v) => v !== null && typeof v === 'object' && !Array.isArray(v),
       array: Array.isArray,
@@ -151,7 +154,15 @@
     }
   }
 
-  const PRESETS = DATA.presets.map((p) => ({ id: p.id, name: p.style.name, style: merge(p.style, SCHEMA) }));
+  const PRESETS = DATA.presets.map((p) => {
+    const style = merge(p.style, SCHEMA);
+    // Choices without controls pass through exactly as the preset supplies them.
+    for (const section of ['grade', 'moves', 'chapters']) {
+      if (Object.prototype.hasOwnProperty.call(p.style, section)) style[section] = clone(p.style[section]);
+      else delete style[section];
+    }
+    return { id: p.id, name: p.style.name, style };
+  });
   const byId = Object.fromEntries(PRESETS.map((p) => [p.id, p]));
   const ORDER = [...PRESET_ORDER.filter((id) => byId[id]), ...PRESETS.map((p) => p.id).filter((id) => !PRESET_ORDER.includes(id))];
   const FONT_LIST = [...new Set([...Object.keys(FONTS), ...ORDER.map((id) => byId[id].style.captions.font)])];
@@ -836,9 +847,7 @@
     startName: null,
     learned: null,
   };
-  const buyerCopy = (s) => Object.fromEntries(BUYER_SECTIONS
-    .filter((k) => !['brand', 'broll'].includes(k) || Object.prototype.hasOwnProperty.call(s, k))
-    .map((k) => [k, clone(s[k])]));
+  const buyerCopy = (s) => window.YapLearned.buyerStyle(s);
   const output = () => ({ schema_version: 1, name: state.name.trim(), ...buyerCopy(state.style) });
   const savedKey = () => JSON.stringify([output(), state.useNext]);
 

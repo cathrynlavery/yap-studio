@@ -49,6 +49,7 @@ function app() {
   const sandbox = {
     window: {YAP_STYLE_DATA: context.window.YAP_STYLE_DATA,
       YapLooks: require('../../docs/design/style-page/looks.js'),
+      YapLearned: require('../../docs/design/style-page/learned.js'),
       YapPhrases: require('../../docs/design/style-page/phrases.js')},
     matchMedia: () => ({matches: true}),
     document: {querySelector: () => null, createElement: element},
@@ -234,6 +235,24 @@ test('buyer output preserves broll and validates arrays when saving', () => {
     page.check(saved, schema, 'style', errors);
     assert.ok(errors.some((error) => error.startsWith('style.broll.avoid_tags')));
   }
+});
+
+test('buyer output validates nullable grade colors when saving', () => {
+  const page = app();
+  const style = defaults(schema);
+  style.grade = {look: 'film', strength: 1, color: null, slider: false};
+  page.applyStartingStyle(style, 'Synthetic look');
+  const saved = JSON.parse(JSON.stringify(page.output()));
+  for (const color of [null, '#1A2B3C']) {
+    saved.grade.color = color;
+    const errors = [];
+    page.check(saved, schema, 'style', errors);
+    assert.deepEqual(errors, []);
+  }
+  saved.grade.color = 12;
+  const errors = [];
+  page.check(saved, schema, 'style', errors);
+  assert.ok(errors.some((error) => error.startsWith('style.grade.color:')));
 });
 
 test('style page preserves a brand block when opening and saving a style', () => {
