@@ -26,6 +26,8 @@ if str(_TESTS) not in sys.path:
 
 import synth  # noqa: E402
 
+pytest_plugins = ("voice_helpers",)
+
 os.environ["YAP_STUDIO_NO_UPDATE_NOTICE"] = "1"
 
 

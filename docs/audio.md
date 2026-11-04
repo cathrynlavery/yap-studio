@@ -4,6 +4,75 @@ Music and sound effects are optional. Use your own track, or generate with your 
 ElevenLabs account. Setup is in
 [install.md](install.md#elevenlabs-for-music-and-sound-effects).
 
+## Voice fixes
+
+A voice fix first looks for clean matching words in your project's recordings, including
+removed parts. It prefers the same take. Recorded words cost 0 credits and need no clone
+consent or account. If none fit, it offers your instant clone as the fallback.
+The rest of the take keeps its timing. Listen to Before and After, then choose
+**Use the fix** or **Keep my original**. Only approved fixes go into the next version.
+
+The clone fallback needs a paid [ElevenLabs](https://littlemight.com/recommend/elevenlabs)
+(affiliate link) account. Your key needs Text to Speech and Voices access.
+With Models and User read access Yap Studio can read the credit rate and your balance,
+and with History read it can show what each fix was charged. Without them the cost is
+an estimate, and the cost note says so.
+
+Read the statement with `yap-studio voice consent DIR`:
+
+"This is my own voice. I agree to Yap Studio making an ElevenLabs voice from my
+recordings and using it to re-say words I misspoke in my videos."
+
+Run it with `--yes` only if you agree. Consent is saved in `voice/consent.json`, and you
+can give it before this project has samples.
+
+Your voice can come from this project's takes or from recordings across your videos.
+
+- This project: run `yap-studio voice samples DIR`, then `yap-studio voice create DIR --yes`.
+  This uses one voice slot. If the CLI cannot upload, it prints steps to upload
+  the files it lists on the ElevenLabs site. Then run
+  `yap-studio voice link DIR --name "NAME" --yes`.
+- Across your videos: add `--samples PATH` to `create` or `link`. `PATH` is a samples manifest
+  in the same format as `voice/samples.json` (see [commands.md](commands.md#voice-fixes)).
+  Consent keeps the manifest's hash and file count. Yap Studio will not delete this shared
+  voice. Delete it on the ElevenLabs site if you mean to.
+
+`link` checks that the voice was made from exactly these files: the same names, ignoring the
+extension (ElevenLabs lists an uploaded WAV as an MP3), and the same byte sizes.
+
+Propose with `yap-studio voice propose DIR --from WORD --to WORD --say "cold plunge"`.
+Use `--from-take-words FIRST LAST` to choose recorded words, or `--clone` to skip the search.
+`voice list DIR` shows the source kind. `voice make DIR --fix f1` builds an own-recording fix
+for free. For a clone fix it shows the cost; approve with `--yes --max-credits N`.
+The estimate counts the text actually sent. Repeating a request reuses its audio;
+`--new` spends credits again. A recipe change makes a new request.
+
+Your clone recipe lives at `voice/recipe.json` in your Yap Studio data folder, selected by
+`YAP_STUDIO_DATA_DIR`. Without it, settings are neutral. This synthetic example lists the fields:
+
+```json
+{"schema":"yap-studio/voice-recipe@1","voice_name":"Test voice",
+ "model_id":"eleven_multilingual_v2","voice_settings":{},"tag":"[test accent]",
+ "strong_tag":"[strong test]","strong_tag_words":["house"],"context":true,
+ "pace":"fit","pronunciations":[{"word":"example","type":"alias","value":"test-alias"}]}
+```
+
+`voice_name` is the default for consent and link. `model_id` and `voice_settings` control
+the clone. `tag` prefixes its text; `strong_tag` replaces it for `strong_tag_words`.
+Pronunciations match whole words, ignoring case: `ipa` wraps `value` in slashes and `alias`
+uses it as written. A sentence's first word keeps its spelling. `context` sends neighbouring
+words when true. `pace` is `fit` or `off`; off leaves speech unstretched and warns about a pause.
+Tags and respellings stay out of review, captions and heard-word checks.
+If a respelled fix warns, try `voice make DIR --fix f1 --plain --yes --max-credits N`.
+`--plain` sends no tag or pronunciations.
+
+For talking-head takes, full-frame B-roll must cover your face at the fix.
+If it does not, the proposal explains why it was refused.
+You can record the line again instead. `yap-studio voice consent DIR --withdraw`
+stops clone fixes from applying to later cuts. Recorded-word fixes remain usable.
+It does not change saved videos.
+See [commands.md](commands.md#voice-fixes) for all voice commands.
+
 ## Music
 
 Set `project.json`'s `music` to `{"mode": "file", "file": "track.wav"}` to use

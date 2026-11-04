@@ -292,6 +292,8 @@ class _Planner:
                 raise _refused(operation, comment,
                                "the words to cut are not next to each other "
                                f"in segment {identifier}")
+            if not kept[first]["text"] or (last + 1 < len(kept) and not kept[last + 1]["text"]):
+                raise _refused(operation, comment, "Select the whole merged phrase to cut.")
             segment = self.segment(identifier, operation, comment)
             span = None
             if first != 0 or last != len(kept) - 1:
@@ -309,6 +311,9 @@ class _Planner:
                     ])
                 for low, high, label in alternatives:
                     if low == 0 and high == len(kept) - 1:
+                        continue
+                    if not kept[low]["text"] or (high + 1 < len(kept)
+                                                  and not kept[high + 1]["text"]):
                         continue
                     option = self.cut_span(segment, low, high, operation, comment)
                     if option["edge"] is not None:

@@ -1,0 +1,1 @@
+- A misspoken word can be fixed from your own recording of the same words elsewhere in the project, for free. When there is none, your instant ElevenLabs voice re-says it, after you consent and see the credit cost. You hear Before and After on the review page, and only fixes you approve go into the next version.

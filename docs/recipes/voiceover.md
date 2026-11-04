@@ -37,6 +37,22 @@ issue.
 
 A long video can take more than 30 minutes to render. The render keeps going in the background.
 
+## Fix a misspoken word
+
+Ask the agent to fix the word in your own voice. It looks for matching words in your
+recordings first. Those fixes are free and need no clone consent or account.
+If none fit, it asks for your consent and shows the ElevenLabs credit cost before making
+the clips.
+The consent statement is:
+
+"This is my own voice. I agree to Yap Studio making an ElevenLabs voice from my
+recordings and using it to re-say words I misspoke in my videos."
+
+Your voice can be made once from recordings across your videos and linked to each project.
+Listen to Before and After under Voice fixes on the review page.
+Choose **Use the fix** or **Keep my original**. Only approved fixes go into the next
+version. You can record the line again instead. See [audio.md](../audio.md#voice-fixes).
+
 ## Recording tips
 
 - Hold the phone 8 to 10 inches from your mouth and a little to the side. Closer makes your

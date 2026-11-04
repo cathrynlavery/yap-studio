@@ -23,6 +23,7 @@ commands take `--json`. For the order you run them in, see [editing.md](editing.
 | `graphics` | Render project title layers. |
 | `music` | Prepare a music bed or voice only. |
 | `sfx list`, `kit`, `add` | List the made kit with `--kit made` or manage your ElevenLabs kit. |
+| `voice` | Propose and review a fix for a misspoken word in your own voice. |
 | `assemble` | Render and verify the final video. |
 | `grade show`, `grade set`, `grade sample` | Inspect, sample or override the picture grade. |
 | `video-type show [DIR] [--json]` | Show the saved default, this video's choices and the questions. |
@@ -104,6 +105,59 @@ and any saved sample point. Run `yap-studio cut DIR` before sampling.
 | `timeline show [DIR] [--json]` | Shows merged elements with their output frames, seconds and payloads. |
 | `timeline check [DIR] [--json]` | Checks anchors, media hashes, lengths and overlaps against the current cut and style. |
 | `media sound ID [--json] [--top N]` | Finds loud moments and saved speech phrases in a cataloged clip. |
+
+## Voice fixes
+
+Each line starts with `yap-studio`. Add `--json` for a JSON result.
+Use word ids from `words DIR` for `--from` and `--to`.
+
+| Command | What it does |
+| --- | --- |
+| `voice samples DIR` | Exports clean speech from your takes. Free and local. |
+| `voice consent DIR` | Shows the consent statement. |
+| `voice consent DIR --yes [--by NAME] [--voice-name NAME]` | Records your agreement, even before this project has samples. |
+| `voice consent DIR --withdraw` | Stops approved clone fixes from applying to later cuts. |
+| `voice create DIR --yes [--dry-run] [--samples PATH]` | Makes your voice after consent. Uses one voice slot. |
+| `voice link DIR [--name NAME] --yes [--samples PATH]` | Links an instant clone. The name can come from your recipe. |
+| `voice propose DIR --from WORD --to WORD --say TEXT [--from-take-words FIRST LAST \| --clone] [--why TEXT]` | Finds clean recorded words first, then offers the clone fallback. |
+| `voice make DIR --fix ID` | Builds recorded-word fixes for 0 credits. Shows the cost for clone fixes. |
+| `voice make DIR --fix ID --yes --max-credits N [--plain] [--dry-run] [--new] [--confirm-retry]` | Makes clone clips within your credit limit. Repeat `--fix` for up to three fixes. |
+| `voice approve DIR --fix ID` | Records approval given in chat. |
+| `voice reject DIR --fix ID` | Records a choice to keep the original. |
+| `voice list DIR` | Lists fixes, their source kind and status. |
+| `voice delete-voice DIR --yes` | Deletes a project voice and withdraws consent. Refuses shared manifest voices. |
+
+The consent statement is:
+
+"This is my own voice. I agree to Yap Studio making an ElevenLabs voice from my
+recordings and using it to re-say words I misspoke in my videos."
+
+`--samples PATH` uses a samples manifest instead of this project's `voice/samples.json`.
+It has the same format (`yap-studio/voice-samples@1`): a `samples` list whose rows hold
+`path`, `take`, `start_s`, `end_s`, `duration_s`, `sha256`, `size_bytes` and optional
+`ranges`. Paths are relative to the manifest's folder and stay inside it. Takes can come from
+other projects. Both `link` and `create` accept 1 to 25 WAV files. File names must be
+unique without their extensions, and every file must match its hash and size. Consent keeps
+the manifest's hash and file count, not its path.
+
+`link` compares the voice's samples with the files by name without the extension and by byte
+size, because ElevenLabs lists an uploaded WAV as an MP3. If the CLI cannot upload, `create`
+prints steps to upload the selected files on the ElevenLabs site; then run `link`. Listen on
+the review page before choosing a fix. `--new` makes another paid generation. Use
+`--confirm-retry` only after checking the earlier call and account history.
+See [audio.md](audio.md#voice-fixes) for consent and cost.
+
+Recorded-word fixes need no clone consent, account or paid approval. The mouth coverage rule
+still applies. The review card says which recording supplied a fix, or that the clone re-said it.
+
+`voice/recipe.json` in the creator's Yap Studio data folder (`YAP_STUDIO_DATA_DIR`) controls
+the clone fallback. Schema: `yap-studio/voice-recipe@1`. Optional fields are `voice_name`,
+`model_id`, `voice_settings`, `tag`, `strong_tag`, `strong_tag_words`, `context`, `pace`
+(`fit` or `off`), and `pronunciations` with `word`, `type` (`ipa` or `alias`) and `value`.
+For example: `{"schema":"yap-studio/voice-recipe@1","tag":"[test accent]","pace":"fit"}`.
+Omitted fields keep neutral defaults. Review, captions and heard checks use plain words;
+cost counts the text sent. A changed recipe makes a new request. If a respelling warns,
+try `make --plain`, which sends no tag or pronunciations. The seed stays fixed per fix.
 
 ## Timeline lanes
 

@@ -891,6 +891,41 @@ def test_cut_projection_ignores_unread_settings_and_proposed_removals(project: P
     assert "removals:applied" in result["reason"]
 
 
+@pytest.mark.parametrize("snapshot", [None, {"consent": None, "approved": []}])
+def test_cut_projection_preserves_legacy_inputs_without_voice(project: Path, snapshot) -> None:
+    _finish_ingest(project)
+    _edit(project)
+    legacy = _finish_cut(project)
+    legacy["inputs"].pop("voice:fixes", None)
+    legacy_hash = projection_sha256(legacy["inputs"])
+    _write(project / "cut/receipt.json", legacy)
+    assert not (project / "voice").exists()
+    inputs = cut_inputs(ProjectContext(project), voice_fixes=snapshot)
+    assert "voice:fixes" not in inputs
+    assert inputs == legacy["inputs"]
+    assert projection_sha256(inputs) == legacy_hash
+    assert _stage(status(project), "cut")["state"] == "done"
+
+
+def test_cut_projection_tracks_consent_without_approved_fixes(project: Path) -> None:
+    from yap_studio.voice import consent
+
+    _finish_ingest(project)
+    _edit(project)
+    before = cut_inputs(ProjectContext(project))
+    consent(project, yes=True, by="Creator", voice_name="Test voice")
+    given = cut_inputs(ProjectContext(project))
+    assert given == {**before, "voice:fixes": projection_sha256({
+        "consent": "given", "approved": [],
+    })}
+    consent(project, withdraw=True)
+    withdrawn = cut_inputs(ProjectContext(project))
+    assert withdrawn == {**before, "voice:fixes": projection_sha256({
+        "consent": "withdrawn", "approved": [],
+    })}
+    assert projection_sha256(withdrawn) != projection_sha256(given)
+
+
 def test_cut_projection_tracks_platform_without_changing_none(project: Path) -> None:
     _finish_ingest(project)
     _edit(project)

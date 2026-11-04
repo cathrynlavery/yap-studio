@@ -6,12 +6,14 @@ import json
 import logging
 import shutil
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Literal
+
+import numpy as np
 
 from yap_studio import ffmpeg, paths, receipt
 from yap_studio.checks.caption_contrast import (
@@ -536,6 +538,8 @@ def verify(
     detail: Literal["summary", "full"] = "summary",
     platform: Literal["none", "youtube", "shorts", "tiktok", "reels"] = "none",
     loudness: Literal["check", "note"] = "check",
+    *,
+    source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None,
 ) -> dict:
     """Verify a finished render and return a pinned JSON-friendly report.
 
@@ -559,6 +563,7 @@ def verify(
         media, edl=edl, source=source, asr=asr, asr_model=asr_model,
         loudness_target=loudness_target, strict=strict, report=report, artifacts=artifacts,
         detail=detail, platform=platform, loudness=loudness,
+        **({"source_audio": source_audio} if source_audio is not None else {}),
     )
 
 
@@ -579,6 +584,7 @@ def _verify(
     transitions: Sequence[TransitionWindow | Mapping[str, Any]] | None = None,
     click_audio: str | Path | None = None,
     words_audio: str | Path | None = None,
+    source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None,
 ) -> dict:
     """Verify internal transition windows while retaining every audio join check."""
     del strict  # Exit policy belongs to report.exit_code; keep this public parameter.
@@ -695,6 +701,7 @@ def _verify(
                     masks=edit_list.picture_masks,
                     regions=edit_list.picture_regions,
                     thresholds=thresholds,
+                    **({"source_audio": source_audio} if source_audio is not None else {}),
                     **grade_args,
                 )
                 _LOGGER.info("Checking joins")
@@ -706,6 +713,7 @@ def _verify(
                     source_streams={key: item.audio_stream
                                     for key, item in edit_list.sources.items()},
                     backend=backend,
+                    **({"source_audio": source_audio} if source_audio is not None else {}),
                     second_backend=second_backend,
                     masks=edit_list.picture_masks,
                     regions=edit_list.picture_regions,

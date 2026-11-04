@@ -506,6 +506,124 @@ def test_cut_uses_exact_fractional_frame_edges(cut_server: ReviewServer) -> None
                                               "text": word.text} for word in words[1:2]]}
 
 
+@pytest.mark.parametrize("frames,indices", [((12, 45), range(5)), ((30, 32), (2, 3)),
+                                           ((33, 35), (2, 3))])
+def test_cut_live_http_includes_merged_voice_word_aliases(
+    series_server: ReviewServer, frames, indices,
+) -> None:
+    from yap_studio.voice.store import replaced_text
+
+    server = series_server
+    rows = [{"id": f"t1:{index}", "segment": "s1", "text": text,
+             "start": 0.4 + index * 0.2, "end": 0.6 + index * 0.2}
+            for index, text in enumerate(("standing", "in", "Ho", "me", "Depot"))]
+    projected = replaced_text(rows, [{"words": ["t1:2", "t1:3"], "say": "Home"}])
+    assert [row["id"] for row in projected] == [row["id"] for row in rows]
+    words = tuple(CutWord(**row) for row in projected)
+    server.series = replace(server.series, versions=tuple(
+        replace(item, words=CutWords("output", {}, words)) for item in server.series.versions
+    ))
+    status, _, payload = request(server, "POST", "/api/cut?version=2",
+                                 {"start_frame": frames[0], "end_frame": frames[1]})
+    assert status == 201, payload
+    comment = json.loads(payload)
+    expected = [{key: row[key] for key in ("id", "segment", "text")}
+                for row in (projected[index] for index in indices)]
+    assert comment["request"]["words"] == expected
+    assert json.loads(request(server, "GET", "/api/review?version=2")[2])[
+        "comments"][0]["request"] == comment["request"]
+
+
+def test_cut_request_validation_keeps_empty_voice_word_aliases() -> None:
+    from yap_studio.review.model import normalize_request
+
+    words = [{"id": "t1:2", "segment": "s1", "text": "Home"},
+             {"id": "t1:3", "segment": "s1", "text": ""}]
+    value = {"type": "cut", "start": 0, "end": 2, "words": words}
+    assert normalize_request(value, kind="fix", target="story") == value
+    with pytest.raises(ValidationError, match="text must contain"):
+        normalize_request({**value, "words": words[1:]}, kind="fix", target="story")
+    with pytest.raises(ValidationError, match="must not repeat"):
+        normalize_request({**value, "words": [*words, words[1]]}, kind="fix", target="story")
+
+
+@pytest.mark.parametrize("frames,indices", [((12, 45), range(5)), ((30, 32), (2, 3)),
+                                           ((33, 35), (2, 3))])
+def test_merged_cut_note_is_saved_sent_and_applied(
+    tmp_path, socket_access, frames, indices,
+) -> None:
+    from test_feedback_apply import FakeJoinTester, FakeRemovalWriter
+
+    from yap_studio.feedback.apply import apply_operations
+    from yap_studio.feedback.edits import OPERATIONS_SCHEMA
+    from yap_studio.voice.store import replaced_text
+
+    root = tmp_path / "project"
+    _json(root / "project.json", {"schema": "yap-studio/project@1", "name": "sample-video",
+                                 "takes": [{"id": "t1", "path": "takes/t1.mp4"}]})
+    source = _source_words(root, ("standing", "in", "Ho", "me", "Depot"))
+    digest = receipt.sha256_file(source)
+    _json(root / "edit.json", {"schema": "yap-studio/edit@1", "words_sha256": {"t1": digest},
+                               "segments": [
+                                   {"id": "s1", "take": "t1", "from": {"word": "t1:0"},
+                                    "to": {"word": "t1:4"}},
+                                   {"id": "s2", "take": "t1", "from": {"word": "t1:4"},
+                                    "to": {"word": "t1:4"}},
+                               ]})
+    _json(root / "timeline/agent.json", {"schema": "yap-studio/timeline@1", "elements": []})
+    rows = [{"id": f"t1:{index}", "segment": "s1", "text": text,
+             "start": 0.4 + index * 0.2, "end": 0.6 + index * 0.2}
+            for index, text in enumerate(("standing", "in", "Ho", "me", "Depot"))]
+    rows = replaced_text(rows, [{"words": ["t1:2", "t1:3"], "say": "Home"}])
+    words = CutWords("output", {"t1": digest}, tuple(CutWord(**row) for row in rows) + (
+        CutWord("t1:4", "s2", "Depot", 2.4, 2.6),
+    ))
+    _cut(root, words=words)
+    cut_receipt = root / "cut/receipt.json"
+    document = json.loads(cut_receipt.read_text())
+    document["inputs"]["words:t1"] = digest
+    _json(cut_receipt, document)
+    save_version(root)
+    store = ReviewStore(tmp_path / "data")
+    video = version_video([str(root)], store, lambda _: [])
+    server = ReviewServer(video.media, video.sha256, None, store, token="test-token",
+                          series=video.series, send_runner=lambda work: work())
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        status, _, payload = request(server, "POST", "/api/cut",
+                                     {"start_frame": frames[0], "end_frame": frames[1]})
+        assert status == 201, payload
+        expected = [{key: row[key] for key in ("id", "segment", "text")}
+                    for row in (rows[index] for index in indices)]
+        note = json.loads(payload)
+        assert note["request"]["words"] == expected
+        server.store = ReviewStore(store.root)
+        saved = json.loads(request(server, "GET", "/api/review")[2])["comments"][0]
+        assert saved["request"] == note["request"]
+        assert request(server, "POST", "/api/rounds", {})[0] == 202
+        sent, = json.loads(request(server, "GET", "/api/review")[2])["series"]["rounds"]
+        assert sent["status"] == "sent", sent["error"]
+        batch = load_batch(root, sent["batch"])
+        assert batch["items"][0]["request"] == note["request"]
+        result = apply_operations(root, {
+            "schema": OPERATIONS_SCHEMA, "batch": sent["batch"],
+            "items": [{"comment": "v1:c1", "operations": [{"id": "cut", "kind": "cut"}]}],
+        }, joins=FakeJoinTester(), removals=FakeRemovalWriter())
+        assert result["changes"][0]["words"] == [
+            {"id": row["id"], "text": row["text"]} for row in expected
+        ]
+        assert [segment["id"] for segment in json.loads((root / "edit.json").read_text())[
+            "segments"]] == (["s2"] if len(indices) == 5 else ["s1", "s2"])
+        if len(indices) == 2:
+            assert result["removal_actions"][0]["done"] is True
+        assert load_batch(root, sent["batch"])["items"][0]["disposition"] == "applied"
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+
 @pytest.mark.parametrize("body", [
     {}, {"start_frame": 30}, {"end_frame": 60}, {"start_frame": 30, "end_frame": 60, "extra": 1},
     {"start_frame": True, "end_frame": 60}, {"start_frame": "30", "end_frame": 60},

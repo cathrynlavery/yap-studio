@@ -165,6 +165,31 @@ def test_cut_all_words_drops_segment_without_span(base) -> None:
     assert plan.cut_spans == plan.removal_actions == ()
 
 
+@pytest.mark.parametrize("indices", [(1,), (2,)])
+def test_cut_refuses_part_of_a_merged_phrase(base, indices) -> None:
+    base["cut_words"] = replace(base["cut_words"], words=tuple(
+        replace(word, text="Home" if word.id == "t1:1" else "")
+        if word.segment == "s1" and word.id in {"t1:1", "t1:2"} else word
+        for word in base["cut_words"].words
+    ))
+    _cut_request(base, *(("s1", f"t1:{index}") for index in indices))
+    with pytest.raises(FeedbackError, match="Select the whole merged phrase to cut"):
+        _plan(base, {"id": "cut", "kind": "cut"})
+
+
+def test_cut_options_keep_merged_phrase_together(base) -> None:
+    base["cut_words"] = replace(base["cut_words"], words=tuple(
+        replace(word, text="Home" if word.id == "t1:1" else "")
+        if word.segment == "s1" and word.id in {"t1:1", "t1:2"} else word
+        for word in base["cut_words"].words
+    ))
+    _cut_request(base, ("s1", "t1:1"), ("s1", "t1:2"))
+    span, = _plan(base, {"id": "cut", "kind": "cut"}).cut_spans
+    assert [option["words"] for option in span["options"]] == [
+        ["t1:0", "t1:1", "t1:2"], ["t1:1", "t1:2", "t1:3"],
+    ]
+
+
 def test_cut_spans_restore_pre_cut_anchors_and_options_skip_own_action(base) -> None:
     _cut_request(base, ("s1", "t1:1"))
     plan = _plan(base, _trim("t1:1", "start"), {"id": "cut", "kind": "cut"})

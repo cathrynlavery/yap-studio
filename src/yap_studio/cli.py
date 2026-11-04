@@ -1915,6 +1915,9 @@ def _parser() -> argparse.ArgumentParser:
     from yap_studio.sfx.commands import register as register_sfx
 
     register_sfx(subparsers)
+    from yap_studio.voice.commands import register as register_voice
+
+    register_voice(subparsers)
     from yap_studio.grade_command import add_parser as add_grade_parser
 
     add_grade_parser(subparsers)
@@ -1971,7 +1974,7 @@ def _main(argv: Sequence[str] | None = None) -> int:
     """Run the command line interface."""
     tools.add_homebrew_path()
     parser, arguments = _argument_parser(list(sys.argv[1:] if argv is None else argv))
-    if arguments[:1] == ["review"] and "--json" in arguments:
+    if arguments[:1] in (["review"], ["voice"]) and "--json" in arguments:
         captured = StringIO()
         parse_exit = None
         with redirect_stderr(captured):

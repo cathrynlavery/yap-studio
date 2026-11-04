@@ -1044,7 +1044,9 @@ def _audio_piece(piece: Piece, plan: CutPlan) -> np.ndarray:
     return sound
 
 
-def _spans(plan: CutPlan, directory: Path) -> dict[str, Any]:
+def _spans(
+    plan: CutPlan, directory: Path, fixes: list[dict] | None = None,
+) -> dict[str, Any]:
     """Write the engine's yap span shape with portable paths and exact fractions."""
     edit = cast(Edit, _document(plan.context, "edit", "edit.json"))
     authored = {segment.id: segment for segment in edit.segments}
@@ -1056,6 +1058,11 @@ def _spans(plan: CutPlan, directory: Path) -> dict[str, Any]:
     words = {take: {word.id: word for word in cast(Words, _document(
         plan.context, "words", f"ingest/{take}/words.json",
     )).words} for take in plan.source_words}
+    from yap_studio.voice.store import approved_fixes, replacement_words
+
+    for fix in (approved_fixes(plan.context.project_dir) if fixes is None else fixes):
+        for identifier, text in replacement_words(fix).items():
+            words[fix["take"]][identifier] = replace(words[fix["take"]][identifier], text=text)
     segments = []
     for index, piece in enumerate(plan.pieces):
         segment = authored[piece.segment_id]
@@ -1066,13 +1073,15 @@ def _spans(plan: CutPlan, directory: Path) -> dict[str, Any]:
         frames = authored_frames.get(piece.segment_id)
         # Removal-created edges have no authored word anchor.
         if (first and frames is not None and piece.src_f0 == frames[0]
-                and segment.from_.word is not None and piece.words):
+                and segment.from_.word is not None and piece.words
+                and words[piece.take][piece.words[0]].text):
             word = words[piece.take][piece.words[0]]
             row["first_word"] = word.text
             if segment.from_.word == word.id and segment.from_.edge == "start":
                 row["first_word_anchor_s"] = word.start
         if (last and frames is not None and piece.src_f1 == frames[1]
-                and segment.to.word is not None and piece.words):
+                and segment.to.word is not None and piece.words
+                and words[piece.take][piece.words[-1]].text):
             word = words[piece.take][piece.words[-1]]
             row["last_word"] = word.text
             if segment.to.word == word.id and segment.to.edge == "end":
@@ -1090,7 +1099,7 @@ def _spans(plan: CutPlan, directory: Path) -> dict[str, Any]:
     }
 
 
-def _cut_words(plan: CutPlan) -> dict[str, Any]:
+def _cut_words(plan: CutPlan, fixes: list[dict] | None = None) -> dict[str, Any]:
     """Place source word occurrences on output time, clipping removed portions."""
     occurrences: dict[tuple[str, str], dict[str, Any]] = {}
     for piece in plan.pieces:
@@ -1109,11 +1118,15 @@ def _cut_words(plan: CutPlan) -> dict[str, Any]:
                 occurrences[key]["end"] = item["end"]
             else:
                 occurrences[key] = item
+    from yap_studio.voice.store import approved_fixes, replaced_text
+
+    if fixes is None:
+        fixes = approved_fixes(plan.context.project_dir)
     data = {
         "schema": "yap-studio/cut-words@1",
         "time_base": "output",
         "words_sha256": plan.words_sha256,
-        "words": list(occurrences.values()),
+        "words": replaced_text(list(occurrences.values()), fixes),
     }
     parse_document("cut-words", data)
     return data
@@ -1165,13 +1178,17 @@ def _portable_report(value: Any, root: Path) -> Any:
 
 def cut(project_dir: Path, *, force: bool = False) -> dict:
     """Render exact frames and PCM, encode AAC once, and publish verified stage outputs."""
+    from yap_studio.voice import store as voice_store
+
     with paths.operation():
         context = ProjectContext(project_dir)
         context.identity = _ReadOnlyIdentity(context.project_dir)
         require_supported(context)
         frame = canvas(context.project.shape)
         root = context.project_dir
-        inputs = cut_inputs(context)
+        voice_fixes = voice_store.approved_fixes(root)
+        voice_projection = voice_store.projection(root, fixes=voice_fixes)
+        inputs = cut_inputs(context, voice_fixes=voice_projection)
         run = StageRun(root, "cut")
         if not force and run.up_to_date(inputs):
             previous = read_receipt(root / "cut") or {}
@@ -1190,6 +1207,8 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                        if "take_levels" in previous else {}),
                 }
         plan = _resolve(context)
+        voice_patches = voice_store.patches_for_plan(plan, fixes=voice_fixes)
+        applied_fixes = voice_store.applied_records(plan, voice_patches)
         conversions = {key: conversion(info) for key, info in plan.media.items()}
         conversion_rows = {
             key: {"kind": hdr_kind(plan.media[key]), **item.describe()}
@@ -1240,10 +1259,15 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                     take_level_record = take_levels.plan(
                         measurements, enabled=take_levels.match_enabled(context.project),
                     )
-                    for index, piece in enumerate(plan.pieces):
-                        gain = take_level_record["takes"][piece.take]["gain_db"]
-                        if gain != 0.0:
-                            sounds[index] = sounds[index] * np.float32(10 ** (gain / 20))
+                for index, piece in enumerate(plan.pieces):
+                    sounds[index] = voice_store.apply_piece(
+                        sounds[index], piece, voice_patches, plan)
+                    gain = (take_level_record["takes"][piece.take]["gain_db"]
+                            if take_level_record else 0.0)
+                    voice_store.require_piece_headroom(
+                        sounds[index], piece, voice_patches, plan, gain)
+                    if gain != 0.0:
+                        sounds[index] = sounds[index] * np.float32(10 ** (gain / 20))
                 unfaded = np.concatenate(sounds)
                 splice_edges = [0, *(
                     right.sample_start
@@ -1382,8 +1406,8 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                 ]
                 staged_spans = work / "spans.json"
                 staged_words = work / "cut-words.json"
-                _write_json(staged_spans, _spans(plan, root / "cut"))
-                _write_json(staged_words, _cut_words(plan))
+                _write_json(staged_spans, _spans(plan, root / "cut", voice_fixes))
+                _write_json(staged_words, _cut_words(plan, voice_fixes))
                 for name, staged in (
                     ("cut.mp4", rendered),
                     ("voice.wav", voice_path),
@@ -1401,7 +1425,13 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                     detail="full",
                     loudness="note",
                     platform=context.project.platform,
+                    **({"source_audio": voice_store.source_transform(plan, voice_patches)}
+                       if voice_patches else {}),
                 )
+                if voice_patches:
+                    report = voice_store.add_cut_checks(
+                        report, voice, applied_fixes, [fix for fix, _ in voice_patches],
+                        plan=plan, work=work, levels=take_level_record)
                 report = _story_platform_report(report)
                 report = take_levels.explain_part_jumps(report, take_level_record)
                 voiceover_ids = {take.id for take in context.project.takes if take.voiceover}
@@ -1429,6 +1459,7 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                             "channels": channels,
                         },
                         "plan": plan.to_dict(),
+                        "voice_fixes": applied_fixes,
                         "takes": {take_id: context.take_fingerprint(take_id)
                                   for take_id in sorted(plan.sources)},
                         **({"take_levels": take_level_record}

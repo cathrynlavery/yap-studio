@@ -281,6 +281,32 @@ def test_dry_run_writes_no_project_bytes(broll_project: Path) -> None:
     assert _tree(broll_project) == before
 
 
+def test_dry_run_with_approved_voice_fix_preserves_project(
+    broll_project: Path, fake_voice, monkeypatch,
+) -> None:
+    from test_timeline import publish_cut
+    from voice_helpers import linked
+
+    from yap_studio.voice import decide, make, propose
+
+    root = broll_project
+    project = json.loads((root / "project.json").read_bytes())
+    project["takes"][0]["voiceover"] = True
+    _json(root / "project.json", project)
+    linked(root, monkeypatch)
+    propose(root, "t1:2", "t1:3", "cold plunge")
+    make(root, ["f1"], yes=True, max_credits=20)
+    assert decide(root, "f1", "approve", via="review")["status"] == "approved"
+    publish_cut(root)
+    before = _tree(root)
+    operation = _op("broll_place", "broll-overlay", fit="contain")
+    result = apply_operations(root, _document(operation), dry_run=True)
+    assert result["status"] == "planned"
+    assert all(finding["severity"] != "violation" for finding in result["findings"])
+    assert result["broll_operations"] == [{**operation, "comment": "v1:c1"}]
+    assert _tree(root) == before
+
+
 def test_rule_violation_refuses_entire_apply_and_dry_run_reports_it(broll_project: Path) -> None:
     document = _document(_op("broll_retime", start={"word": "t1:6"}, hold_s=1.2))
     before = _tree(broll_project)

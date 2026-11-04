@@ -4,6 +4,9 @@ import {
   stateText, tasteActions,
 } from './taste.mjs';
 import {
+  voiceSentence, voiceCost, voiceSource, voiceState, voiceActions, voiceDecisionBody, voiceClipUrl,
+} from './voice-fixes.mjs';
+import {
   assignLanes, fpsLabel, frameAt, frameCount, frameMid, frameStart, frameTimeText,
   normalizeSelection, normalizeTimeSelection, parseFps, secondsText, sortComments, spanText,
   TARGET_NAMES, targetName, mapBlockPosition,
@@ -81,6 +84,8 @@ const el = {
   tasteList: $('taste-list'),
   tasteEmpty: $('taste-empty'), tasteDecided: $('taste-decided'),
   tasteDecidedCount: $('taste-decided-count'), tasteDecidedList: $('taste-decided-list'),
+  voiceFixes: $('voice-fixes-section'), voiceFixList: $('voice-fixes-list'),
+  voiceFixError: $('voice-fixes-error'),
   findings: $('findings-section'), findingsCount: $('findings-count'),
   findingsList: $('findings-list'), findingsStatus: $('findings-status'),
   findingMarkers: $('finding-markers'),
@@ -143,6 +148,9 @@ const tasteDrafts = new Map();
 const tasteErrors = new Map();
 const tasteSaving = new Set();
 let tasteDecidedOpen = false;
+const voiceFixSaving = new Set();
+const voiceFixErrors = new Map();
+let voiceFixRendered = null;
 let removed = {available: false, ranges: []};
 const restorePending = new Set();
 let refreshStatusError = false;
@@ -240,6 +248,7 @@ function setOffline(value) {
     renderThreads();
     renderSendBar();
     updateTasteControls();
+    updateVoiceFixControls();
   }
   schedulePoll();
 }
@@ -960,7 +969,7 @@ function renderVersions() {
       '', () => selectVersion(item.number));
     button.setAttribute('aria-pressed', String(item.number === selectedVersion));
     button.disabled = offline || switchingVersion || composeBusy || roundBusy || answerBusy || releaseBusy
-      || tasteSaving.size > 0
+      || tasteSaving.size > 0 || voiceFixSaving.size > 0
       || Boolean(editState?.busy);
     for (const text of versionBadges(item.number, series)) {
       const badge = document.createElement('span');
@@ -983,7 +992,8 @@ function renderVersions() {
   if (el.approveHint) el.approveHint.textContent = approved
     ? 'This version is approved. Your download is ready.' : story.hint;
   const blocked = offline || releaseBusy || switchingVersion || composeBusy || roundBusy
-    || answerBusy || tasteSaving.size > 0 || Boolean(editState?.busy) || Boolean(review.media_changed);
+    || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0
+    || Boolean(editState?.busy) || Boolean(review.media_changed);
   el.rollback.disabled = blocked;
   el.approve.disabled = blocked;
   if (el.makeFinal && blocked) el.makeFinal.disabled = true;
@@ -1015,7 +1025,8 @@ function renderVersions() {
 
 async function releaseVersion(action) {
   if (offline || releaseBusy || switchingVersion || composeBusy || roundBusy
-    || answerBusy || tasteSaving.size > 0 || editState?.busy || !review?.series?.project) return;
+    || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0
+    || editState?.busy || !review?.series?.project) return;
   const version = selectedVersion;
   const message = action === 'rollback'
     ? `Make v${version} current? The next notes build from v${version}.`
@@ -1058,7 +1069,7 @@ async function releaseVersion(action) {
 }
 
 async function requestFinal() {
-  if (offline || releaseBusy || !review?.series?.project) return;
+  if (offline || releaseBusy || voiceFixSaving.size > 0 || !review?.series?.project) return;
   releaseBusy = true;
   renderVersions();
   try {
@@ -1076,7 +1087,7 @@ async function requestFinal() {
 async function selectVersion(number) {
   if (offline || number === selectedVersion || switchingVersion || openingReplyEvidence
     || composeBusy || roundBusy || releaseBusy
-    || answerBusy || tasteSaving.size > 0 || editState?.busy) return;
+    || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0 || editState?.busy) return;
   switchingVersion = true;
   renderPin();
   updateReplyEvidenceButtons();
@@ -1096,6 +1107,7 @@ async function selectVersion(number) {
     renderThreads();
     renderSendBar();
     updateTasteControls();
+    updateVoiceFixControls();
   }
 }
 
@@ -1217,7 +1229,7 @@ async function openThread(thread) {
 
 function replyNavigationBlocked() {
   return offline || switchingVersion || openingReplyEvidence || composeBusy || roundBusy
-    || releaseBusy || answerBusy || tasteSaving.size > 0
+    || releaseBusy || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0
     || Boolean(editState?.busy) || Boolean(review?.media_changed);
 }
 
@@ -1375,7 +1387,7 @@ function updateTasteControls() {
 }
 
 async function goToTasteSource(source) {
-  if (offline || review.media_changed || tasteSaving.size > 0) return;
+  if (offline || review.media_changed || tasteSaving.size > 0 || voiceFixSaving.size > 0) return;
   if (selectedVersion !== source.version) await selectVersion(source.version);
   if (selectedVersion !== source.version || review.media_changed) return;
   if (fps) seekFrame(source.frame);
@@ -1492,7 +1504,8 @@ function renderTaste() {
 }
 
 async function saveTasteDecision(item, action, sentence) {
-  if (offline || review.media_changed || switchingVersion || tasteSaving.has(item.id)) return;
+  if (offline || review.media_changed || switchingVersion || tasteSaving.has(item.id)
+    || voiceFixSaving.size > 0) return;
   tasteSaving.add(item.id);
   tasteErrors.delete(item.id);
   loadVersion += 1;
@@ -1512,6 +1525,125 @@ async function saveTasteDecision(item, action, sentence) {
     renderVersions();
     updateReplyEvidenceButtons();
     renderSendBar();
+  }
+}
+
+function updateVoiceFixControls() {
+  if (!review?.series?.voice_fixes?.length) return;
+  for (const card of el.voiceFixList.querySelectorAll('.voice-fix-card')) {
+    const busy = voiceFixSaving.has(card.dataset.fix);
+    card.setAttribute('aria-busy', String(busy));
+    for (const button of card.querySelectorAll('button')) {
+      button.disabled = busy || offline || switchingVersion || Boolean(review?.media_changed);
+    }
+  }
+}
+
+function renderVoiceFixes() {
+  const items = review?.series?.voice_fixes ?? [];
+  const error = review?.series?.voice_fixes_error?.message ?? '';
+  el.voiceFixes.hidden = !review?.series?.project || (!items.length && !error);
+  el.voiceFixError.hidden = !error;
+  el.voiceFixError.textContent = error;
+  const signature = JSON.stringify([items, error]);
+  // Keep the players alive when another part of the review changes during a listen.
+  if (signature === voiceFixRendered) {
+    updateVoiceFixControls();
+    return;
+  }
+  voiceFixRendered = signature;
+  el.voiceFixList.replaceChildren();
+  for (const item of items) {
+    const card = document.createElement('li');
+    card.className = 'taste-card voice-fix-card';
+    card.dataset.fix = item.id;
+    const sentence = document.createElement('p');
+    sentence.className = 'taste-sentence';
+    sentence.textContent = voiceSentence(item);
+    const source = document.createElement('p');
+    source.textContent = voiceSource(item);
+    const players = document.createElement('div');
+    players.className = 'voice-fix-audio';
+    for (const [name, path] of [['Before', item.before_url], ['After', item.after_url]]) {
+      const label = document.createElement('label');
+      label.textContent = name;
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.preload = 'none';
+      audio.src = voiceClipUrl(path, token);
+      audio.setAttribute('aria-label', `${name}, voice fix ${item.id}${item.time ? ` at ${item.time}` : ''}`);
+      label.append(audio);
+      players.append(label);
+    }
+    const checks = document.createElement('ul');
+    checks.className = 'voice-fix-checks';
+    for (const line of item.checks) {
+      const entry = document.createElement('li');
+      entry.textContent = line;
+      checks.append(entry);
+    }
+    const cost = document.createElement('p');
+    cost.textContent = voiceCost(item);
+    card.append(sentence, source, players, checks, cost);
+    if (item.cost_note) {
+      const note = document.createElement('p');
+      note.className = 'muted';
+      note.textContent = item.cost_note;
+      card.append(note);
+    }
+    const saved = document.createElement('p');
+    saved.className = 'taste-state';
+    saved.setAttribute('role', 'status');
+    saved.textContent = voiceState(item);
+    const errorNode = document.createElement('p');
+    errorNode.className = 'form-error';
+    errorNode.setAttribute('role', 'alert');
+    errorNode.textContent = voiceFixErrors.get(item.id) ?? '';
+    const actions = document.createElement('div');
+    actions.className = 'taste-actions';
+    for (const {action, label} of voiceActions(item)) {
+      const button = makeButton(label, action === 'approve' ? 'primary' : '',
+        () => saveVoiceFixDecision(item, action));
+      button.setAttribute('aria-label', `${label}, voice fix ${item.id}${item.time ? ` at ${item.time}` : ''}`);
+      actions.append(button);
+    }
+    card.append(saved, errorNode, actions);
+    el.voiceFixList.append(card);
+  }
+  updateVoiceFixControls();
+}
+
+async function saveVoiceFixDecision(item, action) {
+  if (offline || review.media_changed || switchingVersion || voiceFixSaving.size > 0
+    || tasteSaving.size > 0 || releaseBusy || roundBusy) return;
+  const current = review.series.voice_fixes?.find((fix) => fix.id === item.id);
+  if (!current || current.generation !== item.generation) return;
+  const hadFocus = el.voiceFixList.contains(document.activeElement);
+  voiceFixSaving.add(item.id);
+  voiceFixErrors.delete(item.id);
+  loadVersion += 1;
+  updateVoiceFixControls();
+  renderVersions();
+  updateReplyEvidenceButtons();
+  renderSendBar();
+  try {
+    const result = await api(versionUrl('api/voice-fixes', selectedVersion),
+      {method: 'POST', body: voiceDecisionBody(item, action)});
+    review.series.voice_fixes = result.voice_fixes;
+  } catch (error) {
+    voiceFixErrors.set(item.id, errorMessage(error));
+  } finally {
+    voiceFixSaving.delete(item.id);
+    voiceFixRendered = null;
+    renderVoiceFixes();
+    renderVersions();
+    updateReplyEvidenceButtons();
+    renderSendBar();
+    if (hadFocus) {
+      const card = [...el.voiceFixList.querySelectorAll('.voice-fix-card')]
+        .find((node) => node.dataset.fix === item.id);
+      card?.querySelectorAll('button')[0]?.focus();
+    }
   }
 }
 
@@ -1816,7 +1948,7 @@ function renderSendBar() {
   if (!series?.project) return;
   el.draftCount.textContent = draftNotesText(review.comments, series.questions);
   el.sendNotes.disabled = offline || releaseBusy || roundBusy || answerBusy || composeBusy
-    || Boolean(editState) || switchingVersion || tasteSaving.size > 0
+    || Boolean(editState) || switchingVersion || tasteSaving.size > 0 || voiceFixSaving.size > 0
     || review.media_changed || (!review.comments.some((item) => item.send?.state === 'draft')
       && !series.questions?.some((item) => item.state === 'answered'))
     || series.rounds.some((item) => item.version === selectedVersion && item.status === 'sending');
@@ -2297,6 +2429,7 @@ function renderReview(fresh, preserveStatus = false) {
   renderSendBar();
   renderRemoved();
   renderTaste();
+  renderVoiceFixes();
   renderFindings();
   if (el.textHook) {
     if (fresh.text_hook) renderTextHook(el.textHook, fresh.text_hook, async (body) => {
@@ -2372,7 +2505,8 @@ function tasteWordingFocused() {
 async function refreshReview() {
   if (approvedVersion !== null) return;
   if ((!offline && document.visibilityState !== 'visible') || composeBusy
-    || editState?.busy || answerBusy || tasteSaving.size > 0 || refreshPending || switchingVersion
+    || editState?.busy || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0
+    || refreshPending || switchingVersion
     || tasteWordingFocused() || document.activeElement?.closest('.text-hook-panel')
     || (!offline && document.activeElement?.closest('.question-card'))) return;
   refreshPending = true;
@@ -2381,7 +2515,7 @@ async function refreshReview() {
   try {
     const fresh = await api(versionUrl('api/review', selectedVersion));
     if (version !== loadVersion || (!reconnecting && document.visibilityState !== 'visible')
-      || composeBusy || answerBusy || tasteSaving.size > 0 || editState?.busy
+      || composeBusy || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0 || editState?.busy
       || tasteWordingFocused() || document.activeElement?.closest('.text-hook-panel')
       || (!offline && document.activeElement?.closest('.question-card'))) return;
     if (refreshStatusError) showStatus('');

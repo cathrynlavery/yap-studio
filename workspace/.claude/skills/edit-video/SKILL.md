@@ -93,6 +93,60 @@ Ask for shorter text after a refusal. Move nothing else to make it fit.
 The engine plans this title from the choice file. Do not add a title to the lane.
 Opening title rules below apply after the creator has chosen their text.
 
+## Fix a misspoken word
+
+After the first cut, look for a likely misspoken word in the transcript.
+Propose first, then say which source the fix uses when asking the creator: their own
+recording at its take time, or their ElevenLabs instant clone. Ask about the real time and
+plain words. Wait for a clear yes.
+
+1. Run `yap-studio voice propose DIR --from WORD --to WORD --say "cold plunge" --json`.
+   Use the source word ids. For talking-head takes, full-frame B-roll must cover the face.
+   If `propose` refuses, pass on its reason. Do not make the fix there.
+2. Own recording comes first, including removed words and other takes. Use
+   `--from-take-words FIRST LAST` to choose an occurrence, or `--clone` to request the fallback.
+   For an own fix, `voice make DIR --fix ID` builds it for 0 credits, without clone consent,
+   account or `--yes`. Then go to listening below.
+3. For a clone fix, if the creator already has a voice made from recordings across their videos,
+   ask for its
+   name and the samples manifest it was made from (PATH). Otherwise run
+   `yap-studio voice samples DIR` for this project's recordings. Making a new voice uses one
+   ElevenLabs voice slot; linking an existing voice does not.
+   Ask for consent with this exact statement:
+   "This is my own voice. I agree to Yap Studio making an ElevenLabs voice from my
+   recordings and using it to re-say words I misspoke in my videos."
+   Ask "Do you agree?" Wait for a clear yes. This is the statement in `voice/consent.json`.
+   Run `yap-studio voice consent DIR` without `--yes` if you need to read it again.
+4. Only after that yes, run `yap-studio voice consent DIR --yes --by "NAME"
+   --voice-name "NAME"`. Then link or make the voice:
+   - An existing voice: `yap-studio voice link DIR --name "NAME" --yes --samples PATH`.
+   - A new voice from this project: `yap-studio voice create DIR --yes`. Add `--dry-run` to
+     list the files first, or `--samples PATH` to make it from a manifest instead.
+   If the CLI says it cannot upload, give the creator its printed steps: open ElevenLabs,
+   then Voices, then Instant Voice Clone, and upload exactly the listed files under the
+   recorded voice name. Then run `link`, with the same `--samples PATH` if one was used.
+   If `link` refuses because the samples differ, pass on its reason and do not retry with
+   other files. Never delete a shared voice from Yap Studio.
+5. For a clone fix, run `yap-studio voice make DIR --fix ID` without `--yes`.
+   Show its cost line as printed.
+   Wait for agreement to that cost. Only then run
+   `yap-studio voice make DIR --fix ID --yes --max-credits N`, with the agreed limit.
+6. Tell the creator to listen to Before and After under Voice fixes on the review page.
+   Only fixes they approve go into the next version. Never approve for them.
+   If they approve a fix in chat, run `yap-studio voice approve DIR --fix ID`.
+   Offer a new recording if they prefer.
+
+Both manifest commands accept 1 to 25 WAV files. The clone recipe is `voice/recipe.json`
+in the creator's Yap Studio data folder (`YAP_STUDIO_DATA_DIR`), schema
+`yap-studio/voice-recipe@1`. Fields: `voice_name`, `model_id`, `voice_settings`, `tag`,
+`strong_tag`, `strong_tag_words`, `context`, `pace` (`fit` or `off`), and `pronunciations`
+with `word`, `type` (`ipa` or `alias`) and `value`. Omitted settings are neutral.
+Example: `{"schema":"yap-studio/voice-recipe@1","tag":"[test accent]","pace":"fit"}`.
+Keep tags and respellings out of anything the creator reads. Cost counts the sent text.
+If a respelled fix's heard check warns, try `voice make DIR --fix ID --plain` with the
+agreed `--yes --max-credits N`. It sends no tag or pronunciations. A recipe change makes
+a new request; the seed stays fixed per fix.
+
 ## Procedure
 
 For horizontal talking-head videos of five minutes or more, offer chapters. Read the whole

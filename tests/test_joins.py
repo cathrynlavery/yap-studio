@@ -2387,6 +2387,82 @@ def test_sources_decode_once_and_native_rate_is_used(small_media) -> None:
     assert small_media.pictures == [small_media.render, small_media.source]
 
 
+@pytest.mark.parametrize("check", ["sync", "joins"])
+def test_shared_source_has_separate_voice_transforms(small_media, monkeypatch, check):
+    from yap_studio import receipt
+    from yap_studio.voice.splice import write_wav
+    from yap_studio.voice.store import source_transform
+
+    media = small_media
+    segments = [replace(segment, source_id="t1" if index == 0 else "t2")
+                for index, segment in enumerate(media.plan.segments)]
+    cuts = [replace(cut, left=segments[index], right=segments[index + 1])
+            for index, cut in enumerate(media.plan.cuts)]
+    plan = replace(media.plan, segments=segments, cuts=cuts)
+    sources = {take: media.source for take in ("t1", "t2")}
+    patches = [({"id": f"f{index}", "take": take,
+                 "patch": {"start_sample": 0, "samples": 480000,
+                           "fade_in_samples": 0, "fade_out_samples": 0}},
+                np.full((480000, 1), value, dtype=np.float32))
+               for index, (take, value) in enumerate((("t1", 0.1), ("t2", 0.2)), 1)]
+    signals = {}
+    for fix, patch in patches:
+        target = media.directory / f"voice/{fix['id']}/patch.wav"
+        write_wav(target, patch)
+        fix["patch"].update(path=str(target.relative_to(media.directory)),
+                            sha256=receipt.sha256_file(target))
+        signals[target] = patch[0, 0]
+    decode_source = audio.decode
+
+    def decode_patch(path, *, sr=None, dur_s=None):
+        if path in signals:
+            return sr, np.full(round(dur_s * sr), signals[path], dtype=np.float32)
+        return decode_source(path, sr=sr)
+
+    monkeypatch.setattr(audio, "decode", decode_patch)
+    voice_plan = SimpleNamespace(context=SimpleNamespace(project_dir=media.directory))
+    transform = source_transform(voice_plan, patches)
+    transformed = []
+    compared = set()
+
+    def record(take, sound, rate):
+        result = transform(take, sound, rate)
+        transformed.append((take, result))
+        return result
+
+    if check == "sync":
+        locate = sync._locate_audio
+
+        def locate_transformed(sound, *args):
+            compared.update(take for take, result in transformed if result is sound)
+            return locate(sound, *args)
+
+        monkeypatch.setattr(sync, "_locate_audio", locate_transformed)
+        info = ffmpeg.probe(media.source)
+        monkeypatch.setattr(sync, "_decode", lambda path, *_, **__: sync._Media(
+            info, media.picture if path == media.render else media.frames,
+            media.sound if path == media.render else media.original,
+        ))
+        sync.measure_segments(media.render, plan, sources, sample_rate=8000, source_audio=record)
+    else:
+        rms_db = audio.rms_db
+
+        def measure_transformed(sound, *args, **kwargs):
+            compared.update(take for take, result in transformed if result is sound)
+            return rms_db(sound, *args, **kwargs)
+
+        monkeypatch.setattr(audio, "rms_db", measure_transformed)
+        joins.check_joins(media.render, plan, sources, sync.SyncResult(media.rows, None, []),
+                          backend=None, work_dir=media.directory, source_audio=record)
+    assert [take for take, _ in transformed] == ["t1", "t2"]
+    assert compared == {"t1", "t2"}
+    np.testing.assert_allclose(transformed[0][1], 0.1)
+    np.testing.assert_allclose(transformed[1][1], 0.2)
+    np.testing.assert_array_equal(media.original, np.random.default_rng(123).normal(
+        0, 0.1, 10 * 8000,
+    ).astype(np.float32))
+
+
 def test_frames_wrong_missing_static_tie_and_plan_fallback(small_media) -> None:
     media = small_media
     media.rows[:] = [replace(row, video_frame=None, measured=False) for row in media.rows]

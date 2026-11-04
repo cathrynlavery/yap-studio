@@ -178,7 +178,7 @@ def _shadow(root: Path, shadow: Path) -> None:
         if source.name in {".git", ".codegraph", ".yap", "feedback", "versions"}:
             continue
         target = shadow / source.name
-        if source.name in {"timeline", "cut", "ingest"} and source.is_dir():
+        if source.name in {"timeline", "cut", "ingest", "voice"} and source.is_dir():
             _stage_tree(source, target)
         elif source.is_file() and source.suffix == ".json":
             shutil.copyfile(source, target)

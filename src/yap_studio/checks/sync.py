@@ -232,8 +232,9 @@ def measure_segments(
     regions: Sequence[PictureRegion] = (),
     sample_rate: int = 16000,
     grade: GradeSpec | None = None,
+    source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None,
 ) -> list[SegmentSync]:
-    """Decode each distinct file once, then measure source landings per segment.
+    """Measure source landings, caching transformed audio separately for each take.
 
     The picture landing is measured around the segment's middle frame. Time-only
     ``masks`` hide the whole picture: when one covers the middle window, the
@@ -244,8 +245,10 @@ def measure_segments(
         raise ValidationError("sample_rate", "must be positive")
     rendered = _decode(render, sample_rate)
     # A VFR render's native decode cannot stand in for a source on the plan grid.
-    cache: dict[tuple[Path, int | None], _Media | None] = (
-        {} if rendered.info.variable_frame_rate else {(Path(render).resolve(), None): rendered}
+    cache: dict[tuple[Path, int | None, str | None], _Media | None] = (
+        {} if rendered.info.variable_frame_rate else {
+            (Path(render).resolve(), None, None): rendered,
+        }
     )
     rows: list[SegmentSync] = []
     drift_frames = 0
@@ -263,7 +266,7 @@ def measure_segments(
             continue
         path = Path(path).resolve()
         stream = (source_streams or {}).get(segment.source_id)
-        key = (path, stream)
+        key = (path, stream, segment.source_id if source_audio is not None else None)
         if key not in cache:
             try:
                 cache[key] = (
@@ -273,6 +276,9 @@ def measure_segments(
                     _decode(path, sample_rate, stream, plan_fps=plan.fps,
                             **({"grade": grade} if grade is not None and grade.active else {}))
                 )
+                if source_audio is not None and cache[key].sound is not None:
+                    cache[key] = replace(cache[key], sound=source_audio(
+                        segment.source_id, cache[key].sound, sample_rate))
             except InputError:
                 cache[key] = None
         source = cache[key]
@@ -483,10 +489,12 @@ def check_sync(
     regions: Sequence[PictureRegion] = (),
     thresholds: Thresholds = Thresholds(),  # noqa: B008 - frozen value
     grade: GradeSpec | None = None,
+    source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None,
 ) -> SyncResult:
     """Check offsets and drift using only confident A/V measurements."""
     rows = measure_segments(
         render, plan, sources, masks=masks, regions=regions, source_streams=source_streams,
+        **({"source_audio": source_audio} if source_audio is not None else {}),
         **({"grade": grade} if grade is not None and grade.active else {}),
     )
     good = [

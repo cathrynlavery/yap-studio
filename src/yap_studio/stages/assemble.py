@@ -145,17 +145,16 @@ def require_voiceover_picture(total_frames: int, elements: list[dict[str, Any]],
         )
 
 
-def _graphic_picture_frames(root: Path, snapshot: AssemblySnapshot,
-                            frames: tuple[int, int] | None) -> dict[str, set[int]]:
+def opaque_graphic_frames(root: Path, layers: list[dict], *,
+                          frames: tuple[int, int] | None = None) -> dict[str, set[int]]:
     """Count a graphic only where every canvas pixel is opaque."""
     result: dict[str, set[int]] = {}
-    required = frames or (0, snapshot.timeline.total_frames - 1)
-    for layer in snapshot.title_layers:
+    for layer in layers:
         if (layer["kind"] != "graphic" or layer["x"] != 0 or layer["y"] != 0 or
                 layer["width"] != 1080 or layer["height"] != 1920):
             continue
         start = layer["start_frame"]
-        if start > required[1] or start + layer["frames"] <= required[0]:
+        if frames and (start > frames[1] or start + layer["frames"] <= frames[0]):
             continue
         stream = ffmpeg.run_stream([
             "ffmpeg", "-nostdin", "-v", "error", "-i", str(root / layer["path"]),
@@ -182,6 +181,16 @@ def _graphic_picture_frames(root: Path, snapshot: AssemblySnapshot,
         finally:
             stream.close()
     return result
+
+
+def _graphic_picture_frames(root: Path, snapshot: AssemblySnapshot,
+                            frames: tuple[int, int] | None, *,
+                            front_only: bool = False) -> dict[str, set[int]]:
+    """Measure opaque canvas frames, optionally excluding layers behind the person."""
+    layers = [layer for layer in snapshot.title_layers
+              if not front_only or layer.get("layer", "front") == "front"]
+    return opaque_graphic_frames(root, layers,
+                                 frames=frames or (0, snapshot.timeline.total_frames - 1))
 
 
 def _audit_commands(event: str, args: tuple[Any, ...]) -> None:
@@ -1455,6 +1464,22 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                                           frames=frames,
                                           graphic_coverage=_graphic_picture_frames(
                                               context.project_dir, snapshot, frames))
+            from yap_studio.stages.cut import resolve_cut
+            from yap_studio.voice import store as voice_store
+
+            voice_plan = None
+            voice_patches = []
+            if voice_store.approved_fixes(context.project_dir):
+                voice_plan = resolve_cut(context.project_dir)
+                voice_patches = voice_store.patches_for_plan(voice_plan)
+                talking_head = {take.id for take in context.project.takes if not take.voiceover}
+                coverage = (_graphic_picture_frames(context.project_dir, snapshot, None,
+                                                     front_only=True)
+                            if any(fix["take"] in talking_head for fix, _ in voice_patches) else {})
+                voice_store.require_assembly_picture(
+                    voice_plan,
+                    [item.to_dict() for item in snapshot.timeline.elements],
+                    coverage)
             if frames is not None:
                 assert phrases is not None
                 return {**_pilot_assemble(context, snapshot, frames, commands, *phrases,
@@ -1622,6 +1647,8 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                                    if click_stem is not None else {}),
                                 **({"words_audio": str(words_stem)}
                                    if words_stem is not None else {}),
+                                **({"source_audio": voice_store.source_transform(
+                                    voice_plan, voice_patches)} if voice_patches else {}),
                                 **({"transitions": windows} if windows else {}))
                 add_number_visibility(report, asserts, getattr(picture, "behind_layers", ()))
                 failures = [item for item in report.get("findings", [])

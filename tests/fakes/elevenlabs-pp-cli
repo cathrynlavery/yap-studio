@@ -7,6 +7,7 @@ import os
 import shutil
 import struct
 import sys
+import time
 import wave
 from pathlib import Path
 
@@ -18,6 +19,12 @@ def main():
     if log:
         with open(log, "a", encoding="utf-8") as stream:
             stream.write(json.dumps({"argv": args, "stdin": body_text}) + "\n")
+    command = " ".join(args[:1] if args[:1] in (["models"], ["text-to-speech"]) else args[:2])
+    missing = json.loads(os.environ.get("FAKE_ELEVENLABS_MISSING_PERMISSIONS", "{}"))
+    if command in missing:
+        print(f"HTTP 401: The API key you used is missing the permission {missing[command]}",
+              file=sys.stderr)
+        return 4
     if args[:2] == ["auth", "status"]:
         code = int(os.environ.get("FAKE_ELEVENLABS_AUTH_EXIT", "0"))
         if code == 0:
@@ -28,7 +35,79 @@ def main():
         if tier == "missing_permissions":
             print("HTTP 401 missing_permissions", file=sys.stderr)
             return 4
-        print(json.dumps({"tier": tier}))
+        print(json.dumps({"tier": tier,
+                          "character_count": int(os.environ.get("FAKE_ELEVENLABS_COUNT", "18766")),
+                          "character_limit": int(os.environ.get("FAKE_ELEVENLABS_LIMIT", "100000")),
+                          "voice_limit": 10}))
+        return 0
+    if args[:1] == ["models"]:
+        if os.environ.get("FAKE_ELEVENLABS_MODELS_FAIL"):
+            return 5
+        print(json.dumps([{"model_id": "eleven_multilingual_v2", "model_rates": {
+            "character_cost_multiplier": float(os.environ.get("FAKE_ELEVENLABS_MULTIPLIER", "1"))}}]))
+        return 0
+    voice_id = os.environ.get("FAKE_ELEVENLABS_VOICE_ID", "fake-personal-voice-secret")
+    voice = {"voice_id": voice_id, "name": os.environ.get("FAKE_ELEVENLABS_VOICE_NAME", "My voice"),
+             "category": os.environ.get("FAKE_ELEVENLABS_VOICE_CATEGORY", "cloned"),
+             "samples": json.loads(os.environ.get("FAKE_ELEVENLABS_VOICE_SAMPLES", "[]"))}
+    if args[:2] == ["voices", "get-user-v2"]:
+        count = int(os.environ.get("FAKE_ELEVENLABS_VOICE_DUPLICATES", "1"))
+        if os.environ.get("FAKE_ELEVENLABS_VOICE_APPEARS_AFTER_ADD"):
+            count = int(bool(log) and any(
+                json.loads(line)["argv"][:2] == ["voices", "add"]
+                for line in Path(log).read_text().splitlines()
+            ))
+        rows = [voice] * count
+        print(json.dumps(rows if os.environ.get("FAKE_ELEVENLABS_RAW") else
+                         {"meta": {}, "results": rows}))
+        return 0
+    if args[:2] == ["voices", "get-by-id"]:
+        print(json.dumps(voice))
+        return 0
+    if args[:2] == ["voices", "delete"]:
+        print('{}')
+        return 0
+    if args[:2] == ["voices", "add"]:
+        if os.environ.get("FAKE_ELEVENLABS_ADD_FILES_ERROR"):
+            print("HTTP 422 validation error: files must be uploaded", file=sys.stderr)
+            return 2
+        print(json.dumps(voice))
+        return 0
+    if args[:1] == ["text-to-speech"]:
+        if "--dry-run" in args:
+            print(json.dumps({"dry_run": True}))
+            return 0
+        code = int(os.environ.get("FAKE_ELEVENLABS_GENERATE_EXIT", "0"))
+        if code:
+            print(os.environ.get("FAKE_ELEVENLABS_GENERATE_STDERR", "synthetic failure") +
+                  " " + voice_id, file=sys.stderr)
+            return code
+        options = dict(zip(args[2::2], args[3::2]))
+        target = Path(options["--deliver"].removeprefix("file:"))
+        rate = 44100
+        count = round(float(os.environ.get("FAKE_ELEVENLABS_SPEECH_SECONDS", "1.4"))*rate)
+        with wave.open(str(target), "wb") as output:
+            output.setnchannels(1)
+            output.setsampwidth(2)
+            output.setframerate(rate)
+            samples = bytearray()
+            for index in range(count):
+                envelope = min(1, index/(rate*.02), (count-index)/(rate*.02))
+                samples.extend(struct.pack("<h", round(1800*envelope*math.sin(2*math.pi*260*index/rate))))
+            output.writeframes(samples)
+        with target.open("rb") as audio:
+            shutil.copyfileobj(audio, sys.stdout.buffer)
+        return 0
+    if args[:2] == ["history", "get-speech"]:
+        rows = []
+        if log and Path(log).is_file() and not os.environ.get("FAKE_ELEVENLABS_HISTORY_EMPTY"):
+            for line in Path(log).read_text().splitlines():
+                call = json.loads(line)["argv"]
+                if call[:1] == ["text-to-speech"]:
+                    rows.append({"text": call[call.index("--text")+1], "date_unix": int(time.time()),
+                                 "character_count_change_from": 0,
+                                 "character_count_change_to": int(os.environ.get("FAKE_ELEVENLABS_CHARGED", "11"))})
+        print(json.dumps({"history": rows}))
         return 0
     if args[:2] == ["music", "compose-plan"]:
         body = json.loads(body_text)

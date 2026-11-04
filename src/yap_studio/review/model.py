@@ -159,7 +159,7 @@ def _cut_request(value: dict, kind: Kind, target: Target | None) -> dict:
             raise ValidationError("request", "word id must look like t1:12")
         if not isinstance(segment, str) or not segment.strip() or len(segment) > 200:
             raise ValidationError("request", "segment must contain 1 to 200 characters")
-        if (not isinstance(text, str) or not 1 <= len(text.strip()) <= 200
+        if (not isinstance(text, str) or (text != "" and not 1 <= len(text.strip()) <= 200)
                 or re.search(r"[\r\n\v\f\x85\u2028\u2029]", text)):
             raise ValidationError("request", "text must contain 1 to 200 characters, no newlines")
         occurrence = (word_id, segment.strip())
@@ -167,6 +167,8 @@ def _cut_request(value: dict, kind: Kind, target: Target | None) -> dict:
             raise ValidationError("request", "words must not repeat an occurrence")
         seen.add(occurrence)
         words.append({"id": word_id, "segment": segment.strip(), "text": text.strip()})
+    if not any(word["text"] for word in words):
+        raise ValidationError("request", "text must contain 1 to 200 characters, no newlines")
     return {"type": "cut", "start": start, "end": end, "words": words}
 
 

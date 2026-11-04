@@ -276,6 +276,12 @@ def _is_owned_output(path: str, owner_receipts: Sequence[str | os.PathLike[str]]
             if not _owned_location(os.path.realpath(path), receipt, stage_receipt):
                 continue
             outputs = data.get("outputs")
+            voice_record = schema in {"yap-studio/voice-fixes@1", "yap-studio/voice-samples@1"}
+            if schema == "yap-studio/voice-fixes@1":
+                outputs = [row for fix in data.get("fixes", [])
+                           for row in [fix.get("patch"), *fix.get("clips", {}).values()] if row]
+            elif schema == "yap-studio/voice-samples@1":
+                outputs = data.get("samples")
             if not isinstance(outputs, list):
                 continue
             for output in outputs:
@@ -286,7 +292,7 @@ def _is_owned_output(path: str, owner_receipts: Sequence[str | os.PathLike[str]]
                     # Project-stage receipts name outputs relative to the project.
                     root = (
                         receipt.parent.parent
-                        if schema in {"yap-studio/stage-receipt@1", "yap-studio/stage-pending@1"}
+                        if stage_receipt or voice_record
                         else receipt.parent
                     )
                     candidate = root / candidate

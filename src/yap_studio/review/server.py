@@ -21,7 +21,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 
-from yap_studio import paths, receipt
+from yap_studio import paths, receipt, voice
 from yap_studio.captions import _stripped
 from yap_studio.checks.model import format_time
 from yap_studio.errors import InputError, ValidationError, YapError
@@ -80,7 +80,9 @@ from yap_studio.review.store import (
     round_to_dict,
 )
 from yap_studio.review.video_map import video_map
+from yap_studio.review.voice_fixes import clip_bytes, review_fixes
 from yap_studio.taste import TasteRefusal, UnknownProposalError, decide, inbox_view
+from yap_studio.voice.model import VoiceError
 
 _STATIC = Path(__file__).parent / "static"
 _STATIC_NAME = re.compile(r"[A-Za-z0-9_-]+\.(css|mjs|svg)\Z")
@@ -535,6 +537,11 @@ class ReviewServer:
                     if self._video.series.project_dir is not None:
                         series["questions"] = self._questions()
                         series["taste"] = self._taste_json()
+                        try:
+                            series["voice_fixes"] = self._voice_fixes_json()
+                        except YapError as exc:
+                            series["voice_fixes"] = []
+                            series["voice_fixes_error"] = exc.to_dict()
                     rounds = review.store.rounds(self._video.series.id)
                     series["rounds"] = [round_to_dict(item) for item in
                                         sorted(rounds, key=lambda item: int(item.id[1:]),
@@ -680,6 +687,65 @@ class ReviewServer:
                 decide(series.project_dir, body["proposal"], body["action"],
                        sentence=body.get("sentence"))
                 self._json(200, {"taste": self._taste_json()})
+
+            def _voice_fixes_json(self) -> list[dict]:
+                return review_fixes(self._video.series.project_dir, self._words()["words"])
+
+            def _decide_voice_fix(self) -> None:
+                series = self._video.series
+                if series is None or series.project_dir is None:
+                    self._error(409, "no_project", "Open the project folder with --versions.")
+                    return
+                body = self._body()
+                if set(body) != {"fix", "action", "generation"}:
+                    raise ValidationError("body", "must name a fix, action and generation")
+                if not isinstance(body["fix"], str):
+                    raise ValidationError("fix", "expected string")
+                if not isinstance(body["generation"], str) or not body["generation"]:
+                    raise ValidationError("generation", "expected string")
+                if (not isinstance(body["action"], str)
+                        or body["action"] not in {"approve", "reject"}):
+                    raise ValidationError("action", "choose one of approve, reject")
+                voice.decide(series.project_dir, body["fix"], body["action"], via="review",
+                             generation=body["generation"])
+                self._json(200, {"voice_fixes": self._voice_fixes_json()})
+
+            def _voice_fix_audio(self, query: dict[str, list[str]]) -> None:
+                series = self._video.series
+                if series is None or series.project_dir is None:
+                    self._error(409, "no_project", "Open the project folder with --versions.")
+                    return
+                if (len(query.get("fix", [])) != 1 or len(query.get("clip", [])) != 1
+                        or query["clip"][0] not in {"before", "after"}):
+                    raise ValidationError("clip", "name a fix and choose before or after")
+                if "generation" in query and len(query["generation"]) != 1:
+                    raise ValidationError("generation", "expected one generation")
+                data = clip_bytes(series.project_dir, query["fix"][0], query["clip"][0],
+                                  generation=query.get("generation", [None])[0])
+                size = len(data)
+                requested = self.headers.get("Range")
+                start, end = 0, size - 1
+                if requested is not None:
+                    match = _RANGE.fullmatch(requested)
+                    if match is None or not any(match.groups()):
+                        self._range_error(size)
+                        return
+                    first, last = match.groups()
+                    if first:
+                        start = int(first)
+                        end = min(int(last), size - 1) if last else size - 1
+                    else:
+                        start = max(0, size - int(last))
+                    if start >= size or end < start or (not first and int(last) == 0):
+                        self._range_error(size)
+                        return
+                extra = {"Accept-Ranges": "bytes", "Cache-Control": "no-cache"}
+                if requested is not None:
+                    extra["Content-Range"] = f"bytes {start}-{end}/{size}"
+                self._headers(206 if requested is not None else 200, "audio/wav", end - start + 1,
+                              extra)
+                if self.command != "HEAD":
+                    self.wfile.write(data[start:end + 1])
 
             def _questions(self) -> list[dict]:
                 series = self._video.series
@@ -867,10 +933,18 @@ class ReviewServer:
                      frame_start(normalized["end_frame"], facts.fps)) if facts.cfr else
                     (Fraction(str(normalized["start_s"])), Fraction(str(normalized["end_s"])))
                 )
+                phrases = []
+                for word in words.words:
+                    if word.text.strip() or not phrases or phrases[-1][-1].segment != word.segment:
+                        phrases.append([])
+                    phrases[-1].append(word)
                 covered = [{"id": word.id, "segment": word.segment, "text": word.text}
-                           for word in words.words
-                           if start <= (Fraction(str(word.start))
-                                        + Fraction(str(word.end))) / 2 < end]
+                           for phrase in phrases
+                           if any(word.text.strip() for word in phrase)
+                           and any(start <= (Fraction(str(word.start))
+                                             + Fraction(str(word.end))) / 2 < end
+                                   for word in phrase)
+                           for word in phrase]
                 if not covered:
                     raise ValidationError("range", "No spoken words in this range")
                 if len(covered) > 200:
@@ -1228,7 +1302,7 @@ class ReviewServer:
                             return
                         self._video = review.videos[int(selected.group(1)) - 1]
                         path = selected.group(2)
-                protected = path == "/media" or path.startswith("/api/") or (
+                protected = path in {"/media", "/voice-fix-audio"} or path.startswith("/api/") or (
                     multiple and path == "/"
                 )
                 if protected and not self._authorized(query):
@@ -1236,13 +1310,13 @@ class ReviewServer:
                     return
                 match = _COMMENT_PATH.fullmatch(path)
                 retry = _RETRY_PATH.fullmatch(path)
-                if path in {"/media", "/api/download", "/api/download/report"}:
+                if path in {"/media", "/voice-fix-audio", "/api/download", "/api/download/report"}:
                     allowed = {"GET", "HEAD"}
                 elif path == "/api/approve":
                     allowed = {"POST", "DELETE"}
                 elif path in {"/api/comments", "/api/rounds", "/api/questions/answer",
                               "/api/restore", "/api/cut", "/api/rollback", "/api/taste",
-                              "/api/final", "/api/caption-fixes"} or retry:
+                              "/api/final", "/api/caption-fixes", "/api/voice-fixes"} or retry:
                     allowed = {"POST"}
                 elif match:
                     allowed = {"PATCH", "DELETE"}
@@ -1275,9 +1349,10 @@ class ReviewServer:
                 ):
                     self._error(409, "no_project", "Open the project folder with --versions.")
                     return
-                if path == "/media" or path.startswith("/api/"):
+                if path in {"/media", "/voice-fix-audio"} or path.startswith("/api/"):
                     self._select_version(path, query)
-                guarded = (path in {"/media", "/api/comments", "/api/rounds",
+                guarded = (path in {"/media", "/voice-fix-audio", "/api/voice-fixes",
+                                    "/api/comments", "/api/rounds",
                                     "/api/questions/answer", "/api/restore", "/api/cut",
                                     "/api/captions", "/api/caption-fixes"}
                            or match is not None or retry is not None)
@@ -1286,6 +1361,8 @@ class ReviewServer:
                     return
                 if path == "/media":
                     self._media()
+                elif path == "/voice-fix-audio":
+                    self._voice_fix_audio(query)
                 elif path == "/api/review":
                     self._json(200, self._review_json())
                 elif path in {"/api/rollback", "/api/approve"}:
@@ -1318,6 +1395,8 @@ class ReviewServer:
                     self._answer_question()
                 elif path == "/api/taste":
                     self._decide_taste()
+                elif path == "/api/voice-fixes":
+                    self._decide_voice_fix()
                 elif path == "/api/comments":
                     body = self._body()
                     if isinstance(body.get("request"), dict) and (
@@ -1384,6 +1463,9 @@ class ReviewServer:
                         self._json(404, {"error": exc.to_dict()})
                     except TasteRefusal as exc:
                         self._json(409, {"error": exc.to_dict()})
+                    except VoiceError as exc:
+                        self._json(404 if exc.code == "voice_fix_missing" else 409,
+                                   {"error": exc.to_dict()})
                     except CarriedQuestionError as exc:
                         self._json(409, {"error": exc.to_dict()})
                     except RoundConflictError as exc:
