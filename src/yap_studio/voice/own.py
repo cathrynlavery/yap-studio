@@ -13,6 +13,7 @@ from yap_studio.project.model import load_words
 from yap_studio.stages.cut import _selected_stream
 from yap_studio.stages.edges import heard_words
 from yap_studio.voice.model import VoiceError
+from yap_studio.voice.plan import occurrences
 from yap_studio.voice.splice import RATE, _snap, fit_slot
 
 
@@ -124,10 +125,15 @@ def find_own(plan, fix, fixes, *, chosen=None):
                     word_range = (ids.index(fix["words"][0]), ids.index(fix["words"][-1]))
                     word_spans = [(word.start, word.end) for word in words]
                 try:
-                    fit_slot(target, fix["source"]["start_s"], fix["source"]["end_s"], len(span),
-                             word_spans=word_spans, word_range=word_range)
+                    first, last = fit_slot(
+                        target, fix["source"]["start_s"], fix["source"]["end_s"], len(span),
+                        word_spans=word_spans, word_range=word_range,
+                    )
+                    occurrences(plan, fix, start_s=first / RATE, end_s=last / RATE)
                 except VoiceError as exc:
-                    if exc.code not in {"voice_speech_too_long", "voice_slot_invalid"}:
+                    if exc.code not in {
+                        "voice_speech_too_long", "voice_slot_invalid", "voice_words_dropped",
+                    }:
                         raise
                     continue
             return origin

@@ -162,6 +162,26 @@ def test_automatic_candidates_must_fit_before_selection(own_project, fake_voice,
     assert not any(argv[0] == "text-to-speech" for argv in calls(fake_voice))
 
 
+@pytest.mark.parametrize("duration", [1.6, 2.4])
+def test_automatic_candidates_must_fit_retained_cut(own_project, fake_voice, duration):
+    changes = {}
+    for take, length in (("t1", 2.4), ("t2", duration)):
+        changes.update({
+            f"{take}:9": {"start": 9.0, "end": 9.8},
+            f"{take}:10": {"start": 10.0, "end": 9.0 + length},
+            f"{take}:11": {"start": 11.6, "end": 11.8},
+        })
+    change_words(own_project, changes)
+    write_edit(own_project, [time_segment("s1", "t1", 0, 4)])
+    fix = propose(own_project, "t1:2", "t1:3", "cold plunge")
+    if duration == 2.4:
+        assert fix["from"]["kind"] == "clone"
+    else:
+        assert fix["from"]["take"] == "t2"
+        assert make(own_project, ["f1"])["fixes"][0]["status"] == "ready"
+    assert not any(argv[0] == "text-to-speech" for argv in calls(fake_voice))
+
+
 def test_chosen_words_must_say_the_replacement(own_project, fake_voice):
     with pytest.raises(YapError, match="do not say"):
         propose(own_project, "t1:2", "t1:3", "cold plunge",
@@ -223,7 +243,9 @@ def test_donor_edges_exclude_abutting_words(monkeypatch, offset, clipped):
     monkeypatch.setattr(module, "take_words", lambda *_: snapshot)
     monkeypatch.setattr(module, "take_sound", lambda *_: (sound, offset))
     monkeypatch.setattr(import_module("yap_studio.voice.make"), "take_audio", lambda *_: sound)
-    plan = SimpleNamespace(context=context, source_words={"t1": snapshot})
+    plan = SimpleNamespace(context=context, source_words={"t1": snapshot}, pieces=[
+        SimpleNamespace(take="t1", src_t0=0, src_t1=3, out_f0=0),
+    ])
     fix = {"id": "f1", "take": "t1", "words": ["t1:0"], "say": "cold",
            "source": {"start_s": 0, "end_s": 0.6}}
     origin = module.find_own(plan, fix, [])
@@ -264,7 +286,7 @@ def test_normalised_phrase_can_use_more_source_words(monkeypatch):
     target = SimpleNamespace(id="t1:99", start=0, end=1)
     plan = SimpleNamespace(context=context, source_words={
         "t1": SimpleNamespace(words=[target, *words]),
-    })
+    }, pieces=[SimpleNamespace(take="t1", src_t0=0, src_t1=3, out_f0=0)])
     fix = {"id": "f1", "take": "t1", "words": ["t1:99"], "say": "gonna " * 5,
            "source": {"start_s": 0, "end_s": 1}}
     origin = module.find_own(plan, fix, [])
