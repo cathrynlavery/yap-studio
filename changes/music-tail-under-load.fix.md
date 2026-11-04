@@ -1,1 +1,0 @@
-- Music under speech no longer loses its last fraction of a second when the computer is busy.

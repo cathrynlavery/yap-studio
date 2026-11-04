@@ -1,1 +1,0 @@
-- Unreadable JSON files, folders and images now get recovery advice that matches the path.

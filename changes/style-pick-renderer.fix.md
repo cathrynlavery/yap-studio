@@ -1,1 +1,0 @@
-- When the style page cannot open because the renderer is missing, report the missing renderer and how to install it.

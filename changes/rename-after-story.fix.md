@@ -1,1 +1,0 @@
-- Name a project after choosing the story and removing fillers, before rendering the cut, when no step is running.

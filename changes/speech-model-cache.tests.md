@@ -1,1 +1,0 @@
-- Speech tests reuse the downloaded speech model instead of fetching it again for every test.
