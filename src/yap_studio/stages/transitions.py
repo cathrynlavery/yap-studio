@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from yap_studio import ffmpeg, paths, receipt
+from yap_studio.canvas import Canvas, project_canvas
 from yap_studio.errors import YapError
 from yap_studio.project.receipts import projection_sha256
 from yap_studio.render import hyperframes
@@ -18,6 +20,7 @@ from yap_studio.stages.timeline import ResolvedTimeline
 FPS = 30
 LOOKS = frozenset({"whip_pan", "cinematic_zoom", "light_leak"})
 TEMPLATES = Path(__file__).parents[1] / "templates"
+SIZE_LITERALS = re.compile(r"(?<!\d)(1080|1920)(?!\d)")
 
 
 class TransitionError(YapError):
@@ -51,17 +54,19 @@ def _extract(cut: Path, directory: Path, first: int, frames: int) -> list[Path]:
     return expected
 
 
-def _assert_layer(path: Path, frames: int) -> None:
+def _assert_layer(path: Path, frames: int, frame: Canvas) -> None:
     """Check the opaque full-canvas movie before caching or compositing it."""
     info = ffmpeg.probe(path)
-    if ((info.width, info.height, info.video_frames, info.fps) != (1080, 1920, frames, FPS)
+    if ((info.width, info.height, info.video_frames, info.fps)
+            != (frame.width, frame.height, frames, FPS)
             or (info.color_primaries, info.color_transfer, info.color_space) != ("bt709",) * 3
             or info.has_audio):
-        raise TransitionError("Transition movie must be silent BT.709, 1080x1920 at 30 fps "
+        raise TransitionError("Transition movie must be silent BT.709, "
+                              f"{frame.width}x{frame.height} at 30 fps "
                               f"with exactly {frames} frames.")
 
 
-def _cached(folder: Path, key: str, frames: int) -> Path | None:
+def _cached(folder: Path, key: str, frames: int, frame: Canvas) -> Path | None:
     """Accept only an atomically published cache entry with its current movie hash."""
     if not folder.exists():
         return None
@@ -74,7 +79,7 @@ def _cached(folder: Path, key: str, frames: int) -> Path | None:
         raise TransitionError(f"Incomplete transition cache: {folder}.") from exc
     if not valid:
         raise TransitionError(f"Transition cache identity changed: {folder}.")
-    _assert_layer(movie, frames)
+    _assert_layer(movie, frames, frame)
     return movie
 
 
@@ -86,10 +91,11 @@ def render_transitions(project_dir: Path, timeline: ResolvedTimeline, cut: Path,
         return []
     with paths.operation():
         root = Path(project_dir).resolve()
+        frame = project_canvas(root)
         source = paths.validate_input(cut)
         info = ffmpeg.probe(source)
         if (info.width, info.height, info.video_frames, info.fps) != (
-            1080, 1920, timeline.total_frames, FPS,
+            frame.width, frame.height, timeline.total_frames, FPS,
         ):
             raise TransitionError("Verified cut dimensions or frame count disagree with timeline.")
         work = paths.validate_output_dir(work_dir)
@@ -115,20 +121,24 @@ def render_transitions(project_dir: Path, timeline: ResolvedTimeline, cut: Path,
                     "workers": hyperframes.RENDER_WORKERS,
                     "capture": hyperframes.RENDER_CAPTURE,
                     "template": receipt.sha256_file(template),
-                    "images": [receipt.sha256_file(frame) for frame in [*outgoing, *incoming]],
+                    "images": [receipt.sha256_file(png) for png in [*outgoing, *incoming]],
                 })
                 folder = cache / key
-                movie = _cached(folder, key, frames)
+                movie = _cached(folder, key, frames, frame)
                 if movie is None:
                     html = template.read_text(encoding="utf-8").replace(
                         'data-duration="0.399"',
                         f'data-duration="{hyperframes.layer_duration_s(frames, FPS)}"',
                     )
+                    html = SIZE_LITERALS.sub(
+                        lambda match: str(frame.width if match[0] == "1080" else frame.height),
+                        html,
+                    )
                     paths.atomic_write_text(composition / "index.html", html)
                     rendered = composition / "transition.mov"
                     hyperframes.render_layer(composition, rendered, frames=frames, fps=FPS,
                                              variables={"frames": frames, "fps": FPS})
-                    _assert_layer(rendered, frames)
+                    _assert_layer(rendered, frames, frame)
                     with tempfile.TemporaryDirectory(prefix=".transition-", dir=cache) as staged:
                         staging = Path(staged)
                         shutil.copyfile(rendered, staging / "transition.mov")
@@ -141,7 +151,7 @@ def render_transitions(project_dir: Path, timeline: ResolvedTimeline, cut: Path,
                         except OSError:
                             if not folder.is_dir():
                                 raise
-                        movie = _cached(folder, key, frames)
+                        movie = _cached(folder, key, frames, frame)
                         assert movie is not None
                 placements.append({"id": item.id, "path": str(movie),
                                    "start_frame": item.start_frame, "frames": frames})

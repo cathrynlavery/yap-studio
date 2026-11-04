@@ -285,7 +285,6 @@ def _start_locked(root: Path, takes: list[str] | None, newest: int, *,
                 "captions": {**wide_style.get("captions", {}), "camera_3d": False},
                 "hook": {**wide_style.get("hook", {}), "style": "none"},
                 "chapters": {**wide_style.get("chapters", {}), "style": "none"},
-                "moves": {**wide_style.get("moves", {}), "transitions": []},
             })
             _write_json(styles / "horizontal.json", wide_style)
             manifest = destination / "project.json"

@@ -27,8 +27,9 @@ What version 1 does not do yet, and what it never judges.
   (phone frame; use video_card), gravity_drop (full-frame words; use checklist), big_number
   (behind-speaker layout; use stat). Side panels and full-frame blurred card layouts are later
   options. Explicit card boxes and behind-person floating cards are unavailable.
+  Transitions use the same three looks as vertical and fill the 1920 × 1080 picture.
   Portrait and square inserts use blurred, darkened fill. Split B-roll, video letters,
-  transitions, person effects, 3D captions, before/after grade comparisons,
+  person effects, 3D captions, before/after grade comparisons,
   applied taste preferences and studio export fail with a fix line.
   Finished horizontal projects support 1280x720 YouTube thumbnails with `yap-studio cover`.
   Style/gallery samples remain vertical. Use the review page for final horizontal playback.

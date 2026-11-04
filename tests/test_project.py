@@ -103,8 +103,11 @@ def test_transition_contract_defaults_and_round_trip(name: str, frames: int | No
         data["elements"][0]["frames"] = frames
     jsonschema.validate(data, _schema(name))
     normalized = parse_document(name, data).to_dict()
-    assert normalized["elements"][0]["frames"] == (frames if frames is not None else 12)
-    assert isinstance(normalized["elements"][0]["frames"], int)
+    if frames is None:
+        assert "frames" not in normalized["elements"][0]
+    else:
+        assert normalized["elements"][0]["frames"] == frames
+        assert isinstance(normalized["elements"][0]["frames"], int)
     jsonschema.validate(normalized, _schema(name))
 
 
