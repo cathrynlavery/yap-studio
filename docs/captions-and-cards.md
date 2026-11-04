@@ -154,9 +154,10 @@ Text hook uses plain Inter in joined rounded boxes near the top. It shows for th
 opening, as long as an opening title (`hook.duration_s`), then clears. Add
 `"whole_video": true` to a video's `plans/text-hook.json` to keep it on until the
 cut ends. It never runs into the frozen end hold.
+Cards, B-roll boxes and captions keep clear of the label only while it shows.
 Choose White, Black or Accent. Text fits one or two balanced lines from 72 to 60 px.
 It waits for chosen text in `plans/text-hook.json`. Text that cannot fit or clear
-the face is refused. Captions keep their place.
+the face is refused.
 
 ### Cards
 
