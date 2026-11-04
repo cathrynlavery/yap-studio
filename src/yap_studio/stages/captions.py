@@ -526,6 +526,7 @@ def caption_offsets(
     caption_settings: Mapping[str, Any] | None = None,
     splits: Sequence[tuple[int, int, int]] = (),
     text_hook_bottom: int | None = None,
+    text_hook_end_frame: int | None = None,
 ) -> list[dict]:
     """Keep clear phrases and move colliding bands to the nearest clear position."""
     data = style.data if isinstance(style, ResolvedStyle) else style
@@ -567,6 +568,12 @@ def caption_offsets(
         element = Box(x, top, width, height)
         offset = top - original_top
         window = []
+        first = round(phrase["start"] * fps, 6)
+        entering = captions["entry_ms"] > 0 or captions["entrance"] == "rise"
+        if captions["entrance"] == "spoken" and captions["max_words_per_phrase"] > 1:
+            entering = False
+        start = math.floor(first) + 1 if entering else math.ceil(first)
+        end = math.ceil(round(phrase["end"] * fps, 6))
         if captions["placement"] == "fixed":
             reason = "kept: fixed caption placement"
         elif faces is None and still_faces is None:
@@ -574,12 +581,6 @@ def caption_offsets(
         elif faces is not None and faces.status != "measured":
             reason = f"kept: faces not measured: {faces.reason}"
         else:
-            first = round(phrase["start"] * fps, 6)
-            entering = captions["entry_ms"] > 0 or captions["entrance"] == "rise"
-            if captions["entrance"] == "spoken" and captions["max_words_per_phrase"] > 1:
-                entering = False
-            start = math.floor(first) + 1 if entering else math.ceil(first)
-            end = math.ceil(round(phrase["end"] * fps, 6))
             if still_faces is not None:
                 window = [tuple(still_faces)]
             else:
@@ -605,7 +606,9 @@ def caption_offsets(
                             reason = "kept: clear of the head"
                 else:
                     offset, reason = hint.y - original_top, hint.reason
-        if text_hook_bottom is not None and original_top + offset < text_hook_bottom + margin:
+        if (text_hook_bottom is not None
+                and (text_hook_end_frame is None or max(0, start) < min(end, text_hook_end_frame))
+                and original_top + offset < text_hook_bottom + margin):
             floor = max(cb.top, math.ceil(text_hook_bottom + margin))
             if floor + height > phrase_bounds.bottom:
                 raise ValidationError("captions", "Captions would cover the Text hook. "
@@ -1239,7 +1242,7 @@ def _empty_camera_snapshot(context: ProjectContext, retained: CameraSnapshot) ->
     return CaptionSnapshot(plan, (), assets, inputs, settings, retained.vocabulary)
 
 
-def _text_hook_bottom(timeline: ResolvedTimeline, style: ResolvedStyle) -> int | None:
+def _text_hook_bottom(timeline: ResolvedTimeline, style: ResolvedStyle) -> tuple[int, int] | None:
     if style.data["hook"]["style"] != "text_hook":
         return None
     title = next((item for item in timeline.elements
@@ -1248,7 +1251,7 @@ def _text_hook_bottom(timeline: ResolvedTimeline, style: ResolvedStyle) -> int |
         return None
     plan = title_layer_plan("", "", style, lines=title.payload["lines"], frames=1)
     # The hook can only move upward, so its default bottom reserves every placement.
-    return plan.y + plan.height
+    return plan.y + plan.height, title.end_frame
 
 
 def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapshot:
@@ -1343,8 +1346,8 @@ def caption_snapshot(context: ProjectContext) -> CaptionSnapshot | CameraSnapsho
             workers=hyperframes.CAPTION_WORKERS, browser_gpu=hyperframes.CAPTION_BROWSER_GPU)),
         **context.taste_inputs("captions"),
     }
-    if (bottom := _text_hook_bottom(timeline, style)) is not None:
-        inputs["text_hook"] = projection_sha256(bottom)
+    if (text_hook := _text_hook_bottom(timeline, style)) is not None:
+        inputs["text_hook"] = projection_sha256(text_hook)
     if any(backing):
         inputs["caption_backing"] = projection_sha256(backing)
     if bleep.enabled(style.data):
@@ -1523,10 +1526,12 @@ def captions(project_dir: Path, *, force: bool = False,
                 backing=snapshot.backing,
             )
             plan = snapshot.plan
+            text_hook = _text_hook_bottom(timeline, style)
             placements = caption_offsets(json.loads(plan.variables["phrases"]),
                                          geometry, faces, style,
                                          caption_settings=snapshot.caption_settings,
-                                         text_hook_bottom=_text_hook_bottom(timeline, style),
+                                         text_hook_bottom=text_hook[0] if text_hook else None,
+                                         text_hook_end_frame=text_hook[1] if text_hook else None,
                                          splits=[(start, end, layout.seam_y)
                                                  for start, end, layout in splits])
             candidates = {f"caption-{item['slot']}" for item in placements

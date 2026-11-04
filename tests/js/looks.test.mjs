@@ -267,6 +267,7 @@ function preview({reducedMotion = true, document = {querySelector: () => null}} 
   const sandbox = {window: {YAP_STYLE_DATA: context.window.YAP_STYLE_DATA,
     YapLooks: require('../../docs/design/style-page/looks.js'),
     YapCaptionPorts: require('../../docs/design/style-page/caption-ports.js'),
+    YapLearned: require('../../docs/design/style-page/learned.js'),
     YapPhrases: require('../../docs/design/style-page/phrases.js')},
   matchMedia: () => ({matches: reducedMotion}), document};
   vm.runInNewContext(pageFile('app.js').replace(/\n  start\(\);\n\}\)\(\);\s*$/,

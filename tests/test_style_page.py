@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from yap_studio.style import SHIPPED_PRESETS
-from yap_studio.style.loader import resolve_style_data
+from yap_studio.style.loader import resolve_style_data, validate_style_data
 from yap_studio.taste.learn import UNMEASURED, _proposed_style
 
 ROOT = Path(__file__).parents[1]
@@ -118,6 +118,72 @@ console.log(JSON.stringify({measured: result.rows.measured.map(row => row.field)
     assert reviewed["font_reason"] == proposed["sources"]["captions.font"]["reason"]
     assert reviewed["broll_emphasis"]["value"] == []
     assert reviewed["broll_emphasis"]["label"] == "broll.emphasis_on"
+
+
+def test_page_preserves_optional_preset_sections_on_load_switch_and_reset() -> None:
+    script = r"""
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const page = process.argv[1];
+const sandbox = {window: {YapLooks: require(path.join(page, 'looks.js')),
+  YapLearned: require(path.join(page, 'learned.js'))},
+  document: {querySelector: () => null}, matchMedia: () => ({matches: true})};
+vm.runInNewContext(fs.readFileSync(path.join(page, 'style-data.js'), 'utf8'), sandbox);
+const data = sandbox.window.YAP_STYLE_DATA;
+const synthetic = JSON.parse(JSON.stringify(data.presets.find(p => p.id === 'hi_fi')));
+synthetic.id = 'synthetic_chapters';
+synthetic.style.chapters = {style: 'title_card', hold_s: 2.7};
+data.presets.push(synthetic);
+const app = fs.readFileSync(path.join(page, 'app.js'), 'utf8').replace(
+  /\n  start\(\);\n\}\)\(\);\s*$/,
+  `
+  refresh = () => {};
+  toast = () => {};
+  window.pageTest = {state, output, applyStartingStyle, pickPreset, reset, merge, byId};
+})();`);
+vm.runInNewContext(app, sandbox);
+const {state, output, applyStartingStyle, pickPreset, reset, merge, byId} = sandbox.window.pageTest;
+const results = data.presets.map(preset => {
+  const before = JSON.stringify(preset);
+  applyStartingStyle(byId[preset.id].style, preset.style.name);
+  const loaded = output();
+  pickPreset(preset.id);
+  const switched = output();
+  if (state.style.grade) state.style.grade.look = 'none';
+  if (state.style.moves) state.style.moves.transitions.push('dissolve');
+  if (state.style.chapters) state.style.chapters.hold_s = 9;
+  reset();
+  const restored = output();
+  if (JSON.stringify(preset) !== before) throw new Error('Preset was mutated');
+  const merged = merge(preset.style, data.schema);
+  const legacy = {schema_version: 1, name: state.name.trim()};
+  for (const key of ['brand', 'captions', 'hook', 'graphics', 'music', 'broll']) {
+    legacy[key] = merged[key];
+  }
+  return {id: preset.id, source: preset.style, loaded, switched, restored,
+    legacy: JSON.stringify(legacy), serialized: JSON.stringify(restored)};
+});
+process.stdout.write(JSON.stringify(results));
+"""
+    result = subprocess.run(
+        ["node", "-e", script, str(PAGE)],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    for preset in json.loads(result.stdout):
+        for phase in ("loaded", "switched", "restored"):
+            saved = preset[phase]
+            validate_style_data(saved)
+            for section in ("grade", "moves", "chapters"):
+                if section in preset["source"]:
+                    assert saved.get(section) == preset["source"][section], (preset["id"], phase)
+                else:
+                    assert section not in saved, (preset["id"], phase)
+            if preset["id"] == "lo_fi":
+                assert saved["moves"]["transitions"] == []
+        if preset["id"] not in {"hi_fi", "lo_fi", "showcase", "synthetic_chapters"}:
+            assert preset["serialized"] == preset["legacy"], preset["id"]
 
 
 def test_page_font_choices_equal_bundled_set() -> None:

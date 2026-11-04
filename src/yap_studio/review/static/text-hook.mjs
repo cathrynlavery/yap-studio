@@ -7,7 +7,7 @@ export function renderTextHook(panel, plan, save, disabled = false) {
     if (text) element.textContent = text;
     return element;
   };
-  const heading = node('h2', plan.kind === 'opening' ? 'Opening title' : 'Whole-video label');
+  const heading = node('h2', plan.kind === 'opening' ? 'Opening title' : 'Short label');
   heading.id = 'text-hook-heading';
   panel.append(heading);
   if (plan.chosen) {

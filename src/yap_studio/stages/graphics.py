@@ -926,10 +926,16 @@ def graphics_snapshot(
     hook = next((title for title in titles if title.id == TEXT_HOOK_ID
                  and title.plan.variables.get("look") == "text_hook"), None)
     if hook is not None:
+        hook_start = hook.plan.start_frame
+        hook_end = hook_start + hook.plan.frames
         reserved = Box(hook.plan.x, hook.plan.y, hook.plan.width, hook.plan.height)
         margin = face_clearance_px(style.data)
         for item in (*titles, *graphics):
             if item is hook:
+                continue
+            start = (item.start_frame if isinstance(item, GraphicSnapshot)
+                     else item.plan.start_frame)
+            if max(start, hook_start) >= min(start + item.plan.frames, hook_end):
                 continue
             box = Box(item.plan.x, item.plan.y, item.plan.width, item.plan.height)
             boxes = [box]
@@ -947,7 +953,8 @@ def graphics_snapshot(
                                       f"{item.id} is too close to the Text hook. "
                                       "Move its box clear of the Text hook.")
         for item in timeline.elements:
-            if item.kind == "overlay" and item.payload.get("placement") != "tall_behind":
+            if (item.kind == "overlay" and item.payload.get("placement") != "tall_behind"
+                    and max(item.start_frame, hook_start) < min(item.end_frame, hook_end)):
                 if gap_px(reserved, Box(*item.payload["box_px"])) < margin:
                     raise ValidationError(f"overlay.{item.id}.clearance",
                                           f"{item.id} is too close to the Text hook. "

@@ -212,7 +212,7 @@ def test_existing_styles_resolve_with_broll_defaults(source: Path) -> None:
     before = copy.deepcopy(data)
     validate_style_data(data)
     resolved = load_style(source)
-    assert resolved["broll"] == BROLL_DEFAULTS
+    assert resolved["broll"] == {**BROLL_DEFAULTS, **data.get("broll", {})}
     assert resolved["schema_version"] == 1
     for section, value in data.items():
         if isinstance(value, dict):

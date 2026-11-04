@@ -21,6 +21,7 @@ PRESETS_DIR = Path(__file__).parent / "presets"
 SHIPPED_PRESETS = (
     "editorial_serif", "clean_minimal", "warm_editorial", "cobalt", "mono",
     "headline", "electric", "candy", "marker", "one_word", "hf_bold", "hf_editorial", "hf_neutral",
+    "lo_fi", "hi_fi", "showcase",
 )
 RESOLVED_SCHEMA = "yap-studio/resolved-style@1"
 
@@ -125,7 +126,7 @@ def _merge(value: dict[str, Any], rule: dict[str, Any]) -> dict[str, Any]:
 
 def _style_data(data: dict[str, Any]) -> dict[str, Any]:
     if isinstance(data, dict) and data.get("schema") == RESOLVED_SCHEMA:
-        return {key: value for key, value in data.items() if key != "schema"}
+        return {key: value for key, value in data.items() if key not in {"schema", "internal"}}
     return data
 
 

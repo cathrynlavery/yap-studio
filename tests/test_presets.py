@@ -31,7 +31,7 @@ def test_shipped_preset_resolves(preset: str) -> None:
     assert style.data["broll"]["color_match"] == "on"
 
 
-@pytest.mark.parametrize("preset", ["editorial_serif", "one_word"])
+@pytest.mark.parametrize("preset", ["editorial_serif", "one_word", "lo_fi", "hi_fi", "showcase"])
 def test_new_presets_anchor_captions_at_the_bottom(preset: str) -> None:
     style = resolve(f"preset:{preset}")
     captions = style.data["captions"]
@@ -41,6 +41,60 @@ def test_new_presets_anchor_captions_at_the_bottom(preset: str) -> None:
         captions, safe_bottom_px=style.data["internal"]["caption_safe_bottom_px"],
     )
     assert geometry.warnings == ()
+
+
+@pytest.mark.parametrize("preset", ["lo_fi", "hi_fi", "showcase"])
+def test_new_looks_keep_house_taste(preset: str) -> None:
+    style = resolve(f"preset:{preset}").data
+    captions = style["captions"]
+    assert captions["font"] == "Instrument Serif"
+    assert captions["position"] == "bottom"
+    assert captions["top_px"] == 1503
+    assert captions["shadow_opacity"] >= 0.9
+    assert captions["background_mode"] == "none"
+    assert style["hook"]["font"] == style["graphics"]["font"] == "Geist"
+    assert style["chapters"]["style"] == "none"
+    assert style["moments"]["styles"] == []
+    assert style["graphics"]["card_motion"] == "none"
+    assert style["graphics"]["specs_rows"] == "together"
+    assert style["broll"]["emphasis_on"] == []
+
+
+@pytest.mark.parametrize("preset,grade,moves,hook,cards,broll", [
+    ("lo_fi", "none", {
+        "zoom_mode": "none", "punch_scale": 1.5, "transitions": [],
+        "jump_cuts": "hard", "opening_push": False,
+    }, "text_hook", [], {
+        "screen_recording_placement": "full_frame", "clip_placement": "full_frame",
+        "photo_placement": "overlay", "screenshot_placement": "overlay",
+        "overlay_box": "headroom", "overlay_motion": "none",
+    }),
+    ("hi_fi", "film", {
+        "zoom_mode": "punches_and_push", "punch_scale": 1.5, "transitions": ["light_leak"],
+        "jump_cuts": "smooth", "opening_push": False,
+    }, "quiet_serif", [], {
+        "screen_recording_placement": "full_frame", "clip_placement": "full_frame",
+        "photo_placement": "overlay", "screenshot_placement": "overlay",
+        "overlay_box": "headroom", "overlay_motion": "none",
+    }),
+    ("showcase", "none", {
+        "zoom_mode": "none", "punch_scale": 1.5, "transitions": [],
+        "jump_cuts": "hard", "opening_push": False,
+    }, "quiet_serif", ["playing_grid", "video_card"], {
+        "screen_recording_placement": "full_frame", "clip_placement": "full_frame",
+        "photo_placement": "overlay", "screenshot_placement": "overlay",
+        "overlay_box": "tall_behind", "overlay_motion": "scroll",
+    }),
+])
+def test_new_looks_pin_picture_camera_and_broll(preset, grade, moves, hook, cards, broll) -> None:
+    style = resolve(f"preset:{preset}").data
+    assert style["grade"]["look"] == grade
+    assert style["moves"] == moves
+    assert style["hook"]["style"] == hook
+    assert style["graphics"]["card_kinds_on"] == cards
+    assert {key: style["broll"][key] for key in broll} == broll
+    if preset == "lo_fi":
+        assert style["music"]["sound_effects"] == "none"
 
 
 def test_one_word_splits_every_word_into_its_own_phrase() -> None:
@@ -107,7 +161,7 @@ def test_prototype_includes_new_shipped_presets() -> None:
     assert order is not None
     ids = re.findall(r"'([a-z_]+)'", order[1])
     assert ids[0] == "editorial_serif"
-    assert ids[-1] == "hf_neutral"
+    assert ids[-1] == "showcase"
     assert ids == list(SHIPPED_PRESETS)
     assert set(ids) == set(by_id)
 
@@ -139,6 +193,7 @@ def test_all_site_styles_are_shipped_and_no_proposals_remain():
     assert list(SHIPPED_PRESETS) == [
         "editorial_serif", "clean_minimal", "warm_editorial", "cobalt", "mono", "headline",
         "electric", "candy", "marker", "one_word", "hf_bold", "hf_editorial", "hf_neutral",
+        "lo_fi", "hi_fi", "showcase",
     ]
     source = ROOT / "docs/design/style-page/proposed-presets/order.json"
     assert json.loads(source.read_text()) == []

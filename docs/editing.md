@@ -388,8 +388,9 @@ Use `yap-studio assemble DIR --frames A-B` to render `pilot/<name>.pilot-A-B.mp4
 with the same layers on those frames as the full render. A range ending inside a
 caption or graphic is refused with a suggested complete end frame. Pilots are never
 finals or saved versions; `pilot/receipt.json` records the phase timings.
-The final ends with a frozen composited frame and a silent hold. Insert audio defaults
-to mute; an insert's `{"gain_db": -18}` mixes its audio while voice continues.
+The final ends with a frozen composited frame and a 0.5 s silent hold.
+An `end_hold_s` in `edit.json` sets another length. Insert audio defaults to mute;
+an insert's `{"gain_db": -18}` mixes its audio while voice continues.
 `music DIR --file TRACK` saves the supplied track setting and prepares it.
 Assemble decodes HEIC and HEIF photos once into `.yap/cache/stills/` in the project and reuses them in later renders.
 

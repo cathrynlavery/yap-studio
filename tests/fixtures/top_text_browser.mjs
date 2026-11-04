@@ -20,7 +20,7 @@ try {
   await page.goto(`${styleURL}#top-text`);
   await page.waitForSelector('#top-text-tiles button');
   assert.deepEqual(await page.$$eval('#top-text-tiles .tile-label', nodes =>
-    nodes.map(node => node.firstChild.textContent)), ['None', 'Just the opening', 'The whole video']);
+    nodes.map(node => node.firstChild.textContent)), ['None', 'Opening title', 'Short label']);
   assert.equal(await page.$$eval('#top-text-tiles [aria-pressed="true"]', nodes => nodes.length), 0);
   await page.waitForFunction(() => document.getElementById('main-frame')._galleryStage?.frames
     .every(frame => frame._galleryReady));
@@ -115,7 +115,7 @@ try {
     }));
     location.hash = '#new/look';
   });
-  await page.waitForFunction(() => document.querySelector('#main').textContent.includes('Text at the top: Just the opening'));
+  await page.waitForFunction(() => document.querySelector('#main').textContent.includes('Text at the top: Opening title'));
   await page.evaluate(() => location.hash = '#new/make');
   await page.waitForSelector('#top-text-choice');
   assert.equal(await page.$eval('#top-text-choice', input => input.value), 'opening');

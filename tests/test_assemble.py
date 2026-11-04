@@ -20,8 +20,10 @@ from test_cut import make_project, time_segment, write_edit, write_json
 from test_matte_project import synthetic_matte
 from test_music_elevenlabs import fake as elevenlabs_fake  # noqa: F401
 from test_music_file import set_music
+from test_planner_cards import synthetic_faces
 from test_stage_captions import set_elements
 from test_stage_graphics import graphic, title
+from test_text_hook import choice
 
 from yap_studio import cli, elevenlabs, ffmpeg, receipt, sfx
 from yap_studio.checks.caption_layout import check_caption_cards, read_layout_record
@@ -1550,6 +1552,42 @@ def test_timeline_cards_reach_verified_final(project: Path) -> None:
         np.testing.assert_allclose(pixels.mean(axis=(0, 1)), (230, 90, 40), atol=5)
     assert read_receipt(project / "final")["status"] == "verified"
     assert final_stage(project)["state"] == "done"
+
+
+def test_text_hook_reaches_verified_final_with_end_hold(
+    project: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    style_path = project / "assembly-style.json"
+    style = json.loads(style_path.read_bytes())
+    style["hook"].update(style="text_hook", duration_s=1)
+    write_json(style_path, style)
+    write_edit(project, [time_segment("s1", "t1", 0, 4)])
+    cut(project)
+    write_json(project / "plans/text-hook.json", choice("Make it clear", "typed"))
+    monkeypatch.setattr(graphics_stage, "picture_faces", lambda *args:
+                        synthetic_faces(Box(400, 900, 200, 200), frames=120))
+    captions(project)
+    graphics(project)
+    music(project)
+    timeline = ProjectContext(project).resolved_timeline()
+    assert timeline.end_hold_frames == round(style["internal"]["end_hold_s"] * 30) > 0
+    result = stage.assemble(project)
+    out = project / result["out"]
+    assert ffmpeg.probe(out).video_frames == timeline.total_frames + timeline.end_hold_frames
+    assert read_receipt(project / "final")["status"] == "verified"
+    hook = next(item for item in read_receipt(project / "graphics")["elements"]
+                if item["id"] == "agent-text-hook")
+    assert hook["start_frame"] == 0 and hook["frames"] == 30
+    box = (hook["x"] + 50, hook["y"] + 50, 20, 20)
+    opening = synth.picture_pixels(out, 29, box=box)
+    cleared = synth.picture_pixels(out, 30, box=box)
+    plain = synth.picture_pixels(project / "cut/cut.mp4", 30, box=box)
+    np.testing.assert_allclose(opening.mean(axis=(0, 1)), (230, 90, 40), atol=5)
+    np.testing.assert_allclose(cleared.mean(axis=(0, 1)), plain.mean(axis=(0, 1)), atol=5)
+    content = synth.picture_pixels(out, timeline.total_frames - 1, box=box)
+    held = synth.picture_pixels(out, timeline.total_frames + timeline.end_hold_frames - 1,
+                                box=box)
+    np.testing.assert_allclose(held, content, atol=3)
 
 
 def _measured_caption_layout(project: Path, *, box: Box | None = None) -> dict:

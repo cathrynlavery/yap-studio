@@ -57,6 +57,7 @@ No source argument is needed. `sync_data.py` only copies the engine presets on i
 | Preset | Status |
 | --- | --- |
 | Editorial Serif, Clean Minimal, Warm Editorial, Cobalt, Mono, Headline, Electric, Candy, Marker, One Word | Shipped in the engine |
+| Bold, Editorial, Neutral, Lo-fi, Hi-fi, Showcase | Shipped in the engine |
 
 The last five proposed files moved unchanged into the engine; `proposed-presets/order.json` is now empty. Every shipped preset passes the engine's style validation and uses bundled fonts. Editorial Serif uses Instrument Serif with a gold colored word, a quiet title and cream cards.
 
@@ -84,7 +85,7 @@ unmeasured choices, or pass a style file to `--base`. Without a base, learning u
 schema defaults. Fonts and words per phrase come from the base because learning does
 not recognise text yet.
 
-Save style checks the result with the same rules as the engine loader, adds it to a list of saved styles in `localStorage` (the stand-in for the account's style library), marks it as the default when "Use this style for my next videos" is ticked, and offers a copy as a download. Import the download with `yap-studio style add FILE --default` to save it in your own style library and select it for new videos. Each new video gets the style it names, else the library default, else Clean Minimal. The file holds `schema_version`, `name`, and the full `brand`, `captions`, `hook`, `graphics` and `music` sections. It leaves out `internal`, so the loader fills delivery and safe-zone values from the schema.
+Save style checks the result with the same rules as the engine loader, adds it to a list of saved styles in `localStorage` (the stand-in for the account's style library), marks it as the default when "Use this style for my next videos" is ticked, and offers a copy as a download. Import the download with `yap-studio style add FILE --default` to save it in your own style library and select it for new videos. Each new video gets the style it names, else the library default, else Clean Minimal. The file holds `schema_version`, `name`, and the full `captions`, `hook`, `graphics` and `music` sections, plus `brand`, `broll`, `grade`, `moves` and `chapters` when the style has them. It leaves out `internal`, so the loader fills delivery and safe-zone values from the schema.
 
 ## Known gaps
 

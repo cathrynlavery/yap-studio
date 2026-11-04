@@ -308,9 +308,13 @@ SPECS: dict[str, dict[str, Any]] = {
         "chosen": _nullable(_str(minLength=1, maxLength=1000)),
         "source": _enum("typed", "idea", "note"),
         "kind": _enum("text_hook", "opening"),
+        "whole_video": _BOOL,
     }, ("schema", "ideas", "chosen", "source"), allOf=[{
         "if": {"properties": {"chosen": {"type": "null"}}},
         "then": {"properties": {"ideas": {"minItems": 3}}},
+    }, {
+        "if": {"properties": {"kind": {"const": "opening"}}, "required": ["kind"]},
+        "then": {"not": {"required": ["whole_video"]}},
     }]),
     "project": _obj({
         "schema": {"const": "yap-studio/project@1"},
@@ -770,12 +774,14 @@ class TextHook:
     chosen: str | None
     source: str
     kind: str = "text_hook"
+    whole_video: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Return the versioned plan without mutable model fields."""
         return {"schema": "yap-studio/text-hook@1", "ideas": list(self.ideas),
                 "chosen": self.chosen, "source": self.source,
-                **({"kind": self.kind} if self.kind != "text_hook" else {})}
+                **({"kind": self.kind} if self.kind != "text_hook" else {}),
+                **({"whole_video": True} if self.whole_video else {})}
 
 
 Document = Project | Words | Edit | Removals | CutWords | TimelineLane | TextHook
@@ -818,7 +824,7 @@ def parse_document(
             if data["chosen"] not in data["ideas"]:
                 raise ProjectFileError(filename, "chosen", "choose one of the offered ideas")
         return TextHook(tuple(data["ideas"]), data["chosen"], data["source"],
-                        data.get("kind", "text_hook"))
+                        data.get("kind", "text_hook"), data.get("whole_video", False))
     if name == "project":
         _unique(data["takes"], filename, "takes")
         values = {key: value for key, value in data.items() if key not in {"schema", "takes"}}

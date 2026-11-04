@@ -1,0 +1,1 @@
+- The Text hook label shows for the opening, as long as an opening title, then clears. Add "whole_video": true to a video's plans/text-hook.json to keep it on until the cut ends. It never runs into the frozen end. Cards, B-roll boxes and captions keep clear of it only while it shows.

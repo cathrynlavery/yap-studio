@@ -319,7 +319,15 @@ test('unanswered top text previews opening looks only on Opening and Save asks f
   }
 });
 
-test('opening looks preview and remember the look without changing None or whole-video answers', async () => {
+test('short label uses the opening duration note', async () => {
+  const state = initialState();
+  state.style.hook.duration_s = 4.48;
+  const page = await harness(state, '#top-text');
+  await page.click('top-text-whole');
+  assert.equal(page.$('title-note').textContent, 'Shows for the first 4.5 seconds.');
+});
+
+test('opening looks preview and remember the look without changing None or Short label answers', async () => {
   for (const answer of ['none', 'whole']) {
     for (const [group, label, look] of [['title-tiles', 'Shimmer', 'shimmer'],
       ['more-title-tiles', 'Paper card', 'paper_title'], ['title-tiles', 'Kinetic hook', 'kinetic'],

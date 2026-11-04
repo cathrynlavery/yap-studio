@@ -17,9 +17,10 @@ work. [Styles](styles.md#pick-your-look) covers `--detach` and `--stop`.
 
 The page opens on looks under your video. Your saved styles come first, newest first,
 with the names you gave them. The presets follow: Editorial Serif, Clean Minimal, Warm
-Editorial, Cobalt, Mono, Headline, Electric, Candy, Marker, One Word, Bold, Editorial
-and Neutral. A look sets every choice, from fonts to sound. Tap a look to see it on
-your take. If it is right, press Save style, answer Text at the top, and save it.
+Editorial, Cobalt, Mono, Headline, Electric, Candy, Marker, One Word, Bold, Editorial,
+Neutral, Lo-fi, Hi-fi and Showcase. A look sets every choice, from fonts to sound.
+Tap a look to see it on your take. If it is right, press Save style, answer Text at
+the top, and save it.
 
 Customize opens four screens: Font, Captions, Colors and Text at the top.
 Back and Next move through them, then on to More choices and the
@@ -96,12 +97,14 @@ and cards keep their own colors. The style file fields are in
 
 ### Text at the top
 
-Answer one question: when would you like text at the top of your video?
-Choose None, Just the opening, or The whole video. Each previews on your own still.
-Just the opening uses your title look for the first few seconds. The whole video
-uses a short label like "Security rant". Nothing is selected for you, and nothing
-appears at the top until you answer. Save style opens this question if needed.
-For The whole video, Label color offers White, Black or Accent for the box.
+Answer one question: what would you like at the top of your video?
+Choose None, Opening title, or Short label. Each previews on your own still.
+Opening title uses your title look for the first few seconds. Short label shows
+a label like "Security rant" for the same few seconds. To keep the label on for
+a whole video, ask your agent on that video; it then stays until the cut ends.
+Nothing is selected for you, and nothing appears at the top until you answer.
+Save style opens this question if needed.
+For Short label, Label color offers White, Black or Accent for the box.
 Its preview uses a short line from your take when words are available.
 
 For either kind, the agent writes three ideas for each video, shows them in the
@@ -110,7 +113,7 @@ It never chooses for you. Older saved styles keep rendering as before, and the
 agent asks this question once before your next cut.
 
 Your answer saves `hook.answered: true`. `hook.style` is `none` for None,
-your title look for Just the opening, or `text_hook` for The whole video.
+your title look for Opening title, or `text_hook` for Short label.
 Older styles resolve with `hook.answered: false` and keep their existing look.
 
 ### Opening look

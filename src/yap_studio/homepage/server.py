@@ -438,7 +438,7 @@ class HomeServer:
                 if top_text is not None and (not isinstance(top_text, str)
                                              or top_text not in {"none", "opening", "whole"}):
                     raise ValidationError("top_text",
-                                          "Choose None, Just the opening or The whole video.")
+                                          "Choose None, Opening title or Short label.")
                 hook = data.get("text_hook", "") if shape != "horizontal" else ""
                 if not isinstance(hook, str):
                     raise ValidationError("text_hook", "Write the text at the top as plain text.")

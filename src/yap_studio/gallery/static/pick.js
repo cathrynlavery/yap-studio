@@ -1620,7 +1620,6 @@ function renderControls({ replaceColors = false } = {}) {
   $("look-selected").textContent = baseStyle.name;
   const titleLook = activeStep === "opening" ? openingLook : style.hook.style;
   $("title-note").textContent = titleLook === "none" ? "Your video starts straight on you, with no title."
-    : titleLook === "text_hook" ? "Stays on screen for the whole video."
     : titleLook === "video_letters" ? "Shows for the first few seconds."
     : `Shows for the first ${Number(style.hook.duration_s.toFixed(1))} seconds.`;
   const music = sectionValues(style, "music");

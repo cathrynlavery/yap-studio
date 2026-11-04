@@ -695,6 +695,9 @@ def test_words_have_fixed_pauses_and_two_wide_phrases(tmp_path: Path) -> None:
         ("hf_bold", "sans", "heavy"),
         ("hf_editorial", "serif", "regular"),
         ("hf_neutral", "sans", "regular"),
+        ("lo_fi", "serif", "regular"),
+        ("hi_fi", "serif", "regular"),
+        ("showcase", "serif", "regular"),
     ],
 )
 def test_final_truth_caption_measurements_without_rendering(
@@ -2076,19 +2079,31 @@ def _assert_final(
         else title_lines * hook["size_px"] * 0.98 + 100
     )
     quiet_width = taste_finals.FINAL_SINGLE_LINE_TITLE_WIDTHS.get(preset, 780)
-    expected_title = (
-        {"x": (1080 - quiet_width) // 2, "y": 300, "width": quiet_width,
-         "height": round(title_height)}
-        if hook["style"] == "quiet_serif"
-        else {"x": 90, "y": 300, "width": 900, "height": round(title_height)}
-        if hook["style"] == "paper_title"
-        else {
-            "x": 0,
-            "y": round(300 - 540 * np.tan(np.radians(2.5))),
-            "width": 1080,
-            "height": round(title_height + 1080 * np.tan(np.radians(2.5))),
-        }
-    )
+    if hook["style"] == "text_hook":
+        from yap_studio.stages.captions import title_layer_plan
+
+        plain, key = taste_finals.TITLE.split("|")
+        plan = title_layer_plan(plain, key, resolve(f"preset:{preset}"))
+        # The plan reserves metric width; the browser centres the label at its own text width.
+        assert measures["hook.box"]["x"] + measures["hook.box"]["width"] / 2 == pytest.approx(
+            plan.x + plan.width / 2, abs=BOX_TOLERANCE,
+        )
+        assert measures["hook.box"]["width"] <= plan.width
+        expected_title = {dimension: getattr(plan, dimension) for dimension in ("y", "height")}
+    else:
+        expected_title = (
+            {"x": (1080 - quiet_width) // 2, "y": 300, "width": quiet_width,
+             "height": round(title_height)}
+            if hook["style"] == "quiet_serif"
+            else {"x": 90, "y": 300, "width": 900, "height": round(title_height)}
+            if hook["style"] == "paper_title"
+            else {
+                "x": 0,
+                "y": round(300 - 540 * np.tan(np.radians(2.5))),
+                "width": 1080,
+                "height": round(title_height + 1080 * np.tan(np.radians(2.5))),
+            }
+        )
     for key, value in expected_title.items():
         assert measures["hook.box"][key] == pytest.approx(value, abs=BOX_TOLERANCE)
     title_window = measures["hook.window"]

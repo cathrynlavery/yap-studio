@@ -398,7 +398,7 @@ def test_explicit_media_matches_plan(project: Path, frames: int, rate: int, acce
         assert not (project / "versions").exists()
 
 
-@pytest.mark.parametrize(("hold_s", "hold_frames"), [(0.5, 15), (None, 45)])
+@pytest.mark.parametrize(("hold_s", "hold_frames"), [(0.5, 15), (None, 15), (1.5, 45)])
 @pytest.mark.parametrize("frame_delta", [-1, 0, 1])
 def test_explicit_media_includes_end_hold(
     project: Path, hold_s: float | None, hold_frames: int, frame_delta: int

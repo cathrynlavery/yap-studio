@@ -24,7 +24,12 @@ from yap_studio.project.status import ProjectContext
 from yap_studio.render.moments import check_moments
 from yap_studio.stages import assemble_picture
 from yap_studio.stages import graphics as graphics_stage
-from yap_studio.stages.captions import caption_band_geometry, caption_offsets, captions
+from yap_studio.stages.captions import (
+    caption_band_geometry,
+    caption_offsets,
+    caption_snapshot,
+    captions,
+)
 from yap_studio.stages.graphics import graphics_snapshot
 from yap_studio.stages.timeline import ResolvedElement
 from yap_studio.style import resolve_style_data
@@ -77,13 +82,16 @@ def test_text_hook_shares_insert_background_card_and_moment(hooked_project):
 
 @pytest.mark.parametrize("text", ["Rant", "A better opening starts with a clear idea"])
 @pytest.mark.parametrize("hook_y", [250, 650], ids=["clear", "paint-overlap"])
-def test_text_hook_checks_chapter_text_not_its_canvas(hooked_project, monkeypatch, text, hook_y):
+@pytest.mark.parametrize("start", [4, 6], ids=["during", "after"])
+def test_text_hook_checks_chapter_text_not_its_canvas(
+    hooked_project, monkeypatch, text, hook_y, start,
+):
     root = hooked_project
     data = json.loads((root / "style.json").read_bytes())
     data["chapters"] = {"style": "title_card"}
     write(root / "style.json", data)
     write(root / "plans/text-hook.json", choice(text, "typed"))
-    lane(root, "agent", [chapter(start={"time": 4}, hold_s=1)])
+    lane(root, "agent", [chapter(start={"time": start}, hold_s=1)])
     place_title = graphics_stage.place_title
 
     def placed(plan, *args):
@@ -91,7 +99,7 @@ def test_text_hook_checks_chapter_text_not_its_canvas(hooked_project, monkeypatc
         return replace(plan, y=hook_y), clearance
 
     monkeypatch.setattr(graphics_stage, "place_title", placed)
-    if hook_y == 650:
+    if hook_y == 650 and start == 4:
         with pytest.raises(ValidationError, match="agent-ch-tokens.*Text hook.*Move its box"):
             graphics_snapshot(ProjectContext(root))
     else:
@@ -139,6 +147,45 @@ def test_text_hook_refuses_a_front_card_in_its_box(hooked_project):
     assert context.resolved_timeline().valid
     with pytest.raises(ValidationError, match="Text hook.*[Mm]ove|[Mm]ove.*Text hook"):
         graphics_snapshot(context)
+
+
+@pytest.mark.parametrize("kind", ["card", "overlay"])
+@pytest.mark.parametrize("start,whole_video,refuses", [
+    (4, False, True), (4.4, False, True),
+    (133 / 30, False, True), (134 / 30, False, False),
+    (6, False, False), (6, True, True),
+], ids=["during", "straddling", "last-frame", "cleared", "after", "whole-video"])
+def test_text_hook_reserves_boxes_only_while_visible(hooked_project, kind, start,
+                                                    whole_video, refuses):
+    root = hooked_project
+    write(root / "plans/text-hook.json", {**choice("Make it clear", "typed"),
+                                          "whole_video": whole_video})
+    box = {"x": 100, "y": 200, "width": 880, "height": 640}
+    if kind == "card":
+        item = graphic(start={"time": start}, end={"time": 7.5}, layer="front", box=box)
+    else:
+        item = overlay(root, start={"time": start}, end={"time": 7.5}, placement="box",
+                       box=list(box.values()))
+    lane(root, item["lane"], [item])
+    context = ProjectContext(root)
+    timeline = context.resolved_timeline()
+    assert timeline.valid
+    hook = next(item for item in timeline.elements if item.id == "agent-text-hook")
+    assert (hook.start_frame, hook.end_frame) == (0, 360 if whole_video else 134)
+    if refuses:
+        with pytest.raises(ValidationError, match="Move its box clear of the Text hook"):
+            graphics_snapshot(context)
+    else:
+        snapshot = graphics_snapshot(context)
+        if kind == "card":
+            card, = snapshot.graphics
+            placement = card.placement()
+            assert {key: placement[key] for key in box} == box
+            assert placement["start_frame"] == round(start * 30)
+            assert placement["frames"] == 225 - round(start * 30)
+        else:
+            placed = next(element for element in timeline.elements if element.id == item["id"])
+            assert placed.payload["box_px"] == list(box.values())
 
 
 @pytest.mark.parametrize("name", ["color_pop", "sticker_freeze", "clone_flash"])
@@ -238,6 +285,12 @@ def test_text_hook_keeps_high_captions_clear(layer_project, monkeypatch, fake_la
                >= hook.plan.y + hook.plan.height + inputs["graphics"]["face_clearance_px"]
                for slot in slots)
     assert captions(root)["noop"]
+    data["hook"]["duration_s"] = .5
+    write(root / "style.json", data)
+    assert not captions(root).get("noop", False)
+    slots = json.loads(fake_layers[-1]["variables"]["phrases"])
+    assert any(slot["start"] >= .5 for slot in slots)
+    assert all(slot.get("offset_px", 0) == 0 for slot in slots if slot["start"] >= .5)
     write(root / "plans/text-hook.json", choice("Rant", "typed"))
     assert not captions(root).get("noop", False)
 
@@ -259,6 +312,67 @@ def test_text_hook_refuses_captions_with_no_clear_position(hooked_project):
     faces = synthetic_faces(Box(0, 600, 1080, 1200), frames=90)
     with pytest.raises(ValidationError, match="Text hook and face"):
         caption_offsets(slots, geometry, faces, style, text_hook_bottom=470)
+
+
+@pytest.mark.parametrize("whole_video", [False, True])
+@pytest.mark.parametrize("placement", ["fixed", "avoid_face"])
+def test_text_hook_moves_high_captions_only_while_visible(hooked_project, whole_video, placement):
+    root = hooked_project
+    write(root / "plans/text-hook.json", {**choice("Make it clear", "typed"),
+                                          "whole_video": whole_video})
+    context = ProjectContext(root)
+    hook = next(item for item in context.resolved_timeline().elements
+                if item.id == "agent-text-hook")
+    style = context.render_style()
+    style.data["captions"].update(position="middle", top_px=700, size_px=180,
+                                  background_mode="box", placement=placement)
+    geometry = caption_band_geometry(style.data["captions"], safe_bottom_px=1740)
+    slots = [{"start": start, "end": end, "words": [{"text": "Synthetic"}]}
+             for start, end in [(0, 1), (132 / 30, 5), (133 / 30, 5), (6, 7)]]
+    original = caption_offsets(slots, geometry, None, style)
+    moved = caption_offsets(slots, geometry, None, style, text_hook_bottom=470,
+                            text_hook_end_frame=hook.end_frame)
+    assert moved[0]["offset_px"] > original[0]["offset_px"]
+    assert moved[1]["offset_px"] > original[1]["offset_px"]
+    if whole_video:
+        assert all(item["offset_px"] > before["offset_px"]
+                   for item, before in zip(moved, original, strict=True))
+    else:
+        assert moved[2:] == original[2:]
+
+
+@pytest.mark.parametrize("entry,moves", [({"entry_ms": 0}, True), ({}, False)],
+                         ids=["no-entrance", "default-entrance"])
+@pytest.mark.parametrize("placement", ["fixed", "avoid_face"])
+def test_text_hook_checks_captions_first_drawn_frame(entry, moves, placement):
+    style = resolve_style_data({"schema_version": 1, "captions": {
+        "position": "middle", "top_px": 700, "size_px": 180,
+        "background_mode": "box", "placement": placement, "entrance": "slide", **entry,
+    }})
+    geometry = caption_band_geometry(style["captions"], safe_bottom_px=1740)
+    slots = [{"start": 133 / 30, "end": 5, "words": [{"text": "Synthetic"}]}]
+    original = caption_offsets(slots, geometry, None, style)
+    moved = caption_offsets(slots, geometry, None, style, text_hook_bottom=470,
+                            text_hook_end_frame=134)
+    if moves:
+        assert moved[0]["offset_px"] > original[0]["offset_px"]
+    else:
+        assert moved == original
+
+
+@pytest.mark.parametrize("change", ["duration", "whole_video"])
+def test_caption_inputs_include_text_hook_window(hooked_project, change):
+    root = hooked_project
+    before = caption_snapshot(ProjectContext(root))
+    if change == "duration":
+        data = json.loads((root / "style.json").read_bytes())
+        data["hook"]["duration_s"] = 2
+        write(root / "style.json", data)
+    else:
+        write(root / "plans/text-hook.json", {**choice("Make it clear", "typed"),
+                                              "whole_video": True})
+    after = caption_snapshot(ProjectContext(root))
+    assert after.inputs["text_hook"] != before.inputs["text_hook"]
 
 
 @pytest.mark.parametrize("kind", ["insert", "background", "moment", "sticker_freeze"])

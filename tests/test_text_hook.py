@@ -99,6 +99,27 @@ def test_text_hook_schema_defaults_and_refusal():
             parse_document("text-hook", {**choice(), **change})
 
 
+@pytest.mark.parametrize("fields", [{}, {"whole_video": False}, {"whole_video": True}])
+def test_text_hook_whole_video_round_trip(fields):
+    original = choice("Make it clear", "typed")
+    plan = parse_document("text-hook", {**original, **fields})
+    assert plan.whole_video is fields.get("whole_video", False)
+    expected = {**original, **({"whole_video": True} if plan.whole_video else {})}
+    assert json.dumps(plan.to_dict()).encode() == json.dumps(expected).encode()
+
+
+@pytest.mark.parametrize("value", [None, 0, 1, "true", [], {}])
+def test_text_hook_whole_video_requires_boolean(value):
+    with pytest.raises(ValidationError):
+        parse_document("text-hook", {**choice(), "whole_video": value})
+
+
+@pytest.mark.parametrize("whole_video", [False, True])
+def test_opening_title_refuses_whole_video(whole_video):
+    with pytest.raises(ValidationError):
+        parse_document("text-hook", {**choice(), "kind": "opening", "whole_video": whole_video})
+
+
 @pytest.mark.parametrize("text,spoken,refuses", [
     ("Why pay $50 for this?", "It costs fifty dollars.", False),
     ("Why pay $50 for this?", "There are fifty pieces.", True),
@@ -119,7 +140,7 @@ def test_title_text_hook_preview_uses_take_words(tmp_path, monkeypatch):
     words = live.sample_words("A clearer opening starts with your own words.")
     layer, = live.live_layers(style(), words, tmp_path, only="title")
     assert layer.variables["plain"] == "A clearer opening starts with your own words."
-    assert layer.frames == round((words[-1].end + 1) * 30)
+    assert layer.frames == round(4.48 * 30)
     assert layer.variables["font_name"] == "Inter"
 
 
@@ -135,28 +156,76 @@ def test_title_text_hook_face_floor():
         place_title(plan, resolved, blocked)
 
 
-def test_title_text_hook_waits_then_holds_every_frame(layer_project, monkeypatch):
+@pytest.mark.parametrize("duration,frames", [(2, 60), (2.15, 65)])
+@pytest.mark.parametrize("fields", [{}, {"whole_video": False}])
+def test_title_text_hook_waits_then_shows_for_opening(
+    layer_project, monkeypatch, duration, frames, fields,
+):
+    assert ProjectContext(layer_project).resolved_timeline().total_frames == 90
     data = json.loads((layer_project / "style.json").read_bytes())
-    data["hook"] = {"style": "text_hook"}
+    data["hook"] = {"style": "text_hook", "duration_s": duration}
     write(layer_project / "style.json", data)
     set_elements(layer_project, {"id": "agent-old-title", "kind": "title",
                                 "start": {"time": .2}, "lines": ["Old title"]})
     assert not graphics_snapshot(ProjectContext(layer_project)).titles
     write(layer_project / "plans/text-hook.json", choice())
     assert not graphics_snapshot(ProjectContext(layer_project)).titles
-    write(layer_project / "plans/text-hook.json", choice("What makes this work?"))
+    write(layer_project / "plans/text-hook.json", {**choice("What makes this work?"), **fields})
     monkeypatch.setattr("yap_studio.stages.graphics.picture_faces", lambda *args:
                         synthetic_faces(Box(400, 900, 200, 200), frames=120))
     context = ProjectContext(layer_project)
     timeline = context.resolved_timeline()
     assert not any(f.rule == "title_words" for f in timeline.findings)
+    hook, = (item for item in timeline.elements if item.id == "agent-text-hook")
+    assert hook.start_frame == 0 and hook.end_frame == frames < timeline.total_frames
+    assert hook.layer == "front"
     title, = graphics_snapshot(context).titles
     assert title.plan.start_frame == 0
-    assert title.plan.frames == timeline.total_frames + timeline.end_hold_frames
+    assert title.plan.frames == frames
     assert timeline.valid
     write(layer_project / "plans/text-hook.json", choice("Why pay $999 for this?", "typed"))
     assert any(f.rule == "number_not_spoken" for f in
                ProjectContext(layer_project).resolved_timeline(allow_violations=True).findings)
+
+
+def test_title_text_hook_opening_is_capped_at_cut_end(layer_project, monkeypatch):
+    data = json.loads((layer_project / "style.json").read_bytes())
+    data["hook"] = {"style": "text_hook"}
+    write(layer_project / "style.json", data)
+    write(layer_project / "plans/text-hook.json", choice("Make it clear", "typed"))
+    monkeypatch.setattr("yap_studio.stages.graphics.picture_faces", lambda *args:
+                        synthetic_faces(Box(400, 900, 200, 200), frames=90))
+    context = ProjectContext(layer_project)
+    timeline = context.resolved_timeline()
+    assert timeline.total_frames < round(4.48 * 30)
+    assert timeline.end_hold_frames > 0
+    hook, = (item for item in timeline.elements if item.id == "agent-text-hook")
+    assert hook.start_frame == 0 and hook.end_frame == timeline.total_frames
+    assert hook.layer == "front"
+    title, = graphics_snapshot(context).titles
+    assert title.plan.start_frame == 0 and title.plan.frames == timeline.total_frames
+    assert timeline.valid
+
+
+def test_title_text_hook_whole_video_ends_before_hold(layer_project, monkeypatch):
+    data = json.loads((layer_project / "style.json").read_bytes())
+    data["hook"] = {"style": "text_hook", "duration_s": 1}
+    write(layer_project / "style.json", data)
+    write(layer_project / "plans/text-hook.json", {
+        **choice("Make it clear", "typed"), "whole_video": True,
+    })
+    monkeypatch.setattr("yap_studio.stages.graphics.picture_faces", lambda *args:
+                        synthetic_faces(Box(400, 900, 200, 200), frames=90))
+    context = ProjectContext(layer_project)
+    timeline = context.resolved_timeline()
+    assert timeline.total_frames > 30 and timeline.end_hold_frames > 0
+    hook, = (item for item in timeline.elements if item.id == "agent-text-hook")
+    assert hook.start_frame == 0 and hook.end_frame == timeline.total_frames
+    assert hook.layer == "front"
+    title, = graphics_snapshot(context).titles
+    assert title.plan.start_frame == 0 and title.plan.frames == timeline.total_frames
+    assert not any(f.rule in {"end_hold", "inside_video"} for f in timeline.findings)
+    assert timeline.valid
 
 
 @pytest.mark.render

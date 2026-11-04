@@ -72,9 +72,11 @@ def test_minimal_file_fills_clean_minimal_settings(tmp_path: Path) -> None:
 def test_grade_defaults_and_presets() -> None:
     assert resolve_style_data({"schema_version": 1})["grade"] == {
         "look": "none", "strength": 1, "color": None, "slider": False}
-    for name in SHIPPED_PRESETS:
+    for name in (preset for preset in SHIPPED_PRESETS if preset != "hi_fi"):
         assert resolve(f"preset:{name}").data["grade"]["look"] == "none"
         assert resolve(f"preset:{name}").data["grade"]["slider"] is False
+    assert resolve("preset:hi_fi").data["grade"]["look"] == "film"
+    assert resolve("preset:hi_fi").data["grade"]["slider"] is False
     for bad in ({"look": "other"}, {"strength": -1}, {"strength": True}, {"extra": 1}):
         with pytest.raises(StyleError):
             resolve_style_data({"schema_version": 1, "grade": bad})
@@ -329,7 +331,7 @@ def test_schema_is_read_once(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_engine_presets_are_exactly_allowlisted() -> None:
     expected = {"clean_minimal", "electric", "warm_editorial", "editorial_serif", "one_word",
                 "cobalt", "mono", "headline", "candy", "marker",
-                "hf_bold", "hf_editorial", "hf_neutral"}
+                "hf_bold", "hf_editorial", "hf_neutral", "lo_fi", "hi_fi", "showcase"}
     assert set(SHIPPED_PRESETS) == expected
     assert {path.stem for path in PRESETS_DIR.glob("*.json")} == expected
 
@@ -588,6 +590,36 @@ def test_resolved_output_roundtrip_canonical_hash_and_repeated_write(tmp_path: P
     assert not list(tmp_path.glob(".yap_tmp_*"))
 
 
+def test_resolved_style_refreshes_legacy_end_hold(tmp_path: Path) -> None:
+    style = resolve("preset:clean_minimal")
+    data = style.to_json()
+    data["internal"]["end_hold_s"] = 1.5
+    validate_style_data(data)
+    assert resolve_style_data(data)["internal"]["end_hold_s"] == 0.5
+    source = _file(tmp_path / "legacy-resolved.json", data)
+    assert load_style(source) == style.data
+    assert resolve(source).data == style.data
+    assert data["internal"]["end_hold_s"] == 1.5
+
+
+def test_source_style_internal_values_still_validate() -> None:
+    data = {"schema_version": 1, "internal": {"end_hold_s": 0.5}}
+    validate_style_data(data)
+    assert resolve_style_data(data)["internal"]["end_hold_s"] == 0.5
+    data["internal"]["end_hold_s"] = 1.5
+    with pytest.raises(StyleError, match=r"style.internal.end_hold_s"):
+        validate_style_data(data)
+
+
+def test_style_resolve_cli_output_roundtrips(tmp_path: Path) -> None:
+    from yap_studio.cli import main
+
+    out = tmp_path / "resolved-style.json"
+    assert main(["style", "resolve", "preset:clean_minimal", "--out", str(out)]) == 0
+    assert load_style(out) == resolve("preset:clean_minimal").data
+    assert resolve(out).data["internal"]["end_hold_s"] == 0.5
+
+
 def test_resolved_marker_does_not_bypass_validation() -> None:
     with pytest.raises(StyleError, match=r"style.captions.size_px"):
         resolve_style_data(
@@ -788,7 +820,7 @@ def test_moves_defaults_and_presets() -> None:
                 "transitions": ["whip_pan", "cinematic_zoom", "light_leak"],
                 "jump_cuts": "hard", "opening_push": False}
     assert resolve_style_data({"schema_version": 1})["moves"] == defaults
-    for preset in SHIPPED_PRESETS:
+    for preset in (name for name in SHIPPED_PRESETS if name not in ("lo_fi", "hi_fi", "showcase")):
         assert resolve(f"preset:{preset}").data["moves"] == defaults
 
 
