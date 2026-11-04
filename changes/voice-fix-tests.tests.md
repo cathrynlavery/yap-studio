@@ -1,0 +1,1 @@
+- Restore verification and test isolation checks after the voice fix update.

@@ -538,8 +538,6 @@ def verify(
     detail: Literal["summary", "full"] = "summary",
     platform: Literal["none", "youtube", "shorts", "tiktok", "reels"] = "none",
     loudness: Literal["check", "note"] = "check",
-    *,
-    source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None,
 ) -> dict:
     """Verify a finished render and return a pinned JSON-friendly report.
 
@@ -563,7 +561,6 @@ def verify(
         media, edl=edl, source=source, asr=asr, asr_model=asr_model,
         loudness_target=loudness_target, strict=strict, report=report, artifacts=artifacts,
         detail=detail, platform=platform, loudness=loudness,
-        **({"source_audio": source_audio} if source_audio is not None else {}),
     )
 
 
@@ -584,7 +581,6 @@ def _verify(
     transitions: Sequence[TransitionWindow | Mapping[str, Any]] | None = None,
     click_audio: str | Path | None = None,
     words_audio: str | Path | None = None,
-    source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None,
 ) -> dict:
     """Verify internal transition windows while retaining every audio join check."""
     del strict  # Exit policy belongs to report.exit_code; keep this public parameter.
@@ -638,7 +634,8 @@ def _verify(
         elif source:
             raise ValidationError("source", "requires an edit list")
 
-        if references and source_audio is None:
+        source_audio: Callable[[str, np.ndarray, int], np.ndarray] | None = None
+        if references:
             retained_audio = {}
 
             def source_audio(take, sound, rate):

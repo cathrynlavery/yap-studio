@@ -26,8 +26,6 @@ if str(_TESTS) not in sys.path:
 
 import synth  # noqa: E402
 
-pytest_plugins = ("voice_helpers",)
-
 os.environ["YAP_STUDIO_NO_UPDATE_NOTICE"] = "1"
 
 
@@ -1087,4 +1085,43 @@ def fake_wavespeed(monkeypatch, tmp_path, _no_real_wavespeed):
     _no_real_wavespeed(executable)
     log = tmp_path / "wavespeed.log"
     monkeypatch.setenv("FAKE_WAVESPEED_LOG", str(log))
+    return log
+
+
+@pytest.fixture
+def voice_project(tmp_path):
+    from test_cut import make_project, time_segment, write_edit, write_json
+
+    source = synth.voiced_source(
+        tmp_path / "source.mov", [(i + 0.2, i + 0.8) for i in range(12)], seconds=12
+    )
+    root = make_project(
+        tmp_path / "project",
+        [source],
+        word_rows=[
+            [
+                (word, i + 0.2, i + 0.8)
+                for i, word in enumerate(
+                    (
+                        "bright morning coal flunge project quiet garden water "
+                        "after before light home"
+                    ).split()
+                )
+            ]
+        ],
+    )
+    data = json.loads((root / "project.json").read_text())
+    data["takes"][0]["voiceover"] = True
+    write_json(root / "project.json", data)
+    write_edit(root, [time_segment("s1", "t1", 0, 12)])
+    return root
+
+
+@pytest.fixture
+def fake_voice(tmp_path, monkeypatch, _no_real_elevenlabs):
+    executable = Path(__file__).parent / "fakes/elevenlabs-pp-cli"
+    _no_real_elevenlabs(executable)
+    monkeypatch.setenv("PATH", str(executable.parent) + os.pathsep + os.environ["PATH"])
+    log = tmp_path / "calls.jsonl"
+    monkeypatch.setenv("FAKE_ELEVENLABS_LOG", str(log))
     return log

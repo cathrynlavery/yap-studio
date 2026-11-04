@@ -193,8 +193,6 @@ def test_remuxed_reference_rebases_patch_to_its_video_clock(patched_assembly, mo
         assert info.video_offset_s == 0
         reference = edl_path.parent / edl["verification_audio"]["t1"]
         _, actual = audio.decode(reference, sr=48000)
-        if "source_audio" in kwargs:
-            actual = kwargs["source_audio"]("t1", actual, 48000)
         meta = fix["patch"]
         first = meta["start_sample"] - round(plan.media["t1"].video_offset_s * 48000)
         patch = decode(root / meta["path"], 1)
