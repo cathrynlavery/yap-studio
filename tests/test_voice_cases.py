@@ -44,7 +44,7 @@ def test_room_tone_uses_nearby_floor_instead_of_silent_gap(tmp_path):
     assert tone["status"] == "pass" and tone["measured"]
 
 
-def test_room_tone_check_detects_generated_noise(tmp_path):
+def test_room_tone_check_skips_generated_speech(tmp_path):
     sound, spans = noisy_take()
     speech = np.random.default_rng(9).normal(0, 0.001, (76800, 1)).astype(np.float32)
     for first, last in [(0, 19200), (57600, 76800)]:
@@ -54,8 +54,8 @@ def test_room_tone_check_detects_generated_noise(tmp_path):
         sound, generated, 3, 4.6, tmp_path, word_spans=spans, word_range=(2, 2)
     )
     tone = next(row for row in checks["items"] if row["id"] == "splice.room_tone")
-    assert tone["measured"] and tone["difference_db"] > 3
-    assert tone["status"] in ("warn", "fail")
+    assert not tone["measured"] and tone["difference_db"] == 0
+    assert tone["status"] == "skipped"
 
 
 def test_room_tone_refuses_gaps_shorter_than_100ms():

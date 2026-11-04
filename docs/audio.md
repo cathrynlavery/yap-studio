@@ -9,13 +9,17 @@ ElevenLabs account. Setup is in
 A voice fix first looks for clean matching words in your project's recordings, including
 removed parts. It prefers the same take. Recorded words cost 0 credits and need no clone
 consent or account. If none fit, it offers your instant clone as the fallback.
+Unused takes without transcripts are skipped.
 The rest of the take keeps its timing. Listen to Before and After, then choose
 **Use the fix** or **Keep my original**. Only approved fixes go into the next version.
 Both players use the version you selected. Saved choices stay visible when comments reload.
 
 Recorded words must fit with a small timing adjustment or the next quiet gap.
+Their audio stops at neighboring words.
 Short recordings fade into nearby room tone. Its level comes from gaps outside the words.
-Room-tone checks skip recorded speech and say when no quiet frames remain.
+Room-tone checks skip recorded and cloned speech and say when no quiet frames remain.
+Room-tone padding is still checked before approval and in the cut.
+Loudness checks account for mono recordings in stereo cuts.
 Audio-identical stand-ins can still supply recorded words without another ingest.
 
 The cut keeps patched source audio in `cut/source-audio/` so checks using

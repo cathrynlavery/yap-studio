@@ -296,6 +296,8 @@ def add_cut_checks(
         first, last = row["start_sample"], row["end_sample"]
         signal = sound[first:last]
         speech = _speech(signal)
+        if speech.shape[1] == 2 and fix.get("patch", {}).get("channels") == 1:
+            speech = speech.mean(axis=1, keepdims=True)
         gain = levels["takes"][fix["take"]]["gain_db"] if levels else 0.0
         for item in items:
             if item["id"] == "splice.level":

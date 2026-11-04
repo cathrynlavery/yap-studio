@@ -14,6 +14,40 @@ from yap_studio.stages.cut import cut
 from yap_studio.voice import consent, decide, list_fixes, make, propose
 
 
+@pytest.mark.parametrize("channels,gain,change", [(1, 0, 0), (1, 3, 0), (2, 0, 0), (1, 0, 4)])
+def test_cut_level_uses_the_reference_channel_layout(tmp_path, monkeypatch, channels, gain, change):
+    from importlib import import_module
+
+    from test_voice_splice import fixture_sound
+
+    from yap_studio.stages import take_levels
+    from yap_studio.voice.splice import _speech, edge_check, level
+    from yap_studio.voice.store import add_cut_checks
+
+    original = np.repeat(fixture_sound()[96000:144000], channels, axis=1)
+    reference = _speech(original)
+    lufs, _ = take_levels.measure(reference, tmp_path, "reference")
+    assert lufs is not None
+    sound = np.repeat(original, 2, axis=1) if channels == 1 else original.copy()
+    sound *= 10 ** ((gain + change) / 20)
+    fix = {"id": "f1", "take": "t1", "say": "test", "patch": {"channels": channels},
+           "checks": {"items": [edge_check(original, 0, len(original)), {
+               "id": "splice.level", "status": "pass", "reference_lufs": lufs,
+               "reference_rms_db": level(reference),
+           }]}}
+    monkeypatch.setattr(import_module("yap_studio.voice.make"), "_heard", lambda *_, **kwargs:
+                        {"id": "splice.heard", "status": "skipped"})
+    report = add_cut_checks(
+        {"status": "pass", "findings": []}, sound,
+        [{"id": "f1", "start_sample": 0, "end_sample": len(sound)}], [fix],
+        plan=None, work=tmp_path, levels={"takes": {"t1": {"gain_db": gain}}},
+    )
+    check = next(item for item in report["voice_fixes"][0]["checks"]["items"]
+                 if item["id"] == "splice.level")
+    assert check["difference_lu"] == pytest.approx(change, abs=0.15)
+    assert check["status"] == ("warn" if change else "pass")
+
+
 def test_approval_exact_samples_stale_captions_and_withdraw(voice_project, fake_voice, monkeypatch):
     linked(voice_project, monkeypatch)
     cut(voice_project)

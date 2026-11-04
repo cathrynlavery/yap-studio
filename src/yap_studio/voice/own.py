@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 
 import numpy as np
 
@@ -18,6 +19,8 @@ from yap_studio.voice.splice import RATE, _snap, fit_slot
 def take_words(context, take):
     """Refuse donor words that no longer describe the recorded take."""
     target = context.project_dir / f"ingest/{take}/words.json"
+    if not target.exists():
+        raise FileNotFoundError(target)
     words = load_words(target)
     if words.take != take or words.take_sha256 != context.take_identity(take):
         raise VoiceError("The recorded words changed. Ingest this take again.",
@@ -34,9 +37,20 @@ def take_sound(context, take):
     return sound, info.video_offset_s
 
 
-def _span(sound, offset, first, last):
-    a, b = (_snap(sound, round((time + offset) * RATE)) for time in (first, last))
-    return sound[a:b]
+def _span(sound, offset, origin, words):
+    first = _snap(sound, round((origin["start_s"] + offset) * RATE))
+    last = _snap(sound, round((origin["end_s"] + offset) * RATE))
+    ids = [word.id for word in words]
+    before = words[:ids.index(origin["words"][0])]
+    after = words[ids.index(origin["words"][-1]) + 1:]
+    if before:
+        first = max(first, math.ceil((max(word.end for word in before) + offset) * RATE))
+    if after:
+        last = min(last, math.floor((min(word.start for word in after) + offset) * RATE))
+    if any(first >= (word.end + offset) * RATE or last <= (word.start + offset) * RATE
+           for word in words if word.id in origin["words"]):
+        last = first
+    return first, last
 
 
 def find_own(plan, fix, fixes, *, chosen=None):
@@ -87,16 +101,17 @@ def find_own(plan, fix, fixes, *, chosen=None):
                               "take_sha256": snapshot.take_sha256}
                     rank = (take.id != fix["take"], -min(item.conf for item in selected),
                             abs(word.start - fix["source"]["start_s"]), take.id, word.id)
-                    candidates.append((rank, origin))
+                    candidates.append((rank, origin, words))
                     break
     decoded = {}
     target = None
-    for _, origin in sorted(candidates, key=lambda item: item[0]):
+    for _, origin, donor_words in sorted(candidates, key=lambda item: item[0]):
         take = origin["take"]
         if take not in decoded:
             decoded[take] = take_sound(plan.context, take)
         sound, offset = decoded[take]
-        span = _span(sound, offset, origin["start_s"], origin["end_s"])
+        first, last = _span(sound, offset, origin, donor_words)
+        span = sound[first:last]
         if (len(span) and np.isfinite(span).all() and np.any(span)
                 and np.max(np.abs(span)) < 0.999):
             if not chosen:
@@ -133,9 +148,8 @@ def recorded_audio(plan, fix, fixes):
         raise VoiceError("The recorded source changed. Propose this fix again.",
                          code="voice_own_changed")
     sound, offset = take_sound(plan.context, origin["take"])
-    first = _snap(sound, round((origin["start_s"] + offset) * RATE))
-    last = _snap(sound, round((origin["end_s"] + offset) * RATE))
     words = take_words(plan.context, origin["take"]).words
+    first, last = _span(sound, offset, origin, words)
     speech_spans = [(word.start + offset - first / RATE, word.end + offset - first / RATE)
                     for word in words if word.id in origin["words"]]
     identity = hashlib.sha256(json.dumps(origin, sort_keys=True).encode()).hexdigest()

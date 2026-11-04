@@ -387,9 +387,9 @@ def build_patch(
             "rms_difference_db": abs(level(_speech(sound)) - level(reference)),
         },
         room_tone_check(patch, floor, speech_spans=(
-            [(a * stretch, b * stretch) for a, b in recorded_spans]
-            if recorded_spans is not None else [(0, len(sound) / RATE)]
-        ) if recorded else None),
+            [[a * stretch, b * stretch] for a, b in recorded_spans]
+            if recorded_spans is not None else [[0, len(sound) / RATE]]
+        )),
         {
             "id": "splice.pace",
             "status": "warn" if gap > 0.25 else "pass",

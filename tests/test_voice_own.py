@@ -83,6 +83,18 @@ def test_finds_other_take_not_used_by_cut(own_project, fake_voice):
     assert calls(fake_voice) == []
 
 
+@pytest.mark.parametrize("say,kind", [("cold plunge", "own"), ("golden path", "clone")])
+def test_unused_take_without_transcript_does_not_block_selection(
+    own_project, fake_voice, say, kind,
+):
+    (own_project / "ingest/t2/words.json").unlink()
+    fix = propose(own_project, "t1:2", "t1:3", say)
+    assert fix["from"]["kind"] == kind
+    if kind == "own":
+        assert fix["from"]["take"] == "t1"
+    assert not any(argv[0] == "text-to-speech" for argv in calls(fake_voice))
+
+
 def test_late_starting_mono_donor_can_supply_a_proposal(tmp_path, fake_voice):
     source = synth.voiced_source(
         tmp_path / "source.mov", [(0.2, 0.8), (1.2, 1.8), (2.2, 2.8)], seconds=4,
@@ -191,6 +203,35 @@ def test_changed_donor_refuses_make(own_project, fake_voice):
     with pytest.raises(YapError, match="do not say"):
         make(own_project, ["f1"])
     assert calls(fake_voice) == []
+
+
+@pytest.mark.parametrize("offset", [0, 0.2])
+@pytest.mark.parametrize("clipped", [False, True])
+def test_donor_edges_exclude_abutting_words(monkeypatch, offset, clipped):
+    module = import_module("yap_studio.voice.own")
+    words = [SimpleNamespace(id=f"t1:{i}", text=text, conf=1, start=first, end=last)
+             for i, (text, first, last) in enumerate([
+                 ("coal", 0, 0.6), ("before", 0.985, 1),
+                 ("cold", 1, 1.5), ("after", 1.5, 1.515),
+             ])]
+    snapshot = SimpleNamespace(words=words, take_sha256="a" * 64)
+    context = SimpleNamespace(project=SimpleNamespace(takes=[SimpleNamespace(id="t1")]))
+    sound = np.zeros((3 * 48000, 1), dtype=np.float32)
+    first, last = round((1 + offset) * 48000), round((1.5 + offset) * 48000)
+    sound[first - 720:last + 720] = 1 if clipped else 0.1
+    sound[first:last] = 0.1
+    monkeypatch.setattr(module, "take_words", lambda *_: snapshot)
+    monkeypatch.setattr(module, "take_sound", lambda *_: (sound, offset))
+    monkeypatch.setattr(import_module("yap_studio.voice.make"), "take_audio", lambda *_: sound)
+    plan = SimpleNamespace(context=context, source_words={"t1": snapshot})
+    fix = {"id": "f1", "take": "t1", "words": ["t1:0"], "say": "cold",
+           "source": {"start_s": 0, "end_s": 0.6}}
+    origin = module.find_own(plan, fix, [])
+    assert origin is not None, "neighbouring speech contaminated the donor candidate"
+    fix["from"] = origin
+    donor, _, spans = module.recorded_audio(plan, fix, [])
+    np.testing.assert_array_equal(donor, sound[first:last])
+    assert spans == [(0, 0.5)]
 
 
 def test_unknown_word_placeholders_do_not_match(monkeypatch):

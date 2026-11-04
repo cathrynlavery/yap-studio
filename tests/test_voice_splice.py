@@ -108,6 +108,57 @@ def test_recorded_speech_is_not_measured_as_room_tone(tmp_path, monkeypatch, dur
     assert delivered["status"] == "skipped" and not delivered["measured"]
 
 
+@pytest.mark.parametrize("stage", ["make", "cut"])
+@pytest.mark.parametrize("duration,pace,boost,status", [
+    (0.7125, "fit", 0, "skipped"), (0.2, "off", 0, "pass"), (0.2, "off", 20, "warn"),
+])
+def test_clone_room_tone_excludes_fitted_speech(
+    tmp_path, monkeypatch, stage, duration, pace, boost, status,
+):
+    from importlib import import_module
+
+    from yap_studio.voice.store import add_cut_checks
+
+    monkeypatch.setattr(splice, "_snap", lambda _, point: point)
+    time = np.arange(round(duration * splice.RATE)) / splice.RATE
+    speech = (0.01 + 0.07 * (0.5 + 0.5 * np.cos(2 * np.pi * time / duration))) * np.sin(
+        2 * np.pi * 260 * time,
+    )
+    generated = synth.float_audio(tmp_path / "clone.wav", speech[:, None])
+    tone = splice._tone
+
+    def louder_padding(*args):
+        padding, floor = tone(*args)
+        return padding * 10 ** (boost / 20), floor
+
+    monkeypatch.setattr(splice, "_tone", louder_padding)
+    original = fixture_sound()
+    patch, meta, checks = build_patch(
+        original, generated, 2, 2.57, tmp_path,
+        word_spans=[(0.5, 1.5), (2, 2.57), (3.5, 4.5)], word_range=(1, 1), pace=pace,
+    )
+    if stage == "cut":
+        monkeypatch.setattr(import_module("yap_studio.voice.make"), "_heard", lambda *_, **kwargs:
+                            {"id": "splice.heard", "status": "skipped"})
+        first = meta["start_sample"]
+        report = add_cut_checks(
+            {"status": "pass", "findings": []},
+            blend(original, patch, meta, source_start_sample=0),
+            [{"id": "f1", "start_sample": first, "end_sample": first + len(patch)}],
+            [{"id": "f1", "take": "t1", "say": "test", "patch": meta, "checks": checks}],
+            plan=None, work=tmp_path, levels=None,
+        )
+        checks = report["voice_fixes"][0]["checks"]
+    check = next(item for item in checks["items"] if item["id"] == "splice.room_tone")
+    assert check["status"] == status, "generated speech was measured as room tone"
+    assert check["measured"] == (status != "skipped")
+    if status == "skipped":
+        assert meta["stretch"] == pytest.approx(0.8)
+        assert check["reason"] == "Speech fills the slot; no quiet frames remain."
+    else:
+        assert check["patch_floor_db"] == pytest.approx(check["source_floor_db"] + boost, abs=1)
+
+
 @pytest.mark.parametrize("noise_db", [-60, -40])
 def test_recorded_room_tone_measures_word_gaps(noise_db):
     time = np.arange(splice.RATE) / splice.RATE
