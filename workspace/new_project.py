@@ -281,6 +281,7 @@ def _start_locked(root: Path, takes: list[str] | None, newest: int, *,
             wide_style = json.loads(saved_style.read_text()) if saved_style.is_file() else {}
             wide_style.update({
                 "schema_version": 1, "name": "Horizontal",
+                "grade": {**wide_style.get("grade", {}), "slider": False},
                 "captions": {**wide_style.get("captions", {}), "camera_3d": False},
                 "hook": {**wide_style.get("hook", {}), "style": "none"},
                 "chapters": {**wide_style.get("chapters", {}), "style": "none"},
