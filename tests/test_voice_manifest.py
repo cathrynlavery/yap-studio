@@ -454,6 +454,37 @@ def test_delete_manifest_voice_refuses_without_a_remote_call(
     assert calls(fake_voice) == before
 
 
+@pytest.mark.parametrize("replacement", ["same_voice", "different_voice", "explicit_samples"])
+def test_relink_preserves_shared_voice_protection(
+    local_voice, fake_voice, monkeypatch, replacement,
+):
+    manifest = local_voice / "voice/samples.json"
+    data = json.loads(manifest.read_text())
+    for row in data["samples"]:
+        row.update(duration_s=row["end_s"] - row["start_s"],
+                   ranges=[[row["start_s"], row["end_s"]]])
+    manifest.write_text(json.dumps(data) + "\n")
+    original = link(local_voice, name="My voice", yes=True, samples=manifest)
+    if replacement == "different_voice":
+        monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_ID", "another-personal-voice")
+    if replacement == "explicit_samples":
+        data = json.loads(manifest.read_text())
+        manifest.write_text(json.dumps(data, indent=2) + "\n")
+    result = link(local_voice, name="My voice", yes=True,
+                  samples=manifest if replacement == "explicit_samples" else None)
+    if replacement == "different_voice":
+        assert result["voice"].get("samples_manifest") is None
+    else:
+        expected = (original["voice"]["samples_manifest"] if replacement == "same_voice" else
+                    {"sha256": receipt.sha256_file(manifest), "files": 4})
+        assert result["voice"]["samples_manifest"] == expected
+        before = calls(fake_voice)
+        with pytest.raises(YapError) as caught:
+            delete_voice(local_voice, yes=True)
+        assert caught.value.code == "voice_shared"
+        assert calls(fake_voice) == before
+
+
 @pytest.mark.parametrize("during", ["read", "personal_voices"])
 def test_delete_refuses_a_concurrent_shared_relink(
     local_voice, manifest, fake_voice, monkeypatch, during,

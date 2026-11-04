@@ -13,8 +13,11 @@ Unused takes without transcripts are skipped.
 The rest of the take keeps its timing. Listen to Before and After, then choose
 **Use the fix** or **Keep my original**. Only approved fixes go into the next version.
 Both players use the version you selected. Saved choices stay visible when comments reload.
+Removing a fix's whole phrase skips it in the cut and final without changing its approval.
+Keeping only part of its slot still stops the cut.
 
 Recorded words must fit with a small timing adjustment or the next quiet gap.
+Proposals check this for words you choose yourself too.
 Their audio stops at neighboring words.
 Short recordings fade into nearby room tone. Its level comes from gaps outside the words.
 Room-tone checks skip recorded and cloned speech and say when no quiet frames remain.
@@ -53,6 +56,7 @@ Your voice can come from this project's takes or from recordings across your vid
   You can use another project's exported `voice/samples.json` without changing its paths.
   Consent keeps the manifest's hash and file count. Yap Studio will not delete this shared
   voice. Delete it on the ElevenLabs site if you mean to.
+  Relinking the same voice without `--samples` keeps this protection.
 
 `link` checks that the voice was made from exactly these files: the same names, ignoring the
 extension (ElevenLabs lists an uploaded WAV as an MP3), and the same byte sizes.
@@ -95,6 +99,8 @@ You can record the line again instead. `yap-studio voice consent DIR --withdraw`
 stops clone fixes from applying to later cuts. Recorded-word fixes remain usable.
 You can withdraw even when the original takes are offline. Consent is checked again
 before uploading recordings or starting a paid request. It does not change saved videos.
+If voice choices or consent change during assembly, it stops before publishing and asks
+you to run assemble again.
 See [commands.md](commands.md#voice-fixes) for all voice commands.
 
 ## Music

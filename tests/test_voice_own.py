@@ -189,6 +189,27 @@ def test_chosen_words_must_say_the_replacement(own_project, fake_voice):
     assert calls(fake_voice) == []
 
 
+@pytest.mark.parametrize("reason", ["too_long", "removed_gap"])
+def test_chosen_words_must_fit_before_proposal(own_project, fake_voice, reason):
+    change_words(own_project, {
+        "t1:9": {"start": 9.0, "end": 9.8},
+        "t1:10": {"start": 10.0, "end": 11.4},
+        "t1:11": {"start": 11.6, "end": 11.8},
+    })
+    if reason == "too_long":
+        change_words(own_project, {"t1:3": {"end": 3.2}, "t1:4": {"start": 3.3}})
+    else:
+        write_edit(own_project, [time_segment("s1", "t1", 0, 4)])
+    with pytest.raises(YapError) as caught:
+        propose(own_project, "t1:2", "t1:3", "cold plunge",
+                from_take_words=("t1:9", "t1:10"))
+    assert caught.value.code == (
+        "voice_speech_too_long" if reason == "too_long" else "voice_words_dropped"
+    )
+    assert not (own_project / "voice/fixes.json").exists()
+    assert calls(fake_voice) == []
+
+
 def test_chosen_own_words_and_explicit_clone(own_project, fake_voice):
     fix = propose(own_project, "t1:2", "t1:3", "cold plunge",
                   from_take_words=("t2:9", "t2:10"))

@@ -12,6 +12,7 @@ from test_assemble import refuse_unexpected_matte_work as refuse_unexpected_matt
 from test_cli_captions import fake_layers  # noqa: F401
 from test_cut import make_project, time_segment, write_edit, write_json
 from test_stage_captions import set_elements
+from voice_helpers import linked
 
 from yap_studio import audio, cli, ffmpeg, receipt
 from yap_studio.edl import load_edit_list
@@ -25,7 +26,7 @@ from yap_studio.stages.graphics import graphics
 from yap_studio.stages.music import music
 from yap_studio.style import resolve
 from yap_studio.verify import verify
-from yap_studio.voice import decide, make, propose
+from yap_studio.voice import consent, decide, make, propose
 from yap_studio.voice.model import VoiceError
 from yap_studio.voice.splice import blend, decode, write_wav
 from yap_studio.voice.store import source_transform
@@ -48,7 +49,7 @@ def tones(count):
 
 
 @pytest.fixture
-def patched_assembly(tmp_path, request, monkeypatch):
+def patched_assembly(tmp_path, request, monkeypatch, fake_voice):
     variant = getattr(request, "param", False)
     selected = variant is True
     source = synth.voiced_source(
@@ -106,8 +107,11 @@ def patched_assembly(tmp_path, request, monkeypatch):
         run.finish()
     write_edit(root, [time_segment("s1", "t1", 0, 3), time_segment("s2", "t1", 5, 8)],
                end_hold_s=0)
-    propose(root, "t1:1", "t1:1", "cold")
-    fix = make(root, ["f1"])["fixes"][0]
+    if variant == "clone":
+        linked(root, monkeypatch)
+        monkeypatch.setenv("FAKE_ELEVENLABS_SPEECH_SECONDS", "0.3")
+    propose(root, "t1:1", "t1:1", "cold", clone=variant == "clone")
+    fix = make(root, ["f1"], yes=True, max_credits=20)["fixes"][0]
     decide(root, "f1", "approve", via="chat")
     cut(root)
     cover = root / project["takes"][0]["path"]
@@ -135,6 +139,59 @@ def test_assembly_refuses_voice_decisions_changed_after_snapshot(patched_assembl
         assembly.assemble(root)
     assert not (root / "final/verify-edl.json").exists()
     assert not (root / "final/receipt.json").exists()
+
+
+@pytest.mark.parametrize("patched_assembly", [False, "clone"], indirect=True)
+def test_assembly_refuses_voice_changes_during_render(patched_assembly, monkeypatch):
+    root, fix = patched_assembly
+    check = assembly.verify
+    replace_output = StageRun.replace_output
+    published = []
+
+    def change_after_verification(*args, **kwargs):
+        report = check(*args, **kwargs)
+        if fix["from"]["kind"] == "clone":
+            consent(root, withdraw=True)
+        else:
+            decide(root, fix["id"], "reject", via="chat")
+        return report
+
+    def record_output(run, target, staged):
+        if run.stage == "assemble":
+            published.append(target)
+        return replace_output(run, target, staged)
+
+    monkeypatch.setattr(assembly, "verify", change_after_verification)
+    monkeypatch.setattr(StageRun, "replace_output", record_output)
+    with pytest.raises(VoiceError, match=(
+        "Voice fixes changed while the final was being made. Run assemble again."
+    )):
+        assembly.assemble(root)
+    assert not published
+    assert not list((root / "final").glob("*.mp4"))
+    assert not (root / "final/verify-edl.json").exists()
+    assert not (root / "final/receipt.json").exists()
+
+
+def test_assembly_skips_fix_for_removed_phrase(patched_assembly):
+    root, _ = patched_assembly
+    write_edit(root, [time_segment("s1", "t1", 0, 2), time_segment("s2", "t1", 5, 8)],
+               end_hold_s=0)
+    cut(root)
+    cover = root / "takes/t1.mov"
+    set_elements(root, {"id": "broll-cover", "kind": "insert", "start": {"time": 0},
+                        "end": {"time": 5}, "media": {
+                            "path": str(cover.relative_to(root)),
+                            "sha256": receipt.sha256_file(cover),
+                        }}, lane="broll")
+    captions(root)
+    graphics(root)
+    music(root)
+    result = assembly.assemble(root)
+    assert (root / result["out"]).is_file()
+    edl = json.loads((root / "final/verify-edl.json").read_text())
+    assert not edl.get("verification_audio")
+    assert not list((root / "final/source-audio").glob("*.wav"))
 
 
 @pytest.mark.parametrize("stage", ["cut", "final"])

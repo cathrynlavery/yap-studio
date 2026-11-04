@@ -1489,17 +1489,22 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
 
             voice_plan = None
             voice_patches = []
-            voice_fixes = voice_store.approved_fixes(context.project_dir)
-            voice_projection = voice_store.projection(context.project_dir, fixes=voice_fixes)
-            voice_digest = (projection_sha256(voice_projection)
-                            if voice_projection != {"consent": None, "approved": []} else None)
             try:
                 made_with = context.json("cut/receipt.json")["inputs"].get("voice:fixes")
             except FileNotFoundError:
                 made_with = None
-            if voice_digest != made_with:
-                raise VoiceError("Voice fixes changed while the final was being made. "
-                                 "Run assemble again.")
+
+            def checked_voice_fixes():
+                fixes = voice_store.approved_fixes(context.project_dir)
+                projection = voice_store.projection(context.project_dir, fixes=fixes)
+                digest = (projection_sha256(projection)
+                          if projection != {"consent": None, "approved": []} else None)
+                if digest != made_with:
+                    raise VoiceError("Voice fixes changed while the final was being made. "
+                                     "Run assemble again.")
+                return fixes
+
+            voice_fixes = checked_voice_fixes()
             if voice_fixes:
                 voice_plan = resolve_cut(context.project_dir)
                 voice_patches = voice_store.patches_for_plan(voice_plan, fixes=voice_fixes)
@@ -1510,7 +1515,7 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                 voice_store.require_assembly_picture(
                     voice_plan,
                     [item.to_dict() for item in snapshot.timeline.elements],
-                    coverage)
+                    coverage, fixes=[fix for fix, _ in voice_patches])
             if frames is not None:
                 assert phrases is not None
                 return {**_pilot_assemble(context, snapshot, frames, commands, *phrases,
@@ -1759,6 +1764,8 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                         message += "; " + "; ".join(details) + ". " + action
                     raise AssemblyError(message, failed_checks=True, suggested_action=action)
                 verify_path.write_text(json.dumps(edl, indent=2) + "\n", encoding="utf-8")
+                with project_lock(root):
+                    checked_voice_fixes()
                 run.replace_output(root / out, final)
                 if report.get("youtube_chapters"):
                     chapter_path = work / "chapters.txt"

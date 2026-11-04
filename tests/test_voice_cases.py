@@ -368,7 +368,7 @@ def test_voice_assembly_checks_alpha_only_for_talking_head(tmp_path, monkeypatch
     monkeypatch.setattr(store, "approved_fixes", lambda _: [fix])
     monkeypatch.setattr(store, "projection", lambda _, *, fixes: projection)
     monkeypatch.setattr(store, "patches_for_plan", lambda _, *, fixes: [(fix, np.zeros((10, 1)))])
-    monkeypatch.setattr(store, "require_assembly_picture", lambda *_: None)
+    monkeypatch.setattr(store, "require_assembly_picture", lambda *_, **__: None)
     calls = []
     monkeypatch.setattr(
         assemble_stage, "_graphic_picture_frames", lambda *_, **__: calls.append("alpha") or {}

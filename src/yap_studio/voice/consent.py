@@ -234,6 +234,8 @@ def _attach(root: Path, name: str, *, made: str, base: dict, samples: Path | Non
             raise VoiceError("Voice consent changed. Read it again before linking.")
         if _sample_files(root, base, samples, max_files=max_files) != selection:
             raise VoiceError("Voice samples changed. Read them again before linking.")
+        if samples is None and digest(identifier) == base["voice"]["id_sha256"]:
+            manifest = base["voice"].get("samples_manifest")
         data = {
             **base,
             "samples": (base["samples"] or read(root, "samples")["samples"]

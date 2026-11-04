@@ -115,27 +115,26 @@ def find_own(plan, fix, fixes, *, chosen=None):
         span = sound[first:last]
         if (len(span) and np.isfinite(span).all() and np.any(span)
                 and np.max(np.abs(span)) < 0.999):
-            if not chosen:
-                if target is None:
-                    from yap_studio.voice.make import take_audio
+            if target is None:
+                from yap_studio.voice.make import take_audio
 
-                    target = take_audio(plan, fix["take"])
-                    words = plan.source_words[fix["take"]].words
-                    ids = [word.id for word in words]
-                    word_range = (ids.index(fix["words"][0]), ids.index(fix["words"][-1]))
-                    word_spans = [(word.start, word.end) for word in words]
-                try:
-                    first, last = fit_slot(
-                        target, fix["source"]["start_s"], fix["source"]["end_s"], len(span),
-                        word_spans=word_spans, word_range=word_range,
-                    )
-                    occurrences(plan, fix, start_s=first / RATE, end_s=last / RATE)
-                except VoiceError as exc:
-                    if exc.code not in {
-                        "voice_speech_too_long", "voice_slot_invalid", "voice_words_dropped",
-                    }:
-                        raise
-                    continue
+                target = take_audio(plan, fix["take"])
+                words = plan.source_words[fix["take"]].words
+                ids = [word.id for word in words]
+                word_range = (ids.index(fix["words"][0]), ids.index(fix["words"][-1]))
+                word_spans = [(word.start, word.end) for word in words]
+            try:
+                first, last = fit_slot(
+                    target, fix["source"]["start_s"], fix["source"]["end_s"], len(span),
+                    word_spans=word_spans, word_range=word_range,
+                )
+                occurrences(plan, fix, start_s=first / RATE, end_s=last / RATE)
+            except VoiceError as exc:
+                if chosen or exc.code not in {
+                    "voice_speech_too_long", "voice_slot_invalid", "voice_words_dropped",
+                }:
+                    raise
+                continue
             return origin
     if chosen:
         raise VoiceError(

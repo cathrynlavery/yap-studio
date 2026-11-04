@@ -1208,6 +1208,7 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                 }
         plan = _resolve(context)
         voice_patches = voice_store.patches_for_plan(plan, fixes=voice_fixes)
+        voice_fixes = [fix for fix, _ in voice_patches]
         applied_fixes = voice_store.applied_records(plan, voice_patches)
         conversions = {key: conversion(info) for key, info in plan.media.items()}
         conversion_rows = {

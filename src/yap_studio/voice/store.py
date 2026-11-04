@@ -127,10 +127,15 @@ def patches_for_plan(plan, *, fixes: list[dict] | None = None) -> list[tuple[dic
     if fixes is None:
         fixes = approved_fixes(plan.context.project_dir)
     for fix in fixes:
+        if fix["take"] not in plan.media:
+            continue
+        first, last = patch_range(plan, fix)
+        if not any(piece.take == fix["take"] and float(piece.src_t0) < last
+                   and float(piece.src_t1) > first for piece in plan.pieces):
+            continue
         _require_no_overlap(fix, fixes)
         validate_words(plan, fix)
         meta = fix["patch"]
-        first, last = patch_range(plan, fix)
         occurrences(plan, fix, start_s=first, end_s=last)
         sound = decode(checked_file(plan.context.project_dir, meta), meta["channels"])
         if len(sound) != meta["samples"]:
@@ -263,9 +268,12 @@ def source_transform(plan, patches, *, video_offsets=None):
 
 
 def require_assembly_picture(
-    plan, elements: list[dict], graphic_coverage: dict[str, set[int]]
+    plan, elements: list[dict], graphic_coverage: dict[str, set[int]], *,
+    fixes: list[dict] | None = None,
 ) -> None:
-    for fix in approved_fixes(plan.context.project_dir):
+    if fixes is None:
+        fixes = [fix for fix, _ in patches_for_plan(plan)]
+    for fix in fixes:
         try:
             first, last = patch_range(plan, fix)
             require_picture(

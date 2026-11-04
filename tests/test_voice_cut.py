@@ -86,6 +86,69 @@ def test_approval_exact_samples_stale_captions_and_withdraw(voice_project, fake_
     np.testing.assert_array_equal(synth.read_wav(voice_project / "cut/voice.wav")[1], baseline)
 
 
+@pytest.mark.parametrize("whole_take", [False, True])
+def test_cut_skips_fix_for_removed_phrase(
+    voice_project, fake_voice, monkeypatch, tmp_path, whole_take,
+):
+    if whole_take:
+        from test_cut import make_project
+
+        source = voice_project / "takes/t1.mov"
+        words = json.loads((voice_project / "ingest/t1/words.json").read_text())["words"]
+        rows = [(word["text"], word["start"], word["end"]) for word in words]
+        voice_project = make_project(tmp_path / "two-takes", [source, source],
+                                     word_rows=[rows, rows])
+        project = json.loads((voice_project / "project.json").read_text())
+        for take in project["takes"]:
+            take["voiceover"] = True
+        write_json(voice_project / "project.json", project)
+    removed = [time_segment("s1", "t1", 0, 2), {
+        "id": "s2", "take": "t1", "from": {"word": "t1:4"}, "to": {"word": "t1:11"},
+    }]
+    if whole_take:
+        removed = [time_segment("s1", "t2", 0, 12)]
+    write_edit(voice_project, removed)
+    cut(voice_project)
+    expected = {name: (voice_project / "cut" / name).read_bytes()
+                for name in ("voice.wav", "cut-words.json", "spans.json")}
+    write_edit(voice_project, [time_segment("s1", "t1", 0, 12)])
+    linked(voice_project, monkeypatch)
+    propose(voice_project, "t1:2", "t1:3", "Home")
+    make(voice_project, ["f1"], yes=True, max_credits=20)
+    decide(voice_project, "f1", "approve", via="chat")
+    before = (voice_project / "voice/fixes.json").read_bytes()
+    write_edit(voice_project, removed)
+    cut(voice_project)
+    for name, content in expected.items():
+        assert (voice_project / "cut" / name).read_bytes() == content, name
+    assert (voice_project / "voice/fixes.json").read_bytes() == before
+    record = json.loads((voice_project / "cut/receipt.json").read_text())
+    assert record["voice_fixes"] == []
+    assert record["inputs"]["voice:fixes"] == (
+        cut_inputs(ProjectContext(voice_project))["voice:fixes"]
+    )
+    report = json.loads((voice_project / "cut/verify.json").read_text())
+    assert not report.get("voice_fixes")
+
+
+@pytest.mark.parametrize("whole_occurrence", [False, True])
+def test_cut_still_refuses_partially_kept_fix(
+    voice_project, fake_voice, monkeypatch, whole_occurrence,
+):
+    linked(voice_project, monkeypatch)
+    propose(voice_project, "t1:2", "t1:3", "cold plunge")
+    make(voice_project, ["f1"], yes=True, max_credits=20)
+    decide(voice_project, "f1", "approve", via="chat")
+    segments = [time_segment("partial", "t1", 0, 3)]
+    if whole_occurrence:
+        segments.insert(0, time_segment("whole", "t1", 0, 12))
+    write_edit(voice_project, segments)
+    with pytest.raises(YapError) as caught:
+        cut(voice_project)
+    assert caught.value.code == "voice_words_dropped"
+    assert not (voice_project / "cut/voice.wav").exists()
+
+
 def test_patch_beside_join_and_missing_patch(voice_project, fake_voice, monkeypatch):
     write_edit(voice_project, [time_segment("s1", "t1", 0, 4), time_segment("s2", "t1", 6, 12)])
     linked(voice_project, monkeypatch)
