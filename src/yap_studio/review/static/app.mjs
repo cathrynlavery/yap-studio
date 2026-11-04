@@ -1548,7 +1548,7 @@ function renderVoiceFixes() {
   el.voiceFixes.hidden = !review?.series?.project || (!items.length && !error);
   el.voiceFixError.hidden = !error;
   el.voiceFixError.textContent = error;
-  const signature = JSON.stringify([items, error]);
+  const signature = JSON.stringify([items, error, selectedVersion]);
   // Keep the players alive when another part of the review changes during a listen.
   if (signature === voiceFixRendered) {
     updateVoiceFixControls();
@@ -1573,7 +1573,7 @@ function renderVoiceFixes() {
       const audio = document.createElement('audio');
       audio.controls = true;
       audio.preload = 'none';
-      audio.src = voiceClipUrl(path, token);
+      audio.src = voiceClipUrl(versionUrl(path, selectedVersion), token);
       audio.setAttribute('aria-label', `${name}, voice fix ${item.id}${item.time ? ` at ${item.time}` : ''}`);
       label.append(audio);
       players.append(label);
@@ -2464,9 +2464,13 @@ function renderReview(fresh, preserveStatus = false) {
 
 async function loadReview(version = selectedVersion) {
   const generation = ++loadVersion;
+  const voiceFixes = review?.series?.voice_fixes;
   try {
     const fresh = await api(versionUrl('api/review', version));
     if (generation !== loadVersion) return;
+    if (fresh.series?.current === selectedVersion && voiceFixes !== review?.series?.voice_fixes) {
+      fresh.series.voice_fixes = review.series.voice_fixes;
+    }
     renderReview(fresh);
     el.videoMap.hidden = !fresh.series?.project;
     if (el.videoMap.hidden) return;

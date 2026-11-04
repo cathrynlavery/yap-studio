@@ -42,6 +42,34 @@ def test_create_rechecks_consent_before_upload(voice_project, fake_voice, monkey
     assert json.loads((voice_project / "voice/consent.json").read_text())["status"] == "withdrawn"
 
 
+@pytest.mark.parametrize("during", ["account_state", "personal_voices"])
+@pytest.mark.parametrize("replacement", ["same_size", "larger"])
+def test_create_rechecks_sample_bytes_before_upload(
+    voice_project, fake_voice, monkeypatch, during, replacement,
+):
+    from yap_studio import elevenlabs
+
+    record = linked(voice_project, monkeypatch)
+    before = (voice_project / "voice/consent.json").read_bytes()
+    sample = voice_project / record["samples"][0]["path"]
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_DUPLICATES", "0")
+    lookup = getattr(elevenlabs, during)
+
+    def replace(*args):
+        result = lookup(*args)
+        content = sample.read_bytes()
+        sample.write_bytes(content[:-1] + b"\x01" if replacement == "same_size"
+                           else content + b"\x01\x00")
+        return result
+
+    monkeypatch.setattr(elevenlabs, during, replace)
+    with pytest.raises(YapError) as caught:
+        create(voice_project, yes=True)
+    assert not any(argv[:2] == ["voices", "add"] for argv in calls(fake_voice))
+    assert "Voice samples changed" in str(caught.value)
+    assert (voice_project / "voice/consent.json").read_bytes() == before
+
+
 def test_withdraw_without_original_take(tmp_path, fake_voice, monkeypatch):
     import synth
     from test_cut import make_project

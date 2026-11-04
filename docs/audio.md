@@ -11,6 +11,7 @@ removed parts. It prefers the same take. Recorded words cost 0 credits and need 
 consent or account. If none fit, it offers your instant clone as the fallback.
 The rest of the take keeps its timing. Listen to Before and After, then choose
 **Use the fix** or **Keep my original**. Only approved fixes go into the next version.
+Both players use the version you selected. Saved choices stay visible when comments reload.
 
 Recorded words must fit with a small timing adjustment or the next quiet gap.
 Short recordings fade into nearby room tone. Its level comes from gaps outside the words.
@@ -43,11 +44,14 @@ Your voice can come from this project's takes or from recordings across your vid
   `yap-studio voice link DIR --name "NAME" --yes`.
 - Across your videos: add `--samples PATH` to `create` or `link`. `PATH` is a samples manifest
   in the same format as `voice/samples.json` (see [commands.md](commands.md#voice-fixes)).
+  You can use another project's exported `voice/samples.json` without changing its paths.
   Consent keeps the manifest's hash and file count. Yap Studio will not delete this shared
   voice. Delete it on the ElevenLabs site if you mean to.
 
 `link` checks that the voice was made from exactly these files: the same names, ignoring the
 extension (ElevenLabs lists an uploaded WAV as an MP3), and the same byte sizes.
+`create` checks the selected files' hashes and sizes again just before uploading.
+Deletion stops if the linked voice changes while it is being checked.
 
 Propose with `yap-studio voice propose DIR --from WORD --to WORD --say "cold plunge"`.
 Use `--from-take-words FIRST LAST` to choose recorded words, or `--clone` to skip the search.

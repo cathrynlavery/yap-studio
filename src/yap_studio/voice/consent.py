@@ -138,6 +138,10 @@ def _find(name: str) -> dict:
 def resolve_voice(root: Path, *, allow_withdrawn: bool = False) -> str:
     """Return an identifier only in memory, refusing a replaced voice."""
     record = read(root, "consent") if allow_withdrawn else require_consent(root)
+    return _resolve_voice(record)
+
+
+def _resolve_voice(record: dict) -> str:
     voice = _find(record["voice"]["name"])
     identifier = voice["voice_id"]
     if digest(identifier) != record["voice"].get("id_sha256"):
@@ -158,7 +162,11 @@ def _sample_files(root: Path, base: dict, manifest: Path | None, *,
                 "or pass --samples.",
                 code="voice_samples_missing",
             )
-        return [checked_file(root, row) for row in rows], None
+        files = [checked_file(root, row) for row in rows]
+        if any("size_bytes" in row and sample.stat().st_size != row["size_bytes"]
+               for sample, row in zip(files, rows, strict=True)):
+            raise VoiceError("Voice samples changed. Read them again before linking.")
+        return files, None
     target = Path(manifest).expanduser().absolute()
     try:
         paths.validate_input(target)
@@ -168,6 +176,9 @@ def _sample_files(root: Path, base: dict, manifest: Path | None, *,
         files = []
         for row in data["samples"]:
             sample = folder / row["path"]
+            if (not sample.is_file() and folder.name == "voice"
+                    and row["path"].startswith("voice/samples/")):
+                sample = folder.parent / row["path"]
             if not sample.resolve().is_relative_to(folder) or not sample.is_file():
                 raise ValueError("sample path must stay inside the manifest folder")
             paths.validate_input(sample)
@@ -287,6 +298,14 @@ def create(project_dir: Path, *, yes: bool = False, dry_run: bool = False,
             with project_lock(root):
                 if require_consent(root, linked=False) != base:
                     raise VoiceError("Voice consent changed. Read it again before uploading.")
+                try:
+                    current = _sample_files(root, base, samples, max_files=25)
+                except (YapError, OSError):
+                    raise VoiceError(
+                        "Voice samples changed. Read them again before uploading."
+                    ) from None
+                if current != selection:
+                    raise VoiceError("Voice samples changed. Read them again before uploading.")
                 elevenlabs.add_voice(name, files)
         except YapError as exc:
             if exc.code != "voice_cli_cannot_upload":
@@ -317,23 +336,26 @@ def create(project_dir: Path, *, yes: bool = False, dry_run: bool = False,
 def delete_voice(project_dir: Path, *, yes: bool = False) -> dict:
     """Delete the linked personal clone and withdraw its project consent."""
     root = Path(project_dir)
-    record = read(root, "consent", optional=True)
-    if record is not None and record["voice"].get("samples_manifest") is not None:
-        raise VoiceError(
-            "This voice was made from recordings across your videos, so Yap Studio will not "
-            "delete it. Delete it on the ElevenLabs site if you mean to.",
-            code="voice_shared",
-        )
-    if not yes:
-        raise VoiceError(
-            "Deleting your ElevenLabs voice needs --yes.", code="voice_approval_required"
-        )
-    identifier = resolve_voice(root, allow_withdrawn=True)
-    try:
-        elevenlabs.remove_voice(identifier)
-    except elevenlabs.GenerationError:
-        raise VoiceError(
-            "ElevenLabs could not delete your voice.", code="voice_delete_failed"
-        ) from None
-    consent(root, withdraw=True)
+    with paths.operation(), project_lock(root):
+        record = read(root, "consent", optional=not yes)
+        if record is not None and record["voice"].get("samples_manifest") is not None:
+            raise VoiceError(
+                "This voice was made from recordings across your videos, so Yap Studio will not "
+                "delete it. Delete it on the ElevenLabs site if you mean to.",
+                code="voice_shared",
+            )
+        if not yes:
+            raise VoiceError(
+                "Deleting your ElevenLabs voice needs --yes.", code="voice_approval_required"
+            )
+        identifier = _resolve_voice(record)
+        if read(root, "consent") != record:
+            raise VoiceError("Voice consent changed. Read it again before deleting.")
+        try:
+            elevenlabs.remove_voice(identifier)
+        except elevenlabs.GenerationError:
+            raise VoiceError(
+                "ElevenLabs could not delete your voice.", code="voice_delete_failed"
+            ) from None
+        write(root, "consent", {**record, "status": "withdrawn", "withdrawn_at": timestamp()})
     return {"status": "deleted"}

@@ -1,0 +1,1 @@
+- Keep voice previews on the selected version and saved choices visible, reuse exported voice samples, and stop uploads or deletion when approved files or consent change.

@@ -79,6 +79,39 @@ def shared_manifest(folder, monkeypatch, *, count, seconds=1, extension=".wav"):
     return target
 
 
+def test_another_projects_export_is_readable(tmp_path, fake_voice, monkeypatch):
+    from importlib import import_module
+
+    import numpy as np
+    import synth
+    from test_cut import make_project, time_segment, write_edit
+
+    from yap_studio.voice import samples
+    from yap_studio.voice.samples import _Candidate
+
+    module = import_module("yap_studio.voice.samples")
+    source = synth.voiced_source(tmp_path / "take.mov", [(0.2, 0.8)], seconds=60)
+    voice_project = make_project(tmp_path / "source project", [source],
+                                 word_rows=[[("morning", 0.2, 0.8)]])
+    write_edit(voice_project, [time_segment("s1", "t1", 0, 60)])
+    candidates = [_Candidate(1, "t1", [[i * 15, (i + 1) * 15]], np.zeros((15 * 48000, 1)))
+                  for i in range(4)]
+    monkeypatch.setattr(module, "_choose", lambda _: candidates)
+    exported = samples(voice_project)
+    root = tmp_path / "another project"
+    root.mkdir()
+    consent(root, yes=True, voice_name="My voice")
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_SAMPLES", json.dumps([
+        {"file_name": Path(row["path"]).name, "size_bytes": row["size_bytes"]}
+        for row in exported["samples"]
+    ]))
+    manifest_path = voice_project / "voice/samples.json"
+    result = link(root, name="My voice", yes=True, samples=manifest_path)
+    assert result["voice"]["samples_manifest"] == {
+        "sha256": receipt.sha256_file(manifest_path), "files": 4,
+    }
+
+
 @pytest.mark.parametrize("external", [False, True])
 @pytest.mark.parametrize("difference", [None, "stem", "size", "duplicate"])
 def test_link_compares_unique_stems_and_wav_sizes(
@@ -419,6 +452,41 @@ def test_delete_manifest_voice_refuses_without_a_remote_call(
         "Delete it on the ElevenLabs site if you mean to."
     )
     assert calls(fake_voice) == before
+
+
+@pytest.mark.parametrize("during", ["read", "personal_voices"])
+def test_delete_refuses_a_concurrent_shared_relink(
+    local_voice, manifest, fake_voice, monkeypatch, during,
+):
+    from importlib import import_module
+
+    from yap_studio import elevenlabs
+    from yap_studio.voice.model import write
+
+    module = import_module("yap_studio.voice.consent")
+    original = module.read(local_voice, "consent")
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_ID", "shared-voice")
+    shared = link(local_voice, name="My voice", yes=True, samples=manifest)
+    write(local_voice, "consent", original)
+    monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_ID", "fake-personal-voice-secret")
+    owner = module if during == "read" else elevenlabs
+    lookup = getattr(owner, during)
+    replaced = False
+
+    def relink(*args, **kwargs):
+        nonlocal replaced
+        result = lookup(*args, **kwargs)
+        if not replaced:
+            replaced = True
+            write(local_voice, "consent", shared)
+            monkeypatch.setenv("FAKE_ELEVENLABS_VOICE_ID", "shared-voice")
+        return result
+
+    monkeypatch.setattr(owner, during, relink)
+    with pytest.raises(YapError):
+        delete_voice(local_voice, yes=True)
+    assert not any(argv[:2] == ["voices", "delete"] for argv in calls(fake_voice))
+    assert module.read(local_voice, "consent") == shared
 
 
 @pytest.mark.parametrize("value", [

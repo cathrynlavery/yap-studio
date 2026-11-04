@@ -215,6 +215,38 @@ test('a poll started before saving cannot undo the saved voice choice', async ()
   assert.equal(context.review.series.voice_fixes[0].status, 'approved');
 });
 
+test('a full reload preserves a newer voice choice and loads words and removed ranges', async () => {
+  const {context, page, state} = pageFixture();
+  let release;
+  state.reviewGate = new Promise((resolve) => { release = resolve; });
+  const reviewStarted = new Promise((resolve) => { state.reviewStarted = resolve; });
+  const loading = page.loadReview();
+  await reviewStarted;
+  await page.saveVoiceFixDecision(fix, 'approve');
+  release();
+  await loading;
+  assert.equal(context.review.series.voice_fixes[0].status, 'approved',
+    'stale full reload overwrote the saved voice choice');
+  assert.equal(context.wordsState.available, true);
+  assert.equal(context.wordsState.words[0].id, 't1:2');
+  assert.equal(context.removed.ranges[0].id, 's1.0');
+});
+
+test('both voice players follow the selected version even when the fixes are identical', () => {
+  const {context, page, card} = pageFixture();
+  for (const version of [2, 1]) {
+    context.selectedVersion = version;
+    page.renderVoiceFixes();
+    for (const [index, player] of card().querySelectorAll('audio').entries()) {
+      const params = new URLSearchParams(player.src.split('?')[1]);
+      assert.equal(params.get('version'), String(version), 'voice clip omitted the selected version');
+      assert.equal(params.get('clip'), index ? 'after' : 'before');
+      assert.equal(params.get('generation'), fix.generation);
+      assert.equal(params.get('t'), 'token');
+    }
+  }
+});
+
 test('page renders safe text, labelled lazy audio and preserves players during refresh', () => {
   const {page, el, card} = pageFixture();
   assert.equal(el.voiceFixes.hidden, false);

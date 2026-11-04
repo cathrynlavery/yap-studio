@@ -135,8 +135,10 @@ recordings and using it to re-say words I misspoke in my videos."
 `--samples PATH` uses a samples manifest instead of this project's `voice/samples.json`.
 It has the same format (`yap-studio/voice-samples@1`): a `samples` list whose rows hold
 `path`, `take`, `start_s`, `end_s`, `duration_s`, `sha256`, `size_bytes` and optional
-`ranges`. Paths are relative to the manifest's folder and stay inside it. Takes can come from
-other projects. Both `link` and `create` accept 1 to 25 WAV files. File names must be
+`ranges`. Paths are relative to the manifest's folder and stay inside it. Another project's
+exported `voice/samples.json` also works with its project-relative `voice/samples/...` paths.
+Those files must stay inside that project's `voice` folder. Takes can come from other
+projects. Both `link` and `create` accept 1 to 25 WAV files. File names must be
 unique without their extensions, and every file must match its hash and size. Consent keeps
 the manifest's hash and file count, not its path.
 
