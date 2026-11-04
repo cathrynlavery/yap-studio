@@ -1493,7 +1493,11 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
             voice_projection = voice_store.projection(context.project_dir, fixes=voice_fixes)
             voice_digest = (projection_sha256(voice_projection)
                             if voice_projection != {"consent": None, "approved": []} else None)
-            if voice_digest != context.json("cut/receipt.json")["inputs"].get("voice:fixes"):
+            try:
+                made_with = context.json("cut/receipt.json")["inputs"].get("voice:fixes")
+            except FileNotFoundError:
+                made_with = None
+            if voice_digest != made_with:
                 raise VoiceError("Voice fixes changed while the final was being made. "
                                  "Run assemble again.")
             if voice_fixes:
