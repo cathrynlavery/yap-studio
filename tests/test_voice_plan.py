@@ -101,7 +101,11 @@ def test_voice_picture_requires_front_opaque_canvas(
                         "samples": round((fix["source"]["end_s"]
                                           - fix["source"]["start_s"]) * 48000)}
         monkeypatch.setattr(store, "approved_fixes", lambda _: [fix])
-        monkeypatch.setattr(store, "patches_for_plan", lambda _: [(fix, None)])
+        monkeypatch.setattr(store, "patches_for_plan", lambda *_, **__: [(fix, None)])
+        monkeypatch.setattr(store, "projection", lambda *_, **__: {"consent": None, "approved": []})
+        read = context.json
+        monkeypatch.setattr(context, "json", lambda name, *args, **kwargs: (
+            {"inputs": {}} if name == "cut/receipt.json" else read(name, *args, **kwargs)))
         monkeypatch.setattr(assemble_stage, "ProjectContext", lambda _: context)
         monkeypatch.setattr(assemble_stage, "validate_voice_chain", lambda *_: None)
         monkeypatch.setattr(assemble_stage, "assembly_snapshot", lambda *_, **__: snapshot)
