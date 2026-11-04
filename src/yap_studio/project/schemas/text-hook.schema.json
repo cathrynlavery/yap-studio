@@ -18,6 +18,25 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "opening"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "whole_video"
+          ]
+        }
+      }
     }
   ],
   "properties": {
@@ -66,6 +85,9 @@
         "idea",
         "note"
       ]
+    },
+    "whole_video": {
+      "type": "boolean"
     }
   },
   "required": [

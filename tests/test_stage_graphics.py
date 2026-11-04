@@ -2029,6 +2029,7 @@ def test_card_motion_none_matches_main_cache_and_placement(
 
     # Pins from main 3abf21f5, on Darwin; the render key moved when the quote template began
     # clearing its landed transform (#51), so quote cards re-render once.
+    # The input digest moved when internal.end_hold_s became 0.5 (#94); cards hash internal.
     # Regenerate in a pristine main archive with the lane environment sourced.
     # Copy this test there; omit the card_motion assignment if main lacks the field.
     # Print actual_key, actual_placement and record["inputs"]["graphic:agent-tag"]
@@ -2058,12 +2059,12 @@ def test_card_motion_none_matches_main_cache_and_placement(
         '{"clearance":{"gap_px":null,"hair":{"above":0.6,"sides":0.15},"margin_px":24,'
         '"reason":"fake project has no face measurements","status":"unchecked"},'
         '"frames":90,"height":360,"id":"agent-tag","input_sha256":'
-        '"235a39d6c13f1c3219028abe18f854c2d0040be7b335777a1121510b7bc41e2f",'
+        '"93e02a2319fcd119106d8bd4ecc68816c5ee6cbf9aee5076fb1907f3c357460c",'
         '"kind":"graphic","layer":"front","path":"graphics/agent-tag.mov",'
         '"start_frame":0,"width":1040,"x":20,"y":280}'
     )
     assert record["inputs"]["graphic:agent-tag"] == (
-        "235a39d6c13f1c3219028abe18f854c2d0040be7b335777a1121510b7bc41e2f"
+        "93e02a2319fcd119106d8bd4ecc68816c5ee6cbf9aee5076fb1907f3c357460c"
     )
 
 
