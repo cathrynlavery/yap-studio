@@ -23,7 +23,7 @@ from pathlib import Path
 from yap_studio import paths
 from yap_studio.errors import YapError
 from yap_studio.hf_registry import catalog, install
-from yap_studio.hf_registry.triage import check, document, dumps, survey
+from yap_studio.hf_registry.triage import check, document, dumps, merge, survey
 from yap_studio.render import hyperframes
 from yap_studio.render.hyperframes import HYPERFRAMES_VERSION
 
@@ -36,6 +36,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stills", type=Path, metavar="DIR",
                         help="write one PNG still per rendered item")
+    parser.add_argument("--all", action="store_true", help="check every usable item again")
     args = parser.parse_args()
     started = time.monotonic()
     try:
@@ -48,11 +49,18 @@ def main() -> int:
                 catalog.registry_url(), executable=renderer.executable, work=work,
                 home=paths.validate_output_dir(install.registry_home()),
             )
-            check(records, install=renderer, work=work, stills=args.stills)
-            paths.atomic_write_text(TRIAGE, dumps(document(
+            if not args.all:
+                previous = json.loads(TRIAGE.read_text(encoding="utf-8")).get("items")
+                records = merge(previous, records)
+            selected = {name: record for name, record in records.items()
+                        if record["use"] != "none" and (args.all or
+                            record.get("check", {}).get("status", "pending") == "pending")}
+            check(selected, install=renderer, work=work, stills=args.stills)
+            content = dumps(document(
                 records, commit=catalog.load_catalog()["registry"]["commit"],
                 version=HYPERFRAMES_VERSION,
-            )))
+            ))
+            paths.atomic_write_text(TRIAGE, content)
     except (YapError, OSError, ValueError) as exc:
         print(exc.message if isinstance(exc, YapError) else str(exc), file=sys.stderr)
         action = exc.suggested_action if isinstance(exc, YapError) else None
@@ -61,6 +69,7 @@ def main() -> int:
     print(json.dumps({
         "items": len(records),
         "usable": sum(record["use"] != "none" for record in records.values()),
+        "checked": len(selected),
         "passed": sum(record.get("check", {}).get("status") == "pass"
                       for record in records.values()),
         "failed": sum(record.get("check", {}).get("status") == "fail"

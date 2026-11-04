@@ -306,7 +306,7 @@ def check(records, *, install, work, stills=None) -> dict[str, dict]:
                 registry_install.install_items([name], install=install)
                 if record["use"] == "helper":
                     localize.localize(name, directory, install=install)
-                    status, detail = "pass", "Its script runs offline."
+                    status, detail = "pass", "Its script makes no network calls."
                 else:
                     plan = cards.card_layer_plan("hf:" + name, record["entry"]["preview"],
                                                  resolve(STYLE), frames=FRAMES)

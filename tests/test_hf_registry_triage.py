@@ -753,7 +753,7 @@ def test_check_helper_localizes_offline_and_reuses_installed_item(synthetic, tmp
         registry_install.install_items(["sample-helper"], install=renderer)
     selected = {"sample-helper": record}
     assert triage.check(selected, install=renderer, work=tmp_path / "checks") is selected
-    assert record["check"] == {"status": "pass", "detail": "Its script runs offline."}
+    assert record["check"] == {"status": "pass", "detail": "Its script makes no network calls."}
     assert len(calls) == 1 and not calls[0].exists()
     assert len(audit.read_text().splitlines()) == 1
 
@@ -824,6 +824,7 @@ def test_script_writes_valid_document_and_summary(
 ):
     script = triage_script
     records = triage_document["items"]
+    triage_path.write_text(json.dumps(triage_document))
     renderer = SimpleNamespace(executable=tmp_path / "renderer")
     calls = []
 
@@ -838,7 +839,10 @@ def test_script_writes_valid_document_and_summary(
         return records
 
     def check(items, *, install, work, stills):
-        assert items is records and install is renderer and work == calls[0]
+        assert items == {name: record for name, record in records.items()
+                         if record["use"] != "none"}
+        assert all(record is records[name] for name, record in items.items())
+        assert install is renderer and work == calls[0]
         assert stills == tmp_path / "stills"
         items["titlecard-calm"]["check"] = {"status": "pass", "detail": "Synthetic pass."}
         items["conic-progress-ring"]["check"] = {"status": "fail", "detail": "Synthetic fail."}
@@ -853,11 +857,130 @@ def test_script_writes_valid_document_and_summary(
     assert catalog.load_triage() == triage_document
     output = capsys.readouterr()
     summary = json.loads(output.out)
-    assert summary.keys() == {"items", "usable", "passed", "failed", "seconds"}
+    assert summary.keys() == {"items", "usable", "checked", "passed", "failed", "seconds"}
     assert summary["items"] == len(records) and summary["usable"] == 4
+    assert summary["checked"] == 4
     assert summary["passed"] == summary["failed"] == 1 and summary["seconds"] >= 0
     assert output.err == "Synthetic renderer ready.\n"
     assert not calls[0].exists()
+
+
+@pytest.mark.parametrize("missing_check", [False, True])
+def test_script_checks_only_pending_items(
+    triage_script, triage_path, records, tmp_path, monkeypatch, capsys, missing_check,
+):
+    script = triage_script
+    records = {name: records[name] for name in ("titlecard-calm", "conic-progress-ring",
+                                                "decision-tree")}
+    previous = copy.deepcopy(records)
+    previous["titlecard-calm"]["check"] = {"status": "pass", "detail": "Earlier result."}
+    del previous["conic-progress-ring"]
+    triage_path.write_text(triage.dumps(triage.document(
+        previous, commit=catalog.load_catalog()["registry"]["commit"], version=HYPERFRAMES_VERSION,
+    )))
+    if missing_check:
+        del records["conic-progress-ring"]["check"]
+    renderer = SimpleNamespace(executable=tmp_path / "renderer")
+    checked = []
+
+    def check(items, **kwargs):
+        assert list(items) == ["conic-progress-ring"]
+        assert items["conic-progress-ring"] is records["conic-progress-ring"]
+        checked.extend(items)
+        items["conic-progress-ring"]["check"] = {"status": "pass", "detail": "Synthetic pass."}
+
+    monkeypatch.setattr(script, "TRIAGE", triage_path)
+    monkeypatch.setattr(script.hyperframes, "ensure_installed", lambda **kwargs: renderer)
+    monkeypatch.setattr(script, "survey", lambda *args, **kwargs: records)
+    monkeypatch.setattr(script, "check", check)
+    assert script.main() == 0
+    assert checked == ["conic-progress-ring"]
+    written = json.loads(triage_path.read_text())["items"]
+    assert written == records
+    assert written["titlecard-calm"]["check"] == previous["titlecard-calm"]["check"]
+    assert json.loads(capsys.readouterr().out)["checked"] == 1
+
+
+def test_script_all_checks_every_usable_item(
+    triage_script, triage_path, records, tmp_path, monkeypatch, capsys,
+):
+    script = triage_script
+    previous = copy.deepcopy(records)
+    previous["titlecard-calm"]["check"] = {"status": "pass", "detail": "Earlier result."}
+    triage_path.write_text(triage.dumps(triage.document(
+        previous, commit=catalog.load_catalog()["registry"]["commit"], version=HYPERFRAMES_VERSION,
+    )))
+    renderer = SimpleNamespace(executable=tmp_path / "renderer")
+    checked = []
+    written_paths = []
+    original = paths.atomic_write_text
+
+    def write_text(target, content):
+        written_paths.append(target)
+        return original(target, content)
+
+    def check(items, **kwargs):
+        assert items == {name: record for name, record in records.items()
+                         if record["use"] != "none"}
+        assert all(record is records[name] for name, record in items.items())
+        checked.extend(items)
+        for record in items.values():
+            record["check"] = {"status": "pass", "detail": "Synthetic pass."}
+
+    monkeypatch.setattr(script, "TRIAGE", triage_path)
+    monkeypatch.setattr(script.hyperframes, "ensure_installed", lambda **kwargs: renderer)
+    monkeypatch.setattr(script, "survey", lambda *args, **kwargs: records)
+    monkeypatch.setattr(script, "check", check)
+    monkeypatch.setattr(script.paths, "atomic_write_text", write_text)
+    monkeypatch.setattr(sys, "argv", ["triage_registry.py", "--all"])
+    assert script.main() == 0
+    assert len(checked) == 4
+    assert "titlecard-calm" in checked
+    assert written_paths == [triage_path]
+    assert json.loads(triage_path.read_bytes())["items"] == records
+    assert records["titlecard-calm"]["check"] == {"status": "pass", "detail": "Synthetic pass."}
+    assert json.loads(capsys.readouterr().out)["checked"] == 4
+
+
+@pytest.mark.parametrize("failure", ["missing", "invalid-json", "unreadable"])
+def test_script_previous_read_failure_does_not_overwrite(
+    triage_script, triage_path, records, tmp_path, monkeypatch, capsys, failure,
+):
+    script = triage_script
+    if failure != "missing":
+        triage_path.write_text("Earlier triage.")
+    if failure == "unreadable":
+        original = Path.read_text
+
+        def read_text(self, *args, **kwargs):
+            if self == triage_path:
+                raise PermissionError("Synthetic triage unreadable.")
+            return original(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", read_text)
+    renderer = SimpleNamespace(executable=tmp_path / "renderer")
+    surveyed = []
+
+    def survey(*args, **kwargs):
+        surveyed.append(True)
+        return records
+
+    def check(*args, **kwargs):
+        pytest.fail("Previous triage must be read before checking items.")
+
+    monkeypatch.setattr(script, "TRIAGE", triage_path)
+    monkeypatch.setattr(script.hyperframes, "ensure_installed", lambda **kwargs: renderer)
+    monkeypatch.setattr(script, "survey", survey)
+    monkeypatch.setattr(script, "check", check)
+    assert script.main() == 1
+    assert surveyed == [True]
+    if failure == "missing":
+        assert not triage_path.exists()
+    else:
+        assert triage_path.read_bytes() == b"Earlier triage."
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err.endswith("\nCheck the registry and run the triage again.\n")
 
 
 def test_script_reports_errors_without_overwriting(triage_script, triage_path, monkeypatch, capsys):
