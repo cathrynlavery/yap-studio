@@ -1564,6 +1564,134 @@ def test_measured_pause_keeps_quiet_speech_between_loud_words(tmp_path: Path) ->
     assert all(item.end <= 0.9 or item.start >= 1.1 for item in pauses)
 
 
+@pytest.mark.parametrize("right_start", [1.0, 1.2, 1.29], ids=["touching", "gap", "short-overlap"])
+def test_measured_pause_includes_quiet_word_margins(right_start: float) -> None:
+    words = (SourceWord("t1:0", "bright", 0.2, 1.0),
+             SourceWord("t1:1", "garden", right_start, 1.8))
+    sound = np.full(2 * stage._RATE, 0.1, dtype=np.float32)
+    sound[round(0.8 * stage._RATE):round(1.3 * stage._RATE)] = 0
+    segment = stage._PlannedAudio("t1", 0, 2, sound, words)
+
+    assert not stage.detect(words, max_pause_s=0.3).candidates
+    candidate, = stage.detect(
+        words, max_pause_s=0.3, silent_runs=stage._measured_silent_runs(segment),
+    ).candidates
+
+    assert candidate.kind == "silence" and candidate.word_ids == ()
+    assert 0.8 <= candidate.start < candidate.end <= 1.3
+    assert candidate.plan["gap_s"] == pytest.approx(0.5)
+    assert 0.5 - (candidate.end - candidate.start) == pytest.approx(0.3, abs=1 / 30)
+    assert candidate.start - 0.8 == pytest.approx(0.15, abs=1 / 30)
+    assert 1.3 - candidate.end == pytest.approx(0.15, abs=1 / 30)
+
+
+@pytest.mark.parametrize("voiced", [True, False], ids=["silent-middle", "all-silent"])
+def test_measured_pause_keeps_words_wholly_in_silence(voiced: bool) -> None:
+    words = (SourceWord("t1:0", "bright", 0.2, 0.6),
+             SourceWord("t1:1", "garden", 1.0, 1.4),
+             SourceWord("t1:2", "flowers", 1.8, 2.2))
+    sound = np.zeros(round(2.4 * stage._RATE), dtype=np.float32)
+    if voiced:
+        for word in (words[0], words[2]):
+            sound[round(word.start * stage._RATE):round(word.end * stage._RATE)] = 0.1
+    segment = stage._PlannedAudio("t1", 0, 2.4, sound, words)
+
+    candidates = stage.detect(
+        words, max_pause_s=0.3, silent_runs=stage._measured_silent_runs(segment),
+    ).candidates
+
+    assert candidates
+    assert not any(candidate.start <= (word.start + word.end) / 2 < candidate.end
+                   for candidate in candidates for word in words)
+
+
+def test_merged_measured_pause_keeps_silent_margins_without_listen() -> None:
+    words = (SourceWord("t1:0", "bright", 0.2, 1.0),
+             SourceWord("t1:1", "um", 1.1, 1.3),
+             SourceWord("t1:2", "garden", 1.4, 2.1))
+    sound = np.zeros(round(2.4 * stage._RATE), dtype=np.float32)
+    for first, last in [(0.2, 0.5), (1.1, 1.3), (1.8, 2.1)]:
+        sound[round(first * stage._RATE):round(last * stage._RATE)] = 0.1
+    segment = stage._PlannedAudio("t1", 0, 2.4, sound, words)
+
+    candidate, = stage.detect(
+        words, max_pause_s=0.3, silent_runs=stage._measured_silent_runs(segment),
+    ).candidates
+
+    assert candidate.word_ids == ("t1:1",) and "components" in candidate.plan
+    assert candidate.start - 0.5 + 1.8 - candidate.end == pytest.approx(0.3, abs=1 / 30)
+    assert not candidate.listen
+    assert candidate.plan["joined_pause_s"] == pytest.approx(0.3, abs=1 / 30)
+
+
+def test_measured_pause_excludes_stop_closures_inside_words() -> None:
+    words = (SourceWord("t1:0", "bright", 0.2, 1.0),
+             SourceWord("t1:1", "garden", 1.2, 2.0))
+    sound = np.full(2 * stage._RATE, 0.1, dtype=np.float32)
+    for first, last in [(0.3, 0.8), (1.4, 1.9)]:
+        sound[round(first * stage._RATE):round(last * stage._RATE)] = 0
+    segment = stage._PlannedAudio("t1", 0, 2, sound, words)
+
+    assert not stage.detect(
+        words, max_pause_s=0.3, silent_runs=stage._measured_silent_runs(segment),
+    ).candidates
+
+
+def test_measured_pause_excludes_removals_in_word_margins() -> None:
+    words = (SourceWord("t1:0", "bright", 0.2, 1.0),
+             SourceWord("t1:1", "garden", 1.2, 1.8))
+    sound = np.full(2 * stage._RATE, 0.1, dtype=np.float32)
+    sound[round(0.6 * stage._RATE):round(1.5 * stage._RATE)] = 0
+    segment = stage._PlannedAudio("t1", 0, 2, sound, words)
+    removals = (stage.Candidate("t1", "silence", (), 0.7, 0.9, (), "s1", False, {}),
+                stage.Candidate("t1", "silence", (), 1.3, 1.4, (), "s1", False, {}))
+
+    candidates = stage._pause_candidates(
+        words, removals, max_pause_s=0.3, silence_db=-45, level_at=None,
+        silent_runs=stage._measured_silent_runs(segment),
+    )
+
+    assert candidates
+    assert all(candidate.end <= removal.start or candidate.start >= removal.end
+               for candidate in candidates for removal in removals)
+    removed = sum(item.end - item.start for item in (*removals, *candidates))
+    assert 0.9 - removed == pytest.approx(0.3, abs=1 / 30)
+
+
+def test_segment_head_pause_is_proposed_and_applied(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rows = [("bright", 0.6, 0.9), ("garden", 1.0, 1.3)]
+    root = make_project(tmp_path / "project", rows)
+    context = ProjectContext(root)
+    segment = stage._planned(context)["s1"]
+    head, = [item for item in stage._proposals(context, {"s1": segment})
+             if item.end < rows[0][1]]
+
+    assert head.kind == "silence" and head.word_ids == ()
+    assert rows[0][1] - head.end == pytest.approx(0.15, abs=1 / 30)
+    assert not [item for item in stage._proposals(
+        context, {"s1": segment}, protect=((segment.start, rows[0][1]),),
+    ) if item.end < rows[0][1]]
+    trial = stage._trial(segment, (replace(head, start=segment.start),), edge_aware=True)
+    assert trial is not None and trial.edge == "start"
+    assert [word.text for word in trial.stored] == [row[0] for row in rows]
+    heard = []
+
+    def script(target: Path) -> Transcript:
+        heard.append(target)
+        return transcript([row[0] for row in rows])
+
+    monkeypatch.setattr(stage, "resolve_backend", lambda *_: ScriptedBackend(script))
+    result = stage.fillers(root, apply=True)
+    applied, = [item for item in result["entries"] if item["start"] == segment.start]
+    assert heard
+    assert applied["status"] == "applied" and applied["evidence"]["words"] == "pass"
+    assert rows[0][1] - applied["end"] == pytest.approx(0.15, abs=1 / 30)
+    saved = json.loads((root / "removals.json").read_bytes())["removals"]
+    assert any(item["id"] == applied["id"] and item["status"] == "applied" for item in saved)
+
+
 @pytest.mark.parametrize(("silence_db", "quiet"), [(-40.0, True), (-55.0, False)])
 def test_trial_uses_segment_threshold_for_quiet_and_listen(silence_db: float, quiet: bool) -> None:
     segment = stage._PlannedAudio(
@@ -1633,12 +1761,13 @@ def test_project_shortens_silence_after_stretched_word(tmp_path: Path) -> None:
 
     assert segment.words[0].end == pytest.approx(0.87)
     candidates = stage._proposals(ProjectContext(root), {"s1": segment})
-    silence = [item for item in candidates if item.kind == "silence" and item.end <= 2.0]
+    silence = [item for item in candidates if item.kind == "silence"
+               and item.plan["right_word_start_s"] == segment.words[1].start]
     assert silence
     assert all(item.word_ids == () and 0.8 <= item.start < item.end <= 2.0
                for item in silence)
     assert sum(item.end - item.start for item in silence) == pytest.approx(
-        2.0 - segment.words[0].end - 0.3, abs=2 / 30,
+        2.0 - 0.8 - 0.3, abs=2 / 30,
     )
 
 
@@ -1648,18 +1777,19 @@ def test_project_shortens_silence_after_stretched_final_word(tmp_path: Path) -> 
     segment = stage._planned(ProjectContext(root))["s1"]
     assert segment.words[0].end == pytest.approx(0.87)
     candidates = stage._proposals(ProjectContext(root), {"s1": segment})
-    silence = [item for item in candidates if item.kind == "silence"]
+    silence = [item for item in candidates if item.kind == "silence"
+               and item.plan["right_word_start_s"] == segment.end]
     assert silence
     assert all(item.word_ids == () and segment.words[0].end <= item.start
                < item.end <= segment.end for item in silence)
     assert sum(item.end - item.start for item in silence) == pytest.approx(
-        segment.end - segment.words[0].end - 0.3, abs=2 / 30,
+        segment.end - 0.8 - 0.3, abs=2 / 30,
     )
     assert not [item for item in stage._proposals(
         ProjectContext(root), {"s1": segment}, protect=((segment.words[0].end, segment.end),)
-    ) if item.kind == "silence"]
+    ) if item.kind == "silence" and item.plan["right_word_start_s"] == segment.end]
     project = json.loads((root / "project.json").read_text())
-    project["rules"] = {"max_pause_s": segment.end - segment.words[0].end}
+    project["rules"] = {"max_pause_s": segment.end - 0.8}
     write_json(root / "project.json", project)
     assert not [item for item in stage._proposals(
         ProjectContext(root), {"s1": segment}

@@ -496,23 +496,26 @@ def _pause_candidates(
             if word.id not in removed and (word.id or index not in anonymous)]
     pauses = []
     for left, right in zip(kept, kept[1:], strict=False):
-        intervals = []
-        cursor = left.end
-        for removal in removals:
-            if removal.end <= cursor or removal.start >= right.start:
-                continue
-            if removal.start > cursor:
-                intervals.append((cursor, removal.start))
-            cursor = max(cursor, removal.end)
-        if cursor < right.start:
-            intervals.append((cursor, right.start))
+        gaps = [(left.end, right.start)]
         if silent_runs is not None:
-            intervals = [
-                (max(first, quiet_first), min(last, quiet_last))
-                for first, last in intervals
-                for quiet_first, quiet_last in silent_runs(first, last)
-                if max(first, quiet_first) < min(last, quiet_last)
+            gaps = [
+                (left.end if first <= left.start else first,
+                 right.start if last >= right.end else last)
+                for first, last in silent_runs(left.start, right.end)
+                if first < right.start and last > left.end
+                or left.end == right.start and first <= left.end <= last
             ]
+        intervals = []
+        for first, last in gaps:
+            cursor = first
+            for removal in removals:
+                if removal.end <= cursor or removal.start >= last:
+                    continue
+                if removal.start > cursor:
+                    intervals.append((cursor, removal.start))
+                cursor = max(cursor, removal.end)
+            if cursor < last:
+                intervals.append((cursor, last))
         total = sum((Fraction(str(last)) - Fraction(str(first)) for first, last in intervals),
                     start=Fraction(0))
         maximum = Fraction(str(max_pause_s))
@@ -544,7 +547,10 @@ def _pause_candidates(
                 listen=fallback or float(total) - (end - start) < 1e-9,
                 plan={"word_indexes": (), "kept_side": "centred", "want_pause_s": max_pause_s,
                       "gap_s": float(total), "silence_db": silence_db,
-                      "left_word_end_s": left.end, "right_word_start_s": right.start},
+                      "left_word_end_s": left.end, "right_word_start_s": right.start,
+                      **({"pause_bounds_s": (min(left.end, gaps[0][0]),
+                                             max(right.start, gaps[-1][1]))}
+                         if silent_runs is not None else {})},
             ))
     return pauses
 
@@ -564,6 +570,11 @@ def _merge_candidates(candidates: Sequence[Candidate]) -> tuple[Candidate, ...]:
         plan["components"] = [*previous.plan.get("components", [previous.plan]), candidate.plan]
         start, end = previous.start, max(previous.end, candidate.end)
         left, right = plan["left_word_end_s"], plan["right_word_start_s"]
+        for item in (previous, candidate):
+            if left is not None and right is not None and "pause_bounds_s" in item.plan:
+                first, last = item.plan["pause_bounds_s"]
+                left, right = min(left, first), max(right, last)
+                plan["pause_bounds_s"] = (left, right)
         joined = (max(0.0, right - left - (end - start))
                   if left is not None and right is not None else 0.0)
         plan["joined_pause_s"] = joined
@@ -1052,18 +1063,25 @@ def _proposals(context: ProjectContext, segments: dict[str, _PlannedAudio], *,
                         beat_breath_s=float(context.project.rules["beat_breath_s"]),
                         refined=refined, take=segment.take, restart_audio=segment,
                         silent_runs=silent_runs)
-        boundary_pauses = []
+        boundaries = []
+        if words and segment.start < words[0].start:
+            boundary = replace(words[0], id="", text="", start=segment.start,
+                               end=segment.start)
+            boundaries.append((boundary, words[0]))
         if words and words[-1].end < segment.end:
             boundary = replace(words[-1], id="", text="", start=segment.end,
                                end=segment.end)
-            boundary_pauses = _pause_candidates(
-                (words[-1], boundary), segment.existing,
+            boundaries.append((words[-1], boundary))
+        boundary_pauses = []
+        for pair in boundaries:
+            boundary_pauses.extend(_pause_candidates(
+                pair, segment.existing,
                 max_pause_s=float(context.project.rules["max_pause_s"]),
                 silence_db=segment.silence_db, level_at=None,
                 silent_runs=silent_runs, take=segment.take,
-            )
-            boundary_pauses = [item for item in boundary_pauses
-                               if not _protected(item.start, item.end, protect)]
+            ))
+        boundary_pauses = [item for item in boundary_pauses
+                           if not _protected(item.start, item.end, protect)]
         if restart_rules is not None:
             restart_rules.update(dict(result.restart_rules))
         for item in (*result.candidates, *boundary_pauses):

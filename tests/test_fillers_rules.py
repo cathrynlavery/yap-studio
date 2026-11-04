@@ -487,13 +487,13 @@ def test_measured_pause_removals_stay_inside_silent_runs() -> None:
     assert old.start < 0.6 < 1.0 < old.end
 
     def silent_runs(first: float, last: float) -> list[tuple[float, float]]:
-        assert (first, last) == (0.3, 1.3)
+        assert (first, last) == (0.0, 1.6)
         return [(0.3, 0.6), (1.0, 1.3)]
 
     measured = detect(words, max_pause_s=0.2, silent_runs=silent_runs).candidates
     assert len(measured) == 2
     assert all(any(first <= item.start < item.end <= last
-                   for first, last in silent_runs(0.3, 1.3)) for item in measured)
+                   for first, last in silent_runs(0.0, 1.6)) for item in measured)
     assert all(item.kind == "silence" and item.word_ids == () for item in measured)
 
 
