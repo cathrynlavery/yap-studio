@@ -1243,10 +1243,10 @@ def test_text_mismatch_and_platform_hold_warning(tmp_path: Path, calibration: Pa
         root,
         [segment]
         + [dict(segment, id=f"s{index}") for index in range(73)]
-        + [time_segment("tail", "t1", 3.0, 4.2)],
+        + [time_segment("tail", "t1", 3.0, 5.2)],
     )
     plan = resolve_cut(root)
-    assert plan.total_frames == 5364
+    assert plan.total_frames == 5394
     assert any("maximum" in warning for warning in plan.warnings)
     assert plan.text_mismatches[0]["actual"] == "bright morning light"
 
@@ -2002,12 +2002,12 @@ def test_platform_warning_uses_effective_end_hold(
     project.update(platform="shorts", style="style.json")
     write_json(root / "project.json", project)
     write_json(root / "style.json", {
-        "schema_version": 1, "name": "fixture", "internal": {"end_hold_s": 1.5},
+        "schema_version": 1, "name": "fixture", "internal": {"end_hold_s": 0.5},
     })
     write_edit(root, [time_segment(f"s{index}", "t1", 0, 1) for index in range(178)],
                end_hold_s=authored)
     result = edit_check(root)
-    assert result["end_hold_s"] == (1.5 if authored is None else authored)
+    assert result["end_hold_s"] == (0.5 if authored is None else authored)
     assert result["end_hold_source"] == (
         "style.internal.end_hold_s" if authored is None else "edit.end_hold_s"
     )

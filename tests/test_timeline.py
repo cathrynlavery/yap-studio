@@ -227,6 +227,25 @@ def test_requested_sound_resolves_at_word_and_never_snaps(project: Path) -> None
     assert resolved.payload == {"sound": "laugh", "gain_db": -2}
 
 
+@pytest.mark.parametrize(("authored", "hold_s", "hold_frames", "source"), [
+    (None, 0.5, 15, "style.internal.end_hold_s"),
+    (1.5, 1.5, 45, "edit.end_hold_s"),
+])
+def test_end_hold_uses_style_default_or_edit_override(
+    project: Path, authored: float | None, hold_s: float, hold_frames: int, source: str,
+) -> None:
+    from yap_studio.stages.cut import edit_check
+
+    if authored is not None:
+        edit = json.loads((project / "edit.json").read_bytes())
+        write(project / "edit.json", {**edit, "end_hold_s": authored})
+        publish_cut(project)
+    assert resolve_timeline(project).end_hold_frames == hold_frames
+    result = edit_check(project)
+    assert result["end_hold_s"] == hold_s
+    assert result["end_hold_source"] == source
+
+
 def test_requested_sound_cannot_start_in_end_hold(project: Path) -> None:
     with pytest.raises(TimelineRefusal, match="outside|hold"):
         add(project, {"id": "agent-laugh", "kind": "sound", "lane": "agent",

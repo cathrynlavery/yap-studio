@@ -173,13 +173,13 @@ def test_edit_check_reports_effective_end_hold(
     project["style"] = "style.json"
     write_json(root / "project.json", project)
     write_json(root / "style.json", {
-        "schema_version": 1, "name": "fixture", "internal": {"end_hold_s": 1.5},
+        "schema_version": 1, "name": "fixture", "internal": {"end_hold_s": 0.5},
     })
     write_edit(root, [time_segment("story", "t1", 0.3, 2.7)], end_hold_s=authored)
     before = snapshot(root)
     assert main(["edit", "check", str(root), "--json"]) == 0
     result = json.loads(capsys.readouterr().out)
-    value = 1.5 if authored is None else authored
+    value = 0.5 if authored is None else authored
     assert result["end_hold_s"] == value
     origin = "style.internal.end_hold_s" if authored is None else "edit.end_hold_s"
     assert result["end_hold_source"] == origin

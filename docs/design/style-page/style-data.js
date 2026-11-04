@@ -1138,9 +1138,9 @@ window.YAP_STYLE_DATA = {
           "end_hold_s": {
             "type": "number",
             "description": "Length of the final frozen frame and silent audio.",
-            "default": 1.5,
-            "minimum": 1.5,
-            "maximum": 1.5
+            "default": 0.5,
+            "minimum": 0.5,
+            "maximum": 0.5
           },
           "key_text_top_px": {
             "type": "integer",

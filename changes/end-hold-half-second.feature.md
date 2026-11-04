@@ -1,0 +1,1 @@
+- Videos now end with half a second of frozen picture and silence instead of 1.5 seconds. An end_hold_s in edit.json still sets another length.
