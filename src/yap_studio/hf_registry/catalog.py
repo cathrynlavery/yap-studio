@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping
+from contextlib import contextmanager
 from functools import cache
 from pathlib import Path, PurePosixPath
 from string import Formatter
@@ -14,6 +16,9 @@ from yap_studio.render.hyperframes import HYPERFRAMES_VERSION
 
 CATALOG_PATH = Path(__file__).with_name("catalog.json")
 SCHEMA = "yap-studio/hf-registry-catalog@1"
+TRIAGE_PATH = Path(__file__).with_name("triage.json")
+TRIAGE_SCHEMA = "yap-studio/hf-registry-triage@1"
+_trial_entries: dict[str, dict] = {}
 # HyperFrames 0.8.184 token fallbacks would paint an opaque backdrop over the speaker.
 HOST_TOKENS = {"--bg": "transparent"}
 
@@ -37,18 +42,24 @@ wheat white whitesmoke yellow yellowgreen
 """.split())
 
 
-def validate_color_tokens(name: str, entry: dict, source: str) -> None:
-    """Require palette mappings for colour fallbacks in CSS and authored scripts."""
+def color_tokens(source: str) -> set[str]:
+    """Find custom properties with colour fallbacks outside font-family declarations."""
     # A font family may share a colour's name, such as Black.
     source = re.sub(r"(?<![\w-])font-family\s*:[^;{}]+", "", source, flags=re.I)
-    missing = set()
+    tokens = set()
     # A lookahead also visits nested fallbacks, such as var(--a, var(--b, red)).
     for token, fallback in re.findall(r"(?=var\(\s*(--[\w-]+)\s*,\s*([^,)]+))", source):
         literal = fallback.strip().lower()
         is_color = (literal in _NAMED_COLORS or re.fullmatch(r"#[0-9a-f]{3,8}", literal)
                     or re.match(r"(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(", literal))
-        if is_color and token not in entry["tokens"] and token not in HOST_TOKENS:
-            missing.add(token)
+        if is_color:
+            tokens.add(token)
+    return tokens
+
+
+def validate_color_tokens(name: str, entry: dict, source: str) -> None:
+    """Require palette mappings for colour fallbacks in CSS and authored scripts."""
+    missing = color_tokens(source) - entry["tokens"].keys() - HOST_TOKENS.keys()
     _require(not missing, f"{name}: unmapped colour token: " + ", ".join(sorted(missing)))
 
 
@@ -256,9 +267,90 @@ def load_catalog() -> dict:
     return data
 
 
+@cache
+def load_triage() -> dict:
+    """Read and validate the offline triage for the pinned registry."""
+    def require(condition: bool, detail: str) -> None:
+        if not condition:
+            raise ValidationError("HyperFrames registry triage", detail)
+
+    try:
+        data = json.loads(TRIAGE_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise ValidationError(
+            "HyperFrames registry triage", f"cannot read metadata: {exc}"
+        ) from exc
+    require(isinstance(data, dict), "expected an object")
+    require(data.get("schema") == TRIAGE_SCHEMA, f"schema must be {TRIAGE_SCHEMA}")
+    version = data.get("hyperframes_version")
+    require(version == HYPERFRAMES_VERSION,
+            f"triage version {version!r} differs from renderer version {HYPERFRAMES_VERSION}; "
+            "a HyperFrames bump must refresh the triage in the same change")
+    shipped = load_catalog()
+    commit = shipped["registry"]["commit"]
+    require(data.get("commit") == commit,
+            f"triage commit {data.get('commit')} differs from the catalog's registry commit "
+            f"{commit}; refresh it with scripts/bump_hyperframes.py --registry")
+    require(isinstance(data.get("style"), str) and bool(data["style"].strip()),
+            "style must be nonempty text")
+    records = data.get("items")
+    require(isinstance(records, dict) and bool(records), "items must be a nonempty object")
+    for name, record in records.items():
+        require(re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name) is not None,
+                f"invalid item name {name!r}")
+        require(isinstance(record, dict), f"{name}: record must be an object")
+        kind = record.get("type")
+        require(kind in ("block", "component", "example"),
+                f"{name}: type must be block, component or example")
+        use = record.get("use")
+        require(use in ("card", "title", "caption", "helper", "none"),
+                f"{name}: use must be card, title, caption, helper or none")
+        require(isinstance(record.get("reason"), str) and bool(record["reason"].strip()),
+                f"{name}: reason must be nonempty text")
+        if use == "none":
+            for field in ("entry", "check"):
+                require(field not in record, f"{name}: unused item must not have {field}")
+            continue
+        entry = record.get("entry")
+        require(isinstance(entry, dict), f"{name}: entry must be an object")
+        require(entry.get("type") == kind, f"{name}: entry.type must equal record type")
+        upstream = f"registry/{kind}s/{name}/{name}.html"
+        require(entry.get("upstream_path") == upstream,
+                f"{name}: upstream_path must be {upstream}")
+        files = entry.get("files")
+        require(isinstance(files, dict) and bool(files), f"{name}: files must be a nonempty object")
+        for file, digest in files.items():
+            require(_relative_path(file), f"{name}: unsafe file path {file!r}")
+            require(isinstance(digest, str)
+                    and re.fullmatch(r"[0-9a-fA-F]{64}", digest) is not None,
+                    f"{name}: hash for {file} must be 64 hex characters")
+        require(isinstance(entry.get("main"), str) and entry["main"] in files,
+                f"{name}: main must name one of files")
+        check = record.get("check")
+        require(isinstance(check, dict) and check.get("status") in ("pass", "fail", "pending")
+                and isinstance(check.get("detail"), str),
+                f"{name}: check needs status pass, fail or pending and text detail")
+    for name in shipped["items"]:
+        require(name in records, f"{name}: catalog item is missing from triage items")
+    return data
+
+
+@contextmanager
+def trial(entries: Mapping[str, dict]):
+    """Let the registry triage render draft entries through the adapter without shipping them."""
+    global _trial_entries
+    previous = _trial_entries
+    _trial_entries = {**previous, **entries}
+    try:
+        yield
+    finally:
+        _trial_entries = previous
+
+
 def items() -> dict[str, dict]:
     """Return catalog items in their shipped order."""
-    return load_catalog()["items"]
+    entries = load_catalog()["items"]
+    return {**entries, **_trial_entries} if _trial_entries else entries
 
 
 def item(name: str) -> dict:
@@ -279,7 +371,7 @@ def registry_url() -> str:
 def card_catalog() -> dict:
     """Keep install-only helpers outside ordinary card pixel identities."""
     return {**load_catalog(), "items": {name: entry for name, entry in items().items()
-                                      if entry["status"] != "helper"}}
+                                      if entry.get("status") != "helper"}}
 
 
 def card_catalog_source(source: bytes) -> bytes:

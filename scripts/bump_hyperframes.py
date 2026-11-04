@@ -26,6 +26,7 @@ from pathlib import Path
 from bump_version import ReleaseError, version_parts
 
 from yap_studio.errors import ValidationError, YapError
+from yap_studio.hf_registry import triage
 from yap_studio.hf_registry.install import stage_item
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +34,7 @@ CONSTANT = "src/yap_studio/render/hyperframes.py"
 LOCK_DIR = "src/yap_studio/render/renderer-lock"
 LOCK_ENTRY = "node_modules/hyperframes"
 CATALOG = "src/yap_studio/hf_registry/catalog.json"
+TRIAGE = "src/yap_studio/hf_registry/triage.json"
 NOTICE = "NOTICE"
 NOTICE_COMMIT = (
     r"(?m)(^Setup downloads the HyperFrames registry items[^\r\n]*\r?\nat commit )"
@@ -115,11 +117,13 @@ def _catalog_edit(text: str, keys: tuple[str, ...], value: object) -> str:
         position = end
 
 
-def _refresh_registry(root: Path, version: str, commit: str) -> dict:
-    """Re-add cards and helpers with a temporary CLI and hash their written files."""
+def _refresh_registry(root: Path, version: str, commit: str) -> tuple[dict, dict]:
+    """Re-add catalog items and refresh the triage with a temporary CLI."""
     source = root / CATALOG
     original = source.read_text(encoding="utf-8")
     data = json.loads(original)
+    triage_path = root / TRIAGE
+    original_triage = triage_path.read_text(encoding="utf-8")
     url = f"https://raw.githubusercontent.com/heygen-com/hyperframes/{commit}/registry"
     updated = _catalog_edit(original, ("hyperframes_version",), version)
     for key, value in {"tag": f"v{version}", "commit": commit, "url": url}.items():
@@ -173,9 +177,20 @@ def _refresh_registry(root: Path, version: str, commit: str) -> dict:
                         updated = _catalog_edit(updated, (*keys, relative), digest)
                 else:
                     updated = _catalog_edit(updated, keys, dict(sorted(files.items())))
+        records = triage.survey(
+            url, executable=renderer / "node_modules/.bin/hyperframes",
+            work=directory / "triage", home=home, timeout_s=300,
+        )
+        records = triage.merge(json.loads(original_triage).get("items"), records)
+        updated_triage = triage.dumps(triage.document(records, commit=commit, version=version))
+        if updated_triage != original_triage:
+            triage_path.write_text(updated_triage, encoding="utf-8")
     if updated != original:
         source.write_text(updated, encoding="utf-8")
-    return result
+    return result, {"items": len(records),
+                    "usable": sum(record["use"] != "none" for record in records.values()),
+                    "pending": sorted(name for name, record in records.items()
+                                      if record.get("check", {}).get("status") == "pending")}
 
 
 def pinned_version(root: Path) -> str:
@@ -246,7 +261,7 @@ def bump(root: Path, new: str, *, registry_only: bool = False) -> dict:
                 f"Install npm {NPM_MAJOR} or newer (npm install -g npm@{NPM_MAJOR}) and retry.",
             )
     lock_path = root / LOCK_DIR / "package-lock.json"
-    tracked = [*PINS, f"{LOCK_DIR}/package-lock.json", CATALOG, NOTICE]
+    tracked = [*PINS, f"{LOCK_DIR}/package-lock.json", CATALOG, TRIAGE, NOTICE]
     original = {relative: (root / relative).read_bytes() for relative in tracked}
     if not registry_only:
         note_path = root / CHANGE_NOTE
@@ -279,7 +294,7 @@ def bump(root: Path, new: str, *, registry_only: bool = False) -> dict:
             if entry.get("version") != new or entry.get("integrity") != expected:
                 raise ValidationError(
                     "package-lock.json", f"locked hyperframes does not match npm's {new}")
-        registry = _refresh_registry(root, new, commit)
+        registry, triage_result = _refresh_registry(root, new, commit)
         after = _lock_versions(json.loads(lock_path.read_text(encoding="utf-8")))
         changed = any((root / name).read_bytes() != content for name, content in original.items())
     except (
@@ -302,7 +317,7 @@ def bump(root: Path, new: str, *, registry_only: bool = False) -> dict:
         for path in before.keys() | after.keys() if before.get(path) != after.get(path)
     )
     return {"current": current, "new": new, "changed": changed,
-            "lock_changes": changes, "registry": registry}
+            "lock_changes": changes, "registry": registry, "triage": triage_result}
 
 
 def main() -> int:

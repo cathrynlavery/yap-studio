@@ -1,0 +1,42 @@
+{
+  "$schema": "https://hyperframes.heygen.com/schema/registry.json",
+  "name": "hyperframes",
+  "homepage": "https://hyperframes.heygen.com",
+  "catalogArtifact": {
+    "revision": "c7135c14ef25e7d5f1be39c15ffcf730e4bd7a4488ac01d59b9ecda894b09dcb"
+  },
+  "items": [
+    {
+      "name": "decision-tree",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "lt-color-block",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "caption-kinetic-slam",
+      "type": "hyperframes:component"
+    },
+    {
+      "name": "conic-progress-ring",
+      "type": "hyperframes:component"
+    },
+    {
+      "name": "cursor-zoom-follow",
+      "type": "hyperframes:component"
+    },
+    {
+      "name": "push-in",
+      "type": "hyperframes:component"
+    },
+    {
+      "name": "rgb-glitch-text",
+      "type": "hyperframes:component"
+    },
+    {
+      "name": "titlecard-calm",
+      "type": "hyperframes:component"
+    }
+  ]
+}
