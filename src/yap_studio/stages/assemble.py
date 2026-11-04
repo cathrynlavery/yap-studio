@@ -837,11 +837,11 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
         if item.kind in {"insert", "zoom", "background", "grade_compare", "moment"}:
             overlays.append({"start_in_output": item.start_s,
                              "duration": item.end_s - item.start_s,
-                             "region": [0, 0, 1080, 1920]})
+                             "region": [0, 0, frame.width, frame.height]})
         elif item.kind == "overlay":
             overlays.append({"start_in_output": item.start_s,
                              "duration": item.end_s - item.start_s,
-                             "region": ([0, 0, 1080, 1920]
+                             "region": ([0, 0, frame.width, frame.height]
                                         if (item.payload.get("placement") == "tall_behind"
                                             and tall_box.chosen_framing(item.payload) == "shrink")
                                         else list(item.payload["box_px"]))})
@@ -851,7 +851,7 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
     timeline = snapshot.timeline
     if picture:
         overlays.append({"start_in_output": 0, "duration": timeline.total_frames / 30,
-                         "region": [0, 0, 1080, 1920], "camera_3d": True})
+                         "region": [0, 0, frame.width, frame.height], "camera_3d": True})
     reference = picture or "cut/cut.mp4"
     grade = snapshot.grade
     grade_record = ({"grade": {"look": grade.look, "strength": grade.strength,
