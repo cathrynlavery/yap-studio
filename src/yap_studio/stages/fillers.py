@@ -1231,7 +1231,8 @@ def _trial(segment: _PlannedAudio, candidates: tuple[Candidate, ...],
 
 def _tokens(transcript: Transcript, duration: float) -> list[str]:
     """Exclude the digital leads using the transcript's own clip clock."""
-    return norm_words(" ".join(word.text for word in words_between(transcript, 1, duration - 1)))
+    return norm_words(" ".join(word.text for word in
+                               words_between(transcript, 1, duration - 1, rule="overlap")))
 
 
 def _evaluate(trial: _Trial, cut: Transcript | None, control: Transcript | None) -> dict[str, Any]:

@@ -626,6 +626,37 @@ def test_clean_filler_and_final_pause_use_expected_batches(
     assert (root / "removals.json").read_bytes() == before
 
 
+def test_final_pause_keeps_words_stretched_into_digital_leads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = make_project(tmp_path / "project")
+
+    def script(target: Path) -> Transcript:
+        tokens = [row[0] for row in ROWS]
+        if target.stem.endswith("cut"):
+            tokens.remove("um")
+        clip = transcript(tokens)
+        with wave.open(str(target)) as stream:
+            duration = stream.getnframes() / stream.getframerate()
+        clip.words[0] = replace(clip.words[0], start=0.6)
+        clip.words[-1] = replace(clip.words[-1], start=duration - 1.2, end=duration - 0.05)
+        return clip
+
+    monkeypatch.setattr(stage, "resolve_backend", lambda *_: ScriptedBackend(script))
+    result = stage.fillers(root, apply=True)
+    pause = next(item for item in result["entries"] if item["kind"] == "silence")
+    assert pause["start"] >= ROWS[-1][2]
+    assert pause["status"] == "applied", pause["evidence"]["diff"]
+    assert pause["evidence"]["words"] == "pass"
+    assert not any("missing join words" in diff for diff in pause["evidence"]["diff"])
+
+
+def test_trial_tokens_exclude_words_wholly_in_digital_leads() -> None:
+    clip = Transcript([Word("before", 0.2, 1), Word("garden", 1.2, 1.8),
+                       Word("after", 2, 2.8)])
+    assert stage._tokens(clip, 3) == ["garden"]
+
+
 @pytest.mark.parametrize("apply", [False, True])
 @pytest.mark.parametrize("speech", [False, True])
 def test_fillers_records_each_takes_pause_threshold(
