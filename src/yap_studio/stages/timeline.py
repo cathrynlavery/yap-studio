@@ -1058,6 +1058,10 @@ def _resolve(context: ProjectContext, lanes: dict[str, TimelineLane]) -> Resolve
                           "grade_compare",
                       } or (item.kind == "graphic" and (
                           item.layer == "behind" or item.payload.get("template") == "big_number"))]
+            if context.project.shape == "horizontal":
+                covers.extend((item.start_frame, item.end_frame, item.id, "floating card")
+                              for item in resolved if item.kind == "graphic"
+                              and item.layer == "front" and "box" not in item.payload)
             front_cards = [(item.start_frame, item.end_frame, item.id,
                             Box(*(item.payload["box"][key]
                                   for key in ("x", "y", "width", "height"))))

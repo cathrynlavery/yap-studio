@@ -111,6 +111,57 @@ def test_wide_step_in_checks_face_and_card(card: Box | None) -> None:
             assert cy + (box.y1 - cy) * shot.scale <= 721 - 28
 
 
+def test_wide_step_in_stays_wide_during_floating_card(tmp_path: Path, monkeypatch) -> None:
+    from yap_studio.faces import project as face_project
+    from yap_studio.stages.graphics import graphics_snapshot
+
+    source = synth.loudness_master(tmp_path / "source.mov", frames=150,
+                                   picture_filter="scale=1920:1080")
+    root = make_project(tmp_path / "project", [source], word_rows=[[
+        ("Wide", .1, .9), ("floating", 1.3, 2.1),
+        ("card", 2.5, 3.3), ("ends.", 3.7, 4.5),
+    ]])
+    data = json.loads((root / "project.json").read_bytes())
+    data.update(shape="horizontal", asr={"engine": "none"}, audio={"mode": "preserve"},
+                style="style.json")
+    write_json(root / "style.json", {"schema_version": 1, "name": "Step fixture",
+                                    "moves": {"jump_cuts": "step_in"},
+                                    "hook": {"style": "none"},
+                                    "captions": {"size_px": 64}})
+    write_json(root / "project.json", data)
+    previous = read_receipt(root / "ingest")
+    with StageRun(root, "ingest") as run:
+        for name, digest in ingest_inputs(ProjectContext(root)).items():
+            run.record_inputs(name, digest)
+        run.outputs.update({item["path"]: item for item in previous["outputs"]})
+        run.finish()
+    write_edit(root, [time_segment(f"s{i + 1}", "t1", start, start + 1)
+                      for i, start in enumerate((0, 1.2, 2.4, 3.6))], end_hold_s=0)
+    cut(root)
+    measured = FacesData("measured", None,
+                         VideoIdentity("cut.mp4", receipt.sha256_file(root / "cut/cut.mp4"),
+                                       120, Fraction(30), 1920, 1080), {}, {},
+                         ((FaceBox(Box(660, 260, 300, 320), 1, "detected"),),) * 120, ())
+    monkeypatch.setattr(face_project, "cut_faces", lambda *args, **kwargs: measured)
+    context = ProjectContext(root)
+    assert [shot["level"] for shot in context.resolved_timeline().steps["shots"]] == [0, 1, 2, 3]
+    fragment = root / "card.json"
+    write_json(fragment, {"schema": "yap-studio/timeline@1", "elements": [
+        {"id": "agent-card", "kind": "graphic", "lane": "agent", "layer": "front",
+         "template": "checklist", "slots": {"items": [
+             "Film the opening scene", "Edit the story", "Post the video"]},
+         "start": {"time": 1.1}, "end": {"time": 2.9}}]})
+    result = add_timeline(root, fragment, lane="agent").require_valid()
+    assert [shot["level"] for shot in result.steps["shots"]] == [0, 0, 0, 1]
+    assert all(shot["reason"] == "A floating card covers this shot (agent-card)."
+               for shot in result.steps["shots"][1:3])
+    assert all(jump["kind"] == "story" for jump in result.steps["jumps"])
+    card, = graphics_snapshot(ProjectContext(root)).graphics
+    assert card.clearance["status"] == "clear"
+    assert card.clearance["layout"] == "floating"
+    assert card.plan.shape == "horizontal"
+
+
 def test_wide_face_mapping_uses_output_size_without_a_base() -> None:
     video = VideoIdentity("cut.mp4", "a" * 64, 30, Fraction(30), 1920, 1080)
     cut_faces = FacesData("measured", None, video, {}, {},

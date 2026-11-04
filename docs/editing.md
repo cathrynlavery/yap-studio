@@ -312,6 +312,7 @@ area and clear of captions. Steps may sit under titles and front cards. They nev
 an insert, overlay, background, transition, moment, grade compare, another zoom or a card
 behind the head, including big numbers. Step in counts against no zoom cap.
 A card placed by `cards plan` keeps its room; Step in stays at a wider framing under it.
+Horizontal Step in stays wide while a floating card is on screen.
 `timeline check` reports how many jump cuts changed framing.
 
 Smoothing works only when little moves across the join. The engine compares the frames on both
