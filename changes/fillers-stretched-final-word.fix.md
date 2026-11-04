@@ -1,1 +1,0 @@
-- Pause trims after the last word of a sentence pass the join test when the speech engine stretches that word into the silence after it.

@@ -1,1 +1,0 @@
-- Text at the top now asks what you would like there: None, Opening title or Short label. Ask your agent to keep a short label on for a whole video.

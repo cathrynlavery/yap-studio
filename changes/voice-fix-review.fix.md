@@ -1,1 +1,0 @@
-- Keep cut previews accurate after voice fixes, and keep words and removed parts available when saving a voice choice.

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 1.4.0 (2026-11-04)
+
+Horizontal videos can now use colour grades, zooms and transitions, and a misspoken word can be fixed in your own voice. Three new looks, Lo-fi, Hi-fi and Showcase, join the style page. The Text hook label now shows for the opening only, and videos end with half a second of stillness instead of a second and a half.
+
+### Features
+
+- Horizontal videos can use the Film and Eyedropper colour grades across the whole wide frame.
+- Horizontal videos can use punches, slow pushes, the opening push and punch, smooth or step-in jump cuts, framed on the speaker's face in the wide picture.
+- Horizontal videos can use the whip pan, cinematic zoom and light leak transitions, drawn across the whole wide picture.
+- A misspoken word can be fixed from your own recording of the same words elsewhere in the project, for free. When there is none, your instant ElevenLabs voice re-says it, after you consent and see the credit cost. You hear Before and After on the review page, and only fixes you approve go into the next version.
+- Add three looks: Lo-fi for a plain phone look, Hi-fi with the film grade, smooth jump cuts and punch-ins, and Showcase with long pages behind you and video cards.
+- The Text hook label shows for the opening, as long as an opening title, then clears. Add "whole_video": true to a video's plans/text-hook.json to keep it on until the cut ends. It never runs into the frozen end. Cards, B-roll boxes and captions keep clear of it only while it shows.
+- Text at the top now asks what you would like there: None, Opening title or Short label. Ask your agent to keep a short label on for a whole video.
+- Videos now end with half a second of frozen picture and silence instead of 1.5 seconds. An end_hold_s in edit.json still sets another length.
+- Check every HyperFrames registry item at the pinned release and record whether it could become a card, title, caption look or helper, and why. New items stay off until someone reviews them.
+
+### Fixes
+
+- `fillers --max-pause` shortens measured silence between words and at story segment edges, including silent word margins, while keeping words placed entirely in silence.
+- Pause trims after the last word of a sentence pass the join test when the speech engine stretches that word into the silence after it.
+- `yap-studio mcp` leaves logging unchanged when the MCP server cannot start.
+
 ## 1.3.0 (2026-11-03)
 
 Captions can sit over your face for a video when no clear spot fits, failure reports say where in Yap Studio the error happened, and Home tells you when a new release is out. The join check now catches cuts deep into a first or last word, and music no longer loses its tail on a busy computer.
