@@ -1,1 +1,0 @@
-- Keep Yap Studio's fixed file names and abbreviations such as e.g. and i.e. readable in feedback while still hiding private file names.

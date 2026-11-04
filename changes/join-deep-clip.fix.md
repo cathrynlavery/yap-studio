@@ -1,1 +1,0 @@
-- Catch cuts deep into a planned first or last word, as well as short clips.

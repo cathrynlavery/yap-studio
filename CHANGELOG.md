@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 1.3.0 (2026-11-03)
+
+Captions can sit over your face for a video when no clear spot fits, failure reports say where in Yap Studio the error happened, and Home tells you when a new release is out. The join check now catches cuts deep into a first or last word, and music no longer loses its tail on a busy computer.
+
+### Features
+
+- Allow captions over your face for one video when no clear position fits, with a warning, while captions that can move clear still do.
+- Automatic failure reports show where in Yap Studio's code the error happened, without sharing the error message or your file paths.
+- Home and doctor quietly let you know when a new Yap Studio release is out, with release notes and a way to turn the notice off.
+
+### Fixes
+
+- Warn when bottom captions keep a mid-frame height, and explain how caption position and height work together.
+- One-line bottom captions look for a clear spot using one line of space, so an empty second line no longer pushes them away from your face.
+- A problem report that repeats one already closed adds to that issue instead of opening a new one.
+- Keep Yap Studio's fixed file names and abbreviations such as e.g. and i.e. readable in feedback while still hiding private file names.
+- When edit.json is missing, filler removal asks you to write the story cut first and shows how to find the format.
+- Unreadable JSON files, folders and images now get recovery advice that matches the path.
+- Catch cuts deep into a planned first or last word, as well as short clips.
+- Music under speech no longer loses its last fraction of a second when the computer is busy.
+- Name a project after choosing the story and removing fillers, before rendering the cut, when no step is running.
+- When the style page cannot open because the renderer is missing, report the missing renderer and how to install it.
+- When an opening title cannot fit above the head, say which sizes were tried and ask for shorter opening text or Text at the top: None for this video.
+
+### Dependencies
+
+- Pin the renderer to HyperFrames 0.9.9. Captions, titles, cards, covers and transitions render the same as before, frame for frame, and beat snapping finds the same beats.
+
+### Docs
+
+- The README's limits and package description now match what horizontal videos support.
+
+### Tests
+
+- Speech tests reuse the downloaded speech model instead of fetching it again for every test.
+
 ## 1.2.0 (2026-11-01)
 
 Ask to update Yap Studio and it updates the same workspace, keeping your projects, footage and saved look. Captions now stop before the final when a phrase would cover the face, and a cut that clips a word gives the offset that keeps it.

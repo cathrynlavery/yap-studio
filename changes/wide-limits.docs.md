@@ -1,1 +1,0 @@
-- The README's limits and package description now match what horizontal videos support.
