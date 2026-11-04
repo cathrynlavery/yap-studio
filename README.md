@@ -264,10 +264,11 @@ step yourself, see [docs/editing.md](https://github.com/cathrynlavery/yap-studio
 
 - Vertical 9:16 at 1080 by 1920 stays the default. Horizontal talking-head videos at
   1920 by 1080 support hard cuts, audio/music, captions, opening titles, chapter cards, name tags,
-  floating cards, full-frame or boxed B-roll and YouTube thumbnails; use platform `youtube` or `none`.
+  floating cards, full-frame or boxed B-roll, Film and Eyedropper colour grades and YouTube
+  thumbnails; use platform `youtube` or `none`.
   Start with `init DIR --take FILE --shape horizontal`.
-  Split B-roll, video letters, transitions, zooms, person effects, grades, applied taste
-  preferences, 3D captions and studio export are refused.
+  Split B-roll, video letters, transitions, zooms, person effects, before/after grade comparisons,
+  applied taste preferences, 3D captions and studio export are refused.
 - The filler and restart rules are English only. For other languages, `fillers` proposes
   pauses only.
 - Person cutouts, face detection and backgrounds behind you need macOS with the Xcode command

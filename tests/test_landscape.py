@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import jsonschema
+import numpy as np
 import pytest
 import synth
 from test_cut import make_project, time_segment, write_edit, write_json
@@ -19,6 +20,7 @@ from yap_studio.canvas import canvas, require_supported
 from yap_studio.captions import CaptionWord, build_phrases
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.faces import detect
+from yap_studio.grade import GradeSpec, apply_rgb
 from yap_studio.project.model import ProjectFileError, json_schema, parse_document
 from yap_studio.project.receipts import StageRun, read_receipt
 from yap_studio.project.status import ProjectContext, cut_inputs, ingest_inputs
@@ -34,6 +36,7 @@ from yap_studio.stages.captions import (
 from yap_studio.stages.cut import cut
 from yap_studio.stages.graphics import graphics
 from yap_studio.stages.music import music
+from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline
 from yap_studio.style import resolve
 from yap_studio.verify import verify
 
@@ -105,7 +108,6 @@ def test_horizontal_init_refuses_voiceover_before_creating_standin(tmp_path: Pat
 @pytest.mark.parametrize("settings,style,feature", [
     ({"platform": "shorts"}, {}, "platform"),
     ({"video_type": "green_screen"}, {}, "video type"),
-    ({"grade": {"look": "film"}}, {}, "grading"),
     ({}, {"moves": {"jump_cuts": "smooth"}}, "joins"),
     ({}, {"moves": {"opening_push": True}}, "zoom"),
     ({}, {"captions": {"camera_3d": True}}, "3D"),
@@ -121,17 +123,35 @@ def test_unsupported_settings_fail_before_media(tmp_path: Path, settings: dict,
     assert not (tmp_path / "cut").exists()
 
 
-@pytest.mark.parametrize("grade", [{}, None])
-def test_horizontal_grade_override(tmp_path: Path, grade: dict | None) -> None:
-    settings = {} if grade is None else {"grade": grade}
-    context = _context(tmp_path, style={"grade": {"look": "film"}}, **settings)
-    assert context.project.grade == grade
-    if grade is None:
-        with pytest.raises(YapError, match="grading") as caught:
-            require_supported(context)
-        assert caught.value.code == "horizontal_unsupported"
-    else:
-        require_supported(context)
+@pytest.mark.parametrize("style_grade,project_grade", [
+    ({"look": "film"}, None),
+    ({}, {"look": "film"}),
+    ({}, {"look": "eyedropper", "color": "#1E6BD6", "strength": 0.5}),
+    ({"look": "eyedropper", "color": "#1E6BD6"}, None),
+])
+def test_horizontal_accepts_grades(tmp_path: Path, style_grade: dict,
+                                   project_grade: dict | None) -> None:
+    settings = {} if project_grade is None else {"grade": project_grade}
+    context = _context(tmp_path, style={"grade": style_grade}, **settings)
+    require_supported(context)
+
+
+@pytest.mark.parametrize("shape,region", [("horizontal", [0, 0, 1920, 1080]),
+                                        ("vertical", [0, 0, 1080, 1920]),
+                                        (None, [0, 0, 1080, 1920])])
+def test_horizontal_full_frame_regions_cover_the_wide_canvas(
+    tmp_path: Path, shape: str | None, region: list[int],
+) -> None:
+    item = ResolvedElement("broll", "insert", "broll", 30, 60, "front",
+                           {"media": {"fit": "cover"}})
+    snapshot = SimpleNamespace(
+        small_files=({"project.json": json.dumps({"shape": shape}).encode()}
+                     if shape is not None else {}),
+        caption_layer=None, title_layers=[], grade=None, media={}, sources={},
+        spans={"ranges": []}, timeline=ResolvedTimeline((item,), (), (), 90, 0),
+    )
+    edl = verification_edl(snapshot, base=tmp_path)
+    assert edl["overlays"] == [{"start_in_output": 1, "duration": 1, "region": region}]
 
 
 @pytest.mark.parametrize("kind", ["background", "zoom", "transition", "moment"])
@@ -247,7 +267,7 @@ def test_horizontal_applied_taste_refuses(tmp_path: Path, monkeypatch: pytest.Mo
         require_supported(context)
 
 
-def _render_project(tmp_path: Path, shape: str) -> Path:
+def _render_project(tmp_path: Path, shape: str, *, grade: dict | None = None) -> Path:
     source = synth.loudness_master(tmp_path / "source.mov", frames=90,
                                    picture_filter="scale=320:180")
     root = make_project(tmp_path / "project", [source],
@@ -257,6 +277,8 @@ def _render_project(tmp_path: Path, shape: str) -> Path:
     data.update(shape=shape, asr={"engine": "none"}, music={"mode": "none"},
                 audio={"mode": "preserve"}, platform="youtube" if shape == "horizontal" else "none",
                 style="style.json")
+    if grade is not None:
+        data["grade"] = grade
     write_json(root / "style.json", {"schema_version": 1, "name": "Render fixture",
                                     "music": {"sound_effects": "none"},
                                     "captions": {"size_px": 64}})
@@ -300,6 +322,35 @@ def test_real_horizontal_cut_captions_assemble_and_verify(tmp_path: Path,
     ffmpeg.run(["ffmpeg", "-nostdin", "-v", "error", "-ss", "1", "-i", str(final),
                 "-frames:v", "1", str(root / "horizontal-frame.png")], timeout_s=30)
     print(f"Horizontal artifact: {final}")
+
+
+@pytest.mark.render
+def test_real_horizontal_film_grade_covers_the_whole_frame(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(detect, "unavailable_reason", lambda: "Synthetic fixture")
+    root = _render_project(tmp_path, "horizontal", grade={"look": "film"})
+    result = assemble(root)
+    assert result["status"] == "verified", result
+    final = root / "final/story.mp4"
+    info = ffmpeg.probe(final)
+    assert (info.width, info.height) == (1920, 1080)
+    report = verify(str(final), edl=str(root / "final/verify-edl.json"), asr="none",
+                    detail="full", platform="youtube", loudness="note")
+    assert report["status"] == "pass", report["findings"]
+    assert report["checks"]["picture.grade"]["ran"]
+    assert report["checks"]["picture.grade"]["status"] == "pass"
+    original = synth.picture_pixels(root / "cut/cut.mp4", 30).astype(float)
+    graded = synth.picture_pixels(final, 30).astype(float)
+    for name, x in (("left", 32), ("centre", 976), ("right", 1856)):
+        plain = original[320:352, x:x + 32]
+        actual = graded[320:352, x:x + 32]
+        expected = apply_rgb(plain / 255, GradeSpec("film", 1)) * 255
+        error = float(np.abs(actual - expected).mean())
+        change = float(np.abs(actual - plain).mean())
+        print(f"Film {name}: mean error={error:.2f}, mean change={change:.2f}")
+        assert error < 5, (name, error, change)
+        assert change > 12 and change > 3 * error, (name, error, change)
 
 
 @pytest.mark.render
