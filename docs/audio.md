@@ -18,13 +18,15 @@ Recorded words must fit with a small timing adjustment or the next quiet gap.
 Their audio stops at neighboring words.
 Short recordings fade into nearby room tone. Its level comes from gaps outside the words.
 Room-tone checks skip recorded and cloned speech and say when no quiet frames remain.
-Room-tone padding is still checked before approval and in the cut.
+Quiet gaps inside cloned phrases and room-tone padding are checked before approval
+and in the cut.
 Loudness checks account for mono recordings in stereo cuts.
 Audio-identical stand-ins can still supply recorded words without another ingest.
 
 The cut keeps patched source audio in `cut/source-audio/` so checks using
 `cut/spans.json` hear the approved fixes. The final does the same in
 `final/source-audio/` for `final/verify-edl.json`.
+Patched audio stays in WAV files, so verification does not need to remux the video.
 
 The clone fallback needs a paid [ElevenLabs](https://littlemight.com/recommend/elevenlabs)
 (affiliate link) account. Your key needs Text to Speech and Voices access.

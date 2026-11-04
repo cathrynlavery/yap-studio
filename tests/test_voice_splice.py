@@ -109,11 +109,12 @@ def test_recorded_speech_is_not_measured_as_room_tone(tmp_path, monkeypatch, dur
 
 
 @pytest.mark.parametrize("stage", ["make", "cut"])
-@pytest.mark.parametrize("duration,pace,boost,status", [
-    (0.7125, "fit", 0, "skipped"), (0.2, "off", 0, "pass"), (0.2, "off", 20, "warn"),
+@pytest.mark.parametrize("duration,pace,boost,dip_s,status", [
+    (0.7125, "fit", 0, 0, "skipped"), (0.7125, "fit", 0, 0.04, "skipped"),
+    (0.2, "off", 0, 0, "pass"), (0.2, "off", 20, 0, "warn"),
 ])
 def test_clone_room_tone_excludes_fitted_speech(
-    tmp_path, monkeypatch, stage, duration, pace, boost, status,
+    tmp_path, monkeypatch, stage, duration, pace, boost, dip_s, status,
 ):
     from importlib import import_module
 
@@ -121,9 +122,10 @@ def test_clone_room_tone_excludes_fitted_speech(
 
     monkeypatch.setattr(splice, "_snap", lambda _, point: point)
     time = np.arange(round(duration * splice.RATE)) / splice.RATE
-    speech = (0.01 + 0.07 * (0.5 + 0.5 * np.cos(2 * np.pi * time / duration))) * np.sin(
-        2 * np.pi * 260 * time,
-    )
+    speech = 0.08 * np.sin(2 * np.pi * 260 * time)
+    if dip_s:
+        first = round((duration - dip_s) / 2 * splice.RATE)
+        speech[first:first + round(dip_s * splice.RATE)] *= 0.05
     generated = synth.float_audio(tmp_path / "clone.wav", speech[:, None])
     tone = splice._tone
 
@@ -154,9 +156,59 @@ def test_clone_room_tone_excludes_fitted_speech(
     assert check["measured"] == (status != "skipped")
     if status == "skipped":
         assert meta["stretch"] == pytest.approx(0.8)
+        assert len(check["speech_spans"]) == 1, "short consonant dips must stay inside speech"
         assert check["reason"] == "Speech fills the slot; no quiet frames remain."
     else:
         assert check["patch_floor_db"] == pytest.approx(check["source_floor_db"] + boost, abs=1)
+
+
+@pytest.mark.parametrize("stage", ["make", "cut"])
+@pytest.mark.parametrize("pace", ["fit", "off"])
+@pytest.mark.parametrize("pause_s,noise,status", [
+    (0.1, 0.003, "warn"), (0.1, 0, "pass"),
+    (0.3, 0.003, "warn"), (0.3, 0, "pass"), (0, 0, "skipped"),
+])
+def test_clone_room_tone_measures_internal_pauses(
+    tmp_path, monkeypatch, stage, pace, pause_s, noise, status,
+):
+    from importlib import import_module
+
+    from yap_studio.voice.store import add_cut_checks
+
+    monkeypatch.setattr(splice, "_snap", lambda _, point: point)
+    time = np.arange(splice.RATE) / splice.RATE
+    speech = (0.02 * np.sin(2 * np.pi * 260 * time)).astype(np.float32)
+    if pause_s:
+        count = round(pause_s * splice.RATE)
+        speech[19200:19200 + count] = np.random.default_rng(31).normal(0, noise, count)
+    padding = np.random.default_rng(19).normal(0, noise, 19200).astype(np.float32)
+    speech = np.concatenate((padding[:9600], speech, padding[9600:]))
+    generated = synth.float_audio(tmp_path / "clone.wav", speech[:, None])
+    original = fixture_sound()
+    end = 2.85 if pace == "fit" else 3.02
+    patch, meta, checks = build_patch(
+        original, generated, 2, end, tmp_path,
+        word_spans=[(0.5, 1.5), (2, end), (3.5, 4.5)], word_range=(1, 1), pace=pace,
+    )
+    if stage == "cut":
+        monkeypatch.setattr(import_module("yap_studio.voice.make"), "_heard", lambda *_, **kwargs:
+                            {"id": "splice.heard", "status": "skipped"})
+        first = meta["start_sample"]
+        report = add_cut_checks(
+            {"status": "pass", "findings": []},
+            blend(original, patch, meta, source_start_sample=0),
+            [{"id": "f1", "start_sample": first, "end_sample": first + len(patch)}],
+            [{"id": "f1", "take": "t1", "say": "test", "patch": meta, "checks": checks}],
+            plan=None, work=tmp_path, levels=None,
+        )
+        checks = report["voice_fixes"][0]["checks"]
+    tone = next(item for item in checks["items"] if item["id"] == "splice.room_tone")
+    assert tone["status"] == status, "clone pauses must be measured as room tone"
+    assert tone["measured"] == bool(pause_s)
+    if pause_s:
+        assert len(tone["speech_spans"]) > 1
+    else:
+        assert tone["reason"] == "Speech fills the slot; no quiet frames remain."
 
 
 @pytest.mark.parametrize("noise_db", [-60, -40])

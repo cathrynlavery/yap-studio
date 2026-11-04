@@ -303,9 +303,16 @@ def build_patch(
     voiced = np.flatnonzero(levels > gate)
     if not len(voiced):
         raise VoiceError("No speech was found in the generated audio.", code="voice_audio_invalid")
+    speech_spans = recorded_spans
     if not recorded:
-        sound = sound[max(0, int(voiced[0]) * 480 - 240):
-                      min(len(sound), int(voiced[-1]) * 480 + 720)]
+        trim = max(0, int(voiced[0]) * 480 - 240)
+        sound = sound[trim:min(len(sound), int(voiced[-1]) * 480 + 720)]
+        breaks = np.flatnonzero(np.diff(voiced) >= round(0.1 / edges.HOP_S)) + 1
+        speech_spans = [
+            [max(0, int(group[0]) * 480 - 480 - trim) / RATE,
+             min(len(sound), int(group[-1]) * 480 + 480 - trim) / RATE]
+            for group in np.split(voiced, breaks)
+        ]
     first, last = fit_slot(original, start_s, end_s, len(sound), word_spans=word_spans,
                            word_range=word_range, pace=pace)
     count = last - first
@@ -387,8 +394,8 @@ def build_patch(
             "rms_difference_db": abs(level(_speech(sound)) - level(reference)),
         },
         room_tone_check(patch, floor, speech_spans=(
-            [[a * stretch, b * stretch] for a, b in recorded_spans]
-            if recorded_spans is not None else [[0, len(sound) / RATE]]
+            [[a * stretch, b * stretch] for a, b in speech_spans]
+            if speech_spans is not None else [[0, len(sound) / RATE]]
         )),
         {
             "id": "splice.pace",

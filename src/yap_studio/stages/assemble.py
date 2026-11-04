@@ -892,13 +892,14 @@ def verification_edl(snapshot: AssemblySnapshot, *, base: Path,
 
 def _audio_references(snapshot: AssemblySnapshot, retained: Path, work: Path, *,
                       voice_plan=None, voice_patches=(),
-                      ) -> dict[str, tuple[str, Path]]:
-    """Retain the selected, patched audio that standalone verification must hear."""
+                      ) -> tuple[dict[str, tuple[str, Path]], dict[str, tuple[str, Path]]]:
+    """Retain selected-stream references and patched audio for verification."""
     from yap_studio import audio
     from yap_studio.voice import store as voice_store
     from yap_studio.voice.splice import write_wav
 
     result = {}
+    verification_audio = {}
     for index, (name, ordinal) in enumerate(snapshot.audio_streams.items()):
         patched = any(fix["take"] == name for fix, _ in voice_patches)
         if not ordinal and not patched:
@@ -911,6 +912,7 @@ def _audio_references(snapshot: AssemblySnapshot, retained: Path, work: Path, *,
                         "-c", "copy", "-avoid_negative_ts", "disabled", str(reference)],
                        timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
             source = reference
+            result[name] = (f"source-audio/source-{index}.mov", reference)
         if patched:
             info = ffmpeg.probe(source)
             _, mono = audio.decode(source, sr=48000)
@@ -919,14 +921,8 @@ def _audio_references(snapshot: AssemblySnapshot, retained: Path, work: Path, *,
             )
             wav = work / f"source-{index}.wav"
             write_wav(wav, transform(name, mono, 48000)[:, None])
-            reference = work / f"patched-source-{index}.mov"
-            ffmpeg.run(["ffmpeg", "-nostdin", "-v", "error", "-copyts", "-i", str(source),
-                        "-itsoffset", str(info.format_start_s), "-i", str(wav),
-                        "-map", "0:v:0", "-map", "1:a:0", "-c", "copy",
-                        "-avoid_negative_ts", "disabled", str(reference)],
-                       timeout_s=ffmpeg.DEFAULT_TIMEOUT_S)
-        result[name] = (f"source-audio/source-{index}.mov", reference)
-    return result
+            verification_audio[name] = (f"source-audio/source-{index}.wav", wav)
+    return result, verification_audio
 
 
 def _camera_transforms(snapshot: AssemblySnapshot) -> list[tuple[float, float, float]]:
@@ -1539,8 +1535,11 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                        str(Path(out).with_suffix(CONTRAST_SUFFIX)),
                        str(Path(out).with_suffix(".faces.json")), "final/verify-edl.json", *[
                 f"final/source-audio/source-{index}.mov"
-                for index, (name, ordinal) in enumerate(snapshot.audio_streams.items())
-                if ordinal or any(fix["take"] == name for fix, _ in voice_patches)
+                for index, ordinal in enumerate(snapshot.audio_streams.values()) if ordinal
+            ], *[
+                f"final/source-audio/source-{index}.wav"
+                for index, name in enumerate(snapshot.audio_streams)
+                if any(fix["take"] == name for fix, _ in voice_patches)
             ]]
             for relative in targets:
                 paths.validate_output(root / relative, allowed_existing_suffixes=frozenset(),
@@ -1636,11 +1635,14 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                 asserts.extend(_bleep_check(context, snapshot, sound, retained, work,
                                            letters_layers=plates))
                 run.progress("verifying final", 0.9)
-                references = _audio_references(snapshot, retained, work,
-                                                voice_plan=voice_plan, voice_patches=voice_patches)
+                references, verification_audio = _audio_references(
+                    snapshot, retained, work, voice_plan=voice_plan, voice_patches=voice_patches)
                 edl = verification_edl(snapshot, base=root / "final",
                                        references={name: relative for name, (relative, _)
                                                    in references.items()})
+                if verification_audio:
+                    edl["verification_audio"] = {name: relative for name, (relative, _)
+                                                 in verification_audio.items()}
                 verify_path = work / "verify-edl.json"
                 jump_cuts.skip_grade(edl, smooth)
                 # Verification reads retained sources; publication uses portable source paths.
@@ -1648,6 +1650,10 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     name: str(references[name][1] if name in references else retained / relative)
                     for name, relative in snapshot.sources.items()
                 }}
+                if verification_audio:
+                    checking_edl["verification_audio"] = {
+                        name: str(reference) for name, (_, reference) in verification_audio.items()
+                    }
                 if "grade" in checking_edl:
                     checking_edl["grade"] = {**edl["grade"],
                                              "reference": str(source_picture)}
@@ -1765,7 +1771,7 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                     )
                 run.replace_output((root / out).with_suffix(".taste.json"), taste_record)
                 run.replace_output(root / "final/verify-edl.json", verify_path)
-                for relative, reference in references.values():
+                for relative, reference in (*references.values(), *verification_audio.values()):
                     run.replace_output(root / "final" / relative, reference)
                 run.finish(asserts=asserts, extra=extra)
             with project_lock(root):

@@ -1,6 +1,8 @@
 """Verifier patch audio uses the same resampling as the rendered audio."""
 
 import json
+from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -45,8 +47,9 @@ def tones(count):
 
 
 @pytest.fixture
-def patched_assembly(tmp_path, request):
-    selected = getattr(request, "param", False)
+def patched_assembly(tmp_path, request, monkeypatch):
+    variant = getattr(request, "param", False)
+    selected = variant is True
     source = synth.voiced_source(
         tmp_path / "source.mov", [(1.2, 1.8), (2.5, 2.8), (5.2, 5.8), (6.5, 6.8)],
         frequencies=[220, 220, 220, 880], seconds=8,
@@ -60,6 +63,27 @@ def patched_assembly(tmp_path, request):
             "-map", "0:a:0", "-map", "1:a:0", "-c", "copy", str(multiple),
         ], timeout_s=60)
         source = multiple
+    if variant == "webm":
+        encoders = ffmpeg.run(["ffmpeg", "-hide_banner", "-encoders"], timeout_s=60).stdout
+        if "libvpx-vp9" not in encoders:
+            pytest.skip("local ffmpeg has no VP9 encoder")
+        webm = tmp_path / "source.webm"
+        ffmpeg.run([
+            "ffmpeg", "-nostdin", "-v", "error", "-i", str(source),
+            "-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8",
+            "-c:a", "libopus", str(webm),
+        ], timeout_s=60)
+        source = webm
+        probe = ffmpeg.probe
+
+        def webm_duration(path, **kwargs):
+            info = probe(path, **kwargs)
+            # WebM exposes duration at the container level.
+            if info.video_codec == "vp9" and info.video_duration_s is None:
+                info = replace(info, video_duration_s=info.duration_s)
+            return info
+
+        monkeypatch.setattr(ffmpeg, "probe", webm_duration)
     root = make_project(tmp_path / "project", [source], word_rows=[[
         ("bright", 1.2, 1.8), ("coal", 2.5, 2.8),
         ("light", 5.2, 5.8), ("cold", 6.5, 6.8),
@@ -85,7 +109,7 @@ def patched_assembly(tmp_path, request):
     fix = make(root, ["f1"])["fixes"][0]
     decide(root, "f1", "approve", via="chat")
     cut(root)
-    cover = root / "takes/t1.mov"
+    cover = root / project["takes"][0]["path"]
     set_elements(root, {"id": "broll-cover", "kind": "insert", "start": {"time": 0},
                         "end": {"time": 6}, "media": {
                             "path": str(cover.relative_to(root)),
@@ -144,7 +168,8 @@ def test_retained_reference_keeps_fix_past_original_audio(tmp_path, stage):
         graphics(root)
         music(root)
         assembly.assemble(root)
-        reference = load_edit_list(root / "final/verify-edl.json").sources["t1"].path
+        edl = json.loads((root / "final/verify-edl.json").read_text())
+        reference = root / "final" / edl["verification_audio"]["t1"]
     else:
         reference = root / "cut/source-audio/t1.wav"
     _, actual = audio.decode(reference, sr=48000)
@@ -162,9 +187,11 @@ def test_remuxed_reference_rebases_patch_to_its_video_clock(patched_assembly, mo
     seen = []
 
     def check_clock(media, **kwargs):
-        reference = load_edit_list(kwargs["edl"]).sources["t1"].path
-        info = ffmpeg.probe(reference)
+        edl_path = Path(kwargs["edl"])
+        edl = json.loads(edl_path.read_text())
+        info = ffmpeg.probe(load_edit_list(edl_path).sources["t1"].path)
         assert info.video_offset_s == 0
+        reference = edl_path.parent / edl["verification_audio"]["t1"]
         _, actual = audio.decode(reference, sr=48000)
         if "source_audio" in kwargs:
             actual = kwargs["source_audio"]("t1", actual, 48000)
@@ -236,6 +263,7 @@ def test_verification_audio_requires_known_sources_and_paths(tmp_path, reference
         verify(str(source), edl=str(edl), asr="none")
 
 
+@pytest.mark.parametrize("patched_assembly", [False, True], indirect=True)
 def test_published_verification_reproduces_approved_fix_near_join(patched_assembly):
     root, _ = patched_assembly
     result = assembly.assemble(root)
@@ -244,6 +272,49 @@ def test_published_verification_reproduces_approved_fix_near_join(patched_assemb
     assert report["checks"]["join.words"]["ran"]
     failures = [item for item in report["findings"] if item["check"] == "join.words"]
     assert not failures, "standalone verification reconstructs the old speech"
+
+
+@pytest.mark.parametrize("patched_assembly", ["webm"], indirect=True)
+def test_webm_fix_keeps_separate_verification_audio(patched_assembly, monkeypatch):
+    root, fix = patched_assembly
+    plan = resolve_cut(root)
+    _, original = audio.decode(plan.sources["t1"], sr=48000)
+    expected = source_transform(plan, [(fix, decode(root / fix["patch"]["path"], 1))])(
+        "t1", original, 48000,
+    )
+    check = assembly.verify
+    seen = []
+
+    def check_reference(media, **kwargs):
+        edl_path = Path(kwargs["edl"])
+        edl = json.loads(edl_path.read_text())
+        reference = load_edit_list(kwargs["edl"]).sources["t1"].path
+        assert ffmpeg.probe(reference).video_codec == "vp9"
+        _, actual = audio.decode(edl_path.parent / edl["verification_audio"]["t1"], sr=48000)
+        np.testing.assert_array_equal(actual, expected)
+        seen.append(reference)
+        return check(media, **kwargs)
+
+    monkeypatch.setattr(assembly, "verify", check_reference)
+    result = assembly.assemble(root)
+    assert len(seen) == 1
+    edl_path = root / "final/verify-edl.json"
+    edl = json.loads(edl_path.read_text())
+    assert load_edit_list(edl_path).sources["t1"].path.resolve() == plan.sources["t1"].resolve()
+    reference = edl_path.parent / edl["verification_audio"]["t1"]
+    assert reference.suffix == ".wav"
+    _, actual = audio.decode(reference, sr=48000)
+    np.testing.assert_array_equal(actual, expected)
+    outputs = {item["path"] for item in read_receipt(root / "final")["outputs"]}
+    assert {item for item in outputs if item.startswith("final/source-audio/")} == {
+        str(reference.relative_to(root)),
+    }
+    report = verify(str(root / result["out"]), edl=str(edl_path), asr="none",
+                    loudness="note", detail="full")
+    assert report["checks"]["join.words"]["ran"]
+    assert not [item for item in report["findings"] if item["check"] == "join.words"], (
+        "standalone verification reconstructs the old speech"
+    )
 
 
 @pytest.mark.parametrize("rate", [16000, 48000])
