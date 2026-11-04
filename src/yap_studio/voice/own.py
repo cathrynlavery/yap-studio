@@ -19,7 +19,7 @@ def take_words(context, take):
     """Refuse donor words that no longer describe the recorded take."""
     target = context.project_dir / f"ingest/{take}/words.json"
     words = load_words(target)
-    if words.take != take or words.take_sha256 != context.take_sha256(take):
+    if words.take != take or words.take_sha256 != context.take_identity(take):
         raise VoiceError("The recorded words changed. Ingest this take again.",
                          code="voice_own_changed")
     return words
@@ -133,6 +133,10 @@ def recorded_audio(plan, fix, fixes):
         raise VoiceError("The recorded source changed. Propose this fix again.",
                          code="voice_own_changed")
     sound, offset = take_sound(plan.context, origin["take"])
-    sound = _span(sound, offset, origin["start_s"], origin["end_s"])
+    first = _snap(sound, round((origin["start_s"] + offset) * RATE))
+    last = _snap(sound, round((origin["end_s"] + offset) * RATE))
+    words = take_words(plan.context, origin["take"]).words
+    speech_spans = [(word.start + offset - first / RATE, word.end + offset - first / RATE)
+                    for word in words if word.id in origin["words"]]
     identity = hashlib.sha256(json.dumps(origin, sort_keys=True).encode()).hexdigest()
-    return sound, identity
+    return sound[first:last], identity, speech_spans

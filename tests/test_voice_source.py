@@ -11,13 +11,14 @@ from test_cli_captions import fake_layers  # noqa: F401
 from test_cut import make_project, time_segment, write_edit, write_json
 from test_stage_captions import set_elements
 
-from yap_studio import audio, ffmpeg, receipt
+from yap_studio import audio, cli, ffmpeg, receipt
 from yap_studio.edl import load_edit_list
+from yap_studio.errors import ValidationError
 from yap_studio.project.receipts import StageRun, read_receipt
 from yap_studio.project.status import ProjectContext, ingest_inputs
 from yap_studio.stages import assemble as assembly
 from yap_studio.stages.captions import captions
-from yap_studio.stages.cut import cut, resolve_cut
+from yap_studio.stages.cut import _spans, cut, resolve_cut
 from yap_studio.stages.graphics import graphics
 from yap_studio.stages.music import music
 from yap_studio.style import resolve
@@ -127,6 +128,56 @@ def test_remuxed_reference_rebases_patch_to_its_video_clock(patched_assembly, mo
     monkeypatch.setattr(assembly, "verify", check_clock)
     assembly.assemble(root)
     assert len(seen) == 1
+
+
+@pytest.mark.parametrize("patched_assembly", [False, True], indirect=True)
+def test_published_cut_verification_reproduces_approved_fix_near_join(patched_assembly, capsys):
+    root, fix = patched_assembly
+    stored = json.loads((root / "cut/verify.json").read_text())
+    assert not [item for item in stored["findings"] if item["check"] == "join.words"]
+    report = verify(str(root / "cut/cut.mp4"), edl=str(root / "cut/spans.json"),
+                    asr="none", loudness="note", detail="full")
+    assert report["checks"]["join.words"]["ran"]
+    failures = [item for item in report["findings"] if item["check"] == "join.words"]
+    assert not failures, "standalone cut verification reconstructs the old speech"
+    spans = json.loads((root / "cut/spans.json").read_text())
+    assert load_edit_list(root / "cut/spans.json").sources["t1"].path.resolve() == (
+        root / "takes/t1.mov"
+    ).resolve()
+    reference = root / "cut" / spans["verification_audio"]["t1"]
+    recorded = read_receipt(root / "cut")
+    assert str(reference.relative_to(root)) in {item["path"] for item in recorded["outputs"]}
+    _, actual = audio.decode(reference, sr=48000)
+    plan = resolve_cut(root)
+    _, original = audio.decode(plan.sources["t1"],
+                               stream=plan.context.project.takes[0].audio_stream, sr=48000)
+    expected = source_transform(plan, [(fix, decode(root / fix["patch"]["path"], 1))])(
+        "t1", original, 48000,
+    )
+    np.testing.assert_array_equal(actual, expected)
+    assert cli.main(["verify", str(root / "cut/cut.mp4"), "--edl", str(root / "cut/spans.json"),
+                     "--asr", "none", "--json"]) == 0
+    assert not [item for item in json.loads(capsys.readouterr().out)["findings"]
+                if item["check"] == "join.words"]
+
+
+def test_cut_without_fixes_keeps_existing_span_references(voice_project):
+    expected = _spans(resolve_cut(voice_project), voice_project / "cut", [])
+    cut(voice_project)
+    assert json.loads((voice_project / "cut/spans.json").read_text()) == expected
+    assert not any("source-audio/" in item["path"]
+                   for item in read_receipt(voice_project / "cut")["outputs"])
+
+
+@pytest.mark.parametrize("references", [[], {"t2": "audio.wav"}, {"t1": 2}])
+def test_verification_audio_requires_known_sources_and_paths(tmp_path, references):
+    source = synth.voiced_source(tmp_path / "source.mov", [(0.2, 0.8)], seconds=1)
+    edl = tmp_path / "spans.json"
+    write_json(edl, {"sources": {"t1": str(source)}, "segments": [
+        {"source": "t1", "start": 0, "end": 1},
+    ], "verification_audio": references})
+    with pytest.raises(ValidationError, match="verification_audio"):
+        verify(str(source), edl=str(edl), asr="none")
 
 
 def test_published_verification_reproduces_approved_fix_near_join(patched_assembly):

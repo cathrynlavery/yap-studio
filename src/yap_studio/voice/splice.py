@@ -144,21 +144,11 @@ def edge_check(sound: np.ndarray, first: int, last: int, *internal: int) -> dict
     return {"id": "splice.click", "status": "fail" if failed else "pass", "edges": measurements}
 
 
-def _tone(
-    sound: np.ndarray, first: int, last: int, word_spans: list[tuple[float, float]], count: int
-) -> tuple[np.ndarray, float]:
-    """Join nearby quiet gaps against an independently measured source floor."""
+def _quiet_chunks(
+    sound: np.ndarray, first: int, last: int, word_spans: list[tuple[float, float]]
+) -> list[np.ndarray]:
+    """Keep nearby gaps outside the slot and every recorded word."""
     low, high = max(0, first - 10 * RATE), min(len(sound), last + 10 * RATE)
-    levels = [
-        edges._levels(part.mean(axis=1)[::3])
-        for part in (sound[low:first], sound[last:high])
-        if len(part)
-    ]
-    if not levels:
-        raise VoiceError(
-            "There is no quiet gap nearby for your room tone.", code="voice_room_tone_missing"
-        )
-    floor = float(np.percentile(np.concatenate(levels), 10))
     quiet = np.ones(high - low, dtype=bool)
     quiet[max(0, first - low) : min(high - low, last - low)] = False
     for a, b in word_spans:
@@ -166,11 +156,23 @@ def _tone(
         if b > a:
             quiet[a - low : b - low] = False
     bounds = np.flatnonzero(np.diff(np.r_[False, quiet, False].astype(int)))
-    chunks = [
+    return [
         sound[low + a : low + b]
         for a, b in zip(bounds[::2], bounds[1::2], strict=True)
         if b - a >= round(0.1 * RATE)
     ]
+
+
+def _floor(chunks: list[np.ndarray]) -> float:
+    levels = [edges._levels(chunk.mean(axis=1)[::3]) for chunk in chunks]
+    return float(np.percentile(np.concatenate(levels), 10)) if levels else -80.0
+
+
+def _tone(
+    sound: np.ndarray, first: int, last: int, word_spans: list[tuple[float, float]], count: int
+) -> tuple[np.ndarray, float]:
+    """Join nearby quiet gaps against an independently measured source floor."""
+    chunks = _quiet_chunks(sound, first, last, word_spans)
     if not chunks:
         raise VoiceError(
             "There is no quiet gap nearby for your room tone.",
@@ -179,6 +181,7 @@ def _tone(
                 "Choose a moment with a quiet gap of at least 100 ms within 10 seconds."
             ),
         )
+    floor = _floor(chunks)
 
     def distance(chunk: np.ndarray) -> float:
         return abs(level(chunk.mean(axis=1)) - floor)
@@ -204,19 +207,28 @@ def _tone(
     return result, floor
 
 
-def _floor(sound: np.ndarray, first: int, last: int) -> float:
-    levels = [edges._levels(part.mean(axis=1)[::3])
-              for part in (sound[max(0, first - 10 * RATE):first],
-                           sound[last:min(len(sound), last + 10 * RATE)]) if len(part)]
-    usable = [part for part in levels if len(part)]
-    return float(np.percentile(np.concatenate(usable), 10)) if usable else -80.0
-
-
-def room_tone_check(patch: np.ndarray, floor: float) -> dict:
+def room_tone_check(
+    patch: np.ndarray, floor: float, *, speech_spans: list[tuple[float, float]] | None = None,
+) -> dict:
     """Compare the patch's own quiet frames with her independent source floor."""
+    if speech_spans is not None and (
+        not isinstance(speech_spans, list) or not speech_spans or any(
+            not isinstance(span, (list, tuple)) or len(span) != 2
+            or any(type(value) not in (int, float) or not math.isfinite(value) for value in span)
+            or span[1] < span[0] for span in speech_spans
+        )
+    ):
+        raise VoiceError("The recorded speech spans changed. Make this fix again.",
+                         code="voice_record_invalid")
     levels = edges._levels(patch.mean(axis=1)[::3])
     gate = min(float(np.max(levels)) - 6, float(np.percentile(levels, 10)) + 12)
     quiet = levels <= gate
+    if speech_spans is not None:
+        centres = np.arange(len(levels)) * edges.HOP_S
+        quiet = np.ones(len(levels), dtype=bool)
+        for first, last in speech_spans:
+            quiet &= ((centres + edges.WINDOW_S / 2 < first)
+                      | (centres - edges.WINDOW_S / 2 > last))
     # Edge fades are not room-tone gaps. Exclude their 20 ms analysis windows too.
     margin = int(np.ceil((FADE / RATE + edges.WINDOW_S / 2) / edges.HOP_S))
     quiet[:margin] = False
@@ -230,6 +242,7 @@ def room_tone_check(patch: np.ndarray, floor: float) -> dict:
         "source_floor_db": floor,
         "patch_floor_db": measured,
         "measured": bool(quiet.any()),
+        **({"speech_spans": speech_spans} if speech_spans is not None else {}),
         **({"reason": "Speech fills the slot; no quiet frames remain."} if not quiet.any() else {}),
     }
 
@@ -280,6 +293,7 @@ def build_patch(
     word_range: tuple[int, int],
     pace: str = "fit",
     recorded: bool = False,
+    recorded_spans: list[tuple[float, float]] | None = None,
 ) -> tuple[np.ndarray, dict, dict]:
     """Fit the slot without moving later words, then measure the proposed splice."""
     channels = original.shape[1]
@@ -327,7 +341,7 @@ def build_patch(
     speech_fade = min(FADE, len(sound) // 2)
     internal = []
     if recorded:
-        floor = _floor(original, first, last)
+        floor = _floor(_quiet_chunks(original, first, last, word_spans))
         patch = np.zeros((count, channels), dtype=np.float32)
         if len(sound) < count:
             handoff = len(sound) - speech_fade
@@ -372,7 +386,10 @@ def build_patch(
             "reference_rms_db": level(reference),
             "rms_difference_db": abs(level(_speech(sound)) - level(reference)),
         },
-        room_tone_check(patch, floor),
+        room_tone_check(patch, floor, speech_spans=(
+            [(a * stretch, b * stretch) for a, b in recorded_spans]
+            if recorded_spans is not None else [(0, len(sound) / RATE)]
+        ) if recorded else None),
         {
             "id": "splice.pace",
             "status": "warn" if gap > 0.25 else "pass",

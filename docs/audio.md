@@ -13,8 +13,13 @@ The rest of the take keeps its timing. Listen to Before and After, then choose
 **Use the fix** or **Keep my original**. Only approved fixes go into the next version.
 
 Recorded words must fit with a small timing adjustment or the next quiet gap.
-Short recordings fade into nearby room tone. The final keeps patched source audio in
-`final/source-audio/` so checks using `final/verify-edl.json` hear the approved fixes too.
+Short recordings fade into nearby room tone. Its level comes from gaps outside the words.
+Room-tone checks skip recorded speech and say when no quiet frames remain.
+Audio-identical stand-ins can still supply recorded words without another ingest.
+
+The cut keeps patched source audio in `cut/source-audio/` so checks using
+`cut/spans.json` hear the approved fixes. The final does the same in
+`final/source-audio/` for `final/verify-edl.json`.
 
 The clone fallback needs a paid [ElevenLabs](https://littlemight.com/recommend/elevenlabs)
 (affiliate link) account. Your key needs Text to Speech and Voices access.

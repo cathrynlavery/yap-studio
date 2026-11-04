@@ -311,8 +311,9 @@ def add_cut_checks(
                 )
             elif item["id"] == "splice.room_tone":
                 floor = item["source_floor_db"] + gain
+                speech_spans = item.get("speech_spans")
                 item.clear()
-                item.update(room_tone_check(signal, floor))
+                item.update(room_tone_check(signal, floor, speech_spans=speech_spans))
             elif item["id"] == "splice.pace":
                 item["status"] = "warn" if item["gap_s"] > 0.25 else "pass"
         after = work / f"voice-check-{fix['id']}-{first}.wav"

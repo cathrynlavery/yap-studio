@@ -1406,7 +1406,22 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                 ]
                 staged_spans = work / "spans.json"
                 staged_words = work / "cut-words.json"
-                _write_json(staged_spans, _spans(plan, root / "cut", voice_fixes))
+                spans = _spans(plan, root / "cut", voice_fixes)
+                if voice_patches:
+                    from yap_studio.voice.splice import write_wav
+
+                    references = {}
+                    transform = voice_store.source_transform(plan, voice_patches)
+                    for take in sorted({fix["take"] for fix, _ in voice_patches}):
+                        _, source = audio.decode(plan.sources[take], sr=SAMPLE_RATE,
+                                                 stream=_selected_stream(context, take))
+                        patched = work / f"source-{take}.wav"
+                        write_wav(patched, transform(take, source, SAMPLE_RATE)[:, None])
+                        relative = f"source-audio/{take}.wav"
+                        run.replace_output(root / "cut" / relative, patched)
+                        references[take] = relative
+                    spans["verification_audio"] = references
+                _write_json(staged_spans, spans)
                 _write_json(staged_words, _cut_words(plan, voice_fixes))
                 for name, staged in (
                     ("cut.mp4", rendered),
@@ -1425,8 +1440,6 @@ def cut(project_dir: Path, *, force: bool = False) -> dict:
                     detail="full",
                     loudness="note",
                     platform=context.project.platform,
-                    **({"source_audio": voice_store.source_transform(plan, voice_patches)}
-                       if voice_patches else {}),
                 )
                 if voice_patches:
                     report = voice_store.add_cut_checks(

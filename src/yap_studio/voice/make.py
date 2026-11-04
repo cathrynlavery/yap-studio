@@ -449,7 +449,7 @@ def make(
                 if own:
                     from yap_studio.voice.own import recorded_audio
 
-                    donor, request_hash = recorded_audio(plan, fix, data["fixes"])
+                    donor, request_hash, recorded_spans = recorded_audio(plan, fix, data["fixes"])
                     cache, charge = None, {"credits": 0, "source": "own"}
                 else:
                     cache, charge, fresh = _generated(
@@ -508,6 +508,7 @@ def make(
                         word_spans=word_spans,
                         word_range=word_range,
                         recorded=own,
+                        recorded_spans=recorded_spans if own else None,
                         pace="fit" if own else request["pace"],
                     )
                     picture = require_picture(

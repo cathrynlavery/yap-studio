@@ -7,14 +7,14 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import synth
-from test_cut import make_project, time_segment, write_edit, write_json
+from test_cut import make_project, replace_take, time_segment, write_edit, write_json
 from voice_helpers import calls
 
 from yap_studio import cli
 from yap_studio.errors import YapError
 from yap_studio.project.receipts import StageRun
 from yap_studio.project.status import ProjectContext, ingest_inputs
-from yap_studio.stages.cut import cut
+from yap_studio.stages.cut import cut, resolve_cut
 from yap_studio.voice import decide, make, propose
 
 
@@ -25,7 +25,8 @@ def own_project(tmp_path):
     )
     words = "bright morning coal flunge quiet garden water before after cold plunge light".split()
     rows = [(word, i + 0.2, i + 0.8) for i, word in enumerate(words)]
-    root = make_project(tmp_path / "project", [source, source], word_rows=[rows, rows])
+    root = make_project(tmp_path / "project", [source, source], word_rows=[rows, rows],
+                        ingest_manifest=True)
     project = json.loads((root / "project.json").read_text())
     project["takes"][0]["voiceover"] = True
     write_json(root / "project.json", project)
@@ -59,6 +60,18 @@ def test_finds_same_take_outside_cut_without_account(own_project, fake_voice):
     assert fix["from"]["text"] == "cold plunge"
     assert fix["source"] == {"start_s": 2.2, "end_s": 3.8}
     assert fix["estimate"]["credits"] == 0
+    assert calls(fake_voice) == []
+
+
+def test_audio_identical_standin_can_supply_recorded_words(own_project, fake_voice):
+    words = (own_project / "ingest/t1/words.json").read_bytes()
+    replace_take(own_project / "takes/t1.mov", copy_audio=True)
+    assert "identical audio stream" in " ".join(resolve_cut(own_project).warnings)
+    fix = propose(own_project, "t1:2", "t1:3", "cold plunge")
+    assert fix["from"]["take"] == "t1"
+    assert fix["from"]["words"] == ["t1:9", "t1:10"]
+    assert make(own_project, ["f1"])["fixes"][0]["status"] == "ready"
+    assert (own_project / "ingest/t1/words.json").read_bytes() == words
     assert calls(fake_voice) == []
 
 

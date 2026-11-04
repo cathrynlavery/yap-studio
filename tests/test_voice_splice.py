@@ -54,6 +54,79 @@ def test_patch_levels_tone_click_and_decode_drift(tmp_path):
         )
 
 
+def test_room_tone_floor_excludes_speech_in_a_dense_neighbourhood(tmp_path):
+    time = np.arange(20 * splice.RATE) / splice.RATE
+    sound = (np.sqrt(2) * 10 ** (-25 / 20) * np.sin(2 * np.pi * 220 * time))[:, None]
+    a, b = round(0.5 * splice.RATE), round(0.6 * splice.RATE)
+    sound[a:b, 0] = np.random.default_rng(19).normal(0, 0.001, b - a)
+    generated = synth.float_audio(
+        tmp_path / "generated.wav", (0.02 * np.sin(2 * np.pi * 260 * time[:24000]))[:, None],
+    )
+    patch, _, checks = build_patch(
+        sound.astype(np.float32), generated, 10, 11, tmp_path,
+        word_spans=[(0, 0.5), (0.6, 10), (10, 11), (11, 20)], word_range=(2, 2),
+        pace="off",
+    )
+    tone = next(item for item in checks["items"] if item["id"] == "splice.room_tone")
+    assert tone["source_floor_db"] == pytest.approx(-60, abs=1), "speech inflated the room floor"
+    assert splice.level(patch[round(0.7 * splice.RATE):]) == pytest.approx(-60, abs=1)
+    assert tone["status"] == "pass"
+
+
+@pytest.mark.parametrize("duration", [0.6, 0.9])
+def test_recorded_speech_is_not_measured_as_room_tone(tmp_path, monkeypatch, duration):
+    from importlib import import_module
+
+    from yap_studio.voice.store import add_cut_checks
+
+    monkeypatch.setattr(splice, "_snap", lambda _, point: point)
+    time = np.arange(round(duration * splice.RATE)) / splice.RATE
+    speech = (0.01 + 0.07 * (0.5 + 0.5 * np.sin(2 * np.pi * time / duration))) * np.sin(
+        2 * np.pi * 260 * time,
+    )
+    generated = synth.float_audio(tmp_path / "recorded.wav", speech[:, None])
+    original = fixture_sound()
+    patch, meta, checks = build_patch(
+        original, generated, 2, 2 + duration, tmp_path,
+        word_spans=[(0.5, 1.5), (2, 2 + duration), (3.5, 4.5)], word_range=(1, 1),
+        pace="off", recorded=True,
+    )
+    tone = next(item for item in checks["items"] if item["id"] == "splice.room_tone")
+    assert tone["status"] == "skipped", "quiet speech was measured as room tone"
+    assert not tone["measured"] and tone["reason"]
+    monkeypatch.setattr(import_module("yap_studio.voice.make"), "_heard", lambda *_, **kwargs:
+                        {"id": "splice.heard", "status": "skipped"})
+    first = meta["start_sample"]
+    report = add_cut_checks(
+        {"status": "pass", "findings": []}, blend(original, patch, meta, source_start_sample=0),
+        [{"id": "f1", "start_sample": first, "end_sample": first + len(patch)}],
+        [{"id": "f1", "take": "t1", "say": "test", "checks": checks}],
+        plan=None, work=tmp_path, levels=None,
+    )
+    delivered = next(item for item in report["voice_fixes"][0]["checks"]["items"]
+                     if item["id"] == "splice.room_tone")
+    assert delivered["status"] == "skipped" and not delivered["measured"]
+
+
+@pytest.mark.parametrize("noise_db", [-60, -40])
+def test_recorded_room_tone_measures_word_gaps(noise_db):
+    time = np.arange(splice.RATE) / splice.RATE
+    patch = (0.08 * np.sin(2 * np.pi * 260 * time))[:, None].astype(np.float32)
+    patch[19200:28800, 0] = np.random.default_rng(31).normal(0, 10 ** (noise_db / 20), 9600)
+    tone = splice.room_tone_check(patch, -60, speech_spans=[(0, 0.4), (0.6, 1)])
+    assert tone["measured"]
+    assert tone["patch_floor_db"] == pytest.approx(noise_db, abs=1)
+    assert tone["status"] == ("pass" if noise_db == -60 else "warn")
+
+
+@pytest.mark.parametrize("spans", [{"start": 0}, [None], [["word", 0.2]],
+                                   [[0, float("inf")]], [[0.5, 0.2]]])
+def test_room_tone_rejects_invalid_speech_spans(spans):
+    with pytest.raises(YapError) as caught:
+        splice.room_tone_check(np.full((4800, 1), 0.001), -60, speech_spans=spans)
+    assert caught.value.code == "voice_record_invalid"
+
+
 def test_too_long(tmp_path):
     generated = synth.float_audio(tmp_path / "long.wav", np.full((3 * 48000, 1), 0.1))
     with pytest.raises(YapError, match=r"3.000 s.*1\.[0-9]+ s"):
