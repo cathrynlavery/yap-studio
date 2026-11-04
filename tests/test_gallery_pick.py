@@ -1868,6 +1868,40 @@ def test_memory_start_library_is_newest_first_with_saved_names(memory_gallery):
     assert state["library"][1]["style"]["name"] == "SparrowLight"
 
 
+def test_memory_hi_fi_preset_keeps_grade_and_moves_when_saved(memory_gallery):
+    memory_gallery.style = resolve("preset:hi_fi").data
+    state = memory_gallery.state()
+    preset = next(item["style"] for item in state["presets"] if item["id"] == "hi_fi")
+    choices = (Path(__file__).resolve().parents[1]
+               / "src/yap_studio/gallery/static/choices.mjs")
+    script = """
+import {readFileSync} from 'node:fs';
+const {withPreset} = await import(process.argv[1]);
+const {style, preset} = JSON.parse(readFileSync(0, 'utf8'));
+const booted = withPreset(style, style);
+process.stdout.write(JSON.stringify([booted, withPreset(booted, preset)]));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script, choices.as_uri()],
+        input=json.dumps({"style": state["style"], "preset": preset}),
+        capture_output=True, text=True, check=True, timeout=10,
+    )
+    for index, style in enumerate(json.loads(result.stdout)):
+        for section in ("grade", "moves"):
+            assert style[section] == preset[section]
+        status, body, _ = _memory_request(
+            memory_gallery, "/api/save", method="POST",
+            data={"style": style, "name": f"Synthetic look {index}"},
+            headers={"X-Gallery-Token": memory_gallery.token},
+        )
+        assert status == 200, body
+        response = json.loads(body)
+        saved = resolve(response["id"])
+        stored = json.loads((memory_gallery.workspace / response["workspace_copy"]).read_text())
+        for section in ("grade", "moves"):
+            assert stored[section] == saved.data[section] == preset[section]
+
+
 def test_memory_site_colors_requires_token_and_checks_origin(memory_gallery, monkeypatch):
     calls = []
     monkeypatch.setattr(gallery_server, "site_colors",
