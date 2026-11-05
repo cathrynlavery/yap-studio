@@ -49,6 +49,7 @@ const el = {
   rangeCut: $('range-cut'), rangeError: $('range-error'), rangeNote: $('range-note'),
   rangeChange: $('range-change'), rangeKeep: $('range-keep'),
   playPause: $('play-pause'), previousFrame: $('previous-frame'), nextFrame: $('next-frame'),
+  playbackSpeed: $('playback-speed'),
   shortcutHint: $('shortcut-hint'),
   newComment: $('new-comment'), copy: $('copy-feedback'), copyHint: $('copy-notes-hint'),
   previousBanner: $('previous-banner'),
@@ -2917,6 +2918,21 @@ function handleKey(event) {
 }
 
 function wireEvents() {
+  try {
+    const saved = sessionStorage.getItem('yap-review-speed');
+    if ([...el.playbackSpeed.options].some((option) => option.value === saved)) {
+      el.playbackSpeed.value = saved;
+    }
+  } catch { /* Playback still works without storage. */ }
+  const applyPlaybackSpeed = () => {
+    el.video.defaultPlaybackRate = Number(el.playbackSpeed.value);
+    el.video.playbackRate = el.video.defaultPlaybackRate;
+  };
+  applyPlaybackSpeed();
+  el.playbackSpeed.addEventListener('change', () => {
+    applyPlaybackSpeed();
+    try { sessionStorage.setItem('yap-review-speed', el.playbackSpeed.value); } catch { /* Kept for this video. */ }
+  });
   el.videoMap.setAttribute('data-expanded', 'false');
   el.videoMapToggle.setAttribute('aria-expanded', 'false');
   el.videoMapToggle.addEventListener('click', () => {

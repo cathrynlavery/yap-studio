@@ -2195,9 +2195,33 @@ def test_list_page_is_private_and_escapes_names(multi_server: ReviewServer) -> N
     assert b"1.0 s" in body
     for number, video in enumerate(multi_server.videos, 1):
         assert f'v/{number}/?t={video.token}'.encode() in body
+        assert f'src="v/{number}/api/thumbnail?t={video.token}"'.encode() in body
     assert request(
         multi_server, "GET", "/", token=multi_server.list_token, host="evil.example"
     )[0] == 403
+
+
+def test_review_thumbnails_are_private_cached_and_reject_changed_media(
+    multi_server: ReviewServer, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first, second = multi_server.videos
+    route = "/v/1/api/thumbnail"
+    for token in (None, "wrong", second.token, multi_server.list_token):
+        assert request(multi_server, "GET", route, token=token)[0] == 403
+    status, headers, image = request(multi_server, "GET", route, token=first.token)
+    assert status == 200 and headers["Content-Type"] == "image/jpeg"
+    assert image.startswith(b"\xff\xd8") and image.endswith(b"\xff\xd9")
+    assert headers["Cache-Control"] == "no-store"
+    other = request(multi_server, "GET", "/v/2/api/thumbnail", token=second.token)[2]
+    assert other != image
+
+    def unexpected_decode(*args, **kwargs):
+        pytest.fail("the cached thumbnail should not decode again")
+
+    monkeypatch.setattr(ffmpeg, "run", unexpected_decode)
+    assert request(multi_server, "GET", route, token=first.token)[2] == image
+    first.media.path.write_bytes(b"changed")
+    assert request(multi_server, "GET", route, token=first.token)[0] == 409
 
 
 def test_prefixed_media_range_through_proxy(multi_server: ReviewServer) -> None:

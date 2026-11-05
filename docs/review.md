@@ -37,10 +37,13 @@ yap-studio review renders/ --no-open --json
 A directory expands to `.mp4`, `.mov`, `.m4v`, `.mkv` and `.webm` files directly inside it,
 in name order, ignoring case on the extension. Files and expanded directories keep their
 argument order. Duplicate contents are refused, even under different names. With several
-videos, the command opens and prints a private list link with names and durations, then
+videos, the command opens and prints a private list link with thumbnails, names and durations, then
 prints each video's link. Each video has its own token and comments; sharing one video's
 link grants access to that video. The list link grants access to all videos in this run.
 One video keeps its existing page and printed output.
+
+The playback speed menu under the video offers 1×, 1.5× and 2×. Your choice follows you
+to the next video in the same browser tab; note timestamps still refer to the original video.
 
 ### Approve or send notes, then the next video
 

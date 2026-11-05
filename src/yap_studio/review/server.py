@@ -21,7 +21,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 
-from yap_studio import paths, receipt, voice
+from yap_studio import ffmpeg, paths, receipt, voice
 from yap_studio.captions import _stripped
 from yap_studio.checks.model import format_time
 from yap_studio.errors import InputError, ValidationError, YapError
@@ -272,6 +272,8 @@ class ReviewServer:
         if len({video.sha256 for video in self.videos}) != len(self.videos):
             raise ValidationError("media", "duplicate video; give each video's contents only once")
         self.list_token = secrets.token_urlsafe(24) if len(self.videos) > 1 else None
+        self._thumbnails: dict[str, bytes] = {}
+        self._thumbnail_lock = threading.Lock()
         recovered = set()
         for video in self.videos:
             if video.series is not None and video.series.id not in recovered:
@@ -1138,6 +1140,26 @@ class ReviewServer:
                 else:
                     self._media(disposition)
 
+            def _thumbnail(self) -> None:
+                video = self._selected
+                with review._thumbnail_lock:
+                    if video.sha256 not in review._thumbnails:
+                        when = min(1.0, (video.media.duration_s or 0) * 0.1)
+                        result = ffmpeg.run([
+                            "ffmpeg", "-v", "error", "-ss", str(when),
+                            "-i", str(video.media.path), "-frames:v", "1", "-vf",
+                            "scale=320:180:force_original_aspect_ratio=decrease",
+                            "-threads", "1", "-f", "image2pipe", "-c:v", "mjpeg", "-",
+                        ], timeout_s=30, binary=True)
+                        if video._media_changed():
+                            self._error(409, "media_changed", _MEDIA_CHANGED_MESSAGE)
+                            return
+                        if not result.stdout:
+                            self._error(422, "thumbnail_failed", "Could not read a video frame.")
+                            return
+                        review._thumbnails[video.sha256] = result.stdout
+                    self._bytes(200, review._thumbnails[video.sha256], "image/jpeg")
+
             def _media(self, attachment: dict[str, str] | None = None) -> None:
                 try:
                     stream = self._selected.media.path.open("rb")
@@ -1320,7 +1342,9 @@ class ReviewServer:
             def _list_page(self) -> None:
                 items: list[str] = []
                 listing = self._list_json()
-                for video, item in zip(review.videos, listing["videos"], strict=True):
+                for number, (video, item) in enumerate(
+                    zip(review.videos, listing["videos"], strict=True), 1
+                ):
                     duration = video.media.duration_s
                     length = "Unknown duration" if duration is None else f"{duration:.1f} s"
                     if review.phone:
@@ -1331,8 +1355,11 @@ class ReviewServer:
                     label = (f'<span class="review-status {state}">{escape(status["label"])}'
                              "</span>") if status else ""
                     items.append(
-                        f'<li><a href="{link}">{escape(video.media.name)}</a>'
-                        f'<span class="muted">{length}</span>{label}</li>'
+                        f'<li><a href="{link}"><img class="review-thumbnail" '
+                        f'src="v/{number}/api/thumbnail?t={escape(video.token, quote=True)}" '
+                        'alt="" loading="lazy" width="160" height="90">'
+                        f'<span class="review-details"><span>{escape(video.media.name)}</span>'
+                        f'<span class="muted">{length}</span>{label}</span></a></li>'
                     )
                 start = next((item for item in listing["videos"]
                               if item["status"] and item["status"]["state"] == "open"), None)
@@ -1407,6 +1434,7 @@ class ReviewServer:
                 elif path in {
                     "/",
                     "/api/review",
+                    "/api/thumbnail",
                     "/api/export.txt",
                     "/api/export.json",
                     "/api/map",
@@ -1441,13 +1469,15 @@ class ReviewServer:
                 guarded = (path in {"/media", "/voice-fix-audio", "/api/voice-fixes",
                                     "/api/comments", "/api/rounds",
                                     "/api/questions/answer", "/api/restore", "/api/cut",
-                                    "/api/captions", "/api/caption-fixes"}
+                                    "/api/captions", "/api/caption-fixes", "/api/thumbnail"}
                            or (file_review and path == "/api/approve")
                            or match is not None or retry is not None)
                 if guarded and self._selected._media_changed():
                     self._error(409, "media_changed", _MEDIA_CHANGED_MESSAGE)
                     return
-                if path == "/media":
+                if path == "/api/thumbnail":
+                    self._thumbnail()
+                elif path == "/media":
                     self._media()
                 elif path == "/voice-fix-audio":
                     self._voice_fix_audio(query)

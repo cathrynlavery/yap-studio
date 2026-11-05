@@ -29,15 +29,26 @@ async function run(listUrl, resultFile, shots) {
     await page.setViewport({width: 1440, height: 900});
     await page.goto(listUrl);
     assert.deepEqual(await statuses(page), ['Not reviewed', 'Not reviewed', 'Not reviewed']);
+    await page.waitForFunction(() => {
+      const thumbnails = [...document.querySelectorAll('.review-thumbnail')];
+      return thumbnails.length === 3 && thumbnails.every((image) => image.naturalWidth > 0);
+    });
     await shot(page, '0-list');
     await page.click('#start-reviewing');
     await videoPage(page, 1);
     assert.equal(await page.evaluate(() => location.hash), '', 'the list token leaves the address bar');
+    assert.equal(await page.$eval('#video', (node) => node.playbackRate), 1);
+    await page.select('#playback-speed', '1.5');
+    assert.equal(await page.$eval('#video', (node) => node.playbackRate), 1.5);
+    await page.select('#playback-speed', '2');
+    assert.equal(await page.$eval('#video', (node) => node.playbackRate), 2);
     await page.click('#file-approve');
     await page.waitForSelector('#file-undo:not([hidden])');
     result.undoShown = true;
     await shot(page, '1-approved');
     await videoPage(page, 2);
+    assert.equal(await page.$eval('#playback-speed', (node) => node.value), '2');
+    assert.equal(await page.$eval('#video', (node) => node.playbackRate), 2);
 
     await page.click('#new-comment');
     await page.waitForSelector('#compose:not([hidden])');
@@ -56,10 +67,20 @@ async function run(listUrl, resultFile, shots) {
 
     const phone = await browser.newPage();
     phone.on('pageerror', (error) => errors.push(error.message));
+    await phone.evaluateOnNewDocument(() => {
+      Object.defineProperty(window, 'sessionStorage', {get() { throw new Error('Storage blocked'); }});
+    });
     await phone.setViewport({width: 390, height: 844, isMobile: true, hasTouch: true});
     await phone.goto(listUrl);
+    await phone.waitForFunction(() => [...document.querySelectorAll('.review-thumbnail')]
+      .every((image) => image.naturalWidth > 0));
+    assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await shot(phone, '5-phone-list');
     await phone.tap('.review-list li:first-child a');
     await videoPage(phone, 1);
+    assert.equal(await phone.$eval('#video', (node) => node.playbackRate), 1);
+    await phone.select('#playback-speed', '1.5');
+    assert.equal(await phone.$eval('#video', (node) => node.playbackRate), 1.5);
     const box = (selector) => phone.$eval(selector, (node) => {
       const {width, left, right} = node.getBoundingClientRect();
       const panel = node.closest('.player-panel').getBoundingClientRect();
