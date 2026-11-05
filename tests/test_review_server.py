@@ -1077,6 +1077,19 @@ def test_review_polls_and_downloads_do_not_hash_version_media(release_server, mo
     assert media_hash_calls == [server.series.versions[0].media.path] * 2
 
 
+def test_project_review_keeps_version_approval_and_download(release_server) -> None:
+    server, http = release_server
+    status, _, payload = http(server, "GET", "/api/review?version=1")
+    assert status == 200 and json.loads(payload)["decision"] is None
+    assert http(server, "GET", "/api/download?version=1")[0] == 403
+    assert http(server, "POST", "/api/approve", {})[0] == 400
+    assert http(server, "POST", "/api/approve", {"version": 1})[0] == 200
+    assert http(server, "GET", "/api/download?version=1")[0] == 200
+    assert server.store.decision(server.series.versions[0].sha256)["approved"] is None
+    status, _, payload = http(server, "GET", "/api/export.json?version=1")
+    assert "approved" not in json.loads(payload)
+
+
 def test_downloads_guard_approved_media_identity_without_rehashing(release_server) -> None:
     server, http = release_server
     assert http(server, "POST", "/api/approve", {"version": 1})[0] == 200
@@ -1104,9 +1117,11 @@ def test_release_routes_require_project_header_and_valid_body(release_server) ->
         original = server.series
         server.series = series
         try:
-            for method, route in (("POST", "/api/rollback"), ("POST", "/api/approve"),
-                                  ("DELETE", "/api/approve"), ("GET", "/api/download"),
-                                  ("GET", "/api/download/report")):
+            project_routes = (("POST", "/api/rollback"), ("GET", "/api/download"),
+                              ("GET", "/api/download/report"))
+            # A plain file review approves the file itself; a plain series still cannot.
+            approve_routes = (("POST", "/api/approve"), ("DELETE", "/api/approve"))
+            for method, route in project_routes + (approve_routes if series else ()):
                 status, _, payload = http(server, method, route + "?version=1", {"version": 1})
                 assert status == 409 and json.loads(payload)["error"]["code"] == "no_project"
         finally:
@@ -1677,14 +1692,18 @@ def test_server_recovers_sending_round_on_startup(project_server: ReviewServer) 
 
 
 def test_plain_video_and_series_cannot_send(server: ReviewServer, series_server: ReviewServer):
-    for selected in (server, series_server):
-        for route in ("/api/rounds", "/api/rounds/n1/retry"):
-            status, _, body = request(selected, "POST", route, {})
-            assert status == 409
-            assert json.loads(body)["error"]["code"] == "no_project"
-            assert json.loads(body)["error"]["message"] == (
-                "Open the project folder with --versions to send notes."
-            )
+    # A plain file review records sent notes itself and needs a Fix note first.
+    status, _, body = request(server, "POST", "/api/rounds", {})
+    assert status == 409 and json.loads(body)["error"]["code"] == "no_fix_notes"
+    for selected, route in ((server, "/api/rounds/n1/retry"),
+                            (series_server, "/api/rounds"),
+                            (series_server, "/api/rounds/n1/retry")):
+        status, _, body = request(selected, "POST", route, {})
+        assert status == 409
+        assert json.loads(body)["error"]["code"] == "no_project"
+        assert json.loads(body)["error"]["message"] == (
+            "Open the project folder with --versions to send notes."
+        )
     assert json.loads(request(series_server, "GET", "/api/review")[2])["series"]["project"] is False
 
 

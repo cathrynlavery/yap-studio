@@ -345,6 +345,18 @@ dialog p { color: var(--ink-2); }
 .review-list a { display: block; padding: 18px 18px 8px; color: var(--ink); font-weight: 600; overflow-wrap: anywhere; text-underline-offset: 3px; }
 .review-list a:hover { text-decoration-thickness: 2px; }
 .review-list .muted { display: block; padding: 0 18px 18px; margin: 0; font-variant-numeric: tabular-nums; }
+.review-list .review-status { display: inline-block; margin: 0 18px 18px; padding: 3px 10px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 13px; color: var(--ink-2); }
+.review-list .review-status.approved { color: var(--done-ink); border-color: var(--done-line); background: var(--done-bg); }
+.review-list .review-status.sent { color: var(--turn-ink); border-color: var(--turn-line); background: var(--turn-bg); }
+.review-list-shell .button-link.primary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; text-decoration: none; }
+
+/* File reviews: approve or send notes, then the next video opens. */
+.file-decision { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); min-width: 0; }
+.file-decision-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.file-decision-actions button { min-height: 44px; padding: 0 20px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.file-decision-status { margin: 10px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.file-decision-status:empty { display: none; }
+.file-decision.approved .file-decision-status { color: var(--done-ink); }
 
 @media (max-width: 960px) {
   .topbar-inner { padding: 0 18px; }
@@ -393,6 +405,7 @@ dialog p { color: var(--ink-2); }
   .compose-head { flex-wrap: wrap; }
   .comment-actions button, .form-actions button { min-height: 44px; }
   .version-actions #approve-version, .version-actions #download-video { flex: 1 1 100%; }
+  .file-decision-actions button, .review-list-shell .button-link.primary { flex: 1 1 100%; width: 100%; justify-content: center; }
 }
 
 /* Story outline: phone layout with the decision bar always within reach. */

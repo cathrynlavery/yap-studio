@@ -1,0 +1,3 @@
+- File reviews get Approve this video and Send notes. Approving records the reviewer and time for that exact file, then the next undecided video opens; once every video has a decision the list opens again.
+- The review list shows Approved, Notes sent or Not reviewed for each video and has a Start reviewing button.
+- The JSON export and `review --json` include each file's approval, and an approval does not carry over to changed file content.

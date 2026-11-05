@@ -118,6 +118,19 @@ _MEDIA_CHANGED_MESSAGE = (
 )
 
 
+def decision_status(decision: dict | None) -> dict | None:
+    """Name a file review's decision for the list page, or None for project reviews."""
+    if decision is None:
+        return None
+    if decision["approved"] is not None:
+        return {"state": "approved", "label": "Approved"}
+    sent = decision["notes_sent"]
+    if sent is not None and sent["fixes"]:
+        fixes = sent["fixes"]
+        return {"state": "sent", "label": f"Notes sent ({fixes} fix{'es' if fixes != 1 else ''})"}
+    return {"state": "open", "label": "Not reviewed"}
+
+
 def accepts_query_token(method: str) -> bool:
     """Accept link tokens for GET and HEAD; writes require the token header."""
     # Links and media elements cannot send headers. The link holder is the reviewer.
@@ -603,6 +616,7 @@ class ReviewServer:
                     "earlier_count": earlier_count,
                     "previous": earlier,
                     "series": series,
+                    "decision": self._decision_json(),
                     "findings": findings_for_media(
                         self._selected.media.path, self._selected.sha256,
                         project_dir=(self._video.series.project_dir
@@ -611,6 +625,31 @@ class ReviewServer:
                                     if self._video.series is not None else None),
                     ),
                 }
+
+            def _decision_json(self) -> dict | None:
+                if getattr(self._video, "series", None) is not None:
+                    return None
+                previous = getattr(self._video, "previous_sha", None)
+                return {
+                    **review.store.decision(self._selected.sha256),
+                    "previous_approved": bool(
+                        previous and review.store.decision(previous)["approved"]),
+                }
+
+            def _file_approve(self) -> None:
+                if self.command == "DELETE":
+                    review.store.clear_media_approval(self._selected.sha256)
+                else:
+                    if self.headers.get("Content-Length") is not None and self._body():
+                        raise ValidationError("body", "must be an empty JSON object")
+                    review.store.approve_media(self._selected.sha256)
+                self._json(200, {"decision": self._decision_json()})
+
+            def _file_send(self) -> None:
+                if self.headers.get("Content-Length") is not None and self._body():
+                    raise ValidationError("body", "must be an empty JSON object")
+                review.store.send_media_notes(self._selected.sha256)
+                self._json(200, {"decision": self._decision_json()})
 
             def _text_hook(self) -> dict | None:
                 series = self._video.series
@@ -1027,6 +1066,10 @@ class ReviewServer:
                     series = self._video.series
                     value["series"] = (series_export(review.store, series, self._version_number)
                                        if series is not None else None)
+                    if series is None:
+                        decision = review.store.decision(facts.sha256)
+                        value["approved"] = decision["approved"]
+                        value["notes_sent"] = decision["notes_sent"]
                     payload = (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode(
                         "utf-8"
                     )
@@ -1262,20 +1305,47 @@ class ReviewServer:
                 ))
                 self._json(202, round_to_dict(round))
 
+            def _list_json(self) -> dict:
+                videos = []
+                for number, video in enumerate(review.videos, 1):
+                    decision = (review.store.decision(video.sha256)
+                                if video.series is None else None)
+                    videos.append({
+                        "number": number, "name": video.media.name, "sha256": video.sha256,
+                        "url": f"v/{number}/?t={video.token}#list={review.list_token}",
+                        "decision": decision, "status": decision_status(decision),
+                    })
+                return {"videos": videos, "list": f"?t={review.list_token}"}
+
             def _list_page(self) -> None:
                 items: list[str] = []
-                for number, video in enumerate(review.videos, 1):
+                listing = self._list_json()
+                for video, item in zip(review.videos, listing["videos"], strict=True):
                     duration = video.media.duration_s
                     length = "Unknown duration" if duration is None else f"{duration:.1f} s"
                     if review.phone:
                         length += f" · {link_label(review.phone['via'])}"
-                    link = escape(f"v/{number}/?t={video.token}", quote=True)
+                    link = escape(item["url"], quote=True)
+                    status = item["status"]
+                    state = escape(status["state"], quote=True) if status else ""
+                    label = (f'<span class="review-status {state}">{escape(status["label"])}'
+                             "</span>") if status else ""
                     items.append(
                         f'<li><a href="{link}">{escape(video.media.name)}</a>'
-                        f'<span class="muted">{length}</span></li>'
+                        f'<span class="muted">{length}</span>{label}</li>'
                     )
+                start = next((item for item in listing["videos"]
+                              if item["status"] and item["status"]["state"] == "open"), None)
+                if start is not None:
+                    action = (f'<a id="start-reviewing" class="button-link primary" '
+                              f'href="{escape(start["url"], quote=True)}">Start reviewing</a>')
+                elif any(item["status"] for item in listing["videos"]):
+                    action = '<p id="start-reviewing" class="muted">Every video has a decision.</p>'
+                else:
+                    action = ""
                 page = (_STATIC / "list.html").read_text(encoding="utf-8")
-                payload = page.replace("<!-- videos -->", "\n".join(items)).encode("utf-8")
+                payload = page.replace("<!-- videos -->", "\n".join(items)).replace(
+                    "<!-- start -->", action).encode("utf-8")
                 self._bytes(200, payload, "text/html; charset=utf-8")
 
             def _route(self) -> None:
@@ -1298,6 +1368,16 @@ class ReviewServer:
                             )
                         else:
                             self._list_page()
+                        return
+                    if path == "/api/list":
+                        if not self._authorized(query, review.list_token):
+                            self._error(403, "forbidden", "invalid review token")
+                        elif self.command != "GET":
+                            self._error(
+                                405, "method_not_allowed", "method not allowed", {"Allow": "GET"}
+                            )
+                        else:
+                            self._json(200, self._list_json())
                         return
                     if not path.startswith("/static/"):
                         selected = _VIDEO_PATH.fullmatch(path)
@@ -1347,8 +1427,11 @@ class ReviewServer:
                         {"Allow": ", ".join(sorted(allowed))},
                     )
                     return
+                file_review = getattr(self._video, "series", None) is None
                 if path in {"/api/rollback", "/api/approve", "/api/download",
-                            "/api/download/report", "/api/final"} and (
+                            "/api/download/report", "/api/final"} and not (
+                    file_review and path == "/api/approve"
+                ) and (
                     self._video.series is None or self._video.series.project_dir is None
                 ):
                     self._error(409, "no_project", "Open the project folder with --versions.")
@@ -1359,6 +1442,7 @@ class ReviewServer:
                                     "/api/comments", "/api/rounds",
                                     "/api/questions/answer", "/api/restore", "/api/cut",
                                     "/api/captions", "/api/caption-fixes"}
+                           or (file_review and path == "/api/approve")
                            or match is not None or retry is not None)
                 if guarded and self._selected._media_changed():
                     self._error(409, "media_changed", _MEDIA_CHANGED_MESSAGE)
@@ -1369,6 +1453,10 @@ class ReviewServer:
                     self._voice_fix_audio(query)
                 elif path == "/api/review":
                     self._json(200, self._review_json())
+                elif path == "/api/approve" and file_review:
+                    self._file_approve()
+                elif path == "/api/rounds" and file_review:
+                    self._file_send()
                 elif path in {"/api/rollback", "/api/approve"}:
                     self._release(path)
                 elif path == "/api/final":

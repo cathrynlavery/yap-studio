@@ -58,6 +58,8 @@ from yap_studio.review.series import (
 _INVALID_REASON = "not a valid review file; move it aside to start a new review"
 _INVALID_SERIES_REASON = "not a valid series file; move it aside to start a new series"
 _INVALID_ROUNDS_REASON = "not a valid rounds file; move it aside to start new rounds"
+_INVALID_DECISION_REASON = "not a valid decision file; move it aside to clear this decision"
+_DECISION_SCHEMA = "yap-studio/review-decision@1"
 _REVIEW_SCHEMA = "yap-studio/review@2"
 _LEGACY_REVIEW_SCHEMA = "yap-studio/review@1"
 _INDEX_SCHEMA = "yap-studio/media-index@1"
@@ -342,6 +344,115 @@ class ReviewStore:
     def _has_comments(self, sha256: str | None) -> bool:
         return bool(sha256 and self._review(sha256)["comments"])
 
+    def _has_history(self, sha256: str | None) -> bool:
+        """Report whether a file version has comments or a recorded decision."""
+        if not sha256:
+            return False
+        decision = self._decision(sha256)
+        return (self._has_comments(sha256) or decision["approved"] is not None
+                or decision["notes_sent"] is not None)
+
+    def _decision_path(self, sha256: str) -> Path:
+        self._review_path(sha256)
+        return self.root / "decisions" / f"{sha256}.json"
+
+    def _decision(self, sha256: str) -> dict:
+        path = self._decision_path(sha256)
+        data = self._read(path)
+        if data is _MISSING:
+            return {"schema": _DECISION_SCHEMA, "sha256": sha256, "approved": None,
+                    "notes_sent": None}
+        try:
+            if (not isinstance(data, dict)
+                    or set(data) != {"schema", "sha256", "approved", "notes_sent"}
+                    or data["schema"] != _DECISION_SCHEMA or data["sha256"] != sha256):
+                raise ValueError("invalid decision document")
+            approved = data["approved"]
+            if approved is not None:
+                if (not isinstance(approved, dict)
+                        or set(approved) != {"approved_at", "reviewer"}
+                        or not isinstance(approved["approved_at"], str)
+                        or (approved["reviewer"] is not None
+                            and not isinstance(approved["reviewer"], str))):
+                    raise ValueError("invalid approval")
+                datetime.fromisoformat(approved["approved_at"])
+            sent = data["notes_sent"]
+            if sent is not None:
+                if (not isinstance(sent, dict) or set(sent) != {"sent_at", "comments"}
+                        or not isinstance(sent["sent_at"], str)
+                        or not isinstance(sent["comments"], list)):
+                    raise ValueError("invalid sent notes")
+                datetime.fromisoformat(sent["sent_at"])
+                for ref in sent["comments"]:
+                    if (not isinstance(ref, dict) or set(ref) != {"id", "revision", "kind"}
+                            or not isinstance(ref["id"], str)
+                            or _COMMENT_ID.fullmatch(ref["id"]) is None
+                            or not isinstance(ref["revision"], str)
+                            or ref["kind"] not in ("fix", "keep")):
+                        raise ValueError("invalid sent note")
+        except (TypeError, ValueError) as exc:
+            raise InputError(str(path), _INVALID_DECISION_REASON) from exc
+        return data
+
+    @staticmethod
+    def _decision_view(decision: dict, comments: Sequence[Comment]) -> dict:
+        sent = decision["notes_sent"]
+        refs = {(ref["id"], ref["revision"]) for ref in (sent or {}).get("comments", ())}
+        unsent = [item for item in comments
+                  if item.kind == "fix" and (item.id, item.updated_at) not in refs]
+        return {
+            "approved": dict(decision["approved"]) if decision["approved"] else None,
+            "notes_sent": {
+                "sent_at": sent["sent_at"],
+                "fixes": sum(ref["kind"] == "fix" for ref in sent["comments"]),
+                "comments": [ref["id"] for ref in sent["comments"]],
+            } if sent else None,
+            "unsent_fixes": len(unsent),
+        }
+
+    def decision(self, sha256: str) -> dict:
+        """Return the approval and sent notes recorded for this exact file content."""
+        with self._lock:
+            decision = self._decision(sha256)
+            comments = [comment_from_dict(item) for item in self._review(sha256)["comments"]]
+            return self._decision_view(decision, comments)
+
+    def approve_media(self, sha256: str) -> dict:
+        """Record that the reviewer approved this exact file content."""
+        with self._write_lock():
+            decision = self._decision(sha256)
+            decision["approved"] = {"approved_at": self._timestamp(),
+                                    "reviewer": self._reviewer_unlocked()}
+            self._write(self._decision_path(sha256), decision)
+            comments = [comment_from_dict(item) for item in self._review(sha256)["comments"]]
+            return self._decision_view(decision, comments)
+
+    def clear_media_approval(self, sha256: str) -> dict:
+        """Remove an approval of this file content, keeping any sent notes."""
+        with self._write_lock():
+            decision = self._decision(sha256)
+            if decision["approved"] is not None:
+                decision["approved"] = None
+                self._write(self._decision_path(sha256), decision)
+            comments = [comment_from_dict(item) for item in self._review(sha256)["comments"]]
+            return self._decision_view(decision, comments)
+
+    def send_media_notes(self, sha256: str) -> dict:
+        """Mark every current note on this file as sent; a new Fix is required."""
+        with self._write_lock():
+            decision = self._decision(sha256)
+            comments = [comment_from_dict(item) for item in self._review(sha256)["comments"]]
+            if not self._decision_view(decision, comments)["unsent_fixes"]:
+                raise RoundConflictError("Add a Fix note before sending notes.", "no_fix_notes")
+            decision["approved"] = None
+            decision["notes_sent"] = {
+                "sent_at": self._timestamp(),
+                "comments": [{"id": item.id, "revision": item.updated_at, "kind": item.kind}
+                             for item in sorted_comments(comments)],
+            }
+            self._write(self._decision_path(sha256), decision)
+            return self._decision_view(decision, comments)
+
     def hash_media(self, path: str | os.PathLike[str]) -> MediaHash:
         """Hash changed media and retain the last reviewed version at this path."""
         with self._write_lock():
@@ -389,7 +500,7 @@ class ReviewStore:
                         "wait for the export to finish and try again",
                     )
                 previous = old["previous_sha256"] if old else None
-                if old and old["sha256"] != sha256 and self._has_comments(old["sha256"]):
+                if old and old["sha256"] != sha256 and self._has_history(old["sha256"]):
                     previous = old["sha256"]
                 if previous == sha256:
                     previous = None
@@ -406,7 +517,7 @@ class ReviewStore:
                     self.root / "media-index.json",
                     {"schema": _INDEX_SCHEMA, "entries": index},
                 )
-            return MediaHash(sha256, previous if self._has_comments(previous) else None, identity)
+            return MediaHash(sha256, previous if self._has_history(previous) else None, identity)
 
     def comments(self, sha256: str) -> list[Comment]:
         """Read comments in timeline order."""

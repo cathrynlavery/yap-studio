@@ -20,6 +20,7 @@ import {
   versionBadges, reportStatusLabel, offlineState, approvalConfirmation,
   findingKindLabel, findingSourceLabel, findingEvidenceText, findingNoteBody, findingAdded,
   pictureRect, pinAt, pinPoint, pinText, pinBody, pinInSpan, pinShown, captionAt,
+  fileDecisionText, listTokenFrom, nextUndecided,
 } from './timeline.mjs';
 
 const agentName = () => ({codex: 'Codex', cursor: 'Cursor'}[review?.agent] ?? 'Claude Code');
@@ -89,6 +90,8 @@ const el = {
   findings: $('findings-section'), findingsCount: $('findings-count'),
   findingsList: $('findings-list'), findingsStatus: $('findings-status'),
   findingMarkers: $('finding-markers'),
+  fileDecision: $('file-decision'), fileApprove: $('file-approve'), fileUndo: $('file-undo'),
+  fileSend: $('file-send'), fileDecisionStatus: $('file-decision-status'),
 };
 const composeTargetButtons = Object.keys(TARGET_NAMES).map((target) =>
   ({target, button: $(`compose-target-${target}`)}));
@@ -125,6 +128,10 @@ let roundBusy = false;
 let releaseBusy = false;
 let approvedVersion = null;
 let offline = false;
+let decisionBusy = false;
+let nextVideoTimer = null;
+let reviewListToken = null;
+const NEXT_VIDEO_DELAY_MS = 1500;
 const MEDIA_METADATA_DEADLINE_MS = 10000;
 const MEDIA_FIRST_FRAME_DEADLINE_MS = 15000;
 const MEDIA_REACHABILITY_DEADLINE_MS = 3000;
@@ -1942,7 +1949,96 @@ async function saveAnswer(question, answer, option, card, errorNode, key) {
   }
 }
 
+function unsentFixCount() {
+  const sent = new Set(review?.decision?.notes_sent?.comments ?? []);
+  return (review?.comments ?? []).filter((item) => item.kind === 'fix' && !sent.has(item.id)).length;
+}
+
+function renderDecision() {
+  const decision = review?.decision;
+  el.fileDecision.hidden = !decision;
+  if (!decision) return;
+  const approved = Boolean(decision.approved);
+  el.fileDecision.classList.toggle('approved', approved);
+  const blocked = offline || decisionBusy || Boolean(review.media_changed) || composeBusy
+    || Boolean(editState?.busy);
+  el.fileApprove.hidden = approved;
+  el.fileApprove.disabled = blocked;
+  el.fileUndo.hidden = !approved;
+  el.fileUndo.disabled = blocked;
+  el.fileSend.disabled = blocked || unsentFixCount() === 0;
+  if (nextVideoTimer === null) el.fileDecisionStatus.textContent = fileDecisionText(decision);
+}
+
+function readListToken() {
+  const handed = listTokenFrom(location.hash);
+  try {
+    if (handed) {
+      sessionStorage.setItem('yap-review-list', handed);
+      // Keep the list token out of a link copied from the address bar.
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+    return handed ?? sessionStorage.getItem('yap-review-list');
+  } catch {
+    return handed;
+  }
+}
+
+function currentVideoNumber() {
+  const match = location.pathname.match(/\/v\/([1-9][0-9]*)\/$/);
+  return match ? Number(match[1]) : null;
+}
+
+function cancelNextVideo() {
+  if (nextVideoTimer === null) return;
+  clearTimeout(nextVideoTimer);
+  nextVideoTimer = null;
+}
+
+async function openNextVideo() {
+  const current = currentVideoNumber();
+  if (!reviewListToken || current === null) return;
+  let listing;
+  try {
+    const response = await fetch('../../api/list', {headers: {'X-Yap-Token': reviewListToken}});
+    if (!response.ok) return;
+    listing = await response.json();
+  } catch {
+    return;
+  }
+  const next = nextUndecided(listing.videos, current);
+  const target = `../../${next ? next.url : listing.list}`;
+  const opening = next ? `Opening ${next.name}…` : 'Every video has a decision. Opening the list…';
+  el.fileDecisionStatus.textContent = `${fileDecisionText(review.decision)} ${opening}`;
+  nextVideoTimer = setTimeout(() => {
+    nextVideoTimer = null;
+    location.assign(target);
+  }, NEXT_VIDEO_DELAY_MS);
+}
+
+async function decideFile(action) {
+  if (!review?.decision || decisionBusy || offline || review.media_changed) return;
+  cancelNextVideo();
+  decisionBusy = true;
+  renderDecision();
+  let decided = false;
+  try {
+    const result = await api(action === 'send' ? 'api/rounds' : 'api/approve',
+      action === 'undo' ? {method: 'DELETE'} : {method: 'POST', body: {}});
+    review.decision = result.decision;
+    decided = action !== 'undo';
+    showStatus('');
+  } catch (error) {
+    showStatus(errorMessage(error));
+  } finally {
+    decisionBusy = false;
+    renderDecision();
+  }
+  if (decided) await openNextVideo();
+}
+
 function renderSendBar() {
+  renderDecision();
   updateReplyEvidenceButtons();
   updateFindingControls();
   const series = review?.series;
@@ -2534,7 +2630,8 @@ async function refreshReview() {
       && JSON.stringify(fresh.findings) === JSON.stringify(review.findings)
       && JSON.stringify(fresh.series) === JSON.stringify(review.series)
       && JSON.stringify(fresh.home) === JSON.stringify(review.home)
-      && JSON.stringify(fresh.text_hook) === JSON.stringify(review.text_hook)) return;
+      && JSON.stringify(fresh.text_hook) === JSON.stringify(review.text_hook)
+      && JSON.stringify(fresh.decision) === JSON.stringify(review.decision)) return;
     renderReview(fresh, !reconnecting);
     if (reconnecting && fresh.series?.project) await loadReview(selectedVersion);
   } catch (error) {
@@ -3006,6 +3103,9 @@ function wireEvents() {
   el.sendNotes.addEventListener('click', () => submitRound());
   el.rollback.addEventListener('click', () => releaseVersion('rollback'));
   el.approve.addEventListener('click', () => releaseVersion('approve'));
+  el.fileApprove.addEventListener('click', () => decideFile('approve'));
+  el.fileUndo.addEventListener('click', () => decideFile('undo'));
+  el.fileSend.addEventListener('click', () => decideFile('send'));
   el.makeFinal?.addEventListener('click', requestFinal);
   for (const link of [el.downloadVideo, el.downloadReport]) {
     link.addEventListener('click', (event) => { if (offline) event.preventDefault(); });
@@ -3026,6 +3126,7 @@ async function start() {
     showStatus('Open this page from the link yap-studio printed.');
     return;
   }
+  reviewListToken = readListToken();
   wireEvents();
   try {
     await loadReview();
