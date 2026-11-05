@@ -1,1 +1,0 @@
-- Skip recorded words that need silence removed by the cut, so voice fixes can use another recording or offer the clone instead.

@@ -1,1 +1,0 @@
-- Horizontal whip pans run faster by default.

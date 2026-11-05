@@ -1,1 +1,0 @@
-- `fillers --max-pause` shortens measured silence between words and at story segment edges, including silent word margins, while keeping words placed entirely in silence.

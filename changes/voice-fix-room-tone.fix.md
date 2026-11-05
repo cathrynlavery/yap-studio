@@ -1,1 +1,0 @@
-- Keep voice fixes quiet between words, verify approved fixes when checking a cut again, and accept recordings whose picture changed but audio stayed identical.

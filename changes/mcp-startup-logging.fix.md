@@ -1,1 +1,0 @@
-- `yap-studio mcp` leaves logging unchanged when the MCP server cannot start.

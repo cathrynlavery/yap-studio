@@ -1,1 +1,0 @@
-- Horizontal videos can use the whip pan, cinematic zoom and light leak transitions, drawn across the whole wide picture.

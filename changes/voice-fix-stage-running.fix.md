@@ -1,1 +1,0 @@
-- Keep voice choices and consent unchanged while the cut or final video is being made, and explain when to try again.

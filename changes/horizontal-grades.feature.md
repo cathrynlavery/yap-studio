@@ -1,1 +1,0 @@
-- Horizontal videos can use the Film and Eyedropper colour grades across the whole wide frame.
