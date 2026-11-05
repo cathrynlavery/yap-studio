@@ -30,7 +30,7 @@ from yap_studio.stages.cut import cut
 from yap_studio.stages.graphics import graphics
 from yap_studio.stages.music import music
 from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline, resolve_timeline
-from yap_studio.verify import verify
+from yap_studio.verify import _verify
 
 timeline_project = _timeline_project
 
@@ -235,17 +235,20 @@ def test_real_horizontal_project_assembles_each_transition(tmp_path: Path, monke
     final = root / "final/story.mp4"
     info = ffmpeg.probe(final)
     assert (info.width, info.height) == (1920, 1080)
-    report = verify(str(final), edl=str(root / "final/verify-edl.json"), asr="none",
-                    detail="full", platform="youtube", loudness="note")
+    resolved = resolve_timeline(root).require_valid()
+    window = next(item for item in resolved.elements if item.kind == "transition")
+    join = window.payload["join_frame"]
+    # Declare the window as assembly does: a plain-cut frame check misreads the light leak on CI.
+    report = _verify(str(final), edl=str(root / "final/verify-edl.json"), asr="none",
+                     detail="full", platform="youtube", loudness="note",
+                     transitions=[{"join_frame": join, "start_frame": window.start_frame,
+                                   "end_frame": window.end_frame, "id": window.id}])
     assert report["status"] == "pass", report["findings"]
-    # Only assembly's own verify receives the declared transition windows.
+    assert report["checks"]["picture.transition"]["status"] == "pass"
     published = read_receipt(root / "final")
     assert published["verify"]["checks"]["picture.transition"]["ran"]
     assert published["verify"]["checks"]["picture.transition"]["status"] == "pass"
     assert published["transitions"][0]["look"] == look
-    resolved = resolve_timeline(root).require_valid()
-    window = next(item for item in resolved.elements if item.kind == "transition")
-    join = window.payload["join_frame"]
     for index in (window.start_frame - 1, join - 1, join, window.end_frame):
         pixels = synth.picture_pixels(final, index)
         for x in (8, 944, 1880):
