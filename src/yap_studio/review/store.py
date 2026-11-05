@@ -405,7 +405,7 @@ class ReviewStore:
             "notes_sent": {
                 "sent_at": sent["sent_at"],
                 "fixes": sum(ref["kind"] == "fix" for ref in sent["comments"]),
-                "comments": [ref["id"] for ref in sent["comments"]],
+                "comments": [dict(ref) for ref in sent["comments"]],
             } if sent else None,
             "unsent_fixes": len(unsent),
         }

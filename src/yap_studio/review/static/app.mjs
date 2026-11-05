@@ -130,6 +130,7 @@ let approvedVersion = null;
 let offline = false;
 let decisionBusy = false;
 let nextVideoTimer = null;
+let nextVideoRequest = 0;
 let reviewListToken = null;
 const NEXT_VIDEO_DELAY_MS = 1500;
 const MEDIA_METADATA_DEADLINE_MS = 10000;
@@ -1950,8 +1951,14 @@ async function saveAnswer(question, answer, option, card, errorNode, key) {
 }
 
 function unsentFixCount() {
-  const sent = new Set(review?.decision?.notes_sent?.comments ?? []);
-  return (review?.comments ?? []).filter((item) => item.kind === 'fix' && !sent.has(item.id)).length;
+  const sent = new Set((review?.decision?.notes_sent?.comments ?? [])
+    .map((item) => `${item.id} ${item.revision}`));
+  return (review?.comments ?? []).filter((item) => item.kind === 'fix'
+    && !sent.has(`${item.id} ${item.updated_at}`)).length;
+}
+
+function draftOpen() {
+  return !el.compose.hidden || Boolean(editState);
 }
 
 function renderDecision() {
@@ -1961,7 +1968,7 @@ function renderDecision() {
   const approved = Boolean(decision.approved);
   el.fileDecision.classList.toggle('approved', approved);
   const blocked = offline || decisionBusy || Boolean(review.media_changed) || composeBusy
-    || Boolean(editState?.busy);
+    || draftOpen();
   el.fileApprove.hidden = approved;
   el.fileApprove.disabled = blocked;
   el.fileUndo.hidden = !approved;
@@ -1972,12 +1979,12 @@ function renderDecision() {
 
 function readListToken() {
   const handed = listTokenFrom(location.hash);
+  if (handed) {
+    // Keep the list token out of a link copied from the address bar.
+    try { history.replaceState(null, '', location.pathname + location.search); } catch { /* Kept in memory. */ }
+  }
   try {
-    if (handed) {
-      sessionStorage.setItem('yap-review-list', handed);
-      // Keep the list token out of a link copied from the address bar.
-      history.replaceState(null, '', location.pathname + location.search);
-    }
+    if (handed) sessionStorage.setItem('yap-review-list', handed);
     return handed ?? sessionStorage.getItem('yap-review-list');
   } catch {
     return handed;
@@ -1990,14 +1997,17 @@ function currentVideoNumber() {
 }
 
 function cancelNextVideo() {
+  nextVideoRequest += 1;
   if (nextVideoTimer === null) return;
   clearTimeout(nextVideoTimer);
   nextVideoTimer = null;
+  if (review?.decision) el.fileDecisionStatus.textContent = fileDecisionText(review.decision);
 }
 
 async function openNextVideo() {
   const current = currentVideoNumber();
   if (!reviewListToken || current === null) return;
+  const request = ++nextVideoRequest;
   let listing;
   try {
     const response = await fetch('../../api/list', {headers: {'X-Yap-Token': reviewListToken}});
@@ -2006,18 +2016,24 @@ async function openNextVideo() {
   } catch {
     return;
   }
+  // Undo, or a note opened while the list loaded, keeps the reviewer here.
+  if (request !== nextVideoRequest || draftOpen()) return;
   const next = nextUndecided(listing.videos, current);
   const target = `../../${next ? next.url : listing.list}`;
   const opening = next ? `Opening ${next.name}…` : 'Every video has a decision. Opening the list…';
   el.fileDecisionStatus.textContent = `${fileDecisionText(review.decision)} ${opening}`;
   nextVideoTimer = setTimeout(() => {
     nextVideoTimer = null;
+    if (request !== nextVideoRequest || draftOpen()) {
+      el.fileDecisionStatus.textContent = fileDecisionText(review.decision);
+      return;
+    }
     location.assign(target);
   }, NEXT_VIDEO_DELAY_MS);
 }
 
 async function decideFile(action) {
-  if (!review?.decision || decisionBusy || offline || review.media_changed) return;
+  if (!review?.decision || decisionBusy || offline || review.media_changed || draftOpen()) return;
   cancelNextVideo();
   decisionBusy = true;
   renderDecision();
@@ -2376,6 +2392,7 @@ function openEdit(comment, row) {
   pinLine.className = 'pin-line';
   const pinRemove = makeButton('Remove pin', '', () => setDraftPin(null));
   pinRow.append(pinLine, pinRemove);
+  cancelNextVideo();
   editState = {id: comment.id, comment, textarea, spelling, errorNode, busy: false,
     pin: comment.pin ?? null, pinTouched: false, pinRow, pinText: pinLine, pinRemove};
   selectedId = comment.id;
@@ -2480,6 +2497,7 @@ function renderComments() {
   }
   if (editFocus && editState) editFocus.focus();
   renderPin();
+  renderDecision();
 }
 
 function renderReview(fresh, preserveStatus = false) {
@@ -2677,6 +2695,7 @@ function updateComposeSubmit() {
 
 function openCompose({pin = null, focus = true} = {}) {
   if (!review || replyNavigationBlocked() || activeWrites || cutBusy) return;
+  cancelNextVideo();
   closeCaptionFix(false);
   if (!el.compose.hidden) {
     if (focus) el.composeText.focus();
@@ -2686,6 +2705,7 @@ function openCompose({pin = null, focus = true} = {}) {
   el.video.pause();
   composePin = pin;
   el.compose.hidden = false;
+  renderDecision();
   el.composeText.value = '';
   el.composeError.textContent = '';
   el.spellingFrom.value = '';
@@ -2699,6 +2719,7 @@ function openCompose({pin = null, focus = true} = {}) {
 
 function closeCompose() {
   el.compose.hidden = true;
+  renderDecision();
   composePin = null;
   el.composeError.textContent = '';
   el.composeText.value = '';

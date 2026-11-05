@@ -148,12 +148,14 @@ def test_approve_clip_one_then_notes_on_two_then_approve_three(review) -> None:
     second = json.loads(payload)
     assert second["approved"] is None
     assert second["notes_sent"]["fixes"] == 1
-    assert second["notes_sent"]["comments"] == [item["id"] for item in second["comments"]]
+    assert second["notes_sent"]["comments"] == [
+        {"id": item["id"], "revision": item["updated_at"], "kind": "fix"}
+        for item in second["comments"]]
     assert [item["kind"] for item in second["comments"]] == ["fix"]
 
 
 def test_undo_approval_and_send_needs_a_fix(review) -> None:
-    server, _, _ = review
+    server, store, _ = review
     api(server, 1, "POST", "/api/approve", {})
     undone = api(server, 1, "DELETE", "/api/approve")["decision"]
     assert undone["approved"] is None
@@ -171,6 +173,12 @@ def test_undo_approval_and_send_needs_a_fix(review) -> None:
     assert sent["approved"] is None and sent["notes_sent"]["fixes"] == 1
     status, _ = call(server, "POST", "/v/1/api/rounds", server.videos[0].token, {})
     assert status == 409
+    # Editing a sent Fix makes it unsent again.
+    fix = next(item for item in api(server, 1, "GET", "/api/review")["comments"]
+               if item["kind"] == "fix")
+    store.update_comment(server.videos[0].sha256, server.videos[0].media.facts(
+        server.videos[0].sha256), fix["id"], {"text": "Fix this better"})
+    assert api(server, 1, "GET", "/api/review")["decision"]["unsent_fixes"] == 1
 
 
 def test_list_api_needs_the_list_token(review) -> None:
@@ -256,6 +264,7 @@ def test_browser_approves_and_opens_the_next_video(review, tmp_path: Path) -> No
     result = json.loads(result_file.read_text())
     assert result["errors"] == []
     assert result["undoShown"] is True
+    assert result["approveBlockedByDraft"] is True
     assert result["final"] == ["Approved", "Notes sent (1 fix)", "Approved"]
     assert result["allDecided"] == "Every video has a decision."
     for key in ("phoneUndo", "phoneApprove"):

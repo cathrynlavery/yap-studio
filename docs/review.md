@@ -60,7 +60,9 @@ new version starts as Not reviewed, and the page says an earlier version was app
 Project reviews (`--versions`) keep their own Approve this version and download flow.
 
 The JSON export API returns `approved` (`{approved_at, reviewer}` or `null`) and
-`notes_sent` (`{sent_at, fixes, comments}` or `null`) for a file review. In `--json`
+`notes_sent` (`{sent_at, fixes, comments}` or `null`) for a file review. Each sent comment
+lists its `id`, the `revision` that was sent and its `kind`. Editing a sent Fix lets you
+send it again. In `--json`
 output, each video has `approved`, also `null` until it is approved.
 
 ## Versions

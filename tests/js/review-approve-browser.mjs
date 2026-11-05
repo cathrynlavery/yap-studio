@@ -42,6 +42,7 @@ async function run(listUrl, resultFile, shots) {
     await page.click('#new-comment');
     await page.waitForSelector('#compose:not([hidden])');
     await page.type('#compose-text', 'Trim the opening');
+    result.approveBlockedByDraft = await page.$eval('#file-approve', (node) => node.disabled);
     await page.click('#compose-submit');
     await page.waitForFunction(() => !document.getElementById('file-send').disabled, {timeout: 10000});
     await page.click('#file-send');
