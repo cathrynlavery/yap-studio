@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yap Studio: you like recording, editing is the part that stops you</title>
+  <meta name="description" content="Drop in your raw takes. An agent edits them into a finished vertical video, checks it, and the next version follows your notes.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://yapstudio.app/">
+  <meta property="og:title" content="Yap Studio: you like recording, editing is the part that stops you">
+  <meta property="og:description" content="Drop in your raw takes. An agent edits them into a finished vertical video, checks it, and the next version follows your notes.">
+  <meta property="og:image" content="https://yapstudio.app/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Yap Studio: you like recording, editing is the part that stops you">
+  <meta name="twitter:description" content="Drop in your raw takes. An agent edits them into a finished vertical video, checks it, and the next version follows your notes.">
+  <meta name="twitter:image" content="https://yapstudio.app/og.png">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <link rel="preload" href="fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="shared/phone.css">
+  <link rel="stylesheet" href="pilot5.css">
+  <script>
+    // Motion is opt-in: only when the visitor allows it, and the page shows everything if motion.js never arrives.
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.documentElement.classList.add("motion");
+      setTimeout(() => { if (!window.__yapMotion) document.documentElement.classList.remove("motion"); }, 2500);
+    }
+  </script>
+</head>
+<body>
+<!--
+PILOT 5 (2026-10-09). Built from Cat's notes on pilot 4 and the reference study (impeccable.style, hyperframes.dev, Mobbin).
+THESIS: open on a finished video, name the backlog of takes nobody edited, then show the real product screens: the caption style page, the review page with timed notes, Copy feedback into Claude or Codex, cards, taste.
+Product screenshots are the real style page (docs/design/style-page) and the real review page (yap-studio review), with generated sample presenters swapped in.
+No third-party quotes are shown on the page.
+-->
+
+<header class="nav">
+  <a class="brand" href="#top"><span class="glyph" aria-hidden="true"></span>Yap Studio</a>
+  <nav class="nav-links" aria-label="Page">
+    <a href="#how">How to use it</a>
+    <a href="https://github.com/cathrynlavery/yap-studio">GitHub</a>
+    <a href="#join">Get updates</a>
+    <a class="cta" href="#get">Get it</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="wrap hero" data-band="cream" aria-labelledby="title">
+    <div>
+      <h1 id="title"><span class="l1">You like recording.</span> <span class="light">Editing is the part that stops you.</span></h1>
+      <p class="sub">Drop in your raw takes, stumbles and all. An agent cuts the dead space and restarts, adds your captions and cards, and checks the video before you see it. You leave notes from your phone, and the next version follows them.</p>
+      <div class="get-links">
+        <a class="get-button" href="#get">Get Yap Studio</a>
+        <a href="https://github.com/cathrynlavery/yap-studio">View on GitHub</a>
+      </div>
+      <p class="fine">For Mac · Open source · Available now</p>
+      <form class="join" data-waitlist id="updates-hero" aria-label="Get Yap Studio updates">
+        <label class="sr-only" for="email">Email</label>
+        <input id="email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+        <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button type="submit">Get updates</button>
+        <p class="form-status" role="status"></p>
+      </form>
+      <p class="facts">Open source · Built on HyperFrames · Runs on your own computer</p>
+    </div>
+
+    <figure class="stage reel" id="reel" aria-label="Three finished videos, each cut a different way (samples)">
+      <div class="reel-phone">
+        <div class="reel-screen">
+          <div class="scene" data-scene="guy" data-preset="headline">
+            <img class="sc-bg" src="assets/guy.jpg" alt="">
+            <div class="sc-big" aria-hidden="true">ONE<br>TAKE</div>
+            <img class="sc-cut" src="assets/guy-cut.webp" alt="">
+            <div class="sc-stat"><small>Videos posted this month</small><b data-count="12">0</b></div>
+            <p class="ph-cap"></p>
+          </div>
+          <div class="scene" data-scene="office" data-preset="editorial">
+            <img class="sc-bg" src="assets/office.jpg" alt="">
+            <div class="sc-box"><img src="assets/br-site.jpg" alt=""></div>
+            <div class="sc-list"><b>The whole edit</b><span>Do one take</span><span>Cut the dead air</span><span>Post it</span></div>
+            <p class="ph-cap"></p>
+          </div>
+          <div class="scene" data-scene="sofa" data-preset="candy">
+            <img class="sc-bg" src="assets/sofa.jpg" alt="">
+            <div class="sc-page"><img src="assets/br-rec.jpg" alt=""></div>
+            <img class="sc-cut" src="assets/sofa-cut.webp" alt="">
+            <p class="ph-cap"></p>
+          </div>
+          <i class="sc-leak" aria-hidden="true"></i>
+          <div class="sc-bars" aria-hidden="true"><i></i><i></i><i></i></div>
+          <span class="ph-badge" hidden>Checked</span>
+          <span class="sc-label">Sample presenter, generated image</span>
+        </div>
+      </div>
+      <span class="callout c1"><span class="tag"></span></span>
+      <span class="callout c2"><span class="tag"></span></span>
+      <span class="callout c3"><span class="tag"></span></span>
+      <span class="callout c4"><span class="tag"></span></span>
+      <div class="note-float" aria-live="polite">
+        <p class="head" style="margin:0 0 6px"><span class="pill fix">Fix</span> <span class="nt-time">0:01.2</span></p>
+        <span class="nt-text"></span>
+        <p class="reply" style="margin:8px 0 0"></p>
+      </div>
+      <div class="reel-pick" role="group" aria-label="Pick a version">
+        <button type="button" data-i="0" aria-pressed="true"><img src="assets/guy.jpg" alt=""><span>Headline</span></button>
+        <button type="button" data-i="1" aria-pressed="false"><img src="assets/office.jpg" alt=""><span>Editorial</span></button>
+        <button type="button" data-i="2" aria-pressed="false"><img src="assets/sofa.jpg" alt=""><span>Candy</span></button>
+      </div>
+    </figure>
+  </section>
+
+  <section class="wrap sec get-started" data-band="white" id="get" aria-labelledby="get-title">
+    <h2 class="h2" id="get-title">Get it. <em>Then give it a take.</em></h2>
+    <p class="sub">You need a Mac with macOS 14 or newer, about 10 GB free on a local disk, and an app that can run the edit on your Mac.</p>
+    <ol class="start">
+      <li><h3>Download the workspace</h3><p><a href="https://github.com/cathrynlavery/yap-studio/releases/latest">Get the workspace ZIP from the latest release.</a> Choose <code>yap-studio-workspace-&lt;version&gt;.zip</code> and unzip it into a local folder, outside iCloud or Dropbox.</p></li>
+      <li><h3>Open it in your agent app</h3><p>Use Claude Code, the Claude app's Code tab, Codex, or Cursor. Open the folder you just unzipped. The usual chat window can't edit videos.</p></li>
+      <li><h3>Type <code>set me up</code></h3><p>Your agent asks before each install. The first setup downloads the speech model (about 2.5 GB) and video renderer, then opens Yap Studio in your browser.</p></li>
+    </ol>
+    <details class="install-details">
+      <summary>How to open the folder in each app</summary>
+      <ul>
+        <li><a href="https://code.claude.com/docs/en/quickstart">Claude Code in Terminal:</a> change to the unzipped folder, run <code>claude</code>, and sign in once with <code>/login</code>.</li>
+        <li><a href="https://claude.com/download">Claude app:</a> click Code, choose Local, then Open folder. Sign in on a paid plan.</li>
+        <li><a href="https://chatgpt.com/download">Codex in the ChatGPT app:</a> choose Codex, add a project, then Use an existing folder. Trust it once. Or run <code>codex</code> in that folder with the <a href="https://developers.openai.com/codex/quickstart">Codex CLI</a>.</li>
+        <li><a href="https://cursor.com/download">Cursor:</a> File &gt; Open Folder, then Cmd+I. Use Agent mode on this Mac. Privacy Mode is suggested.</li>
+      </ul>
+      <p>Then type <code>set me up</code>. Setup uses Homebrew and offers to install it if needed.</p>
+    </details>
+    <details class="install-details">
+      <summary>Prefer to install from Terminal?</summary>
+      <p>You need Python 3.11+, uv, ffmpeg 6.1+, and Node.js 22+. On your Mac, run:</p>
+      <pre><code>brew install uv ffmpeg node@22
+uv tool install 'yap-studio[asr,mcp]'
+yap-studio renderer install
+yap-studio speech download
+yap-studio doctor --edit</code></pre>
+      <p><a href="https://github.com/cathrynlavery/yap-studio/blob/main/docs/install.md">Full install guide</a> · <a href="https://github.com/cathrynlavery/yap-studio/blob/main/docs/editing.md">Edit from the command line</a></p>
+    </details>
+    <p class="fine">Yap Studio is free and open source. You need access to your chosen agent app. <a href="https://github.com/cathrynlavery/yap-studio">Read the README and get the source on GitHub.</a></p>
+  </section>
+
+  <section class="wrap sec backlog" data-band="cream" aria-labelledby="backlog-title">
+    <div class="roll" aria-label="A camera roll of takes that were never edited (sample)">
+      <p class="roll-head" style="margin:0"><b>Camera roll</b><span>Not edited yet</span></p>
+      <div class="t"><img src="assets/raw-1.jpg" alt=""><span>0:42</span></div>
+      <div class="t"><img src="assets/raw-2.jpg" alt=""><span>1:18</span></div>
+      <div class="t"><img src="assets/raw-3.jpg" alt=""><span>0:57</span></div>
+      <div class="t"><img src="assets/raw-4.jpg" alt=""><span>2:03</span></div>
+      <div class="t"><img src="assets/raw-5.jpg" alt=""><span>0:38</span></div>
+      <div class="t"><img src="assets/raw-6.jpg" alt=""><span>1:44</span></div>
+      <div class="t"><img src="assets/raw-3.jpg" alt=""><span>0:51</span></div>
+      <div class="t"><img src="assets/raw-1.jpg" alt=""><span>1:09</span></div>
+    </div>
+    <div>
+      <h2 class="h2" id="backlog-title">For every take still sitting in your <em>camera roll.</em></h2>
+      <p class="sub">You film when you feel like talking. Then the editing waits, and the takes pile up. Put them in the Yap Studio inbox and each one comes back finished, in your style, ready for your notes.</p>
+      <ul class="pains">
+        <li>You love recording and hate editing.</li>
+        <li>The edit takes longer than the video ever will.</li>
+        <li>The first take has dead space, stumbles and a restart or three.</li>
+        <li>So the video never gets posted.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="wrap sec" data-band="cream" id="how" aria-labelledby="how-title">
+    <h2 class="h2" id="how-title">From your phone <em>to a finished video.</em></h2>
+    <p class="sub">Once setup opens Yap Studio in your browser, here's the whole edit.</p>
+    <div class="usage">
+      <ol class="usage-steps">
+        <li><h3>Bring over your clip</h3><p>Move the raw clip from your phone to your Mac. Choose talking head or voiceover, then drag your takes onto the footage page or choose files. Your originals stay untouched.</p></li>
+        <li><h3>Pick your look</h3><p>Choose the captions, font and colours on a still from your own take.</p></li>
+        <li><h3>Press Make my video</h3><p>The agent cuts the pauses and restarts, adds captions and cards, and checks the result. In Codex or Cursor, tell the agent in chat that you pressed the button.</p></li>
+        <li><h3>Watch it and leave notes</h3><p>Mark a stretch and choose Cut this, Change this or Keep this. When the story is right, press Make the final video. You can review on your phone over the same Wi-Fi or Tailscale.</p></li>
+        <li><h3>Keep the version you like</h3><p>Approve the final, then open it on your Mac, show it in Finder, or download it. Post when you're ready.</p></li>
+      </ol>
+      <div class="usage-shots">
+        <figure><img src="assets/journey-footage.jpg" alt="Yap Studio footage page with a take added from Finder" loading="lazy" width="1600" height="1000"><figcaption>Add your takes.</figcaption></figure>
+        <figure><img src="assets/journey-review.jpg" alt="Yap Studio story review with a marked stretch and Cut this, Change this and Keep this buttons" loading="lazy" width="1600" height="1000"><figcaption>Leave a note on the part you want changed.</figcaption></figure>
+        <p class="fine">Real screens from a full run with a generated sample presenter. <a href="https://github.com/cathrynlavery/yap-studio#you-talk-the-agent-edits-you-comment">See the full walkthrough.</a></p>
+      </div>
+    </div>
+    <div class="slider" id="slider">
+      <div class="tabs" role="tablist" aria-label="How it works">
+        <button type="button" role="tab" id="tab-1" aria-controls="slide-1" aria-selected="true"><b>1</b><span>Pick your look</span><i class="prog"></i></button>
+        <button type="button" role="tab" id="tab-2" aria-controls="slide-2" aria-selected="false"><b>2</b><span>Drop in your takes</span><i class="prog"></i></button>
+        <button type="button" role="tab" id="tab-3" aria-controls="slide-3" aria-selected="false"><b>3</b><span>Comment and hand back</span><i class="prog"></i></button>
+      </div>
+      <div class="slides">
+        <article class="slide on" id="slide-1" role="tabpanel" aria-labelledby="tab-1">
+          <div class="slide-text">
+            <h3>Pick how your captions look. <em>Once.</em></h3>
+            <p>Start from a preset, then change any part of it: how many words show at once, how the spoken word stands out, the font, the colours, the opening title and the music. Every video gets it.</p>
+          </div>
+        <div class="shot">
+          <div class="frame"><div class="bar"><i></i><i></i><i></i><span>Yap Studio · Styles</span></div><picture><source media="(max-width: 600px)" srcset="assets/style-top-m.jpg"><img src="assets/style-top.jpg" alt="The Yap Studio style page: a phone preview on the left and caption presets on the right" loading="lazy"></picture></div>
+          <span class="tag" style="left:-2%;top:30%">Live preview</span>
+          <span class="tag" style="right:-2%;top:42%">Ten presets to start from</span>
+          <span class="tag" style="right:6%;top:18%">Words, highlight, font, colours, title</span>
+        </div>
+        </article>
+        <article class="slide" id="slide-2" role="tabpanel" aria-labelledby="tab-2">
+          <div class="slide-text">
+            <h3>Drop in your takes. <em>The ums go.</em></h3>
+            <p>Your takes are transcribed and cut on your own computer. Claude or Codex reads the transcript and takes out the ums, restarts and dead air, but only where the join still sounds natural.</p>
+            <p class="local"><span class="dot" aria-hidden="true"></span>Transcribed and cut on your computer</p>
+          </div>
+        <figure class="clean" aria-label="A transcript of a raw take cleaning itself up (sample)">
+          <p class="script" id="script"></p>
+          <div class="wave" id="wave" aria-hidden="true"></div>
+          <div class="clean-foot"><span class="fine">Sample take</span><button type="button" class="replay" id="replay">Play it again</button></div>
+        </figure>
+        </article>
+        <article class="slide" id="slide-3" role="tabpanel" aria-labelledby="tab-3">
+          <div class="slide-text">
+            <h3>Leave notes the way you would <em>for an editor.</em></h3>
+            <p>Mark a moment or a stretch, say keep or fix, and what it's about. Copy feedback puts every note on your clipboard to paste into Claude or Codex, or Send notes hands them straight to the agent. Each note gets a reply saying what changed.</p>
+          </div>
+        <div class="rv" id="rv" aria-label="The Yap Studio review page (sample)">
+          <div class="rv-top">
+            <div><b>morning-routine-take.mp4</b><span>0:12.0 · Version 1</span></div>
+            <button type="button" class="rv-copy" id="rv-copy"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8" height="9" rx="2"/><path d="M3 11V4a2 2 0 0 1 2-2h5"/></svg><span>Copy feedback</span></button>
+          </div>
+          <div class="rv-body">
+            <div class="rv-player">
+              <div class="rv-video"><img src="assets/office.jpg" alt=""><span class="rv-time" id="rv-time">0:04.0</span></div>
+              <div class="rv-track" aria-hidden="true">
+                <i class="rv-range" style="left:26.7%;width:18.3%"></i>
+                <i class="rv-mark keep" data-n="0" style="left:6.7%"></i><i class="rv-mark fix" data-n="1" style="left:26.7%"></i><i class="rv-mark fix" data-n="2" style="left:63.3%"></i>
+                <i class="rv-head" id="rv-head" style="left:33.3%"></i>
+              </div>
+              <p class="rv-keys">Press C to comment here · I and O to mark a stretch</p>
+            </div>
+            <ol class="rv-notes">
+              <li tabindex="0" data-n="0" data-t="0.8"><p class="rv-meta"><span class="rv-t">0:00.8</span><span class="pill keep">Keep</span><span class="rv-about">Story</span></p><p class="rv-text">Great opening. Keep this energy.</p></li>
+              <li tabindex="0" data-n="1" data-t="3.2"><p class="rv-meta"><span class="rv-t">0:03.2-0:05.4</span><span class="pill fix">Fix</span><span class="rv-about">Caption</span></p><p class="rv-text">Captions a bit smaller through here.</p></li>
+              <li tabindex="0" data-n="2" data-t="7.6"><p class="rv-meta"><span class="rv-t">0:07.6</span><span class="pill fix">Fix</span><span class="rv-about">Graphic</span></p><p class="rv-text">No card here, just me talking.</p></li>
+            </ol>
+          </div>
+          <p class="rv-toast" id="rv-toast" role="status"></p>
+        </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap sec" data-band="cobalt" aria-labelledby="cards-title">
+    <h2 class="h2" id="cards-title">Cards and effects <em>that land on the word.</em></h2>
+    <p class="sub">The agent picks from a library of ready-made HyperFrames blocks and times each one to the words it's about. Swipe through what it can do.</p>
+    <div class="rail">
+      <ul class="fxs rail-track" id="rail">
+      <li><div class="fx" data-fx="behind" data-preset="headline" style="--bg:url(assets/office.jpg)">
+          <div class="fx-bg"></div><div class="big" aria-hidden="true">ONE<br>TAKE</div><img class="cut" src="assets/office-cut.webp" alt=""><p class="ph-cap"></p></div>
+        <h3>Words behind you</h3><p>Big words sit behind your head, cut around your outline.</p></li>
+      <li><div class="fx" data-fx="screen" data-preset="marker" style="--bg:url(assets/office.jpg)">
+          <div class="fx-bg"></div><div class="swap s1"><img src="assets/br-site.jpg" alt=""></div><div class="swap s2"><img src="assets/br-rec.jpg" alt=""></div><img class="cut" src="assets/office-cut.webp" alt=""><p class="ph-cap"></p></div>
+        <h3>Something behind you</h3><p>You step aside and your website or a page fills the frame behind you.</p></li>
+      <li><div class="fx" data-fx="count" data-preset="cobalt" style="--bg:url(assets/sofa.jpg)">
+          <div class="fx-bg"></div><div class="stat"><small>Videos posted this month</small><b data-count="12">0</b></div><p class="ph-cap"></p></div>
+        <h3>Numbers that count up</h3><p>The number climbs while you say it.</p></li>
+      <li><div class="fx" data-fx="shoulder" data-preset="candy" style="--bg:url(assets/sofa.jpg)">
+          <div class="fx-bg"></div><div class="box tall"><img src="assets/br-phone.jpg" alt=""></div><p class="ph-cap"></p></div>
+        <h3>Over your shoulder</h3><p>A screenshot or clip in a box while you keep talking.</p></li>
+      <li><div class="fx" data-fx="list" data-preset="editorial" style="--bg:url(assets/office.jpg)">
+          <div class="fx-bg"></div><div class="list"><b>The whole edit</b><span>Do one take</span><span>Cut the dead air</span><span>Post it</span></div><p class="ph-cap"></p></div>
+        <h3>Checklist</h3><p>Each item ticks as you say it.</p></li>
+      <li><div class="fx" data-fx="cutaway" data-preset="electric" style="--bg:url(assets/office.jpg)">
+          <div class="fx-bg"></div><div class="away rec"><img src="assets/br-rec.jpg" alt=""><i class="cursor"></i></div><i class="leak"></i><p class="ph-cap"></p></div>
+        <h3>Cutaway</h3><p>Full screen to your screen recording, with a light leak in and out.</p></li>
+      <li><div class="fx" data-fx="wipe" data-preset="mono" style="--bg:url(assets/sofa.jpg)">
+          <div class="fx-bg raw"></div><div class="after"><div class="fx-bg"></div></div><i class="bar"></i><span class="lbl l1">Raw take</span><span class="lbl l2">Finished</span><p class="ph-cap"></p></div>
+        <h3>Before and after</h3><p>A wipe from one to the other.</p></li>
+      </ul>
+      <div class="rail-nav"><button type="button" class="rail-btn" data-dir="-1" aria-label="Previous"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button><button type="button" class="rail-btn" data-dir="1" aria-label="Next"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button></div>
+    </div>
+    <p class="more"><span>Also in the library</span> Sign · Photo in a window · From here to there · Light leak · Whip pan · Zoom</p>
+    <p class="fine" style="margin-top:10px">Sample videos made for this page. In your videos, cards use your fonts and colours and stay clear of your face.</p>
+  </section>
+
+  <section class="wrap sec" data-band="white" aria-labelledby="broll-title">
+    <h2 class="h2" id="broll-title">Your own footage, <em>where it fits.</em></h2>
+    <p class="sub">Drop in screen recordings, screenshots, pages from your site and photos from your camera roll. Yap Studio catalogues them privately on your computer, so the agent knows what's in each one and cuts to it while you talk about it.</p>
+    <div class="library" aria-label="Your B-roll library (sample)">
+      <p class="lib-head"><b>Your B-roll</b><span><i class="dot" aria-hidden="true"></i>Catalogued on your computer</span></p>
+      <ul>
+        <li><div class="th rec"><img src="assets/br-rec.jpg" alt=""><span class="dur">0:14</span></div><p>Screen recording: setting up a caption style <small>Used at 0:06, full screen</small></p></li>
+        <li><div class="th"><img src="assets/br-site.jpg" alt=""></div><p>Screenshot: littlemight.com <small>Used at 0:02, behind you</small></p></li>
+        <li><div class="th phone"><img src="assets/br-phone.jpg" alt=""></div><p>Phone screenshot: review notes <small>Used at 0:04, over your shoulder</small></p></li>
+        <li><div class="th"><img src="assets/broll-setup.jpg" alt=""></div><p>Photo: your filming setup <small>Not used yet</small></p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="wrap sec taste" data-band="cream" id="taste" aria-labelledby="taste-title">
+    <div>
+      <h2 class="h2" id="taste-title">Your notes become <em>your taste.</em></h2>
+      <p class="sub">After each round, the agent suggests rules from your notes. You approve, reword or reject each one. Approved rules apply to every video after that, so each one needs fewer notes. It can also start from videos you've already posted.</p>
+    </div>
+    <div class="rules" aria-label="Your taste (sample)">
+      <h3>Rules for future videos</h3>
+      <div class="rule"><p>Smaller captions</p><small>From your notes on video 3</small><div class="acts"><button type="button" class="yes" data-act="yes">Approve</button><button type="button" data-act="no">Reject</button></div></div>
+      <div class="rule"><p>No card while I'm making a point</p><small>From your notes on video 3</small><div class="acts"><button type="button" class="yes" data-act="yes">Approve</button><button type="button" data-act="no">Reject</button></div></div>
+      <div class="rule is-on"><p>Open on the point, no warm-up</p><small>From videos you've already posted</small></div>
+      <div class="rule is-on"><p>One caption line at a time</p><small>From your notes on video 1</small></div>
+    </div>
+  </section>
+
+  <div class="night">
+  <section class="wrap sec" data-band="white" aria-labelledby="check-title">
+    <h2 class="h2" id="check-title">Checked before <em>you see it.</em></h2>
+    <p class="sub">A second agent watches every render first and flags weak spots, shown apart from your own notes. Then Yap Studio checks the video itself. A version that fails never reaches you.</p>
+    <ol class="log" aria-label="What happens before a version reaches you (sample)">
+      <li class="x"><b>Flagged</b><span>Review agent: the pause before “Then” runs long.</span></li>
+      <li class="f"><b>Fixed</b><span>Tightened the pause before “Then”.</span></li>
+      <li class="ok"><b>Checked</b><span>Every join, lip sync, every frame, loudness for posting, and every caption, title and card layer.</span></li>
+      <li class="ok"><b>Ready</b><span>Version 2 is ready for your notes.</span></li>
+    </ol>
+  </section>
+
+  <section class="wrap closing" data-band="gold" id="join" aria-labelledby="join-title">
+    <h2 class="h2" id="join-title">Get updates <em>from Yap Studio.</em></h2>
+    <p class="sub" style="margin:16px auto 0">New releases and notes on what I'm making with it. You can <a href="#get">get Yap Studio now</a>.</p>
+    <form class="join" data-waitlist id="updates-footer" aria-label="Get Yap Studio updates">
+      <label class="sr-only" for="email2">Email</label>
+      <input id="email2" type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+      <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit">Get updates</button>
+      <p class="form-status" role="status"></p>
+    </form>
+    <p class="foot">Open source · Built on HyperFrames · Runs on your own computer</p>
+  </section>
+  </div>
+</main>
+
+
+<script>window.YAP_PHOTO = "assets/office.jpg"; window.YAP_WAITLIST_URL = "/api/waitlist";</script>
+<script src="shared/captions.js"></script>
+<script src="pilot5.js" defer></script>
+<script src="cards.js" defer></script>
+<script src="filler.js" defer></script>
+<script src="hero.js" defer></script>
+<script src="review.js" defer></script>
+<script src="slider.js" defer></script>
+<script src="joined.js" defer></script>
+<script src="motion.js" defer></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4bc70e2c01a94c73b74392e4234840661791215815920" integrity="sha512-L0ha0OXavK/8okipN9F8BtP84dg9DUhPERbBXzwI6dgTA55d2+yweo3pn5CSFYs45/r8md2+xvUPtTdvTNRfjA==" data-cf-beacon='{"version":"2024.11.0","token":"60471c86b85c470894e1ecf04af4355c","r":1,"spa":2}' crossorigin="anonymous"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"75ed585ff04045bda73aafb82bc81bdf","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
