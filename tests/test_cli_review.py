@@ -134,7 +134,7 @@ def test_versions_review_prints_one_link_and_passes_series(
     document = json.loads(lines[0])
     assert document["list"] is None
     assert document["videos"] == [{"name": "second.mp4", "sha256": receipt.sha256_file(videos[1]),
-                                    "url": seen[0]}]
+                                    "url": seen[0], "approved": None}]
     assert captured.err == ""
 
 
@@ -436,8 +436,10 @@ def test_review_json_prints_working_links_before_serving(
         thread.start()
         try:
             for number, item in enumerate(document["videos"], 1):
-                assert set(item) == ({"name", "sha256", "url", "local_url"}
-                                     if public_base is not None else {"name", "sha256", "url"})
+                assert set(item) == ({"name", "sha256", "url", "local_url", "approved"}
+                                     if public_base is not None
+                                     else {"name", "sha256", "url", "approved"})
+                assert item["approved"] is None
                 if public_base is not None:
                     assert urlsplit(item["local_url"]).netloc == f"127.0.0.1:{server.port}"
                 assert item["sha256"] == receipt.sha256_file(paths[number - 1])

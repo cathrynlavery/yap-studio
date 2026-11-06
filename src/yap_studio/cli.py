@@ -507,6 +507,21 @@ def _review_error(exc: YapError, *, json_output: bool) -> None:
             print(f"fix: {exc.suggested_action}", file=sys.stderr)
 
 
+def _review_approval(store, video) -> dict | None:
+    """Return who approved this exact video content and when, or None."""
+    from yap_studio.feedback.release import approval_record
+
+    series = video.series
+    if series is None:
+        return store.decision(video.sha256)["approved"]
+    if series.project_dir is None:
+        return None
+    record = approval_record(series.project_dir, verify_media=False)
+    if record is None or record["media_sha256"] != video.sha256:
+        return None
+    return {"approved_at": record["approved_at"], "reviewer": None}
+
+
 def _review(args: argparse.Namespace) -> int:
     """Start local review sessions for videos on one server."""
     from yap_studio.review import detach
@@ -613,7 +628,8 @@ def _review(args: argparse.Namespace) -> int:
         # 127.0.0.1, where Yap Studio home keeps its cookie.
         video_links = [
             {"name": video.media.name, "sha256": video.sha256, "url": public_url(url),
-             **({"local_url": url} if public_base is not None else {})}
+             **({"local_url": url} if public_base is not None else {}),
+             "approved": _review_approval(store, video)}
             for video, url in zip(videos, server.video_urls, strict=True)
         ]
         document = {"list": review_url if server.list_url else None, "videos": video_links}

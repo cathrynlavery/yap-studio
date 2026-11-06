@@ -97,6 +97,11 @@
         </div>
         <div class="playback-controls">
           <button id="play-pause" type="button">Play</button>
+          <select id="playback-speed" aria-label="Playback speed">
+            <option value="1">1×</option>
+            <option value="1.5">1.5×</option>
+            <option value="2">2×</option>
+          </select>
           <button id="previous-frame" type="button" aria-label="Previous frame">← Frame</button>
           <button id="next-frame" type="button" aria-label="Next frame">Frame →</button>
           <button id="new-comment" class="primary" type="button">Comment</button>
@@ -105,6 +110,14 @@
           <button id="mark-start" type="button" disabled>Mark start</button>
           <button id="mark-end" type="button" disabled>Mark end</button>
         </div>
+        <section id="file-decision" class="file-decision" hidden aria-label="Decision">
+          <div class="file-decision-actions">
+            <button id="file-approve" class="primary" type="button">Approve this video</button>
+            <button id="file-undo" type="button" hidden>Undo approval</button>
+            <button id="file-send" type="button" disabled>Send notes</button>
+          </div>
+          <p id="file-decision-status" class="file-decision-status" role="status" aria-live="polite"></p>
+        </section>
         <section id="caption-fix" class="caption-fix" role="dialog" aria-labelledby="caption-heading" hidden>
           <h2 id="caption-heading">Fix a caption word</h2>
           <p>Choose a word.</p>

@@ -246,6 +246,7 @@ video { display: block; width: auto; max-width: 100%; height: min(72vh, 860px); 
 .clear-range { margin-top: 9px; }
 .playback-controls { margin-bottom: 11px; }
 .playback-controls #play-pause { min-width: 84px; }
+.playback-controls select { min-height: 40px; padding: 0.6rem 0.7rem; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); cursor: pointer; }
 .mark-controls, .range-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 11px; }
 .range-panel { margin-bottom: 11px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
 .range-panel p { margin: 0 0 9px; overflow-wrap: anywhere; }
@@ -342,9 +343,23 @@ dialog p { color: var(--ink-2); }
 .review-list-shell { max-width: 900px; }
 .review-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .review-list li { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-1); }
-.review-list a { display: block; padding: 18px 18px 8px; color: var(--ink); font-weight: 600; overflow-wrap: anywhere; text-underline-offset: 3px; }
+.review-list a { display: flex; gap: 18px; align-items: center; padding: 18px; color: var(--ink); font-weight: 600; overflow-wrap: anywhere; text-underline-offset: 3px; }
 .review-list a:hover { text-decoration-thickness: 2px; }
-.review-list .muted { display: block; padding: 0 18px 18px; margin: 0; font-variant-numeric: tabular-nums; }
+.review-thumbnail { width: clamp(96px, 24vw, 160px); height: auto; aspect-ratio: 16 / 9; flex-shrink: 0; object-fit: contain; background: var(--player); border-radius: 8px; }
+.review-details { min-width: 0; }
+.review-list .muted { display: block; margin: 6px 0 10px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.review-list .review-status { display: inline-block; padding: 3px 10px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 13px; font-weight: 400; color: var(--ink-2); }
+.review-list .review-status.approved { color: var(--done-ink); border-color: var(--done-line); background: var(--done-bg); }
+.review-list .review-status.sent { color: var(--turn-ink); border-color: var(--turn-line); background: var(--turn-bg); }
+.review-list-shell .button-link.primary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; text-decoration: none; }
+
+/* File reviews: approve or send notes, then the next video opens. */
+.file-decision { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); min-width: 0; }
+.file-decision-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.file-decision-actions button { min-height: 44px; padding: 0 20px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.file-decision-status { margin: 10px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.file-decision-status:empty { display: none; }
+.file-decision.approved .file-decision-status { color: var(--done-ink); }
 
 @media (max-width: 960px) {
   .topbar-inner { padding: 0 18px; }
@@ -393,6 +408,7 @@ dialog p { color: var(--ink-2); }
   .compose-head { flex-wrap: wrap; }
   .comment-actions button, .form-actions button { min-height: 44px; }
   .version-actions #approve-version, .version-actions #download-video { flex: 1 1 100%; }
+  .file-decision-actions button, .review-list-shell .button-link.primary { flex: 1 1 100%; width: 100%; justify-content: center; }
 }
 
 /* Story outline: phone layout with the decision bar always within reach. */

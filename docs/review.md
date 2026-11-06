@@ -37,10 +37,36 @@ yap-studio review renders/ --no-open --json
 A directory expands to `.mp4`, `.mov`, `.m4v`, `.mkv` and `.webm` files directly inside it,
 in name order, ignoring case on the extension. Files and expanded directories keep their
 argument order. Duplicate contents are refused, even under different names. With several
-videos, the command opens and prints a private list link with names and durations, then
+videos, the command opens and prints a private list link with thumbnails, names and durations, then
 prints each video's link. Each video has its own token and comments; sharing one video's
 link grants access to that video. The list link grants access to all videos in this run.
 One video keeps its existing page and printed output.
+
+The playback speed menu under the video offers 1×, 1.5× and 2×. Your choice follows you
+to the next video in the same browser tab; note timestamps still refer to the original video.
+
+### Approve or send notes, then the next video
+
+Every video in a file review has an Approve this video button under the player. It
+records an approval for that exact file content (its SHA-256), with your reviewer name and
+the time, in the same store as comments. Send notes, next to it, marks the notes on that
+video as sent; it needs at least one Fix note. On a phone both are full-width buttons.
+
+When you open a video from the list, approving it or sending notes opens the next video
+with no decision yet. When every video has a decision, the page goes back to the list. The
+list shows Approved, Notes sent (N fixes) or Not reviewed for each video, and Start
+reviewing opens the first video without a decision. An approved video shows Undo approval.
+Sending Fix notes on an approved video clears its approval.
+
+If the file changes after you approve it, the approval stays with the earlier content. The
+new version starts as Not reviewed, and the page says an earlier version was approved.
+Project reviews (`--versions`) keep their own Approve this version and download flow.
+
+The JSON export API returns `approved` (`{approved_at, reviewer}` or `null`) and
+`notes_sent` (`{sent_at, fixes, comments}` or `null`) for a file review. Each sent comment
+lists its `id`, the `revision` that was sent and its `kind`. Editing a sent Fix lets you
+send it again. In `--json`
+output, each video has `approved`, also `null` until it is approved.
 
 ## Versions
 
@@ -79,7 +105,8 @@ yap-studio review --stop my-video
 ```
 
 `--json` prints one JSON object on one line before serving, with `list` and `videos` keys.
-`list` is the list URL, or `null` for one video; each video has `name`, `sha256` and `url`.
+`list` is the list URL, or `null` for one video; each video has `name`, `sha256`, `url` and
+`approved`.
 
 ## On your phone
 

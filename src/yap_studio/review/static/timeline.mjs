@@ -586,3 +586,30 @@ export function storyCutStep(series, selected, home) {
       ? `This is the story cut. Happy with the order? ${agent} applies your chosen look, then renders the final.`
       : 'This is an earlier story cut. Pick the newest version to go on.'};
 }
+
+/** One line about a file review's decision for this exact file. */
+export function fileDecisionText(decision) {
+  if (!decision) return '';
+  if (decision.approved) {
+    const by = decision.approved.reviewer ? ` by ${decision.approved.reviewer}` : '';
+    return `Approved${by}.`;
+  }
+  const fixes = decision.notes_sent?.fixes ?? 0;
+  const sent = fixes ? `Notes sent (${fixes} ${fixes === 1 ? 'fix' : 'fixes'}).` : '';
+  const earlier = decision.previous_approved
+    ? 'An earlier version of this file was approved. This version is not approved yet.' : '';
+  return [sent, earlier].filter(Boolean).join(' ');
+}
+
+/** The list token handed over in the link fragment, or null. */
+export function listTokenFrom(hash) {
+  const value = new URLSearchParams(String(hash ?? '').replace(/^#/, '')).get('list');
+  return value && /^[A-Za-z0-9_-]{20,}$/.test(value) ? value : null;
+}
+
+/** The next video without a decision after the current one, wrapping round, or null. */
+export function nextUndecided(videos, current) {
+  const open = (videos ?? []).filter((item) => item.number !== current
+    && item.status?.state === 'open');
+  return open.find((item) => item.number > current) ?? open[0] ?? null;
+}
