@@ -16,14 +16,14 @@ Test locally:
 Local signup needs the Kit secret to save real addresses; validation and the honeypot work without it.
 `KIT_API_KEY` stays a Worker secret in production. Never put it in source or `wrangler.jsonc`.
 
-Deploy (LittleMight Cloudflare, token auth, never `wrangler login`):
+Deploy (LittleMight Cloudflare, token auth, never `wrangler login`). Set `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` from the LittleMight deploy vault in 1Password first, then:
 
-    export CLOUDFLARE_API_TOKEN="$(op read 'op://Hermes/Cloudflare - Deploy/CLOUDFLARE_API_TOKEN')"
-    export CLOUDFLARE_ACCOUNT_ID="$(op read 'op://Hermes/Cloudflare - Deploy/CLOUDFLARE_ACCOUNT_ID')"
     npx wrangler deploy
 
-Website-only changes under `site/` skip product CI and do not select automatic render, speech or
-helper release checks. Explicit release tags, manual full checks and nightly checks still run as usual.
+Website-only changes under `site/` do not select automatic render, speech or helper release checks.
+Product CI still runs on them: main requires its checks, and a release tag needs a passing main CI run.
+Explicit release tags, manual full checks and nightly checks still run as usual.
 The website is excluded from the Python source archive and wheel. Deploy it separately with Wrangler.
 
 The product itself: https://github.com/cathrynlavery/yap-studio
