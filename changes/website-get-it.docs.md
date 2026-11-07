@@ -1,0 +1,2 @@
+- Add the yapstudio.app website under site/ with download and setup instructions, a five-step editing guide, and email updates signup.
+- Keep website files out of Python packages.

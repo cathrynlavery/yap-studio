@@ -59,6 +59,7 @@ def test_path_map_matches_suite_but_not_docs(scope, suite, path):
 
 @pytest.mark.parametrize("scenario,expected", [
     ("docs", "render=false\nspeech=false\nhelpers=false\n"),
+    ("website", "render=false\nspeech=false\nhelpers=false\n"),
     ("render", "render=true\nspeech=false\nhelpers=false\n"),
     ("missing", "render=true\nspeech=true\nhelpers=true\n"),
     ("unavailable", "render=true\nspeech=true\nhelpers=true\n"),
@@ -83,8 +84,10 @@ def test_scope_outputs_and_summary(scope, monkeypatch, tmp_path, scenario, expec
     monkeypatch.setattr(scope, "latest_baselines", Mock(return_value=(
         {} if scenario == "missing" else dict.fromkeys(scope.SUITES, "base")
     )))
-    diff = Mock(return_value=["README.md", "src/yap_studio/captions.py"]
-                if scenario == "render" else ["README.md"])
+    changed = ["README.md", "src/yap_studio/captions.py"] if scenario == "render" else ["README.md"]
+    if scenario == "website":
+        changed = ["site/public/index.html", "site/src/worker.js", "site/wrangler.jsonc"]
+    diff = Mock(return_value=changed)
     if scenario == "unavailable":
         diff.side_effect = subprocess.CalledProcessError(128, "git")
     monkeypatch.setattr(scope, "changed_files", diff)

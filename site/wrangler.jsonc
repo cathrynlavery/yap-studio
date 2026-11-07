@@ -1,0 +1,13 @@
+{
+  // Recovered 2026-11-06 from the deployed Worker "yapstudio" (no source repo existed).
+  "name": "yapstudio",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "routes": [
+    { "pattern": "yapstudio.app/*", "zone_name": "yapstudio.app" },
+    { "pattern": "www.yapstudio.app/*", "zone_name": "yapstudio.app" }
+  ],
+  // KIT_API_KEY is a Worker secret (wrangler secret put KIT_API_KEY), never in this file.
+  "vars": { "KIT_TAG_ID": "24466506" }
+}
