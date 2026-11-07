@@ -299,7 +299,7 @@ The full list, including card and layout limits and what Yap Studio never judges
 - [How it works](https://github.com/cathrynlavery/yap-studio/blob/main/docs/how-it-works.md): the engine, receipts and a map of the code.
 - [Changelog](https://github.com/cathrynlavery/yap-studio/blob/main/CHANGELOG.md)
 
-Website: [yapstudio.app](https://yapstudio.app). Source and deploy instructions are in [site/](site/README.md).
+Website: [yapstudio.app](https://yapstudio.app). Source and deploy instructions are in [site/](https://github.com/cathrynlavery/yap-studio/blob/main/site/README.md).
 
 ## Contributing
 
