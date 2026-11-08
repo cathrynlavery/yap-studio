@@ -23,6 +23,7 @@ from yap_studio.errors import InputError, ValidationError, YapError
 from yap_studio.grade import GradeSpec
 from yap_studio.paths import atomic_output, validate_output_dir
 from yap_studio.plan import Plan, PlanCut, PlanSegment
+from yap_studio.project.anchors import END_PAD_S, START_PAD_S
 from yap_studio.transcript import Backend, Transcript, compare_words, norm_words, words_between
 
 _LOGGER = logging.getLogger("yap_studio")
@@ -1341,6 +1342,42 @@ def _excluded_word_attributed(
     return all(scores[index] > score for other, score in scores.items() if other != index)
 
 
+def _word_edge_offset(
+    local_s: float, side: Literal["first", "last"], point_s: float,
+    source_point_s: float, anchor_s: Fraction, source_info: ffmpeg.MediaInfo | None,
+    *, quiet_edge: bool = False,
+) -> float:
+    """Map a control boundary to an exact source offset within the picture."""
+    source_duration_s = getattr(source_info, "video_duration_s", None)
+    target = max(0.0, source_point_s + local_s - point_s)
+    if source_duration_s is not None:
+        target = min(target, source_duration_s)
+    offset = max(-float(anchor_s), round(target - float(anchor_s), 3))
+    if offset == 0:
+        if quiet_edge:
+            offset = 0.001 if side == "first" else -0.001
+        else:
+            offset = (0.001 if side == "last" or anchor_s == 0
+                      else -min(0.001, float(anchor_s)))
+    if side == "last" and source_duration_s is not None:
+        frames = getattr(source_info, "video_frames", None)
+        fps = getattr(source_info, "fps", None)
+        if frames is not None and fps and not source_info.variable_frame_rate:
+            last_frame = math.floor(Fraction(frames * 30, 1) / fps)
+        else:
+            # Probe durations round to microseconds and can undershoot the final frame.
+            frame_count = Fraction(str(source_duration_s)) * 30
+            nearest = round(frame_count)
+            last_frame = (nearest if abs(frame_count - nearest) <= Fraction(1, 10_000)
+                          else math.floor(frame_count))
+        limit = min(Fraction(last_frame, 30), Fraction(str(source_duration_s)))
+        max_offset = math.floor((limit - anchor_s) * 1000) / 1000
+        offset = min(offset, max_offset)
+        if offset == 0:
+            offset = -0.001 if quiet_edge else -min(0.001, float(anchor_s))
+    return offset
+
+
 def _planned_word_finding(
     transcript: Transcript,
     word: str,
@@ -1357,6 +1394,7 @@ def _planned_word_finding(
     anchor_s: Fraction | None = None,
     source_point_s: float = 0.0,
     source_info: ffmpeg.MediaInfo | None = None,
+    quiet_edge: bool = False,
 ) -> Finding | None:
     """Locate intent in uncut source speech, then measure excluded voice by energy."""
     expected = norm_words(word)
@@ -1443,7 +1481,44 @@ def _planned_word_finding(
             evidence=evidence,
         )
     if overlap <= _sample(_WORD_OVERLAP_S, sr):
-        return None
+        if not quiet_edge or excluded_applies or neighbour_s is None:
+            return None
+        burst_index = shapes.index(shape) + (-joined - 1 if side == "first" else joined + 1)
+        if not 0 <= burst_index < len(shapes):
+            return None
+        burst = shapes[burst_index]
+        facing = burst.offset if side == "first" else burst.onset
+        if facing is None:
+            return None
+        kept_s = facing.time_s - point_s if side == "first" else point_s - facing.time_s
+        attributed = (burst.nucleus_s <= neighbour_s + _WORD_HEARD_EDGE_S if side == "first"
+                      else burst.nucleus_s >= neighbour_s - _WORD_HEARD_EDGE_S)
+        if kept_s <= _WORD_OVERLAP_S or not attributed:
+            return None
+        midpoint = (facing.time_s + boundary.time_s) / 2
+        target = (max(midpoint, boundary.time_s - float(START_PAD_S)) if side == "first"
+                  else min(midpoint, boundary.time_s + float(END_PAD_S)))
+        kept_ms = kept_s * 1000
+        evidence.update(edge="quietest", burst_nucleus_s=burst.nucleus_s,
+                        burst_peak_dbfs=burst.peak_db, kept_ms=kept_ms, boundary_s=boundary.time_s)
+        evidence["burst_offset_s" if side == "first" else "burst_onset_s"] = facing.time_s
+        direction, position = ("later", "before") if side == "first" else ("earlier", "after")
+        action = (f'Move this segment\'s {side} edge {direction} to drop the sound '
+                  f'{position} "{word}".')
+        if anchor_s is not None:
+            offset = _word_edge_offset(target, side, point_s, source_point_s,
+                                       anchor_s, source_info, quiet_edge=True)
+            evidence["suggested_offset_s"] = offset
+            field, move = ("from", "start after") if side == "first" else ("to", "end before")
+            action = f'Set this segment\'s {field}.offset_s to {offset} to {move} it.'
+        likely = ("the end of the word before it" if side == "first"
+                  else "the start of the word after it")
+        return Finding(
+            "join.words", "warn",
+            f'{label}: the edge at the quietest dip keeps {kept_ms:.0f} ms of a separate sound '
+            f'{position} the planned {side} word "{word}", likely {likely}.',
+            cut=cut, time_s=time_s, suggested_action=action, evidence=evidence,
+        )
     overlap_ms = overlap / sr * 1000
     evidence.update(boundary_s=boundary.time_s, nucleus_s=shape.nucleus_s,
                     peak_dbfs=shape.peak_db, valley_s=boundary.valley_s,
@@ -1453,32 +1528,9 @@ def _planned_word_finding(
     portion = "start" if side == "first" else "end"
     action = f'Move this segment\'s {side} edge {direction} to keep "{word}".'
     if anchor_s is not None:
-        source_duration_s = getattr(source_info, "video_duration_s", None)
         # Fifty milliseconds covers rounding the offset and snapping to a 30 fps frame.
-        target = max(0.0, source_point_s + boundary.time_s - point_s
-                     + (-0.05 if side == "first" else 0.05))
-        if source_duration_s is not None:
-            target = min(target, source_duration_s)
-        offset = max(-float(anchor_s), round(target - float(anchor_s), 3))
-        if offset == 0:
-            offset = (0.001 if side == "last" or anchor_s == 0
-                      else -min(0.001, float(anchor_s)))
-        if side == "last" and source_duration_s is not None:
-            frames = getattr(source_info, "video_frames", None)
-            fps = getattr(source_info, "fps", None)
-            if frames is not None and fps and not source_info.variable_frame_rate:
-                last_frame = math.floor(Fraction(frames * 30, 1) / fps)
-            else:
-                # Probe durations round to microseconds and can undershoot the final frame.
-                frame_count = Fraction(str(source_duration_s)) * 30
-                nearest = round(frame_count)
-                last_frame = (nearest if abs(frame_count - nearest) <= Fraction(1, 10_000)
-                              else math.floor(frame_count))
-            limit = min(Fraction(last_frame, 30), Fraction(str(source_duration_s)))
-            max_offset = math.floor((limit - anchor_s) * 1000) / 1000
-            offset = min(offset, max_offset)
-            if offset == 0:
-                offset = -min(0.001, float(anchor_s))
+        target = boundary.time_s + (-0.05 if side == "first" else 0.05)
+        offset = _word_edge_offset(target, side, point_s, source_point_s, anchor_s, source_info)
         evidence["suggested_offset_s"] = offset
         field = "from" if side == "first" else "to"
         action = f'Set this segment\'s {field}.offset_s to {offset} to keep "{word}".'
@@ -2094,6 +2146,7 @@ def check_joins(
                         artifact=trial.artifacts[role] if trial.artifacts else None,
                         excluded=transcripts[excluded_paths[cut.index, side]],
                         anchor_s=getattr(segment, f"{side}_word_anchor_s"),
+                        quiet_edge=getattr(segment, f"{side}_edge") == "quietest",
                         source_point_s=frame / fps,
                         source_info=media.info if media is not None else None,
                     )
@@ -2117,6 +2170,7 @@ def check_joins(
                 outer.time_s, sound=outer.sound, sr=sr, artifact=outer.artifact,
                 excluded=transcripts[excluded_paths[None, outer.side]],
                 anchor_s=getattr(segment, f"{outer.side}_word_anchor_s"),
+                quiet_edge=getattr(segment, f"{outer.side}_edge") == "quietest",
                 source_point_s=frame / fps,
                 source_info=media.info if media is not None else None,
             )

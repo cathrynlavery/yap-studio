@@ -108,6 +108,61 @@ def test_yap_planned_boundary_words_round_trip(tmp_path: Path) -> None:
     assert load_edit_list(written).segments == edit.segments
 
 
+def test_yap_quietest_edges_round_trip(tmp_path: Path) -> None:
+    from yap_studio.plan import Plan
+
+    path = _write_json(tmp_path / "edges.json", {
+        "source": "take.mov", "segments": [
+            {"start": 0, "end": 1, "first_word": "bright", "last_word": "hills",
+             "first_edge": "quietest", "last_edge": "quietest"},
+            {"runs": [[2, 3], [4, 5], [6, 7]], "first_word": "seven", "last_word": "garden",
+             "first_edge": "quietest", "last_edge": "quietest"},
+            {"start": 8, "end": 9},
+        ],
+    })
+    edit = load_edit_list(path)
+    expected = [("quietest", "quietest"), ("quietest", None), (None, None),
+                (None, "quietest"), (None, None)]
+    plan = Plan.build(edit, Fraction(30), 8000)
+    for rows in (edit.segments, plan.segments):
+        assert [(row.first_edge, row.last_edge) for row in rows] == expected
+        for row, (first, last) in zip(rows, expected, strict=True):
+            assert row.to_dict().get("first_edge") == first
+            assert row.to_dict().get("last_edge") == last
+            if first is None:
+                assert "first_edge" not in row.to_dict()
+            if last is None:
+                assert "last_edge" not in row.to_dict()
+    written = _write_json(tmp_path / "round-trip.json", {
+        "source": "take.mov", "segments": [
+            {"start": str(row.start), "end": str(row.end),
+             **{key: value for key, value in row.to_dict().items()
+                if key in {"first_word", "last_word", "first_edge", "last_edge"}}}
+            for row in edit.segments
+        ],
+    })
+    assert load_edit_list(written).segments == edit.segments
+
+
+@pytest.mark.parametrize("side", ["first", "last"])
+@pytest.mark.parametrize("value,word", [
+    ("silence", "garden"), ("", "garden"), (None, "garden"), (True, "garden"),
+    (42, "garden"), ([], "garden"), ({}, "garden"), ("quietest", None),
+])
+def test_yap_refuses_invalid_quietest_edges(
+    tmp_path: Path, side: str, value: object, word: str | None,
+) -> None:
+    field = f"{side}_edge"
+    path = _write_json(tmp_path / "bad-edge.json", {
+        "source": "take.mov", "segments": [
+            {"start": 0, "end": 1, field: value,
+             **({f"{side}_word": word} if word is not None else {})},
+        ],
+    })
+    with pytest.raises(EditListError, match=field):
+        load_edit_list(path)
+
+
 @pytest.mark.parametrize("field", ["first_word_anchor_s", "last_word_anchor_s"])
 @pytest.mark.parametrize("value", [-1, None, True, "nan", "inf", [], {}])
 def test_yap_refuses_invalid_word_anchor_times(tmp_path: Path, field: str, value: object) -> None:

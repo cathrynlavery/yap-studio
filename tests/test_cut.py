@@ -1700,6 +1700,39 @@ def test_span_intent_stays_on_authored_edges_after_removals(
     assert all("last_word_anchor_s" not in row for row in written["segments"][:-1])
 
 
+@pytest.mark.parametrize("how", ["quietest", "silence", "time", "continuous", "unconfirmed"])
+@pytest.mark.parametrize("word_anchors", [True, False])
+@pytest.mark.parametrize("consume", [False, True])
+def test_span_quietest_intent_stays_on_authored_word_edges(
+    tmp_path: Path, calibration: Path, how: str, word_anchors: bool, consume: bool,
+) -> None:
+    root = make_project(tmp_path / "project", [calibration])
+    write_edit(root, [{
+        "id": "s1", "take": "t1",
+        "from": {"word": "t1:0"} if word_anchors else {"time": 0.3},
+        "to": {"word": "t1:4"} if word_anchors else {"time": 5.0},
+    }])
+    ranges = [(1.0, 1.7), (2.5, 3.0)]
+    if consume:
+        ranges += [(0.3, 1.0), (4.0, 5.0)]
+    write_json(root / "removals.json", {
+        "schema": "yap-studio/removals@1", "removals": [
+            {"id": f"r{index}", "take": "t1", "start": start, "end": end,
+             "kind": "manual", "status": "applied"}
+            for index, (start, end) in enumerate(ranges, 1)
+        ],
+    })
+    plan = replace(resolve_cut(root), edges=tuple(
+        {"segment": "s1", "edge": edge, "how": how} for edge in ("from", "to")
+    ))
+    rows = cut_stage._spans(plan, root / "cut")["segments"]
+    expected = "quietest" if how == "quietest" and word_anchors and not consume else None
+    assert rows[0].get("first_edge") == expected
+    assert rows[-1].get("last_edge") == expected
+    assert all("first_edge" not in row for row in rows[1:])
+    assert all("last_edge" not in row for row in rows[:-1])
+
+
 @pytest.mark.parametrize("field", ["from", "to"])
 @pytest.mark.parametrize("case", ["time", "opposite-edge", "different-word"])
 def test_span_word_anchor_times_require_same_word_and_edge(
