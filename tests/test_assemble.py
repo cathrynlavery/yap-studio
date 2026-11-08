@@ -3513,7 +3513,7 @@ def test_force_refuses_unowned_final(project: Path, suffix: str) -> None:
 def test_short_music_file_cli_exits_two_with_fix(project: Path,
                                                 capsys: pytest.CaptureFixture[str]) -> None:
     synth.float_audio(project / "short.wav", np.ones(1000, dtype=np.float32) * 0.05)
-    assert cli.main(["music", str(project), "--file", "short.wav", "--json"]) == 2
+    assert cli.main(["music", str(project), "--file", str(project / "short.wav"), "--json"]) == 2
     error = json.loads(capsys.readouterr().err)["error"]
     assert error["code"] == "music_too_short"
     assert "longer track" in error["suggested_action"]
