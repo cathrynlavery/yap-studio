@@ -367,10 +367,9 @@ def test_prepared_bed_without_original_falls_back_to_loop_advice(
 @pytest.mark.parametrize("inside", [False, True])
 def test_cli_file_resolves_from_cwd_and_stores_project_path(
     project: Path, monkeypatch: pytest.MonkeyPatch, inside: bool,
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    caller = project.parent / f"{project.name}-caller"
-    caller.mkdir()
+    caller = tmp_path_factory.mktemp("caller")
     track = project / "track.wav" if inside else tone(caller / "outside.wav")
     monkeypatch.chdir(caller)
     assert cli.main(["music", str(project), "--file", os.path.relpath(track), "--json"]) == 0
