@@ -1,7 +1,7 @@
 {
   "schema": "yap-studio/hf-registry-triage@1",
-  "hyperframes_version": "0.9.9",
-  "commit": "12ce8c2ffd37757204afa0ab170df27e0a384162",
+  "hyperframes_version": "0.9.23",
+  "commit": "7ad2be96ea1cdf6c1c5d3da7f3be20584c3a9f25",
   "style": "preset:clean_minimal",
   "items": {
     "agent-cursor": {"check":{"detail":"Draws on 3% of the panel.","status":"pass"},"entry":{"files":{"compositions/components/agent-cursor.html":"3a2717e792269d0fe39b40d57e631cd7c3280c1f06be1e47a3adbbc6993d8727"},"kind":{"category":"Words","label":"Agent Cursor","role":"cards","use":"text up to 12 characters; text up to 57 characters"},"main":"compositions/components/agent-cursor.html","min_panel":[960,272],"min_s":1.5,"mount":"fill","preview":{"agent_name":"Ship it now","steps":"Ship it now"},"readability":"halo","slots":{"agent_name":{"max_length":12,"min_length":1,"required":true,"type":"string"},"steps":{"max_length":57,"min_length":1,"required":true,"type":"string"}},"tokens":{},"type":"component","upstream_path":"registry/components/agent-cursor/agent-cursor.html","variables":{"agent_name":"{agent_name}","steps":"{steps}"}},"reason":"Card: text slots agent_name, steps.","type":"component","use":"card"},
