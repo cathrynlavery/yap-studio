@@ -55,6 +55,8 @@ def test_manual_assemble_version_proves_caption_reply(
     root = feedback_project
     monkeypatch.setattr("yap_studio.stages.timeline.resolve_timeline",
                         lambda _: ResolvedTimeline((), (), (), 120, 0))
+    monkeypatch.setattr("yap_studio.project.status.assemble_inputs", lambda _: json.loads(
+        (root / "final/receipt.json").read_text())["inputs"])
     final = _manual_final(root, text="Old caption")
     layers = root / "windows.json"
     _json(layers, layer_windows(root))

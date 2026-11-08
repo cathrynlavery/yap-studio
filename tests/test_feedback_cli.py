@@ -34,8 +34,9 @@ from yap_studio.review.store import ReviewStore
 
 
 @pytest.mark.parametrize("as_json", [False, True])
-@pytest.mark.parametrize("binding", ["current", "cut", "captions", "graphics", "hash",
-                                   "failed", "unreadable", "missing_receipt", "no_final"])
+@pytest.mark.parametrize("binding", ["current", "cut", "captions", "graphics", "timeline", "hash",
+                                   "failed", "unreadable", "missing_receipt", "no_final",
+                                   "pending", "progress", "unowned"])
 def test_versions_save_selects_only_bound_final(
     feedback_project, capsys, monkeypatch, binding, as_json,
 ):
@@ -45,23 +46,27 @@ def test_versions_save_selects_only_bound_final(
     from yap_studio.stages.timeline import ResolvedTimeline
 
     root = feedback_project
+    inputs = {}
+    monkeypatch.setattr("yap_studio.project.status.assemble_inputs", lambda _: inputs)
     monkeypatch.setattr("yap_studio.stages.timeline.resolve_timeline",
                         lambda _: ResolvedTimeline((), (), (), 120, 0))
     if binding != "no_final":
         _manual_final(root)
         receipt_path = root / "final/receipt.json"
         receipt = json.loads(receipt_path.read_text())
-        if binding == "cut":
-            receipt["inputs"]["media:cut/cut.mp4"] = "0" * 64
-        elif binding in {"captions", "graphics"}:
-            _json(root / binding / "receipt.json", {
-                "schema": "yap-studio/stage-receipt@1", "inputs": {"changed": True},
-            })
+        inputs = dict(receipt["inputs"])
+        if binding in {"cut", "captions", "graphics", "timeline"}:
+            inputs["timeline"] = binding
         elif binding == "hash":
             receipt["outputs"][0]["sha256"] = "0" * 64
         elif binding == "failed":
             receipt["status"] = "failed"
+        elif binding == "unowned":
+            receipt["outputs"] = []
         _json(receipt_path, receipt)
+        if binding in {"pending", "progress"}:
+            _json(root / "final" / ("receipt.pending.json" if binding == "pending"
+                                    else "progress.json"), {})
         if binding == "unreadable":
             receipt_path.write_text("{")
         elif binding == "missing_receipt":
@@ -92,11 +97,13 @@ def test_versions_save_selects_only_bound_final(
         assert not output.err
 
 
-def test_versions_save_final_honors_explicit_layers(feedback_project, capsys):
+def test_versions_save_final_honors_explicit_layers(feedback_project, capsys, monkeypatch):
     from test_feedback_batch import _layers
 
     root = feedback_project
     _manual_final(root)
+    inputs = json.loads((root / "final/receipt.json").read_text())["inputs"]
+    monkeypatch.setattr("yap_studio.project.status.assemble_inputs", lambda _: inputs)
     layers = _layers(root)
     assert main(["versions", "save", str(root), "--layers", str(layers)]) == 0
     capsys.readouterr()

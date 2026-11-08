@@ -199,27 +199,20 @@ def verify_cut(project_dir: Path, receipt: dict | None) -> dict[str, str]:
 
 
 def bound_final(project_dir: Path) -> Path | None:
-    """Return the verified final bound to the current cut and layer receipts."""
+    """Return the final only when assembly is current for the live project inputs."""
+    from yap_studio.project.receipts import StageRun
+    from yap_studio.project.status import assemble_inputs
+
     root = Path(project_dir).resolve()
     try:
-        final = root / "final" / f"{load_project(root / 'project.json').name}.mp4"
-        record = read_receipt(root / "final")
-        if record is None or record.get("status") != "verified" or not final.is_file():
+        context = ProjectContext(root)
+        inputs = assemble_inputs(context)
+        if not StageRun(root, "final").up_to_date(inputs):
             return None
-        digest = sha256_file(final)
-        if not any(isinstance(item, dict) and item.get("path") == final.relative_to(root).as_posix()
-                   and item.get("sha256") == digest for item in record.get("outputs", [])):
-            return None
-        cut = verify_cut(root, read_receipt(root / "cut"))
-        if record["inputs"]["media:cut/cut.mp4"] != cut["cut/cut.mp4"]:
-            return None
-        for name in ("captions", "graphics"):
-            stage = read_receipt(root / name)
-            if stage is None or record["inputs"][f"stage:{name}"] != projection_sha256(
-                stage["inputs"]
-            ):
-                return None
-        return final
+        final = root / "final" / f"{context.project.name}.mp4"
+        record = read_receipt(root / "final") or {}
+        return final if any(output["path"] == final.relative_to(root).as_posix()
+                            for output in record.get("outputs", [])) else None
     except (OSError, YapError, KeyError, TypeError, ValueError):
         return None
 

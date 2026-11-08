@@ -90,7 +90,10 @@ def test_scrubber_adversarial(value, private, marker):
     ("private.e.g private.i.e", "[file] [file]"),
     ("music.level captions.placement music.duck_threshold",
      "music.level captions.placement music.duck_threshold"),
-    ("from.offset_s verify.status join.words", "from.offset_s verify.status join.words"),
+    ("captions.allow_face_overlap MUSIC.LEVEL", "captions.allow_face_overlap MUSIC.LEVEL"),
+    ("captions.max_characters_per_phrase", "captions.max_characters_per_phrase"),
+    ("music.client.mp3 voice.alice.wav music.private.mov", "[file] [file] [file]"),
+    ("music.mp3 join.alice verify.status join.words", "[file] [file] [file] [file]"),
     ("song.mp3 Music.Level.mov client-music.level", "[file] [file] [file]"),
 ])
 def test_scrubber_keeps_product_file_names_and_abbreviations(value, expected):
@@ -116,8 +119,9 @@ def test_entry_shape_permissions_and_stdin(monkeypatch, capsys):
     result = json.loads(capsys.readouterr().out)
     entry = result["entry"]
     assert set(entry) == {"time", "version", "macos", "arch", "step", "code", "kind",
-                          "text", "agent", "origin", "fingerprint", "sent"}
+                          "text", "agent", "origin", "checks", "fingerprint", "sent"}
     assert entry["origin"] is None
+    assert entry["checks"] == []
     assert before <= datetime.fromisoformat(entry["time"]) <= datetime.now(UTC)
     assert entry["version"] == __version__
     assert entry["step"] == "verify" and entry["code"] == "invalid_input"
@@ -145,6 +149,44 @@ def test_fingerprint_stability_and_distinctions():
     assert first != feedback.fingerprint("bug", "run", "other", "try again")
     assert feedback.fingerprint("bug", None, None, "/" + "Users/A/take.mov") == (
         feedback.fingerprint("bug", None, None, "/" + "Users/B/other.mov"))
+
+
+def test_checks_preserve_legacy_fingerprints_and_travel_with_reports(monkeypatch):
+    values = ("bug", "assemble", "assembly_checks_failed", "Failure", "project/status:read:78")
+    legacy = feedback.fingerprint(*values)
+    plain = feedback.record(values[3], kind=values[0], step=values[1], code=values[2],
+                            origin=values[4])
+    assert plain["checks"] == [] and plain["fingerprint"] == legacy
+    assert feedback.fingerprint(*values, checks=()) == legacy
+    checked = feedback.record(values[3], kind=values[0], step=values[1], code=values[2],
+                              origin=values[4], checks=("verify.status", "join.words"))
+    assert checked["checks"] == ["verify.status", "join.words"]
+    assert checked["fingerprint"] == feedback.fingerprint(*values, checks=checked["checks"])
+    assert checked["fingerprint"] != legacy
+    assert checked["fingerprint"] != feedback.fingerprint(*values, checks=("join.words",))
+    assert feedback.entries() == [plain, checked]
+    monkeypatch.setattr(feedback, "availability", lambda: {"endpoint": True})
+    plans = feedback.send(dry_run=True)
+    assert plans[1]["json"]["entries"][0]["checks"] == checked["checks"]
+
+
+@pytest.mark.parametrize("checks,expected", [
+    (["../secret.mov"], []),
+    ("../secret.mov", []),
+    ({"verify.status": True}, []),
+    (None, []),
+    (123, []),
+    (["verify.status", "join.words", "Join.words", "join.words.extra", 123, None],
+     ["verify.status", "join.words"]),
+    (["../secret.mov", *[f"join.check_{i}" for i in range(25)]],
+     [f"join.check_{i}" for i in range(20)]),
+])
+def test_safe_drops_tampered_checks(checks, expected):
+    entry = feedback.record("Failure")
+    entry["checks"] = checks
+    ledger = feedback.data_dir() / "feedback.jsonl"
+    ledger.write_text(json.dumps(entry) + "\n")
+    assert feedback.entries()[0]["checks"] == expected
 
 
 def test_unknown_subcommand_does_not_record_a_note(capsys, monkeypatch):
@@ -196,7 +238,12 @@ def test_automatic_assembly_failure_names_checks(monkeypatch, capsys):
     assert cli.main(["assemble", "synthetic", "--json"]) == 1
     capsys.readouterr()
     entry, = feedback.entries()
-    assert entry["text"] == "assemble failed with assembly_checks_failed: verify.status, join.words"
+    assert entry["text"] == "assemble failed with assembly_checks_failed"
+    assert entry["checks"] == ["verify.status", "join.words"]
+    monkeypatch.setattr(feedback, "availability", lambda: {
+        "endpoint": False, "gh_logged_in": False})
+    plan, = feedback.send(dry_run=True)
+    assert f"Where: {entry['origin']}\nChecks: verify.status, join.words\n" in plan["body"]
 
 
 @pytest.mark.parametrize("cause", ["", " FileNotFoundError"])
@@ -586,8 +633,11 @@ def test_gh_existing_fingerprint_comments_and_new_creates(tmp_path, monkeypatch,
     assert len([line for line in log.read_text().splitlines() if '"issue"' in line]) == 2
 
 
-def test_gh_unlabelled_fingerprint_comments_instead_of_creating(tmp_path, monkeypatch, capsys):
-    entry = feedback.record("Check needed retry", kind="bug", step="verify")
+@pytest.mark.parametrize("checks", [(), ("verify.status", "join.words")])
+def test_gh_unlabelled_fingerprint_comments_instead_of_creating(
+    tmp_path, monkeypatch, capsys, checks,
+):
+    entry = feedback.record("Check needed retry", kind="bug", step="verify", checks=checks)
     body = "Fingerprint: " + entry["fingerprint"]
     pages = [[{"number": 20, "body": body, "pull_request": {}, "labels": []},
               {"number": 21, "body": body, "labels": []}]]
@@ -597,7 +647,8 @@ def test_gh_unlabelled_fingerprint_comments_instead_of_creating(tmp_path, monkey
     calls = [json.loads(line) for line in log.read_text().splitlines()]
     writes = [call for call in calls if call["args"][0] == "issue"]
     assert [call["args"][:3] for call in writes] == [["issue", "comment", "21"]]
-    assert writes[0]["body"] == f"seen again in {__version__}, 1 times"
+    assert writes[0]["body"] == (f"seen again in {__version__}, 1 times" +
+                                 ("\nChecks: verify.status, join.words" if checks else ""))
     assert next(call["args"] for call in calls if call["args"][0] == "api") == [
         "api", "--paginate", "--slurp", "-X", "GET",
         f"repos/{feedback.REPO}/issues?state=all&per_page=100",
@@ -618,10 +669,12 @@ def test_gh_closed_fingerprint_comments_instead_of_creating(tmp_path, monkeypatc
 
 
 @pytest.mark.parametrize("state", ["open", "closed"])
-def test_gh_legacy_fingerprint_comments_with_origin(tmp_path, monkeypatch, state):
+@pytest.mark.parametrize("checks", [(), ("verify.status", "join.words")])
+def test_gh_legacy_fingerprint_comments_with_origin(tmp_path, monkeypatch, state, checks):
     entry = feedback.record("verify failed with invalid_input", kind="bug", step="verify",
-                            code="invalid_input", origin="project/status:read:78")
-    legacy = feedback.fingerprint(entry["kind"], entry["step"], entry["code"], entry["text"])
+                            code="invalid_input", origin="project/status:read:78", checks=checks)
+    legacy = feedback.fingerprint(entry["kind"], entry["step"], entry["code"], entry["text"],
+                                  checks=checks)
     assert legacy != entry["fingerprint"]
     pages = [[{"number": 12, "body": "Fingerprint: " + legacy, "state": state}]]
     log = fake_gh(tmp_path, monkeypatch, pages=pages)
@@ -634,7 +687,8 @@ def test_gh_legacy_fingerprint_comments_with_origin(tmp_path, monkeypatch, state
     writes = [call for call in calls if call["args"][0] == "issue"]
     assert [call["args"][:3] for call in writes] == [["issue", "comment", "12"]]
     assert writes[0]["body"] == (f"seen again in {__version__}, 1 times\n"
-                                 "Where: project/status:read:78")
+                                 "Where: project/status:read:78" +
+                                 ("\nChecks: verify.status, join.words" if checks else ""))
     assert feedback.entries(pending=True) == []
 
 
