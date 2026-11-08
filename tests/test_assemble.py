@@ -3003,6 +3003,63 @@ def test_default_loudnorm_keeps_variable_speech_verifiable_at_cuts(tmp_path: Pat
     assert record["audio"]["output"]["true_peak_dbtp"] <= -1.7
 
 
+def test_quiet_speech_with_music_stays_verifiable_at_cuts(tmp_path: Path) -> None:
+    sentences = [
+        "Bright garden flowers open beside the sunny door.",
+        "Quiet evening rain settles softly over every leaf.",
+        "Morning voices carry through the open kitchen window.",
+    ]
+    source, spans = synth.speech_source(tmp_path / "speech.mov", sentences)
+    voice_lufs = measure(source, []).integrated_lufs
+    assert voice_lufs is not None
+    quiet = tmp_path / "quiet-speech.mov"
+    ffmpeg.run([
+        "ffmpeg", "-nostdin", "-v", "error", "-i", str(source), "-filter:a",
+        f"volume={-44 - voice_lufs}dB", "-map", "0:v:0", "-map", "0:a:0",
+        "-c:v", "copy", "-c:a", "pcm_f32le", str(quiet),
+    ], timeout_s=60)
+    root = make_project(tmp_path / "project", [quiet], word_rows=[[
+        (word.text, word.start, word.end) for word in spans
+    ]])
+    count = round(ffmpeg.probe(quiet).duration_s * 48000) + 48000
+    time = np.arange(count) / 48000
+    bed = sum(0.05 * np.sin(2 * np.pi * hz * time) for hz in (220, 277, 330, 880))
+    bed += np.random.default_rng(119).normal(0, 0.005, count)
+    synth.float_audio(root / "track.wav", bed)
+    data = json.loads((root / "project.json").read_bytes())
+    style = resolve(data["style"]).data
+    style["music"]["sound_effects"] = "none"
+    write_json(root / "quiet-style.json", style)
+    data["style"] = "quiet-style.json"
+    data["asr"] = {"engine": "none"}
+    data["music"] = {"mode": "file", "file": "track.wav"}
+    write_json(root / "project.json", data)
+    previous = read_receipt(root / "ingest")
+    with StageRun(root, "ingest") as run:
+        for name, digest in ingest_inputs(ProjectContext(root)).items():
+            run.record_inputs(name, digest)
+        run.outputs.update({row["path"]: row for row in previous["outputs"]})
+        run.finish()
+    first_words = len(sentences[0].split())
+    second_words = first_words + len(sentences[1].split())
+    write_edit(root, [
+        time_segment("first", "t1", 0.4, spans[first_words - 1].end + 0.05),
+        time_segment("second", "t1", spans[first_words].start - 0.05,
+                     spans[second_words - 1].end + 0.05),
+        time_segment("third", "t1", spans[second_words].start - 0.05, spans[-1].end + 0.1),
+    ], end_hold_s=0.2)
+    cut(root)
+    captions(root)
+    graphics(root)
+    music(root)
+    stage.assemble(root)
+    record = read_receipt(root / "final")
+    assert record["status"] == "verified"
+    assert record["verify"]["checks"]["join.words"]["status"] == "pass"
+    assert record["verify"]["checks"]["join.words"]["ran"]
+    assert record["audio"]["music"]["level_shift_db"] < 0
+
+
 @pytest.mark.parametrize("project", [1, 17, 45], indirect=True)
 def test_music_final_exact_samples_and_declared_hold(project: Path) -> None:
     """Short and default holds stay sample-exact with a partial last AAC packet."""

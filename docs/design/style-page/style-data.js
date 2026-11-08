@@ -962,7 +962,7 @@ window.YAP_STYLE_DATA = {
           },
           "level": {
             "type": "number",
-            "description": "Music volume multiplier before voice ducking.",
+            "description": "Music level relative to the voice before ducking; 0.06 sits about 24 dB under it.",
             "default": 0.06,
             "minimum": 0,
             "maximum": 1
@@ -999,7 +999,7 @@ window.YAP_STYLE_DATA = {
           },
           "duck_threshold": {
             "type": "number",
-            "description": "Voice level that starts lowering music.",
+            "description": "Voice level that starts lowering music, for a voice at -16 LUFS; assembly moves it with the measured voice.",
             "default": 0.03,
             "minimum": 0.001,
             "maximum": 1

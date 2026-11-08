@@ -22,6 +22,8 @@ from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline
 
 RATE = 48_000
 SAMPLES_PER_FRAME = 1600
+# Music level and duck threshold assume voice at the bed's default target loudness.
+VOICE_REFERENCE_LUFS = -16.0
 # Positive recipe gain can raise a cue, but its peak must stay this far under voice.
 SFX_MAX_RELATIVE_DB = -8.0
 
@@ -250,6 +252,8 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
                 not isinstance(cut_words.get("words"), list)):
             raise AudioError("Word ducking needs cut words on the output time base.")
         word_envelope, ducked_spans = _word_ducking(cut_words["words"], samples, music)
+    music_receipt = {"duck_mode": duck_mode,
+                     **({"ducked_spans": ducked_spans} if duck_mode == "words" else {})}
     commands: list[tuple[str, ...]] = []
     root = Path(project_dir)
     voice_path = paths.validate_input(root / "cut/voice.wav")
@@ -340,7 +344,16 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
         bed_samples = decode(bed, commands, channels=2)
         if len(bed_samples) != samples or np.any(bed_samples[cut_samples:]):
             raise AudioError("music/bed.wav must match the final length with a silent hold.")
-        envelope = np.full(samples, float(music["level"]), dtype=np.float32)
+        bed_lufs = measure(bed, commands).integrated_lufs
+        voice_lufs = input_voice.integrated_lufs
+        # Dual mono plays louder than the measured mono file, so use its mixed loudness.
+        if voice_lufs is not None and voice_layout:
+            voice_lufs += 10 * math.log10(2)
+        shift_db = (voice_lufs - bed_lufs
+                    if voice_lufs is not None and bed_lufs is not None else 0.0)
+        music_receipt.update(bed_lufs=bed_lufs, level_shift_db=shift_db)
+        envelope = np.full(samples, float(music["level"]) * 10 ** (shift_db / 20),
+                           dtype=np.float32)
         envelope[:round(float(music["dry_open_s"]) * RATE)] = 0
         for item in timeline.elements:
             if item.kind == "music_level":
@@ -352,6 +365,12 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
         raw_bed.write_bytes((bed_samples * envelope[:, None]).astype("<f4").tobytes())
         command.extend(["-f", "f32le", "-ar", str(RATE), "-ac", "2", "-i", str(raw_bed)])
         if duck_mode == "level":
+            threshold = float(music["duck_threshold"])
+            if voice_lufs is not None:
+                threshold *= 10 ** ((voice_lufs - VOICE_REFERENCE_LUFS) / 20)
+            # sidechaincompress accepts thresholds only in this range.
+            threshold = min(1.0, max(0.000976563, threshold))
+            music_receipt["duck_threshold"] = threshold
             if not bleeps:
                 filters.append(f"[voice]asplit={3 if click_mix else 2}[voice_mix][key]"
                                + ("[voice_stem]" if click_mix else ""))
@@ -359,7 +378,7 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
             filters.extend([
                 f"[{index}:a:0]asetpts=N/SR/TB,apad[bed]",
                 "[key]apad[key_padded]",
-                f"[bed][key_padded]sidechaincompress=threshold={music['duck_threshold']}:"
+                f"[bed][key_padded]sidechaincompress=threshold={threshold:.9g}:"
                 f"ratio={music['duck_ratio']}:attack={music['duck_attack_ms']}:"
                 f"release={music['duck_release_ms']}:makeup=1[ducked]",
                 f"[ducked]atrim=end_sample={cut_samples},apad=whole_len={samples},"
@@ -650,6 +669,5 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
                        {"preset": voice_options.get("preset", "none"),
                         "repairs": repairs,
                         "filters": chain},
-                       {"duck_mode": duck_mode,
-                        **({"ducked_spans": ducked_spans} if duck_mode == "words" else {})},
+                       music_receipt,
                        sfx_receipt, click_stem, words_stem, bleep_receipt, bleep_voice)

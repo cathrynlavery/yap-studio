@@ -137,6 +137,14 @@ The receipt records source path and SHA-256, trim, fade and normalisation.
 Assembly applies style level, dry open, ducking and timeline music windows;
 changing those settings does not re-render the bed.
 
+Assembly measures the voice in `cut/voice.wav` and the bed, then places the bed
+`music.level` under the voice whether the take is loud or quiet: 0.06 is about
+24 dB under, 0.04 about 28 dB, and 0.09 about 21 dB. Level ducking follows the
+voice too: `music.duck_threshold` is written for a voice at -16 LUFS and moves
+with its measured loudness, so a quiet take still lowers the music while you
+speak. `duck_mode: "words"` lowers it by `duck_depth_db` during timed words
+instead. The final receipt records the bed loudness, the shift and the threshold used.
+
 ## Sound effects
 
 The `soft` kit is a set of four sound recipes, not audio files. Each creator
