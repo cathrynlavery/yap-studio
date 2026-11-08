@@ -1,0 +1,1 @@
+- Fillers trims re-transcribed words to their measured voice, so a pause trim after a stretched last word is no longer rejected for keeping that word.

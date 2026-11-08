@@ -138,6 +138,8 @@ audio in 10 ms frames at the existing -45 dB silence floor. A word containing at
 0.08 s of speech, triggers a local transcription. Clips include neighbouring words and
 at least 1.2 s of context; overlapping clips merge and all refinement clips run in one
 speech batch. These temporary words never rewrite `words.json` or `cut-words.json`.
+Their silent margins are trimmed to the measured voice like the take's words, so a
+stretched word never looks removed by a pause trim.
 
 The restart rules detect a two- or three-word phrase that comes back within two seconds,
 and fragments followed within two seconds by a longer word with the same beginning and

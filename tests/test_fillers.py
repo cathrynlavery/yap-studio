@@ -572,6 +572,22 @@ def transcript(tokens: Sequence[str]) -> Transcript:
                        for index, text in enumerate(tokens)])
 
 
+def tone_transcript(target: Path, labels: dict[int, str]) -> Transcript:
+    """Read planted words from the tones actually retained in a join clip."""
+    with wave.open(str(target)) as stream:
+        rate = stream.getframerate()
+        sound = np.frombuffer(stream.readframes(stream.getnframes()), dtype="<i2")
+    hop = rate // 100
+    frames = sound[:len(sound) // hop * hop].reshape(-1, hop).astype(np.float64)
+    loud = np.sqrt(np.mean(frames ** 2, axis=1)) > 300
+    bounds = np.flatnonzero(np.diff(loud, prepend=False, append=False)) * hop
+    words = []
+    for first, last in zip(bounds[::2], bounds[1::2], strict=True):
+        peak = np.argmax(np.abs(np.fft.rfft(sound[first:last]))) * rate / (last - first)
+        words.append(Word(labels[round(peak / 100) * 100], first / rate, last / rate))
+    return Transcript(words)
+
+
 def install_engine(monkeypatch: pytest.MonkeyPatch, *, clipped: bool = False,
                    leftover: bool = False) -> list[list[Path]]:
     """Install a recording ScriptedBackend with a known cut/control difference."""
@@ -904,6 +920,48 @@ def test_hidden_restart_is_refined_then_passes_the_join(
     assert len(batches[1]) == 2
     assert words_path.read_bytes() == words_before
     assert cut_words.read_bytes() == cut_before
+
+
+def test_refined_stretched_word_keeps_following_pause_join_applied(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A locally stretched word stays kept when the silence after it is removed."""
+    from yap_studio.cli import main
+
+    labels = {300: "bright", 400: "small", 500: "river.", 600: "next"}
+    source = synth.voiced_source(
+        tmp_path / "source.mov", [(2.1, 2.15), (2.3, 2.35), (2.4, 2.45), (5.8, 6.1)],
+        seconds=6.4, frequencies=list(labels), noise_dbfs=-55,
+    )
+    root = make_project(tmp_path / "project", [
+        ("bright", 2.1, 2.35), ("river.", 2.4, 2.45), ("next", 5.8, 6.1),
+    ], source)
+    edit = json.loads((root / "edit.json").read_bytes())
+    edit["segments"][0]["from"] = {"time": 2.0}
+    write_json(root / "edit.json", edit)
+    refinements = []
+
+    def script(target: Path) -> Transcript:
+        heard = tone_transcript(target, labels)
+        if target.stem.startswith("refine-"):
+            rate, sound = synth.read_wav(target)
+            assert [word.text for word in heard.words] == ["bright", "small", "river."]
+            heard.words[-1] = replace(heard.words[-1], end=len(sound) / rate)
+            refinements.append(heard)
+        return heard
+
+    monkeypatch.setattr(stage, "resolve_backend", lambda *_: ScriptedBackend(script))
+    assert main(["fillers", str(root), "--apply", "--max-pause", "0.3", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert refinements and result["refinement"]["spots"] > 0
+    pause, = [item for item in result["entries"] if item["start"] < 4 < item["end"]]
+    evidence = pause["evidence"]
+    assert pause["kind"] == "silence"
+    assert pause["status"] == "applied", (pause["status"], evidence["diff"])
+    assert evidence["pass"] is True and evidence["words"] == "pass"
+    assert "river." not in evidence["removed_words"]
+    river, = [word for word in evidence["refined_words"] if word["text"] == "river."]
+    assert river["end"] < pause["start"]
 
 
 def test_no_engine_skips_hidden_restart_refinement(
@@ -1748,6 +1806,76 @@ def test_project_candidates_use_settled_ranges_without_writes(
     assert stage.candidates_for_project(root, protect=((1.1, 1.3),)) == []
     assert before == {target.relative_to(root): target.read_bytes()
                       for target in root.rglob("*") if target.is_file()}
+
+
+@pytest.mark.parametrize("noise_dbfs", [None, -55], ids=["silent", "room-noise"])
+def test_silence_proposals_preserve_voice_with_stretched_and_late_words(
+    tmp_path: Path, noise_dbfs: float | None,
+) -> None:
+    """Stretched tails and late recognizer starts cannot turn voice into silence."""
+    runs = [(0.2, 0.5), (0.65, 0.95), (2.6, 3.1), (3.45, 3.75)]
+    source = synth.voiced_source(
+        tmp_path / "source.mov", runs, seconds=4.0, noise_dbfs=noise_dbfs,
+    )
+    root = make_project(tmp_path / "project", [
+        ("it", 0.2, 0.5), ("be?", 0.65, 2.05),
+        ("next", 3.0, 3.3), ("morning", 3.45, 3.75),
+    ], source=source)
+    project = json.loads((root / "project.json").read_bytes())
+    project["rules"] = {"max_pause_s": 0.3}
+    write_json(root / "project.json", project)
+    context = ProjectContext(root)
+    pauses = [item for item in stage._proposals(context, stage._planned(context))
+              if item.kind == "silence"]
+
+    assert pauses
+    assert not [(item.start, item.end, first, last)
+                for item in pauses for first, last in runs
+                if item.start < last and item.end > first]
+    after_be = [item for item in pauses if 0.95 <= item.start < item.end <= 2.6]
+    assert sum(item.end - item.start for item in after_be) == pytest.approx(
+        2.6 - 0.95 - 0.3, abs=2 / 30,
+    )
+
+
+@pytest.mark.parametrize("noise_dbfs", [None, -55], ids=["silent", "room-noise"])
+def test_cli_max_pause_shortens_every_measured_gap_without_cutting_voice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    noise_dbfs: float | None,
+) -> None:
+    """Apply ordinary, stretched-word and touching-span pauses on the output clock."""
+    from yap_studio.cli import main
+
+    runs = [(0.2, 0.5), (1.5, 1.8), (4.3, 4.6), (5.4, 5.7)]
+    labels = {300: "bright", 400: "tank.", 500: "flowers", 600: "grow"}
+    source = synth.voiced_source(
+        tmp_path / "source.mov", runs, seconds=6.0, frequencies=list(labels),
+        noise_dbfs=noise_dbfs,
+    )
+    root = make_project(tmp_path / "project", [
+        ("bright", 0.2, 0.5), ("tank.", 1.5, 4.3),
+        ("flowers", 4.3, 5.0), ("grow", 5.0, 5.7),
+    ], source=source)
+    backend = ScriptedBackend(lambda target: tone_transcript(target, labels))
+    monkeypatch.setattr(stage, "resolve_backend", lambda *_: backend)
+
+    assert main(["fillers", str(root), "--apply", "--max-pause", "0.3", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["entries"]
+    assert all(item["status"] == "applied" and item["evidence"]["pass"] is True
+               for item in result["entries"]), result["entries"]
+    plan = cut_stage.resolve_cut(root)
+    output_runs = []
+    for first, last in runs:
+        owners = [piece for piece in plan.pieces
+                  if float(piece.src_t0) <= first and last <= float(piece.src_t1)]
+        assert len(owners) == 1, (first, last, plan.pieces)
+        piece = owners[0]
+        offset = piece.out_f0 / 30 - float(piece.src_t0)
+        output_runs.append((first + offset, last + offset))
+    gaps = [right[0] - left[1]
+            for left, right in zip(output_runs, output_runs[1:], strict=False)]
+    assert all(0 <= gap <= 0.3 + 2 / 30 for gap in gaps), gaps
 
 
 def test_project_shortens_silence_after_stretched_word(tmp_path: Path) -> None:
@@ -3153,6 +3281,98 @@ def test_interrupted_manual_write_recovers_on_fillers_rerun(tmp_path: Path,
     assert any(item["by"] == "manual" and item["reason"] == "chosen trim"
                for item in rerun["entries"])
     assert not (root / "fillers/receipt.pending.json").exists()
+
+
+@pytest.mark.asr
+def test_asr_long_take_tightens_pauses_and_keeps_words_and_closing_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Tighten real recognizer output while retaining speech, captions and the closing line."""
+    from test_ingest import make_project as ingest_project
+
+    from yap_studio.cli import main
+    from yap_studio.project.model import load_words
+    from yap_studio.stages.ingest import ingest
+
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    backend = resolve_backend("auto")
+    if backend is None:
+        pytest.skip("speech engine not installed")
+    if backend.download_notice() is not None:
+        pytest.skip(f"cached speech model not installed: {backend.name} {backend.model}")
+    sentences = [
+        "Bright morning light fills the kitchen.",
+        "A small bird waits beside the window.",
+        "The garden path leads toward the river.",
+        "We carry fresh water across the yard.",
+        "Green leaves move slowly in the breeze.",
+        "A quiet evening brings the family home.",
+        "These simple moments make a happy day.",
+        "Thank you for listening and goodbye.",
+    ]
+    source, spans = synth.speech_source(
+        tmp_path / "speech.mov", sentences, pauses=[0.8, 1.4, 3.0, 1.1, 2.5, 1.8, 2.8],
+        noise_dbfs=-55,
+    )
+    root = ingest_project(tmp_path / "project", [source])
+    project = json.loads((root / "project.json").read_bytes())
+    project["asr"] = {"engine": backend.name, "model": backend.model}
+    write_json(root / "project.json", project)
+    ingest(root)
+    ingested = load_words(root / "ingest/t1/words.json").words
+    assert ingested, "speech engine returned no words"
+    write_json(root / "edit.json", {
+        "schema": "yap-studio/edit@1",
+        "words_sha256": {"t1": receipt.sha256_file(root / "ingest/t1/words.json")},
+        "segments": [{"id": "s1", "take": "t1", "from": {"time": 0},
+                      "to": {"word": ingested[-1].id}}],
+    })
+    capsys.readouterr()
+    assert main(["fillers", str(root), "--apply", "--max-pause", "0.3", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    plan = cut_stage.resolve_cut(root)
+    cut_words = cut_stage._cut_words(plan)
+    write_json(root / "cut/cut-words.json", cut_words)
+    words = cut_words["words"]
+    clipped = [{"text": span.text, "start": span.start, "end": span.end}
+               for span in spans if not any(
+                   float(piece.src_t0) <= span.start + 0.01
+                   and span.end - 0.01 <= float(piece.src_t1) for piece in plan.pieces
+               )]
+    visible = {word["id"] for word in words if word["end"] > word["start"]}
+    missing = [word.id for word in ingested if word.id not in visible]
+    segment_end = float(plan.segment_ranges[0][2])
+    closing = bool(words and words[-1]["id"] == ingested[-1].id
+                   and segment_end >= spans[-1].end)
+
+    def output_clock(time: float) -> float:
+        return sum(max(0.0, min(time, float(piece.src_t1)) - float(piece.src_t0))
+                   for piece in plan.pieces)
+
+    bounds = [(min(span.start for span in spans if span.sentence == index),
+               max(span.end for span in spans if span.sentence == index))
+              for index in range(len(sentences))]
+    gaps = [output_clock(right[0]) - output_clock(left[1])
+            for left, right in zip(bounds, bounds[1:], strict=False)]
+    checks = {
+        "no_clipped_word": not clipped,
+        "no_missing_caption_word": not missing,
+        "closing_line_anchored_by_word": closing,
+        "max_pause": all(gap <= 0.3 + 2 / 30 for gap in gaps),
+    }
+    report = {
+        "checks": checks, "status_counts": result["counts"]["status"],
+        "clipped_words": clipped, "missing_caption_words": missing, "sentence_gaps_s": gaps,
+        "closing": {"ingested_word": ingested[-1].text, "ingested_id": ingested[-1].id,
+                    "last_cut_word": words[-1] if words else None,
+                    "segment_end": segment_end, "voiced_end": spans[-1].end},
+        "unapplied": [{"id": item["id"], "kind": item["kind"], "status": item["status"],
+                       "start": item["start"], "end": item["end"], "reason": item.get("reason"),
+                       "diff": item["evidence"].get("diff", [])}
+                      for item in result["entries"] if item["status"] != "applied"],
+    }
+    write_json(root / "acceptance.json", report)
+    assert all(checks.values()), json.dumps(report, indent=2)
 
 
 @pytest.mark.asr

@@ -1230,6 +1230,72 @@ class DroppedSentenceBackend(FakeBackend):
         return results
 
 
+class DroppedTailBackend(DroppedSentenceBackend):
+    """Stretch the last kept word to the end while omitting the closing sentence."""
+
+    def transcribe_many(
+        self, files: Sequence[Path], *, language: str | None = None,
+    ) -> dict[Path, Transcript]:
+        if all("-speech-" in wav.stem for wav in files):
+            return super().transcribe_many(files, language=language)
+        assert len(files) == 1
+        self.full_samples = np.asarray(_float_wav(files[0])).copy()
+        self.words = [Word(span.text, span.start, span.end)
+                      for span in self.spans if span.sentence == 0]
+        last = self.words[-1]
+        self.words[-1] = Word(last.text, last.start, len(self.full_samples) / 16_000)
+        return FakeBackend.transcribe_many(self, files, language=language)
+
+
+@pytest.mark.parametrize("recover", [True, False], ids=["recovered", "uncovered"])
+def test_ingest_checks_dropped_tail_hidden_by_stretched_last_word(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, recover: bool,
+) -> None:
+    """Recover a missing closing sentence or warn even when a word reaches the end."""
+    from yap_studio.stages import cut as cut_stage
+
+    spans = [synth.WordSpan(text, first, last, sentence)
+             for text, first, last, sentence in [
+                 ("Almost", 0.2, 0.45, 0), ("ready.", 0.6, 0.85, 0),
+                 ("See", 4.0, 4.25, 1), ("you", 4.4, 4.65, 1),
+                 ("again", 4.8, 5.05, 1), ("today.", 5.2, 5.45, 1),
+             ]]
+    take = synth.voiced_source(
+        tmp_path / "source.mov", [(span.start, span.end) for span in spans], seconds=6,
+    )
+    backend = DroppedTailBackend(spans, recover=recover)
+    monkeypatch.setattr(transcript, "resolve_backend", lambda *_: backend)
+    root = make_project(tmp_path, [take])
+
+    result = ingest(root)
+    words = load_words(root / "ingest/t1/words.json").words
+    check = result["takes"][0]["speech_check"]
+    assert len(backend.calls) == 2
+    assert len(backend.calls[1]) == 1
+    if not recover:
+        assert [word.text for word in words] == ["Almost", "ready."]
+        assert check["untranscribed"] and check["untranscribed"][0]["start"] >= 4.0
+        assert check["untranscribed"][0]["end"] >= spans[-1].end
+        assert any("speech with no words" in warning for warning in result["warnings"])
+        return
+
+    assert [word.text for word in words] == [span.text for span in spans]
+    assert check["words_added"] == 4 and check["untranscribed"] == []
+    assert not any("speech with no words" in warning for warning in result["warnings"])
+    saved = Transcript.load(root / "ingest/t1/transcript.json")
+    assert [word.text for word in saved.words] == [span.text for span in spans]
+    write_json(root / "edit.json", {
+        "schema": "yap-studio/edit@1",
+        "words_sha256": {"t1": receipt.sha256_file(root / "ingest/t1/words.json")},
+        "segments": [{"id": "s1", "take": "t1", "from": {"time": 0},
+                      "to": {"word": words[-1].id}}],
+    })
+    monkeypatch.setattr(cut_stage, "_edge_backend", lambda *_: None)
+    plan = cut_stage.resolve_cut(root)
+    assert words[-1].id in {word["id"] for word in cut_stage._cut_words(plan)["words"]}
+    assert float(plan.segment_ranges[0][2]) >= spans[-1].end
+
+
 def _dropped_sentence_project(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, recover: bool,
 ) -> tuple[Path, DroppedSentenceBackend, list[synth.WordSpan]]:

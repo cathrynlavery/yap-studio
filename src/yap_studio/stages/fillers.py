@@ -922,6 +922,24 @@ def _refinement_ranges(segment: _PlannedAudio,
     return merged
 
 
+def _voiced_refinement(segment: _PlannedAudio, start: float, end: float,
+                       words: tuple[Word, ...]) -> tuple[Word, ...]:
+    """Trim local words with the take's voiced-word rule on the 48 kHz clip clock."""
+    from yap_studio.stages import edges
+
+    sound = segment.sound[round((start - segment.start) * _RATE):
+                          round((end - segment.start) * _RATE)]
+    level = np.array([audio.rms_db(sound, index / _RATE, _RATE, edges.WINDOW_S / 2)
+                      for index in range(0, len(sound), round(edges.HOP_S * _RATE))])
+    threshold = (edges.quiet_floor_threshold_db(segment.pause["floor_db"])
+                 if segment.pause is not None else segment.silence_db)
+    take = edges._Take(sound, level, threshold)
+    local = tuple(replace(word, start=word.start - start, end=word.end - start)
+                  for word in words)
+    return tuple(replace(word, start=round(start + word.start, 9), end=round(start + word.end, 9))
+                 for word in edges.voiced_words(take, local))
+
+
 def _refine(segments: dict[str, _PlannedAudio], backend: Backend | None,
             directory: Path, language: str,
             ) -> tuple[dict[str, tuple[_RefinedSpan, ...]], dict[str, Any]]:
@@ -964,6 +982,7 @@ def _refine(segments: dict[str, _PlannedAudio], backend: Backend | None,
                       and 0 <= (word.start + word.end) / 2 < end - start
                       and min(end - start, word.end) > max(0.0, word.start))
         if words:
+            words = _voiced_refinement(segments[identifier], start, end, words)
             refined.setdefault(identifier, []).append(_RefinedSpan(start, end, words))
         else:
             summary["notes"].append("restart refinement kept source words: empty clip transcript")
