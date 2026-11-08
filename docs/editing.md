@@ -394,6 +394,7 @@ The final ends with a frozen composited frame and a 0.5 s silent hold.
 An `end_hold_s` in `edit.json` sets another length. Insert audio defaults to mute;
 an insert's `{"gain_db": -18}` mixes its audio while voice continues.
 `music DIR --file TRACK` saves the supplied track setting and prepares it.
+`--loop` repeats a track shorter than the cut.
 Assemble decodes HEIC and HEIF photos once into `.yap/cache/stills/` in the project and reuses them in later renders.
 
 For every command and its flags, see [commands.md](commands.md). Captions, titles and cards

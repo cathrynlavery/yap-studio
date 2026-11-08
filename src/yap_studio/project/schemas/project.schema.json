@@ -254,6 +254,9 @@
         "generate": {
           "type": "boolean"
         },
+        "loop": {
+          "type": "boolean"
+        },
         "mode": {
           "enum": [
             "auto",

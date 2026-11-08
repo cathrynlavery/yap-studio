@@ -54,6 +54,12 @@ Probe rounding does not discard a valid final frame.
 Source-time anchors, different words and opposite word edges keep the direction-only advice.
 Older span files keep that advice until the cut is regenerated with the anchor times.
 
+The cut stage also saves `first_edge` or `last_edge` as `"quietest"` when it placed that
+edge at the quietest dip between sounds instead of in silence. For those edges, verify
+also looks for a separate burst of source voice between the edge and the planned word,
+such as the end of the dropped word before it. It warns under `join.words` and suggests
+the `from.offset_s` or `to.offset_s` that drops the sound when the word anchor is saved.
+
 A ranges JSON file can point to one or more source files:
 
 ```json

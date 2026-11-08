@@ -936,6 +936,104 @@ def test_planned_word_suggests_offset_that_keeps_measured_voice(
         assert default == Fraction(4) and small_nudge > default
 
 
+@pytest.mark.parametrize("side", ["first", "last"])
+@pytest.mark.parametrize("outer", [False, True], ids=["join", "outer"])
+@pytest.mark.parametrize("anchored", [True, False], ids=["word-anchor", "source-time"])
+@pytest.mark.parametrize("case", ["stray", "unmarked", "clean", "own-syllable", "clipped"])
+def test_quietest_edge_warns_only_for_kept_neighbour_voice(
+    small_media, side: str, outer: bool, anchored: bool, case: str,
+) -> None:
+    media = small_media
+    first, sr = side == "first", 8000
+    blocks = [(3.55, 3.90), (4.03, 4.12), (4.22, 4.80), (4.95, 5.25)]
+    spans = [("quiet", 3.55, 4.12), ("garden", 4.22, 4.80), ("hills", 4.95, 5.25)]
+    if case == "clean":
+        blocks[1] = (3.75, 3.87)
+        spans[0] = ("quiet", 3.55, 3.90)
+    elif case == "own-syllable":
+        spans[:2] = [("quiet", 3.55, 3.90), ("garden", 4.03, 4.80)]
+    elif case == "clipped":
+        blocks[1:3] = [(3.92, 4.80)]
+        spans[:2] = [("quiet", 3.55, 3.90), ("garden", 3.92, 4.80)]
+    if not first:
+        blocks = [(7 - end, 7 - start) for start, end in reversed(blocks)]
+        spans = [(word, 7 - end, 7 - start) for word, start, end in reversed(spans)]
+    media.original[:] = 10 ** (-65 / 20)
+    for start, end in blocks:
+        media.original[round(start * sr):round(end * sr)] = 0.1
+    media.sound[:] = np.concatenate((media.original[:3 * sr], media.original[4 * sr:]))
+    segment_index = 2 if first else 1
+    if outer:
+        media.plan = _plan(media.directory, media.source, [(4, 10)] if first else [(0, 3)])
+        segment_index = 1
+    intent = {f"{side}_word": {segment_index: "garden"}}
+    if case != "unmarked":
+        intent[f"{side}_edge"] = {segment_index: "quietest"}
+    media.plan = _with_intent(media.plan, media.directory, **intent)
+    word_start, word_end = next((start, end) for word, start, end in spans if word == "garden")
+    anchor_time = word_start if first else word_end
+    path = media.directory / "intent.json"
+    data = json.loads(path.read_bytes())
+    if anchored:
+        data["segments"][segment_index - 1][f"{side}_word_anchor_s"] = anchor_time
+    path.write_text(json.dumps(data), encoding="utf-8")
+    media.plan = Plan.build(load_edit_list(path), Fraction(30), sr)
+    point, before, role = (4.0, 1.0, "right") if first else (3.0, 1.5, "left")
+    name = f"edge-{side}-source.wav" if outer else f"cut-01-{role}.wav"
+
+    def script(path: Path) -> Transcript:
+        if path.stem.endswith(("render", "plan")):
+            return Transcript([Word("garden", 1.1, 1.3), Word("hills", 1.4, 1.6)])
+        return Transcript([
+            Word(word, start - point + before + 1, end - point + before + 1)
+            for word, start, end in spans
+        ]) if path.name == name else Transcript([])
+
+    result = _check(media, backend=ScriptedBackend(script))
+    findings = [row for row in result.findings if row.check == "join.words"]
+    if case in {"unmarked", "clean", "own-syllable"}:
+        assert not findings
+        return
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.cut == (None if outer else 1)
+    assert finding.evidence["side"] == side
+    if case == "clipped":
+        assert finding.severity == "fail"
+        assert "to keep" in finding.suggested_action
+        if not outer:
+            assert result.cuts[0].words.status == "fail"
+        return
+    assert finding.severity == "warn"
+    assert finding.evidence["edge"] == "quietest"
+    assert finding.evidence["kept_ms"] > 100
+    assert "separate sound" in finding.message
+    assert f'planned {side} word "garden"' in finding.message
+    if not outer:
+        assert result.cuts[0].words.status == "pass", result.cuts[0].words
+    if not anchored:
+        direction, position = ("later", "before") if first else ("earlier", "after")
+        assert finding.suggested_action == (
+            f'Move this segment\'s {side} edge {direction} to drop the sound {position} "garden".'
+        )
+        assert "suggested_offset_s" not in finding.evidence
+        return
+    offset = finding.evidence["suggested_offset_s"]
+    field, action = ("from", "start after") if first else ("to", "end before")
+    assert finding.suggested_action == (
+        f'Set this segment\'s {field}.offset_s to {offset} to {action} it.'
+    )
+    assert offset != 0
+    anchor = Anchor(word="t1:1", edge="start" if first else "end", offset_s=offset)
+    segment = StorySegment("story", "t1", anchor if first else Anchor(time=0),
+                           Anchor(time=8) if first else anchor)
+    words = Words("t1", "1" * 64, "source", 0, "none", None, "2" * 64, (
+        SourceWord("t1:1", "garden", word_start, word_end),
+    ))
+    resolved = snap_frame(nominal_edge(segment, anchor, words, start=first), Fraction(30)) / 30
+    assert 4.12 < resolved < 4.22 if first else 2.78 < resolved < 2.88
+
+
 @pytest.mark.parametrize("outer", [False, True], ids=["join", "outer"])
 @pytest.mark.parametrize("duration,anchor_time,last_frame", [
     (10.0, 9.65, 300), (10.0, 10.0, 300), (9.9996, 9.6504, 299), (9.95, 9.65, 298),
@@ -3040,6 +3138,48 @@ def _speech_word_backend(
         ])
 
     return ScriptedBackend(script)
+
+
+def test_synthetic_speech_quietest_edge_drops_previous_syllable(tmp_path: Path) -> None:
+    source, words = synth.speech_source(tmp_path / "source.mov", ["Quiet garden hills."])
+    dropped, kept = words[:2]
+    sr, sound = audio.decode(source, sr=8000)
+    shapes = joins._word_shapes(sound, sr)
+    syllables = [shape for shape in shapes if dropped.start <= shape.nucleus_s <= dropped.end]
+    assert len(syllables) >= 2
+    burst = syllables[-1]
+    assert burst.onset is not None and burst.offset is not None
+    point = snap_frame(Fraction(str(burst.onset.valley_s)), Fraction(30)) / 30
+    assert syllables[-2].nucleus_s < point < burst.nucleus_s
+    spans = [(point, words[-1].end + 0.1)]
+    render = synth.render_clean(source, spans, tmp_path / "render.mp4", fade_s=0.005)
+    plan = _with_intent(_plan(tmp_path, source, spans), tmp_path,
+                        first_word={1: kept.text}, first_edge={1: "quietest"})
+    intent = tmp_path / "intent.json"
+    data = json.loads(intent.read_bytes())
+    data["segments"][0]["first_word_anchor_s"] = kept.start
+    intent.write_text(json.dumps(data), encoding="utf-8")
+    plan = Plan.build(load_edit_list(intent), plan.fps, plan.sample_rate)
+    measured = sync.check_sync(render, plan, {"main": source})
+    backend = _speech_word_backend(plan, words)
+    result = joins.check_joins(render, plan, {"main": source}, measured,
+                               backend=ScriptedBackend(lambda path: Transcript([])
+                               if path.name.startswith("excluded-") else backend.fn(path)),
+                               work_dir=tmp_path)
+    findings = [row for row in result.findings if row.check == "join.words"]
+    assert len(findings) == 1, result.to_dict()
+    finding = findings[0]
+    assert finding.severity == "warn" and finding.evidence["side"] == "first"
+    anchor = Anchor(word="t1:1", edge="start", offset_s=finding.evidence["suggested_offset_s"])
+    segment = StorySegment("story", "t1", anchor, Anchor(time=words[-1].end))
+    source_words = Words("t1", "1" * 64, "source", 0, "none", None, "2" * 64, (
+        SourceWord("t1:1", kept.text, kept.start, kept.end),
+    ))
+    nominal = nominal_edge(segment, anchor, source_words, start=True)
+    resolved = snap_frame(nominal, Fraction(30)) / 30
+    kept_shape = next(shape for shape in shapes if kept.start <= shape.nucleus_s <= kept.end)
+    assert kept_shape.onset is not None
+    assert burst.offset.time_s < resolved < kept_shape.onset.time_s
 
 
 @pytest.fixture(scope="module", params=[

@@ -1,0 +1,5 @@
+- `music DIR --file TRACK --loop` repeats a track shorter than the video with a 0.5 s crossfade until it covers the cut. Looping only happens when you ask for it, and beds from tracks that are already long enough don't change.
+- A supplied track only has to cover the cut. The silent end hold no longer counts toward its length.
+- `music --file` reads the track from the folder you run the command in, checks it has playable audio before saving it, and saves the path relative to the project when the track is inside it. A missing or unreadable track leaves project.json as it was.
+- A prepared `music/bed.wav` from another video that is too short is refused with the path to its original track, since its fade and silent end are already built in.
+- Cut verify warns when an edge placed at the quietest dip keeps the end of the word before it, or the start of the word after it, and suggests the `from.offset_s` or `to.offset_s` that drops the stray sound.

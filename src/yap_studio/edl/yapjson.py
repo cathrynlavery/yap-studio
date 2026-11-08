@@ -118,6 +118,13 @@ def read(path: Path, data: bytes) -> EditList:
         last_word = _planned_word(item, "last_word", group_number, path)
         anchors = {name: _number(item[name], name, path)
                    for name in ("first_word_anchor_s", "last_word_anchor_s") if name in item}
+        for side, word in (("first", first_word), ("last", last_word)):
+            name = f"{side}_edge"
+            if name in item and (item[name] != "quietest" or word is None):
+                raise EditListError(
+                    f'Segment {group_number} {name} must be "quietest" and needs {side}_word.',
+                    path=str(path),
+                )
         raw_runs = item.get("runs")
         if raw_runs is None:
             raw_runs = [[item.get("start"), item.get("end")]]
@@ -142,6 +149,8 @@ def read(path: Path, data: bytes) -> EditList:
                     else None,
                     last_word_anchor_s=anchors.get("last_word_anchor_s")
                     if run_index == len(raw_runs) - 1 else None,
+                    first_edge=item.get("first_edge") if run_index == 0 else None,
+                    last_edge=item.get("last_edge") if run_index == len(raw_runs) - 1 else None,
                 )
             )
 

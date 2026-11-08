@@ -359,6 +359,7 @@ SPECS: dict[str, dict[str, Any]] = {
         "music": _obj({
             "mode": _enum("auto", "elevenlabs", "file", "none"), "file": _nullable(_PATH),
             "description": _nullable(_TEXT), "tags": _arr(_TEXT), "generate": _BOOL,
+            "loop": _BOOL,
         }),
         "rules": _obj({
             key: {"type": "integer" if isinstance(value, int) else "number",

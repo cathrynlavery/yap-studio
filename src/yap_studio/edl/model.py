@@ -46,6 +46,8 @@ class Segment:
     last_word: str | None = None
     first_word_anchor_s: Fraction | None = None
     last_word_anchor_s: Fraction | None = None
+    first_edge: str | None = None
+    last_edge: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("first_word", "last_word"):
@@ -59,6 +61,12 @@ class Segment:
             if anchor is not None and (anchor < 0 or value is None):
                 raise EditListError(
                     f"Segment {self.index} {name}_anchor_s needs a non-negative time and {name}.",
+                )
+            field = name.replace("_word", "_edge")
+            edge = getattr(self, field)
+            if edge is not None and (edge != "quietest" or value is None):
+                raise EditListError(
+                    f'Segment {self.index} {field} must be "quietest" and needs {name}.',
                 )
 
     @property
@@ -84,6 +92,9 @@ class Segment:
                 result[name] = value
             if (anchor := getattr(self, f"{name}_anchor_s")) is not None:
                 result[f"{name}_anchor_s"] = float(anchor)
+        for name in ("first_edge", "last_edge"):
+            if (value := getattr(self, name)) is not None:
+                result[name] = value
         result.update(_fraction_fields("start", self.start))
         result.update(_fraction_fields("end", self.end))
         result.update(_fraction_fields("duration", self.duration))

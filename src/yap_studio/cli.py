@@ -957,7 +957,7 @@ def _graphics(args: argparse.Namespace) -> int:
 
 def _music(args: argparse.Namespace) -> int:
     """Prepare supplied music, approved generated music, or voice-only assembly."""
-    from yap_studio.stages.music import MusicError, music
+    from yap_studio.stages.music import MusicError, check_track, music
 
     try:
         if args.other_computer_stopped and not args.confirm_retry:
@@ -965,7 +965,7 @@ def _music(args: argparse.Namespace) -> int:
                              code="music_retry_confirmation_required",
                              suggested_action="Add --confirm-retry and try again.")
         if not args.dry_run and (args.file is not None or args.description is not None
-                                 or args.tags is not None or args.yes):
+                                 or args.tags is not None or args.loop is not None or args.yes):
             import hashlib
 
             from yap_studio.project.lock import project_lock, write_json_cas
@@ -977,7 +977,14 @@ def _music(args: argparse.Namespace) -> int:
             data = json.loads(original)
             settings = dict(data.get("music", {}))
             if args.file is not None:
-                settings.update(mode="file", file=args.file)
+                track = check_track(Path(args.file))
+                try:
+                    stored = track.relative_to(root).as_posix()
+                except ValueError:
+                    stored = str(track)
+                settings.update(mode="file", file=stored)
+            if args.loop is not None:
+                settings["loop"] = args.loop
             if args.description is not None:
                 settings["description"] = args.description
             if args.tags is not None:
@@ -1704,6 +1711,8 @@ def _parser() -> argparse.ArgumentParser:
     music_parser.add_argument("directory", nargs="?", default=".", metavar="DIR")
     music_parser.add_argument("--force", action="store_true")
     music_parser.add_argument("--file", metavar="TRACK", help="save and prepare a supplied track")
+    music_parser.add_argument("--loop", action=argparse.BooleanOptionalAction, default=None,
+                              help="repeat a short supplied track with a crossfade")
     music_parser.add_argument("--description", metavar="TEXT")
     music_parser.add_argument("--tags", metavar="A,B")
     music_parser.add_argument("--yes", action="store_true")

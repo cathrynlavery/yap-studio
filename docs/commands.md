@@ -94,7 +94,7 @@ and any saved sample point. Run `yap-studio cut DIR` before sampling.
 | `joins DIR [--json]` | Lists every join in the cut, what happens to it under the style's `moves.jump_cuts` and why; `--json` adds the words on both sides and the measurements. Needs a fresh verified cut. Measures faces on the cut when they are not saved yet. |
 | `edit rebase [DIR] [--dry-run] [--pin-unmatched] [--json]` | Re-anchors words after a transcript change and keeps the recorded cut's resolved edges when possible. |
 | `run [DIR] [--json] [--note TEXT] [--allow-violations]` | Runs every stage after the edit in order, stops at the first failed check with the reason and the fix, and resumes there on the next run. |
-| `music [DIR] [--json] [--force] [--yes] [--new] [--dry-run]` | Prepares a supplied track, an approved ElevenLabs bed, or no music after the cut. |
+| `music [DIR] [--json] [--force] [--file TRACK] [--loop] [--yes] [--new] [--dry-run]` | Prepares a supplied track, an approved ElevenLabs bed, or no music after the cut. |
 | `sfx list`, `sfx kit --yes`, `sfx add NAME` | Inspect a kit (`--kit made` needs no account) or generate your ElevenLabs kit. |
 | `assemble [DIR] [--json] [--force] [--allow-violations]` | Mixes audio, composites picture and verifies the final delivery. |
 | `captions [DIR] [--json] [--force] [--back shadow\|box\|none]` | Renders project captions. Weak phrases get a halo automatically in the final. `--back box` or `shadow` saves a choice for phrases still weak. `none` turns backing off. Choices stay in `project.json`. |

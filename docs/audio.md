@@ -108,10 +108,22 @@ See [commands.md](commands.md#voice-fixes) for all voice commands.
 
 ## Music
 
-Set `project.json`'s `music` to `{"mode": "file", "file": "track.wav"}` to use
-your own track. Paths are relative to the project or absolute. The track must last
-at least the cut plus its end hold; choose a longer track or loop it yourself if
-it is too short. `none` writes no bed. `auto` uses `music.file` when set, otherwise
+Run `yap-studio music DIR --file TRACK` to use your own track. `--file` reads the
+path from the folder you run the command in and checks the track before saving it.
+It saves a path relative to the project when the track is inside it, otherwise an
+absolute path. Paths written by hand in `project.json` are relative to the project
+or absolute: `{"mode": "file", "file": "track.wav"}`. The track must last at least
+the cut; the end hold is silent.
+
+`--loop` saves `music.loop` and repeats a shorter supplied track with a 0.5 s
+equal-power crossfade until it covers the cut. The crossfade is a quarter of the
+track for tracks under two seconds. Looping needs at least 1 s of track and applies
+to supplied tracks only. `--no-loop` turns it off. A `music/bed.wav` from another
+video already has its fade and silent end built in. Use the original track named
+under `source.path` in its `music/receipt.json`.
+A prepared bed is refused when the new cut runs past where its music ended.
+
+`none` writes no bed. `auto` uses `music.file` when set, otherwise
 none, even when `generate` is true. Set `music.mode` to `elevenlabs` or run
 `yap-studio music DIR --yes` to approve generation. `--description` and `--tags`
 shape the prompt. The free composition plan is saved at `music/plan.json` for
@@ -134,6 +146,8 @@ The content is trimmed and normalised to `internal.music_lufs` (default -16 LUFS
 with a raised-cosine fade over its last second (a quarter of the cut for cuts
 under four seconds). The last content sample and the entire hold are zero.
 The receipt records source path and SHA-256, trim, fade and normalisation.
+A looped bed also records `loop` (passes and crossfade); its `trim` counts samples
+of the looped track.
 Assembly applies style level, dry open, ducking and timeline music windows;
 changing those settings does not re-render the bed.
 

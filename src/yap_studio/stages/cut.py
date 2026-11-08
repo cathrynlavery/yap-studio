@@ -1054,6 +1054,8 @@ def _spans(
         identifier: (snap_frame(first, FPS), snap_frame(last, FPS))
         for identifier, first, last in plan.segment_ranges
     }
+    quietest = {(row["segment"], row["edge"]) for row in plan.edges
+                if row["how"] == "quietest"}
     # Offsets resolve against the ingest snapshot, before speech timing corrections.
     words = {take: {word.id: word for word in cast(Words, _document(
         plan.context, "words", f"ingest/{take}/words.json",
@@ -1077,6 +1079,8 @@ def _spans(
                 and words[piece.take][piece.words[0]].text):
             word = words[piece.take][piece.words[0]]
             row["first_word"] = word.text
+            if (piece.segment_id, "from") in quietest:
+                row["first_edge"] = "quietest"
             if segment.from_.word == word.id and segment.from_.edge == "start":
                 row["first_word_anchor_s"] = word.start
         if (last and frames is not None and piece.src_f1 == frames[1]
@@ -1084,6 +1088,8 @@ def _spans(
                 and words[piece.take][piece.words[-1]].text):
             word = words[piece.take][piece.words[-1]]
             row["last_word"] = word.text
+            if (piece.segment_id, "to") in quietest:
+                row["last_edge"] = "quietest"
             if segment.to.word == word.id and segment.to.edge == "end":
                 row["last_word_anchor_s"] = word.end
         segments.append(row)
