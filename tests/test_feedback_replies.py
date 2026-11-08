@@ -13,6 +13,7 @@ import pytest
 from test_feedback_batch import NOW, _cut, _export, _json, _layers
 from test_feedback_batch import feedback_project as feedback_project
 from test_feedback_locate import WORDS
+from test_feedback_versions import _manual_final
 
 from yap_studio.cli import main
 from yap_studio.errors import ValidationError
@@ -26,7 +27,7 @@ from yap_studio.feedback.batch import (
 )
 from yap_studio.feedback.clarify import answer_clarification, ask_clarification
 from yap_studio.feedback.replies import reply_evidence, reply_status, write_reply
-from yap_studio.feedback.versions import save_version
+from yap_studio.feedback.versions import load_versions, save_version
 from yap_studio.project.model import CutWord, CutWords
 from yap_studio.review.export import series_export
 from yap_studio.review.launch import version_video
@@ -43,6 +44,36 @@ COMMENTS = [
      "start_frame": 69},
 ]
 REMOVED = CutWords("output", {}, WORDS.words[2:])
+
+
+def test_manual_assemble_version_proves_caption_reply(
+    feedback_project, tmp_path, capsys, monkeypatch,
+):
+    from yap_studio.stages.run import layer_windows
+    from yap_studio.stages.timeline import ResolvedTimeline
+
+    root = feedback_project
+    monkeypatch.setattr("yap_studio.stages.timeline.resolve_timeline",
+                        lambda _: ResolvedTimeline((), (), (), 120, 0))
+    final = _manual_final(root, text="Old caption")
+    layers = root / "windows.json"
+    _json(layers, layer_windows(root))
+    first = save_version(root, media=final, layers=layers)
+    store = ReviewStore(tmp_path / "data", now=lambda: NOW)
+    video = version_video([str(root)], store, lambda _: [])
+    comment = store.add_comment(first.media["sha256"], video.media.facts(video.sha256), {
+        "kind": "fix", "target": "caption", "text": "Fix this caption",
+        "start_frame": 6, "end_frame": 30,
+    })
+    round = store.start_round(video.series.id, 1, [comment])
+    send_round(store, video.series, video.series.versions[0], round.id, now=NOW)
+    _manual_final(root, text="New caption")
+    assert main(["versions", "save", str(root)]) == 0
+    capsys.readouterr()
+    assert load_versions(root)[-1].id == "v2"
+    reply = write_reply(root, store, "b1", "v1", "c1", "changed", "Fixed the caption",
+                        version_id="v2")
+    assert "layers" in reply.evidence["change"]["differences"]
 
 
 def _round(

@@ -378,8 +378,33 @@ def test_voice_assembly_checks_alpha_only_for_talking_head(tmp_path, monkeypatch
 
 
 def test_token_setup_line_includes_all_voice_permissions():
-    assert elevenlabs.TOKEN_LINE == (
-        "Then create your own ElevenLabs API key with Music, Sound Effects, Text to Speech, "
-        "Voices, History, Models and User read access, and save it: "
-        "elevenlabs-pp-cli auth set-token <your-key>"
-    )
+    assert elevenlabs.KEY_URL == "https://elevenlabs.io/app/developers/api-keys"
+    assert elevenlabs.KEY_LINE == f"Then create an API key at {elevenlabs.KEY_URL}"
+    assert elevenlabs.SAVE_LINE == "Save the key: elevenlabs-pp-cli auth set-token <your-key>"
+    assert elevenlabs.PRODUCT_LINES == {
+        "music": "For music, turn on Music and User read.",
+        "sound effects": "For sound effects, turn on Sound Effects and User read.",
+        "voice fixes": "For voice fixes, turn on Text to Speech, Voices read and write, "
+                       "and User read. Models read and History read add the credit rate "
+                       "and what each fix cost.",
+    }
+    for product, state in (("music", "missing_cli"), ("sound effects", "signed_out"),
+                           ("voice fixes", "signed_out")):
+        lines = elevenlabs.signup_lines(product, state)
+        index = lines.index(elevenlabs.SIGNUP_LINE)
+        assert lines[index:-1] == [
+            elevenlabs.SIGNUP_LINE, f"  {elevenlabs.ELEVENLABS_AFFILIATE_URL}",
+            elevenlabs.KEY_LINE, elevenlabs.PRODUCT_LINES[product], elevenlabs.SAVE_LINE,
+        ]
+        assert lines[-1] == "Or use your own track: yap-studio music --file song.mp3"
+        free = elevenlabs.signup_lines(product, "free")
+        assert elevenlabs.SIGNUP_LINE.replace("Sign up", "Upgrade") in free
+        assert elevenlabs.KEY_LINE not in free and elevenlabs.SAVE_LINE not in free
+        assert not any(line in free for line in elevenlabs.PRODUCT_LINES.values())
+    for available in (True, False):
+        assert elevenlabs.doctor_setup_lines(cli_available=available) == (
+            ([] if available else [elevenlabs.INSTALL_LINE]) + [
+                elevenlabs.SIGNUP_LINE, f"  {elevenlabs.ELEVENLABS_AFFILIATE_URL}",
+                elevenlabs.KEY_LINE, *elevenlabs.PRODUCT_LINES.values(), elevenlabs.SAVE_LINE,
+            ]
+        )

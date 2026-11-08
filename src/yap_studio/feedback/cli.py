@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -13,13 +14,25 @@ from yap_studio.errors import InputError, ValidationError, YapError
 def _versions(args: argparse.Namespace) -> int:
     """Manage immutable project versions using the command error convention."""
     try:
-        from yap_studio.feedback.versions import load_versions, save_version
+        from yap_studio.feedback.versions import bound_final, load_versions, save_version
 
         if args.version_command == "save":
-            manifest = save_version(
-                Path(args.project), media=Path(args.media) if args.media else None,
-                note=args.note, layers=Path(args.layers) if args.layers else None,
-            )
+            project = Path(args.project)
+            layers = Path(args.layers) if args.layers else None
+            final = bound_final(project) if not args.media else None
+            if final is not None:
+                from yap_studio.stages.run import save_final
+
+                manifest = save_final(project, final, note=args.note, layers=layers)
+            else:
+                manifest = save_version(project, media=Path(args.media) if args.media else None,
+                                        note=args.note, layers=layers)
+            final_ref = f"final/{manifest.project}.mp4"
+            if not args.media and final is None and (project / final_ref).is_file():
+                print(f"note: saved cut/cut.mp4, not {final_ref}, which does not match the "
+                      "current cut, captions or graphics. Run yap-studio assemble "
+                      f"{shlex.quote(args.project)} to make a new final, then save again.",
+                      file=sys.stderr)
             if args.json:
                 print(json.dumps(manifest.to_dict(), ensure_ascii=False))
             else:
@@ -270,7 +283,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         command.set_defaults(func=_outline)
     versions = subparsers.add_parser("versions", help="save and list immutable project versions")
     commands = versions.add_subparsers(dest="version_command", required=True)
-    save = commands.add_parser("save", help="save the current verified cut for review")
+    save = commands.add_parser("save", help="save the verified final when there is one, "
+                               "else the cut, for review")
     save.add_argument("project", metavar="PROJECT")
     save.add_argument("--media", metavar="FILE")
     save.add_argument("--note", metavar="TEXT")

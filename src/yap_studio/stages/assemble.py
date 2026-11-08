@@ -217,7 +217,9 @@ class AssemblyError(YapError):
     """Explain a failed final delivery or stale prerequisite with its next action."""
 
     def __init__(self, message: str, *, failed_checks: bool = False,
+                 checks: tuple[str, ...] = (),
                  suggested_action: str | None = None) -> None:
+        self.checks = checks
         super().__init__(message, error_type="assembly_error",
                          code=("assembly_checks_failed" if failed_checks
                                else "assembly_inputs_invalid"),
@@ -1410,6 +1412,7 @@ def _pilot_assemble(context: ProjectContext, snapshot: AssemblySnapshot,
             run.finish("failed", asserts=asserts, extra=extra)
             raise AssemblyError("Pilot delivery failed: " + ", ".join(
                 failed_assert_lines(asserts)), failed_checks=True,
+                checks=tuple(dict.fromkeys(item["id"] for item in asserts if not item["pass"])),
                 suggested_action=next((item["fix"] for item in asserts
                                        if not item["pass"] and "fix" in item), None))
         run.replace_output(root / out, pilot)
@@ -1762,7 +1765,11 @@ def _assemble_impl(project_dir: Path, *, force: bool = False,
                         if failures == layout_failures:
                             action += " --allow-violations publishes anyway."
                         message += "; " + "; ".join(details) + ". " + action
-                    raise AssemblyError(message, failed_checks=True, suggested_action=action)
+                    checks = tuple(dict.fromkeys([
+                        item["id"] for item in asserts if not item["pass"]
+                    ] + [item["check"] for item in failures]))
+                    raise AssemblyError(message, failed_checks=True, checks=checks,
+                                        suggested_action=action)
                 verify_path.write_text(json.dumps(edl, indent=2) + "\n", encoding="utf-8")
                 with project_lock(root):
                     checked_voice_fixes()

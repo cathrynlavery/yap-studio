@@ -32,9 +32,9 @@ The cut keeps patched source audio in `cut/source-audio/` so checks using
 Patched audio stays in WAV files, so verification does not need to remux the video.
 
 The clone fallback needs a paid [ElevenLabs](https://littlemight.com/recommend/elevenlabs)
-(affiliate link) account. Your key needs Text to Speech and Voices access.
-With Models and User read access Yap Studio can read the credit rate and your balance,
-and with History read it can show what each fix was charged. Without them the cost is
+(affiliate link) account. Your key needs Text to Speech, Voices read and write, and User read.
+User read lets Yap Studio read your balance. Models read adds the credit rate,
+and History read shows what each fix was charged. Without those last two the cost is
 an estimate, and the cost note says so.
 
 Read the statement with `yap-studio voice consent DIR`:

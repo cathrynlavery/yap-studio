@@ -1,0 +1,4 @@
+- A single unknown word after `yap-studio feedback`, such as `feedback schema`, is refused as an unknown subcommand instead of being saved as a note. Quote a sentence or use `--stdin`.
+- `yap-studio feedback remove FINGERPRINT` deletes a pending local note before it is sent.
+- Product reports keep setting names and check ids such as `music.level` and `join.words` readable, and a failed final names the checks that failed.
+- The "seen again" comment on a repeated report says where in the code it was raised.

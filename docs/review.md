@@ -72,8 +72,11 @@ output, each video has `approved`, also `null` until it is approved.
 
 Use `--versions` to put successive renders under one link, oldest first, with a version
 picker, a side by side comparison, and replies to earlier comments. In a project, save
-each verified cut with `versions save`, then review the folder; saved word occurrences
-match story moments even when their playback times change.
+each version with `versions save`, then review the folder; saved word occurrences match
+story moments even when their playback times change. Without `--media`, `versions save`
+saves the verified final with its caption and card windows, as `run` does, when it was
+made from the current cut, captions and graphics. Otherwise it saves `cut/cut.mp4` and
+says when it left a final out.
 
 A Fix note about Whole video can be replied `changed` in a later saved version,
 even if its pinned frame did not change. The note's own version is refused.

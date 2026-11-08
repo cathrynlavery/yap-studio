@@ -29,6 +29,13 @@ from yap_studio.style.library import _config, _save_lock, config_root
 MODES = ("ask", "always", "never")
 KINDS = ("bug", "confusing", "slow", "missing")
 REPO = "cathrynlavery/yap-studio"
+# Setting sections, edit segment ends and check families keep dotted names readable in reports.
+READABLE_PREFIXES = frozenset({
+    "brand", "broll", "captions", "chapters", "grade", "graphics", "hook", "internal",
+    "moments", "moves", "music", "voice", "from", "to", "audio", "bleep", "captions3d",
+    "faces", "join", "loudness", "pacing", "picture", "plan", "platform", "splice",
+    "structure", "sync", "taste", "verify",
+})
 
 
 def scrub(text: str) -> str:
@@ -80,7 +87,10 @@ def scrub(text: str) -> str:
         "verify.json",
     }
     text = re.sub(r"(?<!\w)[\w@~-]+(?:[.-][\w@~-]+)*\.[a-z][a-z0-9]{0,15}\b",
-                  lambda m: m[0] if m[0].casefold() in public_names else "[file]",
+                  lambda m: m[0] if (m[0].casefold() in public_names or (
+                      m[0].split(".")[0] in READABLE_PREFIXES
+                      and re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", m[0])
+                  )) else "[file]",
                   text, flags=re.I)
     text = re.sub(r"(?<!\w)\.[a-z][\w.-]*", "[file]", text, flags=re.I)
     return " ".join(text.split())[:500]
@@ -258,6 +268,8 @@ def _plan(group: dict, state: dict) -> dict:
                     and not item.get("locked")
                     and any(value in (item.get("body") or "") for value in fingerprints)):
                 body = f"seen again in {entry['version']}, {group['count']} times"
+                if entry["origin"]:
+                    body += f"\nWhere: {entry['origin']}"
                 return {"transport": "gh", "action": "comment", "issue": item["number"],
                         "body": body}
         return {"transport": "gh", "action": "create", **issue}
@@ -332,7 +344,10 @@ def auto_send(*, requested: bool = False, yes: bool = False, quiet: bool = False
 def automatic(command: str, error: YapError) -> None:
     """Capture the command, code and source location, preserving failing-command output."""
     try:
-        record(f"{command} failed with {error.code}", kind="bug", step=command,
+        text = f"{command} failed with {error.code}"
+        if checks := getattr(error, "checks", ()):
+            text += ": " + ", ".join(checks)
+        record(text, kind="bug", step=command,
                code=error.code, origin=error.origin)
         # Automatic capture must leave stdout and stderr exactly as they were.
         auto_send(quiet=True)
@@ -351,6 +366,17 @@ def command(args: argparse.Namespace) -> int:
             result = entries(pending=args.pending)
         elif action == "send":
             result = send(dry_run=args.dry_run, yes=args.yes)
+        elif action == "remove":
+            with _lock():
+                notes = entries()
+                kept = [entry for entry in notes
+                        if entry["sent"] or entry["fingerprint"] != args.fingerprint]
+                removed = len(notes) - len(kept)
+                if not removed:
+                    raise ValidationError("fingerprint", "no pending note has this fingerprint; "
+                                          "see yap-studio feedback list --pending")
+                _save(kept)
+            result = {"removed": removed, "fingerprint": args.fingerprint}
         else:
             text = sys.stdin.read() if args.stdin else args.text
             if not text or not text.strip():
@@ -379,11 +405,22 @@ def command(args: argparse.Namespace) -> int:
         return 2
 
 
+def _note_text(text: str) -> str:
+    """Refuse a lone unknown subcommand before recording feedback."""
+    word = text.strip()
+    if word and not any(char.isspace() for char in word):
+        raise argparse.ArgumentTypeError(
+            f"unknown feedback subcommand '{word}'. To record a note, quote a sentence, "
+            'as in yap-studio feedback "The render needed a retry", or use --stdin.'
+        )
+    return text
+
+
 def record_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="yap-studio feedback", description=
                                      "Record product feedback locally before optional sharing.")
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("text", nargs="?", metavar="TEXT")
+    source.add_argument("text", nargs="?", metavar="TEXT", type=_note_text)
     source.add_argument("--stdin", action="store_true")
     parser.add_argument("--step")
     parser.add_argument("--code")
@@ -396,7 +433,7 @@ def record_parser() -> argparse.ArgumentParser:
 
 
 def register(commands: argparse._SubParsersAction) -> None:
-    for name in ("list", "send", "setting"):
+    for name in ("list", "send", "setting", "remove"):
         parser = commands.add_parser(name, help=f"{name} product feedback")
         parser.set_defaults(func=command)
         parser.add_argument("--json", action="store_true")
@@ -405,5 +442,7 @@ def register(commands: argparse._SubParsersAction) -> None:
         elif name == "send":
             parser.add_argument("--dry-run", action="store_true")
             parser.add_argument("--yes", action="store_true")
+        elif name == "remove":
+            parser.add_argument("fingerprint")
         else:
             parser.add_argument("mode", choices=MODES)

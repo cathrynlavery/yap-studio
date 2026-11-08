@@ -188,13 +188,15 @@ class DependencyError(YapError):
     @classmethod
     def missing_elevenlabs_cli(cls) -> DependencyError:
         """Build an error for the unavailable ElevenLabs CLI."""
+        from yap_studio.elevenlabs import KEY_URL
+
         return cls(
             "ElevenLabs CLI not found.",
             error_type="dependency_error",
             code="elevenlabs_cli_not_found",
             suggested_action=(
                 "Install it with: npx -y @mvanhorn/printing-press-library "
-                "install elevenlabs --cli-only. Then create your own ElevenLabs API key "
+                f"install elevenlabs --cli-only. Then create an API key at {KEY_URL} "
                 "with Music, Sound Effects and User read access, and save it: "
                 "elevenlabs-pp-cli auth set-token <your-key>"
             ),

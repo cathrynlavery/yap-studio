@@ -22,9 +22,16 @@ SOUND_GENERATION_TIMEOUT_S = 4 * 120 + 60
 VOICE_GENERATION_TIMEOUT_S = 4 * 120 + 60
 INSTALL_LINE = ("Install the ElevenLabs CLI: "
                 "npx -y @mvanhorn/printing-press-library install elevenlabs --cli-only")
-TOKEN_LINE = ("Then create your own ElevenLabs API key with Music, Sound Effects, Text to Speech, "
-              "Voices, History, Models and User read access, and save it: "
-              "elevenlabs-pp-cli auth set-token <your-key>")
+KEY_URL = "https://elevenlabs.io/app/developers/api-keys"
+KEY_LINE = f"Then create an API key at {KEY_URL}"
+PRODUCT_LINES = {
+    "music": "For music, turn on Music and User read.",
+    "sound effects": "For sound effects, turn on Sound Effects and User read.",
+    "voice fixes": "For voice fixes, turn on Text to Speech, Voices read and write, "
+                   "and User read. Models read and History read add the credit rate "
+                   "and what each fix cost.",
+}
+SAVE_LINE = "Save the key: elevenlabs-pp-cli auth set-token <your-key>"
 SIGNUP_LINE = ("Sign up here (affiliate link: Yap Studio's maker earns a commission "
                "if you subscribe):")
 
@@ -79,7 +86,7 @@ def signup_lines(
     lines.extend([(SIGNUP_LINE.replace("Sign up", "Upgrade") if free else SIGNUP_LINE),
                   f"  {ELEVENLABS_AFFILIATE_URL}"])
     if not free:
-        lines.append(TOKEN_LINE)
+        lines.extend([KEY_LINE, PRODUCT_LINES[product], SAVE_LINE])
     lines.append("Or use your own track: yap-studio music --file song.mp3")
     return lines
 
@@ -87,7 +94,8 @@ def signup_lines(
 def doctor_setup_lines(*, cli_available: bool) -> list[str]:
     """Return optional account setup notes for doctor."""
     return ([INSTALL_LINE] if not cli_available else []) + [
-        SIGNUP_LINE, f"  {ELEVENLABS_AFFILIATE_URL}", TOKEN_LINE,
+        SIGNUP_LINE, f"  {ELEVENLABS_AFFILIATE_URL}", KEY_LINE,
+        *PRODUCT_LINES.values(), SAVE_LINE,
     ]
 
 

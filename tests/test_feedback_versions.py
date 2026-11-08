@@ -130,6 +130,28 @@ def _render_media(
     subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, timeout=60, check=True)
 
 
+def _manual_final(root: Path, *, text: str = "A caption") -> Path:
+    name = json.loads((root / "project.json").read_text())["name"]
+    final = root / "final" / f"{name}.mp4"
+    final.parent.mkdir(exist_ok=True)
+    _render_media(final, 120, label=text)
+    _json(root / "captions/phrases.json", {"phrases": [
+        {"ids": ["t1:0"], "start": 0.2, "end": 1.1, "text": text},
+    ]})
+    inputs = {"media:cut/cut.mp4": sha256_file(root / "cut/cut.mp4")}
+    for stage in ("captions", "graphics"):
+        stage_inputs = {"text": text} if stage == "captions" else {}
+        _json(root / stage / "receipt.json", {
+            "schema": "yap-studio/stage-receipt@1", "status": "verified", "inputs": stage_inputs,
+        })
+        inputs[f"stage:{stage}"] = projection_sha256(stage_inputs)
+    _json(root / "final/receipt.json", {
+        "schema": "yap-studio/stage-receipt@1", "status": "verified", "inputs": inputs,
+        "outputs": [{"path": final.relative_to(root).as_posix(), "sha256": sha256_file(final)}],
+    })
+    return final
+
+
 def _update_cut(
     root: Path, content: bytes | None = None, *, amplitude: float | None = None,
     label: str = "second render",

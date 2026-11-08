@@ -88,6 +88,10 @@ def test_scrubber_adversarial(value, private, marker):
     ("Smith-contract.pdf", "[file]"),
     ("my-edit.json edit.json.backup edit-private.json", "[file] [file] [file]"),
     ("private.e.g private.i.e", "[file] [file]"),
+    ("music.level captions.placement music.duck_threshold",
+     "music.level captions.placement music.duck_threshold"),
+    ("from.offset_s verify.status join.words", "from.offset_s verify.status join.words"),
+    ("song.mp3 Music.Level.mov client-music.level", "[file] [file] [file]"),
 ])
 def test_scrubber_keeps_product_file_names_and_abbreviations(value, expected):
     assert feedback.scrub(value) == expected
@@ -141,6 +145,58 @@ def test_fingerprint_stability_and_distinctions():
     assert first != feedback.fingerprint("bug", "run", "other", "try again")
     assert feedback.fingerprint("bug", None, None, "/" + "Users/A/take.mov") == (
         feedback.fingerprint("bug", None, None, "/" + "Users/B/other.mov"))
+
+
+def test_unknown_subcommand_does_not_record_a_note(capsys, monkeypatch):
+    from io import StringIO
+
+    assert cli.main(["feedback", "schema"]) == 2
+    output = capsys.readouterr()
+    assert "usage:" in output.err
+    assert "unknown feedback subcommand 'schema'" in output.err
+    assert "--stdin" in output.err
+    assert (
+        "unknown feedback subcommand 'schema'. To record a note, quote a sentence, "
+        'as in yap-studio feedback "The render needed a retry", or use --stdin.'
+    ) in output.err
+    assert "\\" not in output.err
+    assert feedback.entries() == []
+    assert cli.main(["feedback", "A quoted sentence"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", StringIO("schema"))
+    assert cli.main(["feedback", "--stdin"]) == 0
+    assert [entry["text"] for entry in feedback.entries()] == ["A quoted sentence", "schema"]
+
+
+def test_remove_only_matching_pending_notes(capsys):
+    sent = feedback.record("Repeated note")
+    sent["sent"] = True
+    feedback._save([sent])
+    first = feedback.record("Repeated note")
+    feedback.record("Repeated note")
+    other = feedback.record("Another note")
+    assert cli.main(["feedback", "remove", first["fingerprint"], "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "removed": 2, "fingerprint": first["fingerprint"],
+    }
+    assert feedback.entries() == [sent, other]
+    for fingerprint in (first["fingerprint"], "unknown"):
+        assert cli.main(["feedback", "remove", fingerprint]) == 2
+        assert "no pending note has this fingerprint" in capsys.readouterr().err
+
+
+def test_automatic_assembly_failure_names_checks(monkeypatch, capsys):
+    from yap_studio.stages import assemble as assembly
+    from yap_studio.stages.assemble import AssemblyError
+
+    def fail(*_args, **_kwargs):
+        raise AssemblyError("x", failed_checks=True, checks=("verify.status", "join.words"))
+
+    monkeypatch.setattr(assembly, "assemble", fail)
+    assert cli.main(["assemble", "synthetic", "--json"]) == 1
+    capsys.readouterr()
+    entry, = feedback.entries()
+    assert entry["text"] == "assemble failed with assembly_checks_failed: verify.status, join.words"
 
 
 @pytest.mark.parametrize("cause", ["", " FileNotFoundError"])
@@ -577,7 +633,8 @@ def test_gh_legacy_fingerprint_comments_with_origin(tmp_path, monkeypatch, state
     calls = [json.loads(line) for line in log.read_text().splitlines()]
     writes = [call for call in calls if call["args"][0] == "issue"]
     assert [call["args"][:3] for call in writes] == [["issue", "comment", "12"]]
-    assert writes[0]["body"] == f"seen again in {__version__}, 1 times"
+    assert writes[0]["body"] == (f"seen again in {__version__}, 1 times\n"
+                                 "Where: project/status:read:78")
     assert feedback.entries(pending=True) == []
 
 

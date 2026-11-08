@@ -8,7 +8,7 @@ import tempfile
 from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from yap_studio import ffmpeg, paths, receipt
 from yap_studio.captions import phrase_keys
@@ -23,6 +23,9 @@ from yap_studio.stages import cut as cut_stage
 from yap_studio.stages import fillers as fillers_stage
 from yap_studio.stages import graphics as graphics_stage
 from yap_studio.stages import music as music_stage
+
+if TYPE_CHECKING:
+    from yap_studio.feedback.versions import VersionManifest
 
 STEPS = ("ingest", "fillers", "cut", "music", "captions", "graphics", "assemble", "verify",
          "words", "version")
@@ -250,21 +253,32 @@ def layer_windows(root: Path) -> dict[str, Any]:
     return {"schema": LAYERS_SCHEMA, "time_base": "output", "layers": layers}
 
 
+def save_final(
+    root: Path, final: Path, *, note: str | None, layers: Path | None = None,
+) -> VersionManifest:
+    """Save a final with supplied layers or the current caption and card windows."""
+    from yap_studio.feedback.versions import save_version
+
+    if layers is not None:
+        return save_version(root, media=final, note=note, layers=layers)
+    work_root = paths.validate_output_dir(root / ".yap/work")
+    with tempfile.TemporaryDirectory(prefix="run-", dir=work_root) as folder:
+        layers = Path(folder) / "layers.json"
+        layers.write_text(json.dumps(layer_windows(root), indent=2, ensure_ascii=False,
+                                     allow_nan=False) + "\n", encoding="utf-8")
+        return save_version(root, media=final, note=note, layers=layers)
+
+
 def _version(root: Path, state: dict[str, Any]) -> tuple[bool, str]:
     """Save the verified final and its layer windows unless it is already the newest version."""
-    from yap_studio.feedback.versions import load_versions, save_version
+    from yap_studio.feedback.versions import load_versions
 
     final = root / state["final"]
     previous = load_versions(root)
     if previous and previous[-1].media["sha256"] == receipt.sha256_file(final):
         state["version"] = previous[-1].id
         return True, previous[-1].id
-    work_root = paths.validate_output_dir(root / ".yap/work")
-    with tempfile.TemporaryDirectory(prefix="run-", dir=work_root) as folder:
-        layers = Path(folder) / "layers.json"
-        layers.write_text(json.dumps(layer_windows(root), indent=2, ensure_ascii=False,
-                                     allow_nan=False) + "\n", encoding="utf-8")
-        manifest = save_version(root, media=final, note=state["note"], layers=layers)
+    manifest = save_final(root, final, note=state["note"])
     state["version"] = manifest.id
     return False, manifest.id
 
