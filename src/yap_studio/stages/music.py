@@ -54,6 +54,7 @@ class MusicSnapshot:
     target_source: str
     dry_open_s: float
     beat_snap: bool
+    loop: bool
     inputs: dict[str, str]
 
     @property
@@ -125,7 +126,8 @@ def music_snapshot(context: ProjectContext, *, require_fresh_cut: bool = True) -
             # Beat hints come from the pinned renderer's tracker; a new pin can move them.
             inputs["renderer:beats"] = projection_sha256(hyperframes.HYPERFRAMES_VERSION)
     return MusicSnapshot(mode, source, digest, cut_frames, hold_frames,
-                         target, target_source, dry_open_s, beat_snap, inputs)
+                         target, target_source, dry_open_s, beat_snap,
+                         mode == "file" and settings.get("loop", False), inputs)
 
 
 def _prompt_request(settings: dict[str, Any], cut_frames: int,
@@ -367,6 +369,35 @@ def _decode(source: Path) -> np.ndarray:
     return np.frombuffer(result.stdout, dtype="<f4").reshape(-1, 2).copy()
 
 
+def check_track(path: Path) -> Path:
+    """Validate a supplied track before saving its path in the project."""
+    source = paths.validate_input(path)
+    try:
+        samples = _decode(source)
+        if not len(samples) or not np.isfinite(samples).all():
+            raise ValueError("empty or non-finite audio")
+    except (YapError, OSError, ValueError) as exc:
+        raise MusicError(
+            "The track has no readable audio stream.", code="music_unreadable",
+            suggested_action=("Choose an audio file with a readable audio stream, "
+                              "then run music again."),
+        ) from exc
+    return source
+
+
+def _original_track(source: Path) -> Path | None:
+    """Find a prepared bed's original track without trusting its receipt."""
+    try:
+        record = json.loads((source.parent / "receipt.json").read_text(encoding="utf-8"))
+        metadata = record.get("source") if isinstance(record, dict) else None
+        original = metadata.get("path") if isinstance(metadata, dict) else None
+        if isinstance(original, str) and original and "\x00" not in original:
+            return (source.parent.parent / original).resolve()
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def _arrange(snapshot: MusicSnapshot, work: Path) -> tuple[Path, dict[str, Any]]:
     """Trim, fade, normalise and pad a source snapshot without clipping its peaks."""
     retained = work / "source"
@@ -378,17 +409,44 @@ def _arrange(snapshot: MusicSnapshot, work: Path) -> tuple[Path, dict[str, Any]]
         )
     samples = _decode(retained)
     source_samples = len(samples)
-    required_samples = (snapshot.cut_samples if snapshot.mode == "elevenlabs"
-                        else snapshot.final_samples)
+    required_samples = snapshot.cut_samples
+    loop = {}
     if source_samples < required_samples:
+        source = cast(Path, snapshot.source)
+        prepared = source.name == "bed.wav" and source.parent.name == "music"
+        original = _original_track(source) if prepared else None
         fix = ("Run yap-studio music DIR --new to compose a longer track; "
                "it spends ElevenLabs credits." if snapshot.mode == "elevenlabs" else
-               "Choose a longer track or loop it yourself, then run music again.")
-        raise MusicError(
-            f"The track is {source_samples / RATE:.3f} s; the music needs "
-            f"{required_samples / RATE:.3f} s.", code="music_too_short",
-            suggested_action=fix,
-        )
+               "Run yap-studio music DIR --loop to repeat it with a short crossfade, "
+               "or choose a longer track.")
+        if original is not None:
+            fix = ("This is a prepared music bed with its fade and silent end built in. "
+                   f"Use its original track, {original}, with --file, "
+                   "and add --loop if it is still too short.")
+        if not snapshot.loop or original is not None or source_samples < RATE:
+            message = (f"The track is {source_samples / RATE:.3f} s; the music needs "
+                       f"{required_samples / RATE:.3f} s.")
+            if snapshot.loop and source_samples < RATE:
+                message += " Looping needs at least 1 s of track."
+                fix = ("Choose a track of at least 1 s, or a longer one, "
+                       "then run music again.")
+            raise MusicError(message, code="music_too_short", suggested_action=fix)
+        crossfade = min(RATE // 2, source_samples // 4)
+        stride = source_samples - crossfade
+        passes = 1 + (required_samples - source_samples + stride - 1) // stride
+        looped = np.empty(((passes - 1) * stride + source_samples, 2), dtype=samples.dtype)
+        looped[:source_samples] = samples
+        angles = np.linspace(0, np.pi / 2, crossfade)[:, None]
+        outgoing, incoming = np.cos(angles), np.sin(angles)
+        for index in range(1, passes):
+            start = index * stride
+            looped[start:start + crossfade] *= outgoing
+            looped[start:start + crossfade] += samples[:crossfade] * incoming
+            looped[start + crossfade:start + source_samples] = samples[crossfade:]
+        samples = looped
+        loop = {"passes": passes, "crossfade_s": crossfade / RATE,
+                "curve": "equal_power", "stride_samples": stride}
+    stream_samples = len(samples)
     samples = samples[:snapshot.cut_samples].copy()
     # A quarter of a short cut leaves room for music before the fade.
     fade_samples = min(RATE, snapshot.cut_samples // 4)
@@ -434,9 +492,10 @@ def _arrange(snapshot: MusicSnapshot, work: Path) -> tuple[Path, dict[str, Any]]
             suggested_action="Check the source audio and run music again.",
         )
     return bed, {
+        **({"loop": loop} if loop else {}),
         "source": {"sha256": snapshot.source_sha256, "samples": source_samples},
         "trim": {"start_sample": 0, "end_sample": snapshot.cut_samples,
-                 "discarded_samples": source_samples - snapshot.cut_samples},
+                 "discarded_samples": stream_samples - snapshot.cut_samples},
         "fade": {"curve": "raised_cosine", "start_sample": snapshot.cut_samples - fade_samples,
                  "end_sample": snapshot.cut_samples, "duration_s": fade_samples / RATE},
         "normalisation": {"method": "integrated_linear_gain", "target_lufs": snapshot.target_lufs,
@@ -477,13 +536,19 @@ def _beats(snapshot: MusicSnapshot, details: dict[str, Any]) -> dict[str, Any]:
     first = details["trim"]["start_sample"] / RATE
     last = details["trim"]["end_sample"] / RATE
     mapped = []
-    for beat in detected["beats"]:
-        time = beat["time_s"] - first
-        # The bed starts at output zero. A dry opening mutes samples rather
-        # than delaying the track, and the cut end starts the silent hold.
-        if first <= beat["time_s"] < last and snapshot.dry_open_s <= time:
-            mapped.append({"time_s": time, "frame": round(time * float(FPS)),
-                           "strength": beat["strength"]})
+    loop = details.get("loop", {})
+    passes = loop.get("passes", 1)
+    stride_s = loop.get("stride_samples", details["source"]["samples"]) / RATE
+    for index in range(passes):
+        for beat in detected["beats"]:
+            # The following pass owns the overlap; the dry opening mutes without delaying.
+            if index < passes - 1 and beat["time_s"] >= stride_s:
+                continue
+            time = index * stride_s + beat["time_s"] - first
+            if first <= index * stride_s + beat["time_s"] < last and snapshot.dry_open_s <= time:
+                mapped.append({"time_s": time, "frame": round(time * float(FPS)),
+                               "strength": beat["strength"]})
+    mapped.sort(key=lambda beat: beat["time_s"])
     return {"schema": "yap-studio/beats@1", "bpm": detected["bpm"],
             "music_sha256": snapshot.source_sha256, "beats": mapped}
 

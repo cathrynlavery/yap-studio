@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,7 @@ from yap_studio import audio, cli, ffmpeg, receipt
 from yap_studio.checks.structure import _loudness
 from yap_studio.errors import OutputPathError
 from yap_studio.project.lock import ConflictError
-from yap_studio.project.receipts import StageRun, read_receipt
+from yap_studio.project.receipts import StageRun, projection_sha256, read_receipt
 from yap_studio.project.status import (
     ProjectContext,
     cut_inputs,
@@ -181,18 +182,216 @@ def test_bed_and_beats_stage_inside_project_work_folder(
     assert state(project)["state"] == "done"
 
 
-@pytest.mark.parametrize("seconds", [9, 10, 11.499])
 def test_short_track_exits_two_with_longer_or_loop_fix(
-    project: Path, capsys: pytest.CaptureFixture[str], seconds: float,
+    project: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    tone(project / "track.wav", seconds=seconds)
+    tone(project / "track.wav", seconds=9)
     assert cli.main(["music", str(project), "--json"]) == 2
     error = json.loads(capsys.readouterr().err)["error"]
     assert error["code"] == "music_too_short"
+    assert "9.000 s" in error["message"] and "10.000 s" in error["message"]
     assert "longer track" in error["suggested_action"]
-    assert "loop it yourself" in error["suggested_action"]
+    assert "--loop" in error["suggested_action"]
     assert not (project / "music/bed.wav").exists()
     assert not (project / "music/receipt.json").exists()
+
+
+@pytest.mark.parametrize("seconds", [10, 11.499])
+def test_track_only_needs_to_cover_cut(project: Path, seconds: float) -> None:
+    tone(project / "track.wav", seconds=seconds)
+    result = music(project)
+    samples = stage._decode(project / "music/bed.wav")
+    assert len(samples) == result["final_samples"] == 552_000
+    assert not np.any(samples[result["cut_samples"]:])
+    record = read_receipt(project / "music")
+    assert "loop" not in record
+    assert record["trim"]["discarded_samples"] == round(seconds * stage.RATE) - 480_000
+
+
+@pytest.mark.parametrize("seconds, crossfade_s, passes", [(4, 0.5, 3), (1, 0.25, 13)])
+def test_loop_crossfades_short_track_and_keeps_silent_hold(
+    project: Path, seconds: int, crossfade_s: float, passes: int,
+) -> None:
+    noise = np.random.default_rng(12).normal(0, 0.05, seconds * stage.RATE)
+    synth._write_wav(project / "track.wav", noise, stage.RATE)
+    set_music(project, mode="file", file="track.wav", loop=True)
+    result = music(project)
+    samples = stage._decode(project / "music/bed.wav")
+    assert len(samples) == result["final_samples"] == 552_000
+    assert np.any(samples[8 * stage.RATE:9 * stage.RATE])
+    assert np.any(samples[479_000:479_999])
+    assert not np.any(samples[479_999:])
+    stride = round((seconds - crossfade_s) * stage.RATE)
+    record = read_receipt(project / "music")
+    assert record["source"]["samples"] == seconds * stage.RATE
+    assert record["loop"] == {"passes": passes, "crossfade_s": crossfade_s,
+                              "curve": "equal_power", "stride_samples": stride}
+    assert record["trim"] == {"start_sample": 0, "end_sample": 480_000,
+                              "discarded_samples": (passes - 1) * stride
+                              + seconds * stage.RATE - 480_000}
+    for index in range(1, passes):
+        seam = index * stride
+        if seam + round(crossfade_s * stage.RATE) > 9 * stage.RATE:
+            continue
+        body = samples[seam - 4800:seam]
+        body_rms = np.sqrt(np.mean(body ** 2))
+        for start in range(seam, seam + round(crossfade_s * stage.RATE), 2400):
+            rms = np.sqrt(np.mean(samples[start:start + 2400] ** 2))
+            assert abs(20 * np.log10(rms / body_rms)) < 2
+
+
+def test_long_track_with_loop_on_has_identical_bed(project: Path) -> None:
+    music(project)
+    before = (project / "music/bed.wav").read_bytes()
+    set_music(project, mode="file", file="track.wav", loop=True)
+    assert not music(project)["noop"]
+    assert (project / "music/bed.wav").read_bytes() == before
+    assert "loop" not in read_receipt(project / "music")
+
+
+@pytest.mark.parametrize("seconds", [0, 0.5])
+def test_loop_needs_at_least_one_second(project: Path, seconds: float) -> None:
+    tone(project / "track.wav", seconds=seconds)
+    set_music(project, mode="file", file="track.wav", loop=True)
+    with pytest.raises(MusicError) as caught:
+        music(project)
+    assert caught.value.code == "music_too_short"
+    assert "1 s" in caught.value.message
+    assert "--loop" not in caught.value.suggested_action
+
+
+def test_loop_maps_beats_once_per_pass(project: Path) -> None:
+    tone(project / "track.wav", seconds=4)
+    set_music(project, mode="file", file="track.wav", loop=True)
+    set_beat_snap(project)
+    music(project)
+    hints = json.loads((project / "music/beats.json").read_bytes())
+    times = [beat["time_s"] for beat in hints["beats"]]
+    expected = [offset + index / 2 + 0.001 for offset in (0, 3.5, 7)
+                for index in range(7) if 0.7 <= offset + index / 2 + 0.001 < 10]
+    assert times == pytest.approx(expected)
+    assert times == sorted(times) and len(times) == len(set(times))
+    assert all(0.7 <= time < 10 for time in times)
+
+
+@pytest.mark.parametrize("loop", [False, True])
+@pytest.mark.parametrize("original", ["song.wav", "/original/song.wav"])
+def test_prepared_bed_refuses_loop_and_names_original(
+    project: Path, loop: bool, original: str,
+) -> None:
+    other = project / "other"
+    (other / "music").mkdir(parents=True)
+    tone(other / "music/bed.wav", seconds=4)
+    write(other / "music/receipt.json", {"schema": "yap-studio/stage-receipt@1",
+                                        "source": {"path": original}})
+    set_music(project, mode="file", file="other/music/bed.wav", loop=loop)
+    with pytest.raises(MusicError) as caught:
+        music(project)
+    assert caught.value.code == "music_too_short"
+    assert str((other / original).resolve()) in caught.value.suggested_action
+    assert "prepared music bed" in caught.value.suggested_action
+    assert "--file" in caught.value.suggested_action
+
+
+@pytest.mark.parametrize("contents", [None, "not json", "[]", '{"source": {}}',
+                                    '{"source": null}', '{"source": {"path": 123}}'])
+def test_prepared_bed_without_original_falls_back_to_loop_advice(
+    project: Path, contents: str | None,
+) -> None:
+    folder = project / "other/music"
+    folder.mkdir(parents=True)
+    tone(folder / "bed.wav", seconds=4)
+    if contents is not None:
+        (folder / "receipt.json").write_text(contents)
+    set_music(project, mode="file", file="other/music/bed.wav")
+    with pytest.raises(MusicError) as caught:
+        music(project)
+    assert caught.value.code == "music_too_short"
+    assert "--loop" in caught.value.suggested_action
+    assert "prepared music bed" not in caught.value.suggested_action
+    set_music(project, mode="file", file="other/music/bed.wav", loop=True)
+    result = music(project)
+    samples = stage._decode(project / "music/bed.wav")
+    assert len(samples) == result["final_samples"]
+    assert not np.any(samples[result["cut_samples"]:])
+    assert read_receipt(project / "music")["loop"]["passes"] == 3
+
+
+@pytest.mark.parametrize("inside", [False, True])
+def test_cli_file_resolves_from_cwd_and_stores_project_path(
+    project: Path, monkeypatch: pytest.MonkeyPatch, inside: bool,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    caller = project.parent / f"{project.name}-caller"
+    caller.mkdir()
+    track = project / "track.wav" if inside else tone(caller / "outside.wav")
+    monkeypatch.chdir(caller)
+    assert cli.main(["music", str(project), "--file", os.path.relpath(track), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["bed"] == "music/bed.wav"
+    settings = json.loads((project / "project.json").read_bytes())["music"]
+    assert settings["file"] == ("track.wav" if inside else str(track.resolve()))
+    assert settings["mode"] == "file"
+    assert state(project)["state"] == "done"
+
+
+@pytest.mark.parametrize("exists, code", [(False, "invalid_input"), (True, "music_unreadable")])
+def test_cli_file_failure_preserves_project(
+    project: Path, capsys: pytest.CaptureFixture[str], exists: bool, code: str,
+) -> None:
+    track = project / "invalid.wav"
+    if exists:
+        track.write_text("not audio")
+    before = (project / "project.json").read_bytes()
+    assert cli.main(["music", str(project), "--file", str(track), "--json"]) == 2
+    assert json.loads(capsys.readouterr().err)["error"]["code"] == code
+    assert (project / "project.json").read_bytes() == before
+    assert not (project / "music/bed.wav").exists()
+
+
+@pytest.mark.parametrize("decoded", [np.empty((0, 2)), np.array([[np.nan, 0]]),
+                                    np.array([[np.inf, 0]])])
+def test_cli_file_rejects_empty_or_nonfinite_decode_before_save(
+    project: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    decoded: np.ndarray,
+) -> None:
+    before = (project / "project.json").read_bytes()
+    monkeypatch.setattr(stage, "_decode", lambda source: decoded)
+    assert cli.main(["music", str(project), "--file", str(project / "track.wav"), "--json"]) == 2
+    assert json.loads(capsys.readouterr().err)["error"]["code"] == "music_unreadable"
+    assert (project / "project.json").read_bytes() == before
+
+
+def test_cli_loop_toggles_saved_setting_and_invalidates_bed(
+    project: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    music(project)
+    before = (project / "music/receipt.json").read_bytes()
+
+    def prepare(root: Path, **kwargs: Any) -> dict[str, Any]:
+        assert state(root)["state"] == "stale"
+        return music(root, **kwargs)
+
+    monkeypatch.setattr(stage, "music", prepare)
+    for flag, enabled in [("--loop", True), ("--no-loop", False)]:
+        assert cli.main(["music", str(project), flag, "--json"]) == 0
+        assert not json.loads(capsys.readouterr().out)["noop"]
+        assert json.loads((project / "project.json").read_bytes())["music"]["loop"] is enabled
+        assert (project / "music/receipt.json").read_bytes() != before
+        before = (project / "music/receipt.json").read_bytes()
+        assert state(project)["state"] == "done"
+
+
+def test_absent_loop_keeps_existing_music_input_hash(project: Path) -> None:
+    settings = {"mode": "file", "file": "track.wav", "description": None,
+                "tags": [], "generate": False}
+    assert ProjectContext(project).project.music == settings
+    assert music_inputs(ProjectContext(project))["project:music"] == projection_sha256(settings)
+
+
+def test_generated_music_never_loops(project: Path) -> None:
+    set_music(project, mode="elevenlabs", loop=True)
+    snapshot = stage.music_snapshot(ProjectContext(project))
+    assert snapshot.mode == "elevenlabs" and not snapshot.loop
 
 
 @pytest.mark.parametrize("mode", ["none", "auto"])
