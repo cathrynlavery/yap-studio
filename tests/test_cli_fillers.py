@@ -5,15 +5,18 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections import Counter
 from pathlib import Path
 
 import pytest
-from test_fillers import install_engine, make_project, write_json
+import synth
+from test_fillers import install_engine, make_project, tone_transcript, write_json
 
 from yap_studio import receipt
 from yap_studio.cli import main
 from yap_studio.project.status import ProjectContext, fillers_inputs, status
 from yap_studio.stages import fillers as stage
+from yap_studio.transcript import ScriptedBackend, Transcript
 
 
 @pytest.mark.parametrize("edit_directory", [False, True], ids=["missing", "directory"])
@@ -61,6 +64,87 @@ def test_fillers_defaults_to_proposals_then_apply(tmp_path: Path,
         "r2 silence applied pause: pass",
         "Fillers: 2 applied, 0 proposed, 0 rejected, 0 skipped.",
     ]
+
+
+@pytest.mark.parametrize("previously_proposed", [False, True], ids=["failed", "undecided"])
+def test_fillers_apply_requires_selected_passing_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    previously_proposed: bool,
+) -> None:
+    """Only verified joins apply automatically; creators can override a weak control."""
+    phrases = [("bright", "um", "garden"), ("small", "uh", "flowers"),
+               ("quiet", "um", "morning")]
+    rows = [(text, group * 3 + first, group * 3 + last)
+            for group, phrase in enumerate(phrases)
+            for text, (first, last) in zip(phrase, [(0.25, 0.55), (0.8, 1.0), (1.25, 1.55)],
+                                           strict=True)]
+    labels = {300 + index * 100: text for index, (text, _, _) in enumerate(rows)}
+    source = synth.voiced_source(
+        tmp_path / "source.mov", [(first, last) for _, first, last in rows], seconds=9,
+        frequencies=list(labels),
+    )
+    root = make_project(tmp_path / "project", rows, source)
+    project = json.loads((root / "project.json").read_bytes())
+    project["rules"] = {"max_pause_s": 10}
+    write_json(root / "project.json", project)
+    edit = json.loads((root / "edit.json").read_bytes())
+    edit["segments"] = [
+        {"id": f"s{index + 1}", "take": "t1", "from": {"time": index * 3},
+         "to": {"time": (index + 1) * 3}} for index in range(3)
+    ]
+    write_json(root / "edit.json", edit)
+    fail_join = not previously_proposed
+
+    def script(target: Path) -> Transcript:
+        heard = tone_transcript(target, labels)
+        tokens = [word.text for word in heard.words]
+        if fail_join and "small" in tokens and target.stem.endswith("cut"):
+            heard.words = [word for word in heard.words if word.text != "flowers"]
+        if "quiet" in tokens and target.stem.endswith("control"):
+            heard.words = [word for word in heard.words if word.text != "quiet"]
+        return heard
+
+    monkeypatch.setattr(stage, "resolve_backend", lambda *_: ScriptedBackend(script))
+    assert main(["fillers", str(root), "--json"]) == 0
+    proposed = json.loads(capsys.readouterr().out)["entries"]
+    assert [(item["status"], item["evidence"]["pass"], item["evidence"]["words"])
+            for item in proposed] == [
+                ("proposed", True, "pass"),
+                ("proposed", True, "pass") if previously_proposed else ("rejected", False, "fail"),
+                ("proposed", False, "unverifiable"),
+            ]
+    assert all("decision" not in item["evidence"] for item in proposed)
+    fail_join = True
+
+    assert main(["fillers", str(root), "--apply", "--json"]) == 0
+    applied = json.loads(capsys.readouterr().out)
+    entries = applied["entries"]
+    assert [item["id"] for item in entries] == [item["id"] for item in proposed]
+    assert [item["status"] for item in entries] == ["applied", "rejected", "proposed"]
+    assert all(item["evidence"]["pass"] is True
+               and item["evidence"]["words"] != "unverifiable"
+               for item in entries if item["status"] == "applied")
+    failed = entries[1]
+    assert failed["evidence"]["pass"] is False and failed["evidence"]["words"] == "fail"
+    assert all(attempt["pass"] is False and "flowers" in str(attempt["diff"])
+               for attempt in failed["evidence"]["attempts"])
+    weak = entries[2]
+    assert weak["listen"] and weak["evidence"]["words"] == "unverifiable"
+    target = root / "removals.json"
+    before = target.read_bytes()
+    disk = json.loads(before)["removals"]
+    assert applied["counts"]["status"] == Counter(item["status"] for item in disk)
+    assert entries == disk
+
+    assert main(["fillers", str(root), "--apply", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["noop"]
+    assert target.read_bytes() == before
+    assert main(["fillers", "set", str(root), weak["id"], "applied", "--json"]) == 0
+    overridden = json.loads(capsys.readouterr().out)["removals"]
+    assert next(item for item in overridden if item["id"] == weak["id"])["status"] == "applied"
+    assert main(["fillers", str(root), "--apply", "--json"]) == 0
+    kept = json.loads(capsys.readouterr().out)["entries"]
+    assert next(item for item in kept if item["id"] == weak["id"])["status"] == "applied"
 
 
 def test_fillers_force_retests_machine_rejection_with_same_id(

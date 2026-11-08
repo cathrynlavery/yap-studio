@@ -190,13 +190,17 @@ def _write_wav(path: Path, samples: np.ndarray, sr: int) -> None:
 
 
 def voiced_source(path: Path, runs: list[tuple[float, float]], *, seconds: float,
-                  frequencies: list[float] | None = None) -> Path:
+                  frequencies: list[float] | None = None,
+                  noise_dbfs: float | None = None) -> Path:
     """Mux lavfi picture with numpy tones marking speech and quiet runs."""
     sound = np.zeros(round(seconds * RATE), dtype=np.float32)
     tones = [220.0] * len(runs) if frequencies is None else frequencies
     for (first, last), frequency in zip(runs, tones, strict=True):
         start, end = round(first * RATE), round(last * RATE)
         sound[start:end] = 0.1 * np.sin(np.arange(end - start) * 2 * np.pi * frequency / RATE)
+    if noise_dbfs is not None:
+        noise = np.random.default_rng(_SEED).standard_normal(len(sound))
+        sound += noise * (10 ** (noise_dbfs / 20) / np.sqrt(np.mean(noise ** 2)))
     with tempfile.TemporaryDirectory(prefix="yap-voiced-") as temporary:
         wav = Path(temporary) / "sound.wav"
         _write_wav(wav, sound, RATE)
@@ -528,10 +532,16 @@ def speech_source(
     *,
     picture: str = "testsrc2",
     size: str = "320x180",
+    pauses: Sequence[float] | None = None,
     noise_dbfs: float | None = None,
     seed: int = 0,
 ) -> tuple[Path, list[WordSpan]]:
     """Create speech and word spans, optionally over a seeded pink-noise RMS bed."""
+    if pauses is not None:
+        if len(pauses) != max(0, len(sentences) - 1):
+            raise ValueError("pauses must have one length per sentence gap")
+        if any(not math.isfinite(pause) or pause < 0 for pause in pauses):
+            raise ValueError("pause lengths must be finite and nonnegative")
     if shutil.which("espeak-ng") is None:
         import pytest
 
@@ -584,7 +594,8 @@ def speech_source(
             pieces.append(audio)
             cursor += len(audio)
             if sentence_index != len(sentences) - 1:
-                pause = np.zeros(_snap(Fraction(3, 5), Fraction(sr, 1)), dtype=np.float64)
+                gap = Fraction(3, 5) if pauses is None else Fraction(str(pauses[sentence_index]))
+                pause = np.zeros(_snap(gap, Fraction(sr, 1)), dtype=np.float64)
                 pieces.append(pause)
                 cursor += len(pause)
         pieces.append(np.zeros(_snap(Fraction(1, 2), Fraction(sr, 1)), dtype=np.float64))

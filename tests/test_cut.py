@@ -17,6 +17,7 @@ import pytest
 import synth
 
 from yap_studio import audio, ffmpeg, hdr, receipt, transcript, video
+from yap_studio.captions import CaptionWord, build_phrases, caption_layout_settings
 from yap_studio.edl import load_edit_list
 from yap_studio.errors import DependencyError, ValidationError
 from yap_studio.project import status as project_status
@@ -780,6 +781,55 @@ def test_silence_trim_keeps_stretched_word_and_ends_its_caption_at_voice(tmp_pat
     words = load_cut_words(root / "cut/cut-words.json").words
     assert [word.id for word in words] == ["t1:0", "t1:1"]
     assert words[0].end == pytest.approx(0.87)
+
+
+@pytest.mark.parametrize("noise_dbfs", [None, -55], ids=["silent", "room-noise"])
+def test_caption_phrases_keep_stretched_tail_and_partly_trimmed_start(
+    tmp_path: Path, noise_dbfs: float | None,
+) -> None:
+    """Captions retain voiced words after tail silence and a partial start trim."""
+    runs = [(0.5, 0.8), (2.6, 2.9)]
+    source = synth.voiced_source(
+        tmp_path / "source.mov", runs, seconds=3.2,
+        noise_dbfs=noise_dbfs,
+    )
+    root = make_project(tmp_path / "project", [source], word_rows=[[
+        ("be?", 0.5, 1.9), ("Ready", 1.95, 2.9),
+    ]])
+    write_edit(root, [time_segment("s1", "t1", 0, 3.2)])
+    write_json(root / "removals.json", {
+        "schema": "yap-studio/removals@1",
+        "removals": [
+            {"id": "r1", "take": "t1", "start": 0.9, "end": 2.0,
+             "kind": "silence", "status": "applied"},
+            {"id": "r2", "take": "t1", "start": 2.0, "end": 2.5,
+             "kind": "silence", "status": "applied"},
+        ],
+    })
+    assert 0.9 < (0.5 + 1.9) / 2 < 2.0
+    assert 2.0 < (1.95 + 2.9) / 2 < 2.5
+
+    plan = resolve_cut(root)
+    write_json(root / "cut/cut-words.json", cut_stage._cut_words(plan))
+    words = load_cut_words(root / "cut/cut-words.json").words
+    assert [word.id for word in words] == ["t1:0", "t1:1"]
+    assert all(word.end > word.start for word in words)
+    assert all(word.end - word.start < 0.5 for word in words)
+    for word, (first, last) in zip(words, runs, strict=True):
+        owners = [piece for piece in plan.pieces
+                  if float(piece.src_t0) <= first and last <= float(piece.src_t1)]
+        assert len(owners) == 1, (first, last, plan.pieces)
+        piece = owners[0]
+        offset = Fraction(piece.out_f0, 30) - piece.src_t0
+        assert word.start <= float(Fraction(str(first)) + offset)
+        assert float(Fraction(str(last)) + offset) <= word.end
+    style = plan.context.render_style()
+    phrases = build_phrases(
+        [CaptionWord(word.id, word.text, word.start, word.end) for word in words],
+        caption_layout_settings(style.data["captions"], style.data["brand"]),
+    )
+    assert [word.text for phrase in phrases for word in phrase.words] == ["be?", "Ready"]
+    assert all(word.end > word.start for phrase in phrases for word in phrase.words)
 
 
 def test_settled_word_edges_keep_planned_words_and_report_moves(
