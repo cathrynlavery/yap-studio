@@ -293,8 +293,55 @@ def test_prepared_bed_refuses_loop_and_names_original(
     assert "--file" in caught.value.suggested_action
 
 
+@pytest.mark.parametrize("loop", [False, True])
+@pytest.mark.parametrize("original", ["song.wav", None])
+def test_prepared_bed_refuses_when_new_cut_reaches_old_hold(
+    project: Path, loop: bool, original: str | None,
+) -> None:
+    publish_cut(project, 315)
+    folder = project / "other/music"
+    folder.mkdir(parents=True)
+    content = 0.1 * np.sin(np.arange(10 * stage.RATE) * (2 * np.pi * 220 / stage.RATE))
+    synth._write_wav(folder / "bed.wav", np.pad(content, (0, stage.RATE // 2)), stage.RATE)
+    write(folder / "receipt.json", {"schema": "yap-studio/stage-receipt@1",
+                                   "cut_samples": 10 * stage.RATE,
+                                   "source": {"path": original} if original else {}})
+    set_music(project, mode="file", file="other/music/bed.wav", loop=loop)
+    with pytest.raises(MusicError) as caught:
+        music(project)
+    assert caught.value.code == "music_too_short"
+    assert caught.value.message == "The track is 10.000 s; the music needs 10.500 s."
+    assert "prepared music bed" in caught.value.suggested_action
+    assert "fade and silent end built in" in caught.value.suggested_action
+    assert "original track" in caught.value.suggested_action
+    assert "--file" in caught.value.suggested_action
+    if original:
+        assert str((folder.parent / original).resolve()) in caught.value.suggested_action
+    assert not (project / "music/bed.wav").exists()
+
+
+@pytest.mark.parametrize("loop", [False, True])
+def test_prepared_bed_with_enough_content_prepares(project: Path, loop: bool) -> None:
+    folder = project / "other/music"
+    folder.mkdir(parents=True)
+    content = 0.1 * np.sin(np.arange(10 * stage.RATE) * (2 * np.pi * 220 / stage.RATE))
+    synth._write_wav(folder / "bed.wav", np.pad(content, (0, stage.RATE // 2)), stage.RATE)
+    write(folder / "receipt.json", {"schema": "yap-studio/stage-receipt@1",
+                                   "cut_samples": 10 * stage.RATE, "source": {"path": "song.wav"}})
+    set_music(project, mode="file", file="other/music/bed.wav", loop=loop)
+    result = music(project)
+    samples = stage._decode(project / "music/bed.wav")
+    assert len(samples) == result["final_samples"]
+    assert not np.any(samples[result["cut_samples"]:])
+    assert "loop" not in read_receipt(project / "music")
+
+
 @pytest.mark.parametrize("contents", [None, "not json", "[]", '{"source": {}}',
-                                    '{"source": null}', '{"source": {"path": 123}}'])
+                                    '{"source": null}', '{"source": {"path": 123}}',
+                                    '{"cut_samples": null}', '{"cut_samples": true}',
+                                    '{"cut_samples": false}', '{"cut_samples": 0}',
+                                    '{"cut_samples": -1}', '{"cut_samples": 480000.0}',
+                                    '{"cut_samples": "480000"}'])
 def test_prepared_bed_without_original_falls_back_to_loop_advice(
     project: Path, contents: str | None,
 ) -> None:

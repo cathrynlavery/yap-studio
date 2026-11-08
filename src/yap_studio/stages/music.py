@@ -385,17 +385,27 @@ def check_track(path: Path) -> Path:
     return source
 
 
-def _original_track(source: Path) -> Path | None:
-    """Find a prepared bed's original track without trusting its receipt."""
+def _prepared_track(source: Path) -> tuple[Path | None, int | None]:
+    """Read a prepared bed's original track and content length defensively."""
+    if source.name != "bed.wav" or source.parent.name != "music":
+        return None, None
     try:
         record = json.loads((source.parent / "receipt.json").read_text(encoding="utf-8"))
-        metadata = record.get("source") if isinstance(record, dict) else None
-        original = metadata.get("path") if isinstance(metadata, dict) else None
+    except (OSError, ValueError):
+        return None, None
+    if not isinstance(record, dict):
+        return None, None
+    cut_samples = record.get("cut_samples")
+    if not isinstance(cut_samples, int) or isinstance(cut_samples, bool) or cut_samples <= 0:
+        cut_samples = None
+    metadata = record.get("source")
+    original = metadata.get("path") if isinstance(metadata, dict) else None
+    try:
         if isinstance(original, str) and original and "\x00" not in original:
-            return (source.parent.parent / original).resolve()
+            return (source.parent.parent / original).resolve(), cut_samples
     except (OSError, ValueError):
         pass
-    return None
+    return None, cut_samples
 
 
 def _arrange(snapshot: MusicSnapshot, work: Path) -> tuple[Path, dict[str, Any]]:
@@ -409,22 +419,24 @@ def _arrange(snapshot: MusicSnapshot, work: Path) -> tuple[Path, dict[str, Any]]
         )
     samples = _decode(retained)
     source_samples = len(samples)
+    original, prepared_samples = _prepared_track(cast(Path, snapshot.source))
+    available_samples = (min(source_samples, prepared_samples) if prepared_samples is not None
+                         else source_samples)
     required_samples = snapshot.cut_samples
     loop = {}
-    if source_samples < required_samples:
-        source = cast(Path, snapshot.source)
-        prepared = source.name == "bed.wav" and source.parent.name == "music"
-        original = _original_track(source) if prepared else None
+    if available_samples < required_samples:
+        prepared = original is not None or prepared_samples is not None
         fix = ("Run yap-studio music DIR --new to compose a longer track; "
                "it spends ElevenLabs credits." if snapshot.mode == "elevenlabs" else
                "Run yap-studio music DIR --loop to repeat it with a short crossfade, "
                "or choose a longer track.")
-        if original is not None:
+        if prepared:
+            pointer = f", {original}," if original is not None else ""
             fix = ("This is a prepared music bed with its fade and silent end built in. "
-                   f"Use its original track, {original}, with --file, "
+                   f"Use its original track{pointer} with --file, "
                    "and add --loop if it is still too short.")
-        if not snapshot.loop or original is not None or source_samples < RATE:
-            message = (f"The track is {source_samples / RATE:.3f} s; the music needs "
+        if not snapshot.loop or prepared or source_samples < RATE:
+            message = (f"The track is {available_samples / RATE:.3f} s; the music needs "
                        f"{required_samples / RATE:.3f} s.")
             if snapshot.loop and source_samples < RATE:
                 message += " Looping needs at least 1 s of track."

@@ -121,6 +121,7 @@ track for tracks under two seconds. Looping needs at least 1 s of track and appl
 to supplied tracks only. `--no-loop` turns it off. A `music/bed.wav` from another
 video already has its fade and silent end built in. Use the original track named
 under `source.path` in its `music/receipt.json`.
+A prepared bed is refused when the new cut runs past where its music ended.
 
 `none` writes no bed. `auto` uses `music.file` when set, otherwise
 none, even when `generate` is true. Set `music.mode` to `elevenlabs` or run
