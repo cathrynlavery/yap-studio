@@ -2063,6 +2063,7 @@ def test_layout_violation_blocks_and_explicit_override_publishes(
     with pytest.raises(stage.AssemblyError) as caught:
         stage.assemble(project)
     error = caught.value
+    assert error.checks == ("verify.status", check)
     assert all(text in error.message for text in (
         "0:00.5", "agent-tag", "re-run captions", "re-run graphics", "--allow-violations",
     ))

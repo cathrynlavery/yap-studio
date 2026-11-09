@@ -11,19 +11,23 @@ Video review notes still use the existing `feedback build`, `apply`, `check` and
 ## What is sent
 
 A report contains the note (up to 500 characters), UTC time, Yap Studio version,
-macOS version, CPU architecture, optional command or stage, optional error code,
-kind (`bug`, `confusing`, `slow` or `missing`), agent ID from `AGENT_ID` when set,
-and a fingerprint that groups repeats. Endpoint reports include each entry's local
-sent flag and a count. GitHub issues include the latest entry and count; a repeated
-issue gets a comment with the version and count.
+macOS version, CPU architecture, optional command or stage, optional error code, the ids
+of failed final checks, kind (`bug`, `confusing`, `slow` or `missing`), agent ID from
+`AGENT_ID` when set, and a fingerprint that groups repeats. Endpoint reports include each
+entry's local sent flag and a count. GitHub issues include the latest entry and count;
+a repeated issue gets a comment with the version and count and, when known, where in
+the code it was raised.
 
 The command scrubs paths, file names, emails, URLs, IP addresses, local hostnames
 and common secret patterns on write and again before sharing. Yap Studio's own fixed
 file names, such as `edit.json`, and the abbreviations e.g. and i.e. stay readable.
+Style setting names such as `music.level` stay readable too.
 Links to github.com and yapstudio.app retain only their domain. Automatic failure
 notes contain the command name, registered subcommand when present (such as
 `versions save`), the error code and where in Yap Studio's code it was raised
-(module, function and line). Wrapped errors also name the original exception's class.
+(module, function and line), and, for failed final checks, the ids of the checks that
+failed.
+Wrapped errors also name the original exception's class.
 Other arguments and the error message are never included.
 No footage, transcripts, spoken words, names or project files are attached or read.
 Write about the tool only: do not put names or the creator's words in a note.
@@ -35,7 +39,12 @@ yap-studio feedback "No way to blur part of the picture" --step assemble --kind 
 yap-studio feedback --stdin
 yap-studio feedback list
 yap-studio feedback list --pending --json
+yap-studio feedback remove FINGERPRINT
 ```
+
+`feedback remove` deletes a pending local note before it is sent.
+A single word after `feedback` is refused as an unknown subcommand, so quote a sentence
+or use `--stdin`.
 
 ## Choose when to share
 

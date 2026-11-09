@@ -15,6 +15,8 @@ import pytest
 from test_assemble import project as assembled_project  # noqa: F401
 from test_assemble import refuse_unexpected_matte_work  # noqa: F401
 from test_cli_captions import fake_layers  # noqa: F401
+from test_stage_captions import set_elements
+from test_stage_graphics import graphic
 from test_taste_render import _body
 
 from yap_studio import cli
@@ -51,6 +53,35 @@ from yap_studio.taste import (
 from yap_studio.taste.render import TASTE_RECORD_SCHEMA
 
 NOW = datetime(2026, 10, 5, 22, 0, tzinfo=UTC)
+
+
+def test_cli_final_save_follows_live_timeline_freshness(
+    assembled_project: Path, capsys,  # noqa: F811
+) -> None:
+    root = assembled_project
+    receipt_path = root / "cut/receipt.json"
+    cut = json.loads(receipt_path.read_text())
+    cut["plan"].update(fps="30/1", pieces=[{
+        "segment_id": "s1", "take": "t1", "out_f0": 0, "n_frames": 120,
+        "src_t0": "0", "src_t1": "4",
+    }])
+    _json(receipt_path, cut)
+    result = assemble_stage.assemble(root)
+    assert cli.main(["versions", "save", str(root)]) == 0
+    assert not capsys.readouterr().err
+    first, = load_versions(root)
+    assert first.media["source"] == result["out"]
+    assert any(layer.kind == "caption" for layer in version_layers(first))
+    before = {name: (root / name / "receipt.json").read_bytes()
+              for name in ("captions", "graphics")}
+    set_elements(root, graphic())
+    assert all((root / name / "receipt.json").read_bytes() == data
+               for name, data in before.items())
+    assert cli.main(["versions", "save", str(root)]) == 0
+    output = capsys.readouterr()
+    second = load_versions(root)[-1]
+    assert second.media["source"] == "cut/cut.mp4" and version_layers(second) is None
+    assert f"note: saved cut/cut.mp4, not {result['out']}" in output.err
 
 
 def test_pilot_media_and_renamed_copy_never_become_versions(
@@ -128,6 +159,28 @@ def _render_media(
         "-metadata", f"comment={label}", str(media),
     ])
     subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, timeout=60, check=True)
+
+
+def _manual_final(root: Path, *, text: str = "A caption") -> Path:
+    name = json.loads((root / "project.json").read_text())["name"]
+    final = root / "final" / f"{name}.mp4"
+    final.parent.mkdir(exist_ok=True)
+    _render_media(final, 120, label=text)
+    _json(root / "captions/phrases.json", {"phrases": [
+        {"ids": ["t1:0"], "start": 0.2, "end": 1.1, "text": text},
+    ]})
+    inputs = {"media:cut/cut.mp4": sha256_file(root / "cut/cut.mp4")}
+    for stage in ("captions", "graphics"):
+        stage_inputs = {"text": text} if stage == "captions" else {}
+        _json(root / stage / "receipt.json", {
+            "schema": "yap-studio/stage-receipt@1", "status": "verified", "inputs": stage_inputs,
+        })
+        inputs[f"stage:{stage}"] = projection_sha256(stage_inputs)
+    _json(root / "final/receipt.json", {
+        "schema": "yap-studio/stage-receipt@1", "status": "verified", "inputs": inputs,
+        "outputs": [{"path": final.relative_to(root).as_posix(), "sha256": sha256_file(final)}],
+    })
+    return final
 
 
 def _update_cut(

@@ -1,0 +1,1 @@
+- ElevenLabs setup messages and `doctor` link to the page where you create an API key and name the permissions music, sound effects and voice fixes each need.

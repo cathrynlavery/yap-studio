@@ -22,15 +22,96 @@ from test_feedback_batch import _cut, _export, _json
 from test_feedback_batch import feedback_project as feedback_project
 from test_feedback_locate import WORDS, _comment
 from test_feedback_outline import outline_project as outline_project
-from test_feedback_versions import _update_cut
+from test_feedback_versions import _manual_final, _update_cut
 from test_feedback_versions import project as project
 
 from yap_studio.cli import _review_media_paths, main
 from yap_studio.errors import InputError, ValidationError
-from yap_studio.feedback.versions import save_version
+from yap_studio.feedback.versions import load_versions, save_version, version_layers
 from yap_studio.project.model import CutWords
 from yap_studio.review.launch import version_video
 from yap_studio.review.store import ReviewStore
+
+
+@pytest.mark.parametrize("as_json", [False, True])
+@pytest.mark.parametrize("binding", ["current", "cut", "captions", "graphics", "timeline", "hash",
+                                   "failed", "unreadable", "missing_receipt", "no_final",
+                                   "pending", "progress", "unowned"])
+def test_versions_save_selects_only_bound_final(
+    feedback_project, capsys, monkeypatch, binding, as_json,
+):
+    import shlex
+
+    from yap_studio.stages.run import layer_windows
+    from yap_studio.stages.timeline import ResolvedTimeline
+
+    root = feedback_project
+    inputs = {}
+    monkeypatch.setattr("yap_studio.project.status.assemble_inputs", lambda _: inputs)
+    monkeypatch.setattr("yap_studio.stages.timeline.resolve_timeline",
+                        lambda _: ResolvedTimeline((), (), (), 120, 0))
+    if binding != "no_final":
+        _manual_final(root)
+        receipt_path = root / "final/receipt.json"
+        receipt = json.loads(receipt_path.read_text())
+        inputs = dict(receipt["inputs"])
+        if binding in {"cut", "captions", "graphics", "timeline"}:
+            inputs["timeline"] = binding
+        elif binding == "hash":
+            receipt["outputs"][0]["sha256"] = "0" * 64
+        elif binding == "failed":
+            receipt["status"] = "failed"
+        elif binding == "unowned":
+            receipt["outputs"] = []
+        _json(receipt_path, receipt)
+        if binding in {"pending", "progress"}:
+            _json(root / "final" / ("receipt.pending.json" if binding == "pending"
+                                    else "progress.json"), {})
+        if binding == "unreadable":
+            receipt_path.write_text("{")
+        elif binding == "missing_receipt":
+            receipt_path.unlink()
+    args = ["versions", "save", str(root), "--note", "Ready"]
+    assert main(args + (["--json"] if as_json else [])) == 0
+    output = capsys.readouterr()
+    manifest, = load_versions(root)
+    expected = "final/sample-video.mp4" if binding == "current" else "cut/cut.mp4"
+    assert manifest.media["source"] == expected and manifest.note == "Ready"
+    if as_json:
+        assert json.loads(output.out)["media"]["source"] == expected
+    else:
+        assert f"Saved v1 from {expected}" in output.out
+    if binding == "current":
+        layers = version_layers(manifest)
+        assert layers and layers[0].kind == "caption" and layers[0].text == "A caption"
+        assert layers[0].start == layer_windows(root)["layers"][0]["start"]
+    else:
+        assert version_layers(manifest) is None
+    if binding not in {"current", "no_final"}:
+        assert output.err == (
+            "note: saved cut/cut.mp4, not final/sample-video.mp4, which does not match the "
+            "current cut, captions or graphics. Run yap-studio assemble "
+            f"{shlex.quote(str(root))} to make a new final, then save again.\n"
+        )
+    else:
+        assert not output.err
+
+
+def test_versions_save_final_honors_explicit_layers(feedback_project, capsys, monkeypatch):
+    from test_feedback_batch import _layers
+
+    root = feedback_project
+    _manual_final(root)
+    inputs = json.loads((root / "final/receipt.json").read_text())["inputs"]
+    monkeypatch.setattr("yap_studio.project.status.assemble_inputs", lambda _: inputs)
+    layers = _layers(root)
+    assert main(["versions", "save", str(root), "--layers", str(layers)]) == 0
+    capsys.readouterr()
+    manifest, = load_versions(root)
+    assert manifest.media["source"] == "final/sample-video.mp4"
+    assert [item.id for item in version_layers(manifest)] == [
+        item["id"] for item in json.loads(layers.read_text())["layers"]
+    ]
 
 
 def test_parser_does_not_import_feedback_implementation() -> None:

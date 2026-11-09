@@ -1,0 +1,1 @@
+- After a manual `assemble`, `versions save` saves the verified final with its caption and card windows, as `run` does, so replies can see caption and card changes. When the final doesn't match the current cut, captions or graphics, it saves the cut and says so.

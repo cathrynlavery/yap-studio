@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import unicodedata
+from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,10 +26,17 @@ from yap_studio import __version__, paths
 from yap_studio.errors import ValidationError, YapError
 from yap_studio.review.store import data_dir
 from yap_studio.style.library import _config, _save_lock, config_root
+from yap_studio.style.loader import SCHEMA_PATH
 
 MODES = ("ask", "always", "never")
 KINDS = ("bug", "confusing", "slow", "missing")
 REPO = "cathrynlavery/yap-studio"
+# Exact style setting names, such as music.level, stay readable in reports.
+STYLE_SETTINGS = frozenset(
+    f"{section}.{key}"
+    for section, spec in json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))["properties"].items()
+    for key in spec.get("properties", {})
+)
 
 
 def scrub(text: str) -> str:
@@ -70,7 +78,8 @@ def scrub(text: str) -> str:
     text = re.sub(r"\b(?:sk[-_]|gh[pousr]_|github_pat_|xox[baprs]-|AKIA)[\w-]+",
                   "[secret]", text, flags=re.I)
     text = re.sub(r"(?<![\w/+.-])[a-z0-9_/+.-]{32,}={0,2}(?![\w/+.-])",
-                  "[secret]", text, flags=re.I)
+                  lambda m: m[0] if m[0].casefold() in STYLE_SETTINGS else "[secret]",
+                  text, flags=re.I)
     public_names = {
         "github.com", "yapstudio.app", "e.g", "i.e",
         "project.json", "edit.json", "removals.json", "cut-words.json", "cut.mp4", "final.mp4",
@@ -78,7 +87,7 @@ def scrub(text: str) -> str:
         "answers.json", "new_project.py", "setup.py", "style.json", "words.json",
         "transcript.json", "phrases.json", "spans.json", "receipt.json", "report.json",
         "verify.json",
-    }
+    } | STYLE_SETTINGS
     text = re.sub(r"(?<!\w)[\w@~-]+(?:[.-][\w@~-]+)*\.[a-z][a-z0-9]{0,15}\b",
                   lambda m: m[0] if m[0].casefold() in public_names else "[file]",
                   text, flags=re.I)
@@ -87,11 +96,12 @@ def scrub(text: str) -> str:
 
 
 def fingerprint(kind: str, step: str | None, code: str | None, text: str,
-                origin: str | None = None) -> str:
+                origin: str | None = None, checks: Sequence[str] = ()) -> str:
     """Group equivalent scrubbed notes independently of time and machine."""
     values = [kind, step or "", code or "", " ".join(scrub(text).casefold().split())]
     if origin:
         values.append(re.sub(r":[0-9]+(?= |$)", "", origin))
+    values.extend(checks)
     return hashlib.sha256(json.dumps(values, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -154,8 +164,13 @@ def _safe(entry: dict) -> dict:
     result["origin"] = origin if isinstance(origin, str) and re.fullmatch(
         r"[a-z0-9_]+(/[a-z0-9_]+)*:[A-Za-z0-9_<>]+:[0-9]+( [A-Za-z][A-Za-z0-9_]*)?",
         origin) else None
+    checks = entry.get("checks")
+    result["checks"] = [check for check in checks if isinstance(check, str) and re.fullmatch(
+        r"[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*", check
+    )][:20] if isinstance(checks, list) else []
     result["fingerprint"] = fingerprint(result["kind"], result["step"],
-                                        result["code"], result["text"], result["origin"])
+                                        result["code"], result["text"], result["origin"],
+                                        result["checks"])
     result["sent"] = entry.get("sent") is True
     return result
 
@@ -171,12 +186,12 @@ def entries(*, pending: bool = False) -> list[dict]:
 
 
 def record(text: str, *, kind: str = "confusing", step: str | None = None,
-           code: str | None = None, origin: str | None = None) -> dict:
+           code: str | None = None, origin: str | None = None, checks: Sequence[str] = ()) -> dict:
     """Append one scrubbed entry with owner-only permissions before any send."""
     entry = _safe({"time": datetime.now(UTC).isoformat(), "version": __version__,
                    "macos": platform.mac_ver()[0], "arch": platform.machine(),
                    "step": step, "code": code, "kind": kind, "text": text, "origin": origin,
-                   "agent": os.environ.get("AGENT_ID"), "sent": False})
+                   "checks": list(checks), "agent": os.environ.get("AGENT_ID"), "sent": False})
     with _lock():
         fd = os.open(data_dir() / "feedback.jsonl",
                      os.O_APPEND | os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
@@ -222,6 +237,7 @@ def _issue(group: dict) -> dict:
         f"macOS version: {entry['macos']}", f"CPU arch: {entry['arch']}",
         f"Step: {entry['step'] or ''}", f"Code: {entry['code'] or ''}",
         f"Where: {entry['origin'] or ''}",
+        f"Checks: {', '.join(entry['checks'])}",
         f"Kind: {entry['kind']}", f"Agent: {entry['agent'] or ''}",
         f"Count: {group['count']}", "", f"Fingerprint: {group['fingerprint']}",
     ])
@@ -248,7 +264,7 @@ def _plan(group: dict, state: dict) -> dict:
         fingerprints = {group["fingerprint"]}
         if entry["origin"]:
             fingerprints.add(fingerprint(entry["kind"], entry["step"],
-                                         entry["code"], entry["text"]))
+                                         entry["code"], entry["text"], checks=entry["checks"]))
         # Walk every page; a full page is never evidence that the search is complete.
         issues = json.loads(_gh("api", "--paginate", "--slurp", "-X", "GET",
                                 f"repos/{REPO}/issues?state=all&per_page=100"))
@@ -258,6 +274,10 @@ def _plan(group: dict, state: dict) -> dict:
                     and not item.get("locked")
                     and any(value in (item.get("body") or "") for value in fingerprints)):
                 body = f"seen again in {entry['version']}, {group['count']} times"
+                if entry["origin"]:
+                    body += f"\nWhere: {entry['origin']}"
+                if entry["checks"]:
+                    body += f"\nChecks: {', '.join(entry['checks'])}"
                 return {"transport": "gh", "action": "comment", "issue": item["number"],
                         "body": body}
         return {"transport": "gh", "action": "create", **issue}
@@ -333,7 +353,7 @@ def automatic(command: str, error: YapError) -> None:
     """Capture the command, code and source location, preserving failing-command output."""
     try:
         record(f"{command} failed with {error.code}", kind="bug", step=command,
-               code=error.code, origin=error.origin)
+               code=error.code, origin=error.origin, checks=getattr(error, "checks", ()))
         # Automatic capture must leave stdout and stderr exactly as they were.
         auto_send(quiet=True)
     except Exception:
@@ -351,6 +371,17 @@ def command(args: argparse.Namespace) -> int:
             result = entries(pending=args.pending)
         elif action == "send":
             result = send(dry_run=args.dry_run, yes=args.yes)
+        elif action == "remove":
+            with _lock():
+                notes = entries()
+                kept = [entry for entry in notes
+                        if entry["sent"] or entry["fingerprint"] != args.fingerprint]
+                removed = len(notes) - len(kept)
+                if not removed:
+                    raise ValidationError("fingerprint", "no pending note has this fingerprint; "
+                                          "see yap-studio feedback list --pending")
+                _save(kept)
+            result = {"removed": removed, "fingerprint": args.fingerprint}
         else:
             text = sys.stdin.read() if args.stdin else args.text
             if not text or not text.strip():
@@ -379,11 +410,22 @@ def command(args: argparse.Namespace) -> int:
         return 2
 
 
+def _note_text(text: str) -> str:
+    """Refuse a lone unknown subcommand before recording feedback."""
+    word = text.strip()
+    if word and not any(char.isspace() for char in word):
+        raise argparse.ArgumentTypeError(
+            f"unknown feedback subcommand '{word}'. To record a note, quote a sentence, "
+            'as in yap-studio feedback "The render needed a retry", or use --stdin.'
+        )
+    return text
+
+
 def record_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="yap-studio feedback", description=
                                      "Record product feedback locally before optional sharing.")
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("text", nargs="?", metavar="TEXT")
+    source.add_argument("text", nargs="?", metavar="TEXT", type=_note_text)
     source.add_argument("--stdin", action="store_true")
     parser.add_argument("--step")
     parser.add_argument("--code")
@@ -396,7 +438,7 @@ def record_parser() -> argparse.ArgumentParser:
 
 
 def register(commands: argparse._SubParsersAction) -> None:
-    for name in ("list", "send", "setting"):
+    for name in ("list", "send", "setting", "remove"):
         parser = commands.add_parser(name, help=f"{name} product feedback")
         parser.set_defaults(func=command)
         parser.add_argument("--json", action="store_true")
@@ -405,5 +447,7 @@ def register(commands: argparse._SubParsersAction) -> None:
         elif name == "send":
             parser.add_argument("--dry-run", action="store_true")
             parser.add_argument("--yes", action="store_true")
+        elif name == "remove":
+            parser.add_argument("fingerprint")
         else:
             parser.add_argument("mode", choices=MODES)

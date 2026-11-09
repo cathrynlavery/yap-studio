@@ -1958,7 +1958,7 @@ def _argument_parser(arguments: list[str]) -> tuple[argparse.ArgumentParser, lis
     if arguments[:1] == ["feedback"] and (
         len(arguments) < 2 or arguments[1] not in {
             "build", "apply", "check", "reply", "replies", "ask", "answer",
-            "list", "send", "setting", "--help", "-h",
+            "list", "send", "setting", "remove", "--help", "-h",
         }
     ):
         from yap_studio.product_feedback import record_parser

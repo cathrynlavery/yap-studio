@@ -81,8 +81,11 @@ For generated music (and the sound kit), install the optional ElevenLabs CLI:
 npx -y @mvanhorn/printing-press-library install elevenlabs --cli-only
 ```
 
-Create your own ElevenLabs API key with Music, Sound Effects and User read access,
-then save it with `elevenlabs-pp-cli auth set-token <your-key>` (replace the
+Create an API key at https://elevenlabs.io/app/developers/api-keys.
+Music needs Music and User read access; sound effects need Sound Effects and User read.
+[Voice fixes](audio.md#voice-fixes) need Text to Speech, Voices read and write, and User read,
+with Models read and History read for costs.
+Save it with `elevenlabs-pp-cli auth set-token <your-key>` (replace the
 placeholder with your key). Yap Studio never ships or reads a key. Both
 `yap-studio doctor` and `yap-studio music` print the signup link when setup is
 needed; it is an affiliate link.

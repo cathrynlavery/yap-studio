@@ -198,6 +198,25 @@ def verify_cut(project_dir: Path, receipt: dict | None) -> dict[str, str]:
     return verified
 
 
+def bound_final(project_dir: Path) -> Path | None:
+    """Return the final only when assembly is current for the live project inputs."""
+    from yap_studio.project.receipts import StageRun
+    from yap_studio.project.status import assemble_inputs
+
+    root = Path(project_dir).resolve()
+    try:
+        context = ProjectContext(root)
+        inputs = assemble_inputs(context)
+        if not StageRun(root, "final").up_to_date(inputs):
+            return None
+        final = root / "final" / f"{context.project.name}.mp4"
+        record = read_receipt(root / "final") or {}
+        return final if any(output["path"] == final.relative_to(root).as_posix()
+                            for output in record.get("outputs", [])) else None
+    except (OSError, YapError, KeyError, TypeError, ValueError):
+        return None
+
+
 def _seconds(value: object) -> bool:
     if type(value) not in (int, float) or value < 0:
         return False

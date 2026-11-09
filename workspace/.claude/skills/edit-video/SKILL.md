@@ -31,7 +31,7 @@ has one, otherwise in chat.
   shows them (What are you making? in `AGENTS.md`). Never invent screens or images, and
   never download or generate anything they have not approved.
 - Use a feature only where the story calls for it. Most videos need a few, not all.
-- Run `yap-studio feedback "..." --step STEP` whenever a step fails, needs a retry or a
+- Run `yap-studio feedback "WHAT HAPPENED" --step STEP` whenever a step fails, needs a retry or a
   workaround, the docs were wrong or missing, or the creator corrects something the checks
   should have caught. Describe the tool problem only, with no creator words or names.
   Check `feedback.mode` in `yap-studio doctor --json`. With mode ask, at the end of a video
