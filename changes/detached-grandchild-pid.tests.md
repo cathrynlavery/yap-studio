@@ -1,0 +1,1 @@
+- Wait for the grandchild PID to be written before checking that a detached run stops its process group.
