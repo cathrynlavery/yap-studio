@@ -1378,6 +1378,15 @@ def _word_edge_offset(
     return offset
 
 
+def _is_word_inflection(planned: str, heard: str) -> bool:
+    """Compare normalized tokens by adding or removing one common English suffix."""
+    stem, inflected = sorted((planned, heard), key=len)
+    return sum(letter.isalpha() for letter in stem) >= 3 and any(
+        inflected == stem + suffix and (suffix != "d" or stem.endswith("e"))
+        for suffix in ("s", "es", "ed", "d", "ing", "'s")
+    )
+
+
 def _boundary_word_form_finding(
     trial: _WordTrial,
     transcripts: Mapping[Path, Transcript],
@@ -1411,6 +1420,7 @@ def _boundary_word_form_finding(
 
     def heard_token(transcript: Transcript) -> str | None:
         heard = words_between(transcript, start, end, rule="overlap")
+        changed_token = None
         for candidate in reversed(heard) if side == "last" else heard:
             tokens = norm_words(candidate.text)
             if not tokens:
@@ -1418,14 +1428,9 @@ def _boundary_word_form_finding(
             token = tokens[edge]
             if token == planned_token:
                 return token
-            shorter, longer = sorted((planned_token, token), key=len)
-            if not (longer.startswith(shorter) if side == "last" else longer.endswith(shorter)):
-                continue
-            added = longer[len(shorter):] if side == "last" else longer[:-len(shorter)]
-            letters = added.replace("'", "")
-            if letters.isalpha() and len(letters) <= 2:
-                return token
-        return None
+            if changed_token is None and _is_word_inflection(planned_token, token):
+                changed_token = token
+        return changed_token
 
     render_token, plan_token = (heard_token(transcripts[path]) for path in trial.paths[:2])
     if render_token is None or render_token == planned_token or render_token != plan_token:
