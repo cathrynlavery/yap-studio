@@ -859,6 +859,126 @@ def _with_intent(plan: Plan, directory: Path, **words: dict[int, str]) -> Plan:
     return Plan.build(load_edit_list(path), plan.fps, plan.sample_rate)
 
 
+@pytest.mark.parametrize("side,planned,source,rendered,assembled,changed,crossing", [
+    pytest.param("last", "command.", "command", "commands", "commands", True, None,
+                 id="added-ending"),
+    pytest.param("last", "command.", "command", "command", "command", False, None,
+                 id="safe-short-tail"),
+    pytest.param("last", "command.", "command", "commands", "command", False, None,
+                 id="render-only"),
+    pytest.param("last", "command.", "commands", "commands", "commands", False, None,
+                 id="source-not-exact"),
+    pytest.param("last", "commands", "commands", "command", "command", True, None,
+                 id="lost-ending"),
+    pytest.param("first", "eat", "eat", "seat", "seat", False, None, id="added-onset"),
+    pytest.param("last", "command.", "command", "commands", "commands", True, "last",
+                 id="crossing-last"),
+    pytest.param("first", "eat", "eat", "seat", "seat", False, "first", id="crossing-first"),
+    pytest.param("first", "We", "We", "we", "we", False, "last",
+                 id="crossing-left-before-first"),
+    pytest.param("first", "he", "he", "he", "he", False, "neighbour",
+                 id="exact-first-after-crossing-form"),
+    pytest.param("first", "he", "he", "she", "she", False, None, id="different-word-she"),
+    pytest.param("first", "at", "at", "that", "that", False, None, id="different-word-that"),
+    pytest.param("last", "in", "in", "inn", "inn", False, None, id="different-word-inn"),
+    pytest.param("first", "an", "an", "and", "and", False, None, id="short-stem-an"),
+    pytest.param("first", "us", "us", "used", "used", False, None, id="short-stem-us"),
+    pytest.param("first", "a", "a", "as", "as", False, None, id="short-stem-a"),
+    pytest.param("last", "ban", "ban", "band", "band", False, None, id="d-without-final-e"),
+    pytest.param("first", "use", "use", "used", "used", True, None, id="first-inflection"),
+    pytest.param("first", "use", "use", "used", "used", True, "first",
+                 id="crossing-first-inflection"),
+    pytest.param("last", "used", "used", "use", "use", True, None, id="lost-d-suffix"),
+    pytest.param("last", "watch", "watch", "watches", "watches", True, None, id="es-suffix"),
+    pytest.param("last", "command", "command", "commanded", "commanded", True, None,
+                 id="ed-suffix"),
+    pytest.param("last", "command", "command", "commanding", "commanding", True, None,
+                 id="ing-suffix"),
+    pytest.param("last", "command", "command", "command's", "command's", True, None,
+                 id="possessive-suffix"),
+])
+def test_planned_word_boundary_form(
+    small_media, side: str, planned: str, source: str, rendered: str,
+    assembled: str, changed: bool, crossing: str | None,
+) -> None:
+    media, sr = small_media, 8000
+    first = side == "first"
+    left_word = "command." if first else planned
+    if crossing == "neighbour":
+        left_word = "she"
+    media.plan = _with_intent(
+        media.plan, media.directory,
+        last_word={} if first and crossing == "last" else {1: left_word},
+        first_word={2: planned if first else "We"},
+    )
+    end = 2.96 if rendered == assembled == "command" else 3.0
+    spans = [("the", 2.40, 2.52), (left_word.rstrip(".") if first else source, 2.65, end),
+             (source if first else "We", 4.04, 4.20), ("used", 4.30, 4.50)]
+    media.original[:] = 10 ** (-65 / 20)
+    for _, start, stop in spans:
+        media.original[round(start * sr):round(stop * sr)] = 0.1
+    media.sound[:] = np.concatenate((media.original[:3 * sr], media.original[4 * sr:]))
+
+    def script(path: Path) -> Transcript:
+        if path.name in {"cut-01-render.wav", "cut-01-plan.wav"}:
+            heard = rendered if path.name == "cut-01-render.wav" else assembled
+            # The assembled windows have two seconds per side and a one-second lead.
+            left = Word(left_word.rstrip(".") if first else heard, 2.65, end)
+            right = Word(heard if first else "We", 3.04, 3.20)
+            used = Word("used", 3.30, 3.50)
+            if crossing == "last":
+                left = Word("commands", 2.9, 3.3)
+                right = replace(right, start=3.34, end=3.42)
+                used = replace(used, start=3.45, end=3.55)
+            elif crossing == "first":
+                right = replace(right, start=2.7, end=3.1)
+            elif crossing == "neighbour":
+                left = replace(left, start=2.8, end=3.05)
+                right = replace(right, start=3.1, end=3.25)
+            return Transcript([Word("the", 2.40, 2.52), left, right, used])
+        if path.name == "cut-01-left.wav":
+            return Transcript([Word(text, start - 0.5, stop - 0.5)
+                               for text, start, stop in spans[:2]])
+        if path.name == "cut-01-right.wav":
+            return Transcript([Word(text, start - 2, stop - 2)
+                               for text, start, stop in spans[2:]])
+        return Transcript([])
+
+    result = _check(media, backend=ScriptedBackend(script))
+    findings = [row for row in result.findings if row.check == "join.words"
+                and "heard as" in row.message]
+    if not changed:
+        assert not findings
+        assert result.cuts[0].words.status == "pass"
+        if source == "commands":
+            assert any(row.check == "join.listen" and "could not be heard" in row.message
+                       for row in result.findings)
+        return
+    assert len(findings) == 1
+    finding = findings[0]
+    assert (finding.severity, finding.cut, finding.time_s) == ("fail", 1, 3.0)
+    assert finding.message == (
+        f'Cut 1 at 0:03.0: the planned {side} word "{planned}" '
+        f'is heard as "{rendered}" across this cut.'
+    )
+    assert finding.evidence["side"] == side
+    assert finding.evidence["planned_word"] == planned
+    assert finding.evidence["planned_token"] == planned.rstrip(".")
+    assert finding.evidence["render_token"] == rendered
+    assert finding.evidence["plan_token"] == assembled
+    assert finding.evidence["render_words_near_join"] == (
+        ["the", left_word.rstrip("."), rendered, "used"] if first
+        else ["the", rendered, "we", "used"]
+    )
+    assert finding.evidence["source_heard"] == ([source, "used"] if first else ["the", source])
+    assert finding.evidence["window_s"] == pytest.approx([2.0, 2.0])
+    assert "listen" in finding.suggested_action.lower()
+    assert ("first edge" if first else "short tail") in finding.suggested_action
+    assert result.cuts[0].words.status == "fail"
+    assert result.cuts[0].words.reason == "planned boundary word changed"
+    assert result.cuts[1].words.status != "fail"
+
+
 @pytest.mark.parametrize("side", ["first", "last"])
 @pytest.mark.parametrize("clock_offset_s", [-0.3, 0.0, 0.3])
 @pytest.mark.parametrize("anchored", [True, False], ids=["word-anchor", "source-time"])

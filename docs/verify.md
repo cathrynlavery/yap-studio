@@ -105,7 +105,7 @@ Each finding gives the time on the output, the problem and a fix.
 | --- | --- | --- |
 | `join.click` | A sharp sound change is present at a cut. | Add a short audio fade (5 to 30 ms) and render again. |
 | `join.gap` | Audio was inserted or lost at a cut. | Inserted: encode the audio once for the whole video. Lost: re-render so each clip keeps its full audio. |
-| `join.words` | The render's audio differs from the edit list, or a source edge excludes voice from a planned first or last word. It also warns when a quietest-dip edge keeps a stray sound beside the planned word. | Match the render to the edit list, or move the named source edge to keep the word or drop the stray sound. For the same word's start or end anchor, set `from.offset_s` or `to.offset_s` to the suggested value. |
+| `join.words` | The render's audio differs from the edit list, a source edge excludes voice from a planned first or last word, or the audio at a cut is heard as a different form of that word, such as "commands" for "command". It also warns when a quietest-dip edge keeps a stray sound beside the planned word. | Match the render to the edit list, or move the named source edge to keep the word or drop the stray sound. For the same word's start or end anchor, set `from.offset_s` or `to.offset_s` to the suggested value. |
 | `join.frames` | The frames around a cut do not match the edit. Without an edit list, a frame at a found cut counts as repeated only when it changes almost nothing from its neighbour, or less than a quarter of the usual frame-to-frame change on that side of the cut. | Check the source range and render the cut again. |
 | `join.listen` | A join needs a listening review, for example where the edit itself cuts through a word. | Listen around the named cut and repair any audible change. |
 | `join.relisten` | The render's words at a cut differ from the edit's own audio, or a word is doubled across the cut that the source does not repeat there. | Listen to the join, move the cut if needed, and render again. |
@@ -149,6 +149,8 @@ without one, the report says so in a note. A cut with no speech nearby is `skipp
 A pass means the render's audio matches
 the edit. A cut through a source word without planned boundary intent gets a `join.listen`
 note; clipping an identified planned boundary word fails `join.words`.
+It also fails when the speech engine hears a planned boundary word as a different form across
+the cut, such as "commands" for "command", in both the render and the edit's own audio.
 
 ## JSON report and exit codes
 

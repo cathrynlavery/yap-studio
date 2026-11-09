@@ -45,8 +45,8 @@ IN_SOURCE_RATIO = 0.25  # A source match must stay small next to both flash chan
 class WordsResult:
     """Audio agreement with the plan, with transcripts retained for word names.
 
-    Transcript differences are evidence only. Source energy decides whether
-    an identified planned boundary word was clipped by the edit.
+    Source energy identifies clipped planned boundary words. Exact transcripts
+    from both assembled windows also identify changed boundary word forms.
     """
 
     status: Literal["pass", "fail", "skipped", "unverifiable"]
@@ -1378,6 +1378,87 @@ def _word_edge_offset(
     return offset
 
 
+def _is_word_inflection(planned: str, heard: str) -> bool:
+    """Compare normalized tokens by adding or removing one common English suffix."""
+    stem, inflected = sorted((planned, heard), key=len)
+    return sum(letter.isalpha() for letter in stem) >= 3 and any(
+        inflected == stem + suffix and (suffix != "d" or stem.endswith("e"))
+        for suffix in ("s", "es", "ed", "d", "ing", "'s")
+    )
+
+
+def _boundary_word_form_finding(
+    trial: _WordTrial,
+    transcripts: Mapping[Path, Transcript],
+    word: str,
+    side: Literal["first", "last"],
+    point_s: float,
+    role: int,
+    *,
+    cut: int,
+    time_s: float,
+) -> Finding | None:
+    """Require exact source intent and agreement on a changed assembled edge token."""
+    expected = norm_words(word)
+    if not expected:
+        return None
+    source = [(token, heard) for heard in transcripts[trial.paths[role]].words
+              for token in norm_words(heard.text)]
+    if not any(
+        [token for token, _ in source[index:index + len(expected)]] == expected
+        and source[index][1].start - 1.0 - _WORD_SEARCH_S <= point_s
+        <= source[index + len(expected) - 1][1].end - 1.0 + _WORD_SEARCH_S
+        for index in range(len(source) - len(expected) + 1)
+    ):
+        return None
+    edge = -1 if side == "last" else 0
+    planned_token = expected[edge]
+    # Compare on the WAV clock, including its one-second silent lead.
+    join_s = trial.a + 1.0
+    start, end = ((join_s - _WORD_SEARCH_S, join_s) if side == "last"
+                  else (join_s, join_s + _WORD_SEARCH_S))
+
+    def heard_token(transcript: Transcript) -> str | None:
+        heard = words_between(transcript, start, end, rule="overlap")
+        changed_token = None
+        for candidate in reversed(heard) if side == "last" else heard:
+            tokens = norm_words(candidate.text)
+            if not tokens:
+                continue
+            token = tokens[edge]
+            if token == planned_token:
+                return token
+            if changed_token is None and _is_word_inflection(planned_token, token):
+                changed_token = token
+        return changed_token
+
+    render_token, plan_token = (heard_token(transcripts[path]) for path in trial.paths[:2])
+    if render_token is None or render_token == planned_token or render_token != plan_token:
+        return None
+    action = (
+        "Keep a short tail after the word by moving this segment's last edge a little later, "
+        "and listen." if side == "last" else
+        "Move the next segment's first edge so the word starts cleanly, and listen."
+    )
+    return Finding(
+        "join.words", "fail",
+        f'Cut {cut} at {format_time(time_s)}: the planned {side} word "{word}" '
+        f'is heard as "{render_token}" across this cut.',
+        cut=cut, time_s=time_s, suggested_action=action,
+        evidence={
+            "side": side, "planned_word": word, "planned_token": planned_token,
+            "render_token": render_token, "plan_token": plan_token,
+            "render_words_near_join": norm_words(" ".join(
+                heard.text for heard in words_between(
+                    transcripts[trial.paths[0]], join_s - 0.6, join_s + 0.6,
+                )
+            )),
+            "source_heard": [token for token, _ in source],
+            "window_s": [trial.a, trial.b],
+        },
+    )
+
+
 def _planned_word_finding(
     transcript: Transcript,
     word: str,
@@ -2157,6 +2238,16 @@ def check_joins(
                                 cuts[index].words, status="fail",
                                 reason="planned boundary word clipped",
                             ))
+                    finding = _boundary_word_form_finding(
+                        trial, transcripts, word, side, point, role,
+                        cut=cut.index, time_s=cut.out_time_s,
+                    )
+                    if finding is not None:
+                        findings.append(finding)
+                        cuts[index] = replace(cuts[index], words=replace(
+                            cuts[index].words, status="fail",
+                            reason="planned boundary word changed",
+                        ))
         for outer in outer_trials:
             segment = plan.segments[0] if outer.side == "first" else plan.segments[-1]
             frame = segment.src_f0 if outer.side == "first" else segment.src_f1

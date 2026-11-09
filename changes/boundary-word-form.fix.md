@@ -1,0 +1,1 @@
+- Verify catches planned boundary words heard as a changed form across a cut, such as "commands" for "command", and suggests moving the edge to keep the word clean.
