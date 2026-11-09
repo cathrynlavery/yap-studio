@@ -1408,22 +1408,27 @@ def _boundary_word_form_finding(
     join_s = trial.a + 1.0
     start, end = ((join_s - _WORD_SEARCH_S, join_s) if side == "last"
                   else (join_s, join_s + _WORD_SEARCH_S))
-    heard_tokens = []
-    for path in trial.paths[:2]:
-        heard = words_between(transcripts[path], start, end)
-        tokens = norm_words(heard[edge].text) if heard else []
-        if not tokens:
-            return None
-        heard_tokens.append(tokens[edge])
-    render_token, plan_token = heard_tokens
-    if render_token == planned_token or render_token != plan_token:
+
+    def heard_token(transcript: Transcript) -> str | None:
+        heard = words_between(transcript, start, end, rule="overlap")
+        for candidate in reversed(heard) if side == "last" else heard:
+            tokens = norm_words(candidate.text)
+            if not tokens:
+                continue
+            token = tokens[edge]
+            if token == planned_token:
+                return token
+            shorter, longer = sorted((planned_token, token), key=len)
+            if not (longer.startswith(shorter) if side == "last" else longer.endswith(shorter)):
+                continue
+            added = longer[len(shorter):] if side == "last" else longer[:-len(shorter)]
+            letters = added.replace("'", "")
+            if letters.isalpha() and len(letters) <= 2:
+                return token
         return None
-    shorter, longer = sorted((planned_token, render_token), key=len)
-    if not (longer.startswith(shorter) if side == "last" else longer.endswith(shorter)):
-        return None
-    added = (longer[len(shorter):] if side == "last" else longer[:-len(shorter)])
-    letters = added.replace("'", "")
-    if not letters.isalpha() or len(letters) > 2:
+
+    render_token, plan_token = (heard_token(transcripts[path]) for path in trial.paths[:2])
+    if render_token is None or render_token == planned_token or render_token != plan_token:
         return None
     action = (
         "Keep a short tail after the word by moving this segment's last edge a little later, "

@@ -859,28 +859,33 @@ def _with_intent(plan: Plan, directory: Path, **words: dict[int, str]) -> Plan:
     return Plan.build(load_edit_list(path), plan.fps, plan.sample_rate)
 
 
-@pytest.mark.parametrize("side,planned,source,rendered,assembled,changed", [
-    pytest.param("last", "command.", "command", "commands", "commands", True,
+@pytest.mark.parametrize("side,planned,source,rendered,assembled,changed,crossing", [
+    pytest.param("last", "command.", "command", "commands", "commands", True, None,
                  id="added-ending"),
-    pytest.param("last", "command.", "command", "command", "command", False,
+    pytest.param("last", "command.", "command", "command", "command", False, None,
                  id="safe-short-tail"),
-    pytest.param("last", "command.", "command", "commands", "command", False,
+    pytest.param("last", "command.", "command", "commands", "command", False, None,
                  id="render-only"),
-    pytest.param("last", "command.", "commands", "commands", "commands", False,
+    pytest.param("last", "command.", "commands", "commands", "commands", False, None,
                  id="source-not-exact"),
-    pytest.param("last", "commands", "commands", "command", "command", True,
+    pytest.param("last", "commands", "commands", "command", "command", True, None,
                  id="lost-ending"),
-    pytest.param("first", "eat", "eat", "seat", "seat", True, id="added-onset"),
+    pytest.param("first", "eat", "eat", "seat", "seat", True, None, id="added-onset"),
+    pytest.param("last", "command.", "command", "commands", "commands", True, "last",
+                 id="crossing-last"),
+    pytest.param("first", "eat", "eat", "seat", "seat", True, "first", id="crossing-first"),
+    pytest.param("first", "We", "We", "we", "we", False, "last",
+                 id="crossing-left-before-first"),
 ])
 def test_planned_word_boundary_form(
     small_media, side: str, planned: str, source: str, rendered: str,
-    assembled: str, changed: bool,
+    assembled: str, changed: bool, crossing: str | None,
 ) -> None:
     media, sr = small_media, 8000
     first = side == "first"
     media.plan = _with_intent(
         media.plan, media.directory,
-        last_word={1: "command." if first else planned},
+        last_word={} if first and crossing == "last" else {1: "command." if first else planned},
         first_word={2: planned if first else "We"},
     )
     end = 2.96 if rendered == assembled == "command" else 3.0
@@ -895,10 +900,16 @@ def test_planned_word_boundary_form(
         if path.name in {"cut-01-render.wav", "cut-01-plan.wav"}:
             heard = rendered if path.name == "cut-01-render.wav" else assembled
             # The assembled windows have two seconds per side and a one-second lead.
-            return Transcript([Word("the", 2.40, 2.52),
-                               Word("command" if first else heard, 2.65, end),
-                               Word(heard if first else "We", 3.04, 3.20),
-                               Word("used", 3.30, 3.50)])
+            left = Word("command" if first else heard, 2.65, end)
+            right = Word(heard if first else "We", 3.04, 3.20)
+            used = Word("used", 3.30, 3.50)
+            if crossing == "last":
+                left = Word("commands", 2.9, 3.3)
+                right = replace(right, start=3.34, end=3.42)
+                used = replace(used, start=3.45, end=3.55)
+            elif crossing == "first":
+                right = replace(right, start=2.7, end=3.1)
+            return Transcript([Word("the", 2.40, 2.52), left, right, used])
         if path.name == "cut-01-left.wav":
             return Transcript([Word(text, start - 0.5, stop - 0.5)
                                for text, start, stop in spans[:2]])
