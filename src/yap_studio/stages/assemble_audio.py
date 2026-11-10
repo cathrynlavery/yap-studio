@@ -22,6 +22,8 @@ from yap_studio.stages.timeline import ResolvedElement, ResolvedTimeline
 
 RATE = 48_000
 SAMPLES_PER_FRAME = 1600
+# EBU R128 reports its absolute-gate floor for silence instead of no value.
+EBUR128_ABSOLUTE_GATE_LUFS = -70.0
 # Music level and duck threshold assume voice at the bed's default target loudness.
 VOICE_REFERENCE_LUFS = -16.0
 # Positive recipe gain can raise a cue, but its peak must stay this far under voice.
@@ -298,14 +300,17 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
     voice_layout = "pan=stereo|c0=c0|c1=c0," if info.channels == 1 and channels == 2 else ""
     work_dir.mkdir(parents=True, exist_ok=True)
     voice_reference = original
-    if (use_sfx or bleeps) and chain:
-        treated = work_dir / "sfx-voice-reference.wav"
+    music_voice = input_voice
+    if chain and (bed is not None or use_sfx or bleeps):
+        treated = work_dir / "treated-voice-reference.wav"
         _run(["ffmpeg", "-nostdin", "-v", "error", "-i", str(voice_path),
               "-map", "0:a:0", "-af", f"{chain},atrim=end_sample={cut_samples}",
               "-c:a", "pcm_f32le", "-ar", str(RATE), str(treated)], commands)
         voice_reference = decode(treated, commands, channels=info.channels)
         if len(voice_reference) != cut_samples:
             raise AudioError("Voice treatment changed the output sample count.")
+        if bed is not None:
+            music_voice = measure(treated, commands)
     bleep_receipt = None
     bleep_voice = None
     if bleeps:
@@ -345,12 +350,16 @@ def render_audio(project_dir: Path, out: Path, *, work_dir: Path,
         if len(bed_samples) != samples or np.any(bed_samples[cut_samples:]):
             raise AudioError("music/bed.wav must match the final length with a silent hold.")
         bed_lufs = measure(bed, commands).integrated_lufs
-        voice_lufs = input_voice.integrated_lufs
+        voice_lufs = music_voice.integrated_lufs
+        usable_bed_lufs = (bed_lufs if bed_lufs is not None
+                           and bed_lufs > EBUR128_ABSOLUTE_GATE_LUFS else None)
+        if voice_lufs is not None and voice_lufs <= EBUR128_ABSOLUTE_GATE_LUFS:
+            voice_lufs = None
         # Dual mono plays louder than the measured mono file, so use its mixed loudness.
         if voice_lufs is not None and voice_layout:
             voice_lufs += 10 * math.log10(2)
-        shift_db = (voice_lufs - bed_lufs
-                    if voice_lufs is not None and bed_lufs is not None else 0.0)
+        shift_db = (voice_lufs - usable_bed_lufs
+                    if voice_lufs is not None and usable_bed_lufs is not None else 0.0)
         music_receipt.update(bed_lufs=bed_lufs, level_shift_db=shift_db)
         envelope = np.full(samples, float(music["level"]) * 10 ** (shift_db / 20),
                            dtype=np.float32)

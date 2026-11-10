@@ -256,6 +256,64 @@ def test_music_level_follows_measured_speech(
             assert "duck_threshold" not in result.music
 
 
+def test_music_follows_treated_voice_not_raw_input(tmp_path: Path) -> None:
+    count = 4 * stage.RATE
+    time = np.arange(count) / stage.RATE
+    voice = (0.65 * np.sin(2 * np.pi * 220 * time)).astype(np.float32)
+    voice[stage.RATE:2 * stage.RATE] *= 0.08
+    voice[3 * stage.RATE:] *= 0.2
+    voice_path = synth.float_audio(tmp_path / "cut/voice.wav", voice)
+    bed_samples = np.column_stack([0.05 * np.sin(2 * np.pi * 880 * time)] * 2)
+    bed_path = synth.float_audio(tmp_path / "bed.wav", bed_samples)
+    chain = voice_filters("broadcast")
+    treated_path = tmp_path / "expected-treated.wav"
+    ffmpeg.run([
+        "ffmpeg", "-nostdin", "-v", "error", "-i", str(voice_path), "-map", "0:a:0",
+        "-af", f"{chain},atrim=end_sample={count}", "-c:a", "pcm_f32le", "-ar",
+        str(stage.RATE), str(treated_path),
+    ], timeout_s=60)
+    raw_lufs = stage.measure(voice_path, []).integrated_lufs
+    treated_lufs = stage.measure(treated_path, []).integrated_lufs
+    bed_lufs = stage.measure(bed_path, []).integrated_lufs
+    assert raw_lufs is not None and treated_lufs is not None and bed_lufs is not None
+    assert abs(raw_lufs - treated_lufs) > 0.5
+    music = {**resolve("preset:clean_minimal").data["music"], "dry_open_s": 0}
+    result = stage.render_audio(
+        tmp_path, tmp_path / "audio.m4a", work_dir=tmp_path / "work",
+        timeline=ResolvedTimeline((), (), (), 120, 0), policy=AUDIO_DEFAULTS,
+        music=music, voice={"preset": "broadcast"}, bed=bed_path,
+    )
+    mixed_treated_lufs = treated_lufs + 10 * np.log10(2)
+    assert result.input_voice.integrated_lufs == raw_lufs
+    assert result.music["level_shift_db"] == pytest.approx(mixed_treated_lufs - bed_lufs)
+    assert result.music["duck_threshold"] == pytest.approx(
+        music["duck_threshold"] * 10 ** ((mixed_treated_lufs - stage.VOICE_REFERENCE_LUFS) / 20)
+    )
+
+
+def test_silent_voice_keeps_authored_music_level_with_real_audio(tmp_path: Path) -> None:
+    count = 2 * stage.RATE
+    voice_path = synth.float_audio(tmp_path / "cut/voice.wav",
+                                   np.zeros(count, dtype=np.float32))
+    time = np.arange(count) / stage.RATE
+    bed_samples = np.column_stack([0.05 * np.sin(2 * np.pi * 440 * time)] * 2)
+    bed_path = synth.float_audio(tmp_path / "bed.wav", bed_samples)
+    measured_silence = stage.measure(voice_path, []).integrated_lufs
+    assert measured_silence == pytest.approx(-70)
+    music = {**resolve("preset:clean_minimal").data["music"], "level": 0.25,
+             "dry_open_s": 0, "duck_ratio": 1}
+    result = stage.render_audio(
+        tmp_path, tmp_path / "audio.m4a", work_dir=tmp_path / "work",
+        timeline=ResolvedTimeline((), (), (), 60, 0), policy={"mode": "preserve"},
+        music=music, bed=bed_path,
+    )
+    assert result.input_voice.integrated_lufs == measured_silence
+    assert result.music["level_shift_db"] == 0
+    assert result.music["duck_threshold"] == music["duck_threshold"]
+    mix = stage.decode(tmp_path / "work/mix.wav", [], channels=2)
+    np.testing.assert_allclose(mix, bed_samples * music["level"], atol=1e-7)
+
+
 @pytest.mark.parametrize(("voice_lufs", "bed_lufs", "level", "threshold", "shift", "effective"), [
     (-60, -16, 0.06, 0.03, -44 + 10 * np.log10(2), 0.000976563),
     (4, -16, 0.06, 0.3, 20 + 10 * np.log10(2), 1),
