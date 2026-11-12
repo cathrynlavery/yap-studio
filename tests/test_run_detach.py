@@ -184,11 +184,35 @@ def read_state(root):
 
 def wait_for(predicate, timeout=8):
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
+    while True:
+        result = predicate()
+        if result:
+            return result
+        assert time.monotonic() < deadline, "condition did not become true before timeout"
         time.sleep(0.05)
-    assert predicate()
+
+
+def wait_for_pid(path):
+    def read_pid():
+        try:
+            contents = path.read_text().strip()
+        except FileNotFoundError:
+            return None
+        # The file can exist before the child writes its PID.
+        return int(contents) if contents else None
+
+    return wait_for(read_pid)
+
+
+def test_wait_for_pid_retries_until_written(tmp_path, monkeypatch):
+    path = tmp_path / "grandchild"
+    writes = iter(["", "  \n", "12345\n"])
+
+    def write_next(_seconds):
+        path.write_text(next(writes))
+
+    monkeypatch.setattr(time, "sleep", write_next)
+    assert wait_for_pid(path) == 12345
 
 
 def start(job, *options):
@@ -264,8 +288,7 @@ def test_run_returns_status_and_stop_kills_group(job):
     assert document["status"] == "running"
     assert document["schema"] == "yap-studio/run-detached@1"
     os.kill(document["pid"], 0)
-    wait_for(lambda: (root / "grandchild").exists())
-    grandchild = int((root / "grandchild").read_text())
+    grandchild = wait_for_pid(root / "grandchild")
     state = read_state(root)
     assert state["options"] == {"note": "Final", "frames": [1, 20], "allow_violations": True}
     assert (root / ".yap/run/state.json").stat().st_mode & 0o777 == 0o600
