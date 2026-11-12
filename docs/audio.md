@@ -151,6 +151,17 @@ of the looped track.
 Assembly applies style level, dry open, ducking and timeline music windows;
 changing those settings does not re-render the bed.
 
+Assembly measures the delivered voice after its cleanup chain and the bed, then
+places the bed `music.level` under that treated voice whether the take is loud or
+quiet: 0.06 is about 24 dB under, 0.04 about 28 dB, and 0.09 about 21 dB. The
+receipt's `input_voice` measurement still describes the untreated cut. An empty
+voice at or below EBU R128's -70 LUFS absolute gate keeps the authored music level
+instead of treating the gate floor as speech. Level ducking follows measurable
+voice too: `music.duck_threshold` is written for a voice at -16 LUFS and moves
+with its treated loudness, so a quiet take still lowers the music while you
+speak. `duck_mode: "words"` lowers it by `duck_depth_db` during timed words
+instead. The final receipt records the bed loudness, the shift and the threshold used.
+
 ## Sound effects
 
 The `soft` kit is a set of four sound recipes, not audio files. Each creator
