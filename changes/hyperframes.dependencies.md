@@ -1,1 +1,1 @@
-- Pin the renderer to HyperFrames 0.9.23.
+- Pin the renderer to HyperFrames 0.9.46.
