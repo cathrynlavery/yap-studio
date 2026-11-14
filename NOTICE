@@ -15,7 +15,7 @@ The generated caption preview effects in docs/design/style-page/caption-ports.js
 caption-ports.css reuse those modified caption ports under the same license.
 
 Setup downloads the HyperFrames registry items listed in src/yap_studio/hf_registry/catalog.json
-at commit 7ad2be96ea1cdf6c1c5d3da7f3be20584c3a9f25 into the user's cache with the pinned
+at commit 43132411c86b23a55134afaf261d77f3785168cc into the user's cache with the pinned
 HyperFrames CLI. These items are not included in this repository and are licensed under the
 Apache License 2.0 (LICENSES/Apache-2.0.txt). Yap Studio modifies the copies it renders to use
 local scripts and fonts; each modified copy says so at the top.
