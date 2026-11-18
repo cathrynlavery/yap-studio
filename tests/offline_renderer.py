@@ -37,7 +37,8 @@ def offline_install(install: RendererInstall, tmp_dir: Path) -> RendererInstall:
     wrapper = tmp_dir / "hyperframes-offline"
     wrapper.write_text(
         "#!/bin/sh\n"
-        f"exec {_SANDBOX_EXEC} -f {shlex.quote(str(profile))} "
+        # HyperFrames 0.9 starts Chrome's own sandbox on macOS, which cannot nest in sandbox-exec.
+        f"exec env HYPERFRAMES_CHROME_SANDBOX=0 {_SANDBOX_EXEC} -f {shlex.quote(str(profile))} "
         f'{shlex.quote(str(install.executable.absolute()))} "$@"\n',
         encoding="utf-8",
     )
