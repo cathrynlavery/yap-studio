@@ -361,6 +361,7 @@ class AssemblySnapshot:
     caption_style: dict[str, str] | None = None
     picture: str | None = None
     layer_findings: tuple[dict[str, Any], ...] = ()
+    layer_check_status: dict[str, str] = field(default_factory=dict)
 
 
 def _visual_media_key(item: ResolvedElement) -> str:
@@ -747,9 +748,17 @@ def assembly_snapshot(context: ProjectContext, *, allow_violations: bool = False
             stage_receipts["graphics"].get("layer_checks", {}).get(layer["id"]),
             layer_id=layer["id"], start_frame=layer["start_frame"])),
     ]
+    graphics_checks = stage_receipts["graphics"].get("layer_checks", {})
+    layer_check_status = {
+        **({"captions": layer_checks.check_status(stage_receipts["captions"].get("layer_checks"))}
+           if caption is not None else {}),
+        **{layer["id"]: layer_checks.check_status(graphics_checks.get(layer["id"]))
+           for layer in titles},
+    }
     return AssemblySnapshot(timeline, caption, titles, spans, bed, small, media,
                             sources, audio_streams, inputs, sfx_info, grade=grade,
                             layer_findings=tuple(layer_findings),
+                            layer_check_status=layer_check_status,
                             grade_sample=grade_sample, grade_style=grade_style,
                             caption_slots=caption_slots, caption_windows=windows,
                             picture=picture,
@@ -1065,6 +1074,7 @@ def _final_records(context: ProjectContext, snapshot: AssemblySnapshot, retained
     if phrases_path.is_file():
         layout_document["caption_phrases"] = json.loads(phrases_path.read_bytes())
     layout_document["layer_findings"] = list(snapshot.layer_findings)
+    layout_document["layer_check_status"] = dict(snapshot.layer_check_status)
     layout = write_layout_record(final, layout_document)
     cut = cut_faces(context.project_dir, retained / "cut/cut.mp4")
     cut_source = _source(retained / "cut/cut.mp4", [], [], owner="cut")

@@ -71,6 +71,17 @@ def _crossed(boxes: Iterable[Box], width: int, height: int,
     return None
 
 
+def _deep_vertical(box: Box, inset: float, width: int, height: int,
+                   zones: tuple[str, ...]) -> bool:
+    """Whether a box reaches more than the inset past any zone's top or bottom edge."""
+    for zone in zones:
+        _, _, zone_height, bands = SAFE_AREAS[zone]
+        top, bottom = bands[0][0] / zone_height * height, bands[-1][1] / zone_height * height
+        if box.y + inset < top or box.y1 - inset > bottom:
+            return True
+    return False
+
+
 def _under_tiktok_buttons(text: Box, width: int, height: int) -> bool:
     """Whether a text box reaches past TikTok's lower band, beside its like and comment rail."""
     _, zone_width, zone_height, bands = SAFE_AREAS["tiktok"]
@@ -111,13 +122,12 @@ def check_safe_area(
         inner_hit = _crossed([inner], layout.width, layout.height, zones)
         # Yap Studio's house cards are 960 px wide, past TikTok's 840 px band, so only a deep
         # top or bottom crossing fails; side edges are reported like the caption band.
-        deep = not picture and inner_hit is not None and any(
-            edge in ("top", "bottom") for edges in inner_hit[1].values() for edge in edges)
+        deep = not picture and _deep_vertical(box, inset, layout.width, layout.height, zones)
         name = f'{"Picture" if picture else element.kind.capitalize()} "{element_id}"' + (
             f" ({label})" if label else "")
         time_s = element.start_frame / float(fps)
         under_buttons = not picture and "tiktok" in zones and _under_tiktok_buttons(
-            inner, layout.width, layout.height)
+            inner if inner.w > 0 and inner.h > 0 else box, layout.width, layout.height)
         edge_note = "" if picture or deep else (
             " Only its sides cross; the house card width allows that." if inner_hit else
             f" Only the panel's outer {inset:g} px crosses, so its text is likely inside.")

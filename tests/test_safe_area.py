@@ -10,8 +10,8 @@ from yap_studio.checks.safe_area import check_safe_area, edges_crossed
 from yap_studio.errors import InputError
 from yap_studio.faces import detect
 from yap_studio.faces.model import Box
-from yap_studio.render.layer_checks import gated_findings
-from yap_studio.verify import verify
+from yap_studio.render.layer_checks import _pass, check_status, gated_findings
+from yap_studio.verify import _layer_coverage, verify
 
 
 @pytest.fixture(autouse=True)
@@ -151,7 +151,7 @@ def test_verify_fails_on_safe_area_and_layer_findings(tmp_path):
         "measured": True, "reason": None, "captions": [],
         "elements": [{"id": "hook", "kind": "title", "x": 4, "y": 4, "w": 60, "h": 30,
                       "start_frame": 30, "end_frame": 60}],
-        "layer_findings": finding,
+        "layer_findings": finding, "layer_check_status": {"hook": "findings"},
     })
     report = verify(str(clip), asr="none")
     fails = {(item["check"], item["severity"]) for item in report["findings"]
@@ -173,3 +173,40 @@ def test_nttd_title_card_panel_edge_warns(tmp_path):
             for f in findings] == [
         ("warn", {"tiktok": ["left", "right"], "reels": ["top"]}, False)]
     assert "outer 24 px" in findings[0].message
+
+
+@pytest.mark.parametrize("y,h", [(10, 40), (1800, 40), (1700, 30)])
+def test_short_title_past_top_or_bottom_fails(tmp_path, y, h):
+    # Shorter than twice the panel inset, entirely above TikTok's top or below Reels' bottom.
+    record = _record(tmp_path, elements=[_element("tag", "title", 200, y, 500, h)])
+    [finding] = check_safe_area(record, fps=30, platform="none")[0]
+    assert finding.severity == "fail"
+
+
+def test_gated_finding_after_the_display_limit_is_kept(tmp_path):
+    other = [{"severity": "warning", "code": "clipped_text", "message": f"clip {index}"}
+             for index in range(30)]
+    gated = {"severity": "warning", "code": "outside_safe_zone", "message": "outside"}
+    result = _pass({"ok": True, "findings": [*other, gated]}, tmp_path, "layer", "layout")
+    assert len(result["findings"]) == 26 and result["findings"][-1]["code"] == "outside_safe_zone"
+    assert result["findings_truncated"] == 5
+    found = gated_findings({"schema": "yap-studio/layer-checks@1",
+                            "passes": {"layout": result}}, layer_id="card", start_frame=0)
+    assert [item["code"] for item in found] == ["outside_safe_zone"]
+
+
+def test_layer_check_status_and_coverage():
+    assert check_status({"schema": "yap-studio/layer-checks@1", "status": "incomplete"}) == \
+        "incomplete"
+    assert check_status(None) == "missing"
+    assert _layer_coverage(None)["ran"] is False
+    assert _layer_coverage({}) == {"ran": False, "reason": "no caption or graphics layers"}
+    assert _layer_coverage({"captions": "missing"}) == {
+        "ran": False, "reason": "HyperFrames checks did not run on any layer"}
+    assert _layer_coverage({"captions": "passed", "hook": "incomplete"}) == {
+        "ran": True, "reason": None, "note": "not fully checked: hook (incomplete)"}
+
+
+def test_layout_record_refuses_unknown_layer_status(tmp_path):
+    with pytest.raises(InputError, match="layer_check_status"):
+        _record(tmp_path, layer_check_status={"hook": "fine"})

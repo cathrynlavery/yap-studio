@@ -19,6 +19,7 @@ from yap_studio.receipt import sha256_file
 
 LAYOUT_SUFFIX = ".layout.json"
 _CHECKS = ("captions.timing", "captions.cards")
+_CHECK_STATUSES = ("passed", "findings", "incomplete", "missing")
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,8 @@ class LayoutRecord:
     caption_placement: str = "avoid_face"
     face_overlap_ok: bool = False
     layer_findings: tuple[dict[str, Any], ...] = ()
+    # Each layer's check status at assembly; None in a record written before it was kept.
+    layer_check_status: dict[str, str] | None = None
 
 
 def _layer_finding(data: Any) -> dict[str, Any]:
@@ -142,6 +145,12 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
         if not isinstance(raw_findings, list):
             raise ValueError("layout record layer_findings must be a list")
         layer_findings = tuple(_layer_finding(item) for item in raw_findings)
+        layer_check_status = document.get("layer_check_status")
+        if layer_check_status is not None and (
+                not isinstance(layer_check_status, dict) or any(
+                    not isinstance(key, str) or value not in _CHECK_STATUSES
+                    for key, value in layer_check_status.items())):
+            raise ValueError("layout record layer_check_status must map layers to a status")
         words = {}
         if measured:
             for caption in document.get("captions", []):
@@ -161,7 +170,7 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
     if (layout.width, layout.height) != (width, height):
         raise InputError(str(target), "layout size does not match the render's display size")
     return LayoutRecord(layout, measured, reason, words, face_windows, element_ids, labels,
-                        caption_placement, face_overlap_ok, layer_findings)
+                        caption_placement, face_overlap_ok, layer_findings, layer_check_status)
 
 
 def check_caption_timing(

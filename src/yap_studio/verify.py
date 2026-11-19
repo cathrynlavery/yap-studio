@@ -508,6 +508,23 @@ def _layer_findings(items, fps) -> list[Finding]:
     return findings
 
 
+def _layer_coverage(status: dict[str, str] | None) -> dict[str, object]:
+    """Say whether HyperFrames checked the layers, naming any it skipped or did not finish."""
+    if status is None:
+        return {"ran": False, "reason": "the layout record has no layer check status"}
+    if not status:
+        return {"ran": False, "reason": "no caption or graphics layers"}
+    gaps = {layer: state for layer, state in status.items()
+            if state in ("incomplete", "missing")}
+    if len(gaps) == len(status):
+        return {"ran": False, "reason": "HyperFrames checks did not run on any layer"}
+    coverage: dict[str, object] = {"ran": True, "reason": None}
+    if gaps:
+        coverage["note"] = "not fully checked: " + ", ".join(
+            f"{layer} ({state})" for layer, state in sorted(gaps.items()))
+    return coverage
+
+
 def _loudness_notes(structure: StructureResult, thresholds: Thresholds) -> list[Finding]:
     """Report measured whole-file levels before assembly sets the final loudness."""
     notes = []
@@ -923,7 +940,8 @@ def _verify(
                     )
                     findings.extend(safe_findings)
                     findings.extend(_layer_findings(layout_record.layer_findings, info.fps))
-                    coverage["layers.hyperframes"] = {"ran": True, "reason": None}
+                    coverage["layers.hyperframes"] = _layer_coverage(
+                        layout_record.layer_check_status)
 
             contrast_path = media_path.with_suffix(CONTRAST_SUFFIX)
             if contrast_path.is_file():

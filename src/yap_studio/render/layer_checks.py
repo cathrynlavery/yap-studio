@@ -31,6 +31,14 @@ _ATTRIBUTE = re.compile(
     r"""([^\s/>=]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*))?"""
 )
 _FINDINGS_LIMIT = 25
+
+# HyperFrames check codes the final gate fails on: text over a face (0.9.64), text outside
+# the 9:16 safe areas (0.9.44) and audio a render would lose or play as silence (0.8.206).
+GATED_CODES = frozenset({
+    "text_over_face", "outside_safe_zone", "audio_clip_silent", "audio_starts_past_source_end",
+    "audio_file_without_element", "audio_src_not_found", "audio_source_unreadable",
+    "video_muted_with_declared_audio",
+})
 CAPTION_SHRINK_PREFIX = "yap-studio caption-shrink "
 
 
@@ -175,11 +183,14 @@ def _pass(report: object, copy: Path, folder: str, name: str) -> dict:
     )
     if report.get("ok") is False and errors == warnings == 0:
         errors = 1
+    # Findings the final gate fails on are kept past the display limit.
+    kept = findings[:_FINDINGS_LIMIT] + [
+        item for item in findings[_FINDINGS_LIMIT:] if item["code"] in GATED_CODES]
     return {
         "status": "errors" if errors else "warnings" if warnings else "passed",
         "errors": errors, "warnings": warnings,
-        "findings": findings[:_FINDINGS_LIMIT],
-        "findings_truncated": max(0, len(findings) - _FINDINGS_LIMIT),
+        "findings": kept,
+        "findings_truncated": len(findings) - len(kept),
         "reason": None,
     }
 
@@ -315,14 +326,6 @@ def check_layer(
     return _result(passes, samples, workers, browser_gpu)
 
 
-# HyperFrames check codes the final gate fails on: text over a face (0.9.64), text outside
-# the 9:16 safe areas (0.9.44) and audio a render would lose or play as silence (0.8.206).
-GATED_CODES = frozenset({
-    "text_over_face", "outside_safe_zone", "audio_clip_silent", "audio_starts_past_source_end",
-    "audio_file_without_element", "audio_src_not_found", "audio_source_unreadable",
-    "video_muted_with_declared_audio",
-})
-
 
 def gated_findings(checks: object, *, layer_id: str, start_frame: int) -> list[dict]:
     """Return a layer's gated findings from any pass and severity, with the layer's start."""
@@ -343,3 +346,11 @@ def gated_findings(checks: object, *, layer_id: str, start_frame: int) -> list[d
                 "layer_time_s": time if time is not None and time >= 0 else 0.0,
             })
     return found
+
+
+def check_status(checks: object) -> str:
+    """Name whether a layer's checks ran: passed, findings, incomplete or missing."""
+    if not isinstance(checks, dict) or checks.get("schema") != "yap-studio/layer-checks@1":
+        return "missing"
+    status = checks.get("status")
+    return status if status in ("passed", "findings", "incomplete") else "missing"
