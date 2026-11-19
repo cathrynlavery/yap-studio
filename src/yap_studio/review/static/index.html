@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yap Studio review</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#ffffff">
+  <!-- manifest -->
   <link rel="stylesheet" href="static/app.css">
   <script type="module" src="static/app.mjs"></script>
 </head>
@@ -25,6 +28,7 @@
       <div class="header-actions">
         <button id="copy-feedback" type="button" aria-describedby="copy-notes-hint" disabled>Copy notes</button>
         <p id="copy-notes-hint" class="muted">Add a note to copy.</p>
+        <div id="offline-tools" class="offline-tools" hidden></div>
       </div>
     </header>
 
@@ -47,6 +51,7 @@
     </section>
     <div id="offline-banner" class="offline-banner" role="status" aria-live="polite" hidden>
       The review server is not reachable. Your notes are saved; this page reconnects when it is back.
+      <span id="offline-queue" hidden>New notes wait on this device and save then.</span>
       <div id="offline-player" hidden><span id="offline-player-message"></span> <button id="offline-player-retry" type="button">Retry</button></div>
     </div>
 

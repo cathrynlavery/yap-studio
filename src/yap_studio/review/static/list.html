@@ -4,7 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yap Studio reviews</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#ffffff">
+  <!-- manifest -->
   <link rel="stylesheet" href="static/app.css">
+  <script type="module" src="static/list.mjs"></script>
 </head>
 <body>
   <header class="topbar">
@@ -20,6 +24,8 @@
       </div>
       <div class="header-actions">
         <!-- start -->
+        <div id="offline-tools" class="offline-tools" hidden></div>
+        <p id="offline-pending" class="muted" hidden></p>
       </div>
     </header>
     <ul class="review-list" aria-label="Videos to review">
