@@ -43,11 +43,13 @@ CHECK_IDS: tuple[str, ...] = (
     "captions.contrast",
     "captions.words",
     "faces.clearance",
+    "layers.hyperframes",
     "detect.cuts",
     "platform.shape",
     "platform.duration",
     "platform.resolution",
     "platform.fps",
+    "platform.safe_area",
     "platform.chapters",
     "taste.rules",
 )

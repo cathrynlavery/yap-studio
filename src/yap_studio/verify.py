@@ -34,8 +34,9 @@ from yap_studio.checks.detect import check_without_edl
 from yap_studio.checks.face_clearance import FACES_SUFFIX, check_face_clearance, final_faces
 from yap_studio.checks.grade import check_grade
 from yap_studio.checks.joins import check_joins
-from yap_studio.checks.model import CHECK_IDS, Finding, Thresholds, TransitionWindow
+from yap_studio.checks.model import CHECK_IDS, Finding, Thresholds, TransitionWindow, format_time
 from yap_studio.checks.platform import PLATFORMS, check_platform, load_presets
+from yap_studio.checks.safe_area import check_safe_area
 from yap_studio.checks.structure import StructureResult, check_structure
 from yap_studio.checks.sync import check_sync
 from yap_studio.edl import _apply_overrides, load_edit_list
@@ -491,6 +492,22 @@ def _apply_cut_coverage(coverage, cut_coverage) -> None:
             }
 
 
+def _layer_findings(items, fps) -> list[Finding]:
+    """Fail on the HyperFrames layer findings assembly carried into the layout record."""
+    findings = []
+    for item in items:
+        time_s = item["start_frame"] / float(fps) + item["layer_time_s"]
+        findings.append(Finding(
+            "layers.hyperframes", "fail",
+            f'HyperFrames {item["code"]} in layer "{item["layer_id"]}" at '
+            f'{format_time(time_s)}: {item["message"]}',
+            time_s=time_s,
+            suggested_action="Fix the layer HyperFrames names, render it again, and assemble.",
+            evidence=dict(item),
+        ))
+    return findings
+
+
 def _loudness_notes(structure: StructureResult, thresholds: Thresholds) -> list[Finding]:
     """Report measured whole-file levels before assembly sets the final loudness."""
     notes = []
@@ -832,7 +849,8 @@ def _verify(
                         coverage[check] = {"ran": True, "reason": None}
 
             caption_checks = ("captions.timing", "captions.cards")
-            layout_checks = (*caption_checks, "captions.words", "faces.clearance")
+            placed_checks = ("platform.safe_area", "layers.hyperframes")
+            layout_checks = (*caption_checks, "captions.words", "faces.clearance", *placed_checks)
             layout_path = media_path.with_suffix(LAYOUT_SUFFIX)
             if layout_path.is_file():
                 try:
@@ -850,7 +868,7 @@ def _verify(
             except InputError as exc:
                 for check in layout_checks:
                     coverage[check] = {"ran": False, "reason": exc.reason}
-                    if check != "captions.words":
+                    if check not in ("captions.words", *placed_checks):
                         findings.append(Finding(check, "warn", exc.reason))
             else:
                 if layout_record is None:
@@ -900,6 +918,12 @@ def _verify(
                     )
                     findings.extend(face_findings)
                     coverage["faces.clearance"] = face_coverage
+                    safe_findings, coverage["platform.safe_area"] = check_safe_area(
+                        layout_record, fps=info.fps, platform=platform,
+                    )
+                    findings.extend(safe_findings)
+                    findings.extend(_layer_findings(layout_record.layer_findings, info.fps))
+                    coverage["layers.hyperframes"] = {"ran": True, "reason": None}
 
             contrast_path = media_path.with_suffix(CONTRAST_SUFFIX)
             if contrast_path.is_file():

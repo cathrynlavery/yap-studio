@@ -43,6 +43,19 @@ class LayoutRecord:
     labels: dict[str, str] = field(default_factory=dict)
     caption_placement: str = "avoid_face"
     face_overlap_ok: bool = False
+    layer_findings: tuple[dict[str, Any], ...] = ()
+
+
+def _layer_finding(data: Any) -> dict[str, Any]:
+    keys = {"layer_id": str, "pass": str, "code": str, "message": str}
+    if not isinstance(data, dict) or any(not isinstance(data.get(key), kind) or not data[key]
+                                         for key, kind in keys.items()):
+        raise ValueError("layer findings need layer_id, pass, code and message")
+    start, time = data.get("start_frame"), data.get("layer_time_s")
+    if type(start) is not int or start < 0 or type(time) not in (int, float) or not (
+            math.isfinite(time) and time >= 0):
+        raise ValueError("layer findings need a start_frame and a finite layer_time_s")
+    return {**{key: data[key] for key in keys}, "start_frame": start, "layer_time_s": time}
 
 
 def write_layout_record(
@@ -125,6 +138,10 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
         face_overlap_ok = document.get("face_overlap_ok", False)
         if type(face_overlap_ok) is not bool:
             raise ValueError("layout record face_overlap_ok must be a boolean")
+        raw_findings = document.get("layer_findings", [])
+        if not isinstance(raw_findings, list):
+            raise ValueError("layout record layer_findings must be a list")
+        layer_findings = tuple(_layer_finding(item) for item in raw_findings)
         words = {}
         if measured:
             for caption in document.get("captions", []):
@@ -144,7 +161,7 @@ def read_layout_record(media: Path, *, width: int, height: int) -> LayoutRecord 
     if (layout.width, layout.height) != (width, height):
         raise InputError(str(target), "layout size does not match the render's display size")
     return LayoutRecord(layout, measured, reason, words, face_windows, element_ids, labels,
-                        caption_placement, face_overlap_ok)
+                        caption_placement, face_overlap_ok, layer_findings)
 
 
 def check_caption_timing(
