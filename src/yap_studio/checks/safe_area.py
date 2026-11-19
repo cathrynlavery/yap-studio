@@ -22,9 +22,9 @@ SAFE_AREAS: dict[str, tuple[str, int, int, tuple[tuple[int, int, int, int], ...]
 # creator posts, and YouTube Shorts only when the render targets Shorts.
 DEFAULT_ZONES = ("tiktok", "reels")
 _EDGES = ("left", "top", "right", "bottom")
-# Yap Studio measures a card's drawn panel; HyperFrames measures the text inside it. A card
-# fails only when the crossing reaches this far into the panel, where padded text would sit
-# (the NTTD title card pads its text 26 px); a shallower crossing is a warning.
+# Yap Studio records a card's drawn panel; HyperFrames measures the text inside it. The panel
+# less this inset stands in for the text box (the NTTD title card pads its text 26 px), so a
+# crossing that stays within the inset is a warning.
 PANEL_INSET_PX = 24  # on a 1080 px wide frame; scaled with the frame width
 
 
@@ -71,6 +71,14 @@ def _crossed(boxes: Iterable[Box], width: int, height: int,
     return None
 
 
+def _under_tiktok_buttons(text: Box, width: int, height: int) -> bool:
+    """Whether a text box reaches past TikTok's lower band, beside its like and comment rail."""
+    _, zone_width, zone_height, bands = SAFE_AREAS["tiktok"]
+    top, bottom, _, right = bands[-1]
+    return (text.w > 0 and text.h > 0 and text.x1 > right / zone_width * width
+            and text.y1 > top / zone_height * height and text.y < bottom / zone_height * height)
+
+
 def _zones_text(crossed: dict[str, list[str]]) -> str:
     return ", ".join(
         f"{SAFE_AREAS[zone][0]} ({' and '.join(edges)} edge{'s' if len(edges) > 1 else ''})"
@@ -81,7 +89,7 @@ def _zones_text(crossed: dict[str, list[str]]) -> str:
 def check_safe_area(
     record: LayoutRecord, *, fps: float | Fraction, platform: str,
 ) -> tuple[list[Finding], dict]:
-    """Fail cards and titles deep outside the safe areas; warn for edges, captions, pictures."""
+    """Fail cards and titles deep past a top or bottom edge; warn for the rest."""
     layout = record.layout
     if not is_vertical(layout.width, layout.height):
         return [], {"ran": False, "reason": "not a 9:16 render"}
@@ -100,12 +108,21 @@ def check_safe_area(
         inset = PANEL_INSET_PX * layout.width / 1080
         inner = Box(box.x + inset, box.y + inset, max(0, box.w - 2 * inset),
                     max(0, box.h - 2 * inset))
-        deep = not picture and _crossed([inner], layout.width, layout.height, zones) is not None
+        inner_hit = _crossed([inner], layout.width, layout.height, zones)
+        # Yap Studio's house cards are 960 px wide, past TikTok's 840 px band, so only a deep
+        # top or bottom crossing fails; side edges are reported like the caption band.
+        deep = not picture and inner_hit is not None and any(
+            edge in ("top", "bottom") for edges in inner_hit[1].values() for edge in edges)
         name = f'{"Picture" if picture else element.kind.capitalize()} "{element_id}"' + (
             f" ({label})" if label else "")
         time_s = element.start_frame / float(fps)
+        under_buttons = not picture and "tiktok" in zones and _under_tiktok_buttons(
+            inner, layout.width, layout.height)
         edge_note = "" if picture or deep else (
+            " Only its sides cross; the house card width allows that." if inner_hit else
             f" Only the panel's outer {inset:g} px crosses, so its text is likely inside.")
+        if under_buttons and not deep:
+            edge_note += " Text under TikTok buttons: it reaches the like and comment rail."
         findings.append(Finding(
             "platform.safe_area", "fail" if deep else "warn",
             f"{name} is outside the safe area at {format_time(time_s)}: "
@@ -120,7 +137,8 @@ def check_safe_area(
                       "element_id": element_id, "target_kind": element.kind,
                       **({"label": label} if label else {}),
                       "target_box": box.to_dict(), "zones": crossed,
-                      **({} if picture else {"panel_inset_px": inset, "text_area_crosses": deep}),
+                      **({} if picture else {"panel_inset_px": inset, "text_area_crosses": deep,
+                                             "text_under_tiktok_buttons": under_buttons}),
                       "start_frame": element.start_frame, "end_frame": element.end_frame},
         ))
     captions = layout.captions if record.measured else ()

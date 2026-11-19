@@ -90,8 +90,20 @@ def test_platform_checks_only_its_zone(tmp_path):
     record = _record(tmp_path, elements=[_element("wide", "card", 300, 1000, 550, 100)])
     assert check_safe_area(record, fps=30, platform="shorts")[0] == []
     findings, coverage = check_safe_area(record, fps=30, platform="tiktok")
-    assert [f.evidence["zones"] for f in findings] == [{"tiktok": ["right"]}]
+    assert [(f.severity, f.evidence["zones"], f.evidence["text_under_tiktok_buttons"])
+            for f in findings] == [("warn", {"tiktok": ["right"]}, True)]
+    assert "Text under TikTok buttons" in findings[0].message
     assert coverage["zones"] == ["tiktok"]
+
+
+def test_house_card_width_warns_on_sides(tmp_path):
+    # Yap's 960 px card panel (frame x 60-1020) in the key text band, past TikTok's x 120-960.
+    record = _record(tmp_path, elements=[_element("stat", "card", 60, 300, 960, 270)])
+    [finding] = check_safe_area(record, fps=30, platform="none")[0]
+    assert finding.severity == "warn"
+    assert finding.evidence["zones"] == {"tiktok": ["left", "right"], "reels": ["left", "right"]}
+    assert finding.evidence["text_under_tiktok_buttons"] is False
+    assert "Only its sides cross" in finding.message
 
 
 def test_landscape_render_is_not_checked(tmp_path):
