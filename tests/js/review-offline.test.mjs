@@ -103,8 +103,8 @@ test('client ids, sizes, storage text, page addresses and pending rows', () => {
   assert.equal(storageText(undefined, false), '');
   assert.deepEqual(offlineUrls('v/2/', 'tok', {series: null}),
     {data: ['v/2/api/review'], media: 'v/2/media?t=tok'});
-  assert.deepEqual(offlineUrls('', 'tok', {series: {current: 3, project: 'p'}}, '2'), {
-    data: ['api/review?version=2', 'api/removed?version=3', 'api/words?version=3',
+  assert.deepEqual(offlineUrls('', 'tok', {series: {current: 3, project: 'p'}}), {
+    data: ['api/review', 'api/review?version=3', 'api/removed?version=3', 'api/words?version=3',
       'api/video-map?version=3', 'api/captions?version=3'],
     media: 'media?version=3&t=tok',
   });
@@ -166,5 +166,56 @@ test('the worker keys saved data by address and token', () => {
     'https://review.test/v/1/api/review?t=abc&version=2');
   assert.equal(key('https://review.test/v/1/?t=abc#list=x'), 'https://review.test/v/1/?t=abc');
   assert.equal(key('https://review.test/v/1/?t=abc', 'abc'), key('https://review.test/v/1/?t=abc'));
+  // Every version shows the same page file, so a Home Screen launch finds the saved page.
+  assert.equal(key('https://review.test/?t=abc&version=3'), 'https://review.test/?t=abc');
+  assert.equal(key('https://review.test/api/review?version=3', 'abc'),
+    'https://review.test/api/review?t=abc&version=3');
   assert.notEqual(key('https://review.test/api/review', 'one'), key('https://review.test/api/review', 'two'));
+});
+
+test('offline polls answered from the saved copy do not re-render; a live answer does', async () => {
+  const source = readFileSync(new URL('../../src/yap_studio/review/static/app.mjs', import.meta.url), 'utf8');
+  const code = source.slice(source.indexOf('async function refreshReview('),
+    source.indexOf('function setComposeKind('));
+  const saved = {text: 'notes', media_changed: false, comments: [], previous: null, findings: null,
+    series: null, home: null, text_hook: null, decision: null};
+  const renders = [];
+  const context = vm.createContext({
+    review: structuredClone(saved), offline: true, approvedVersion: null, composeBusy: false,
+    editState: null, answerBusy: false, tasteSaving: new Set(), voiceFixSaving: new Set(),
+    refreshPending: false, switchingVersion: false, loadVersion: 0, refreshStatusError: false,
+    selectedVersion: null, document: {visibilityState: 'visible', activeElement: null},
+    tasteWordingFocused: () => false, showStatus() {}, versionUrl: (path) => path,
+    live: false,
+    api: async () => {
+      if (context.live) context.offline = false;
+      return structuredClone(saved);
+    },
+    renderReview: (fresh) => renders.push(fresh),
+  });
+  vm.runInContext(`${code}\nglobalThis.refresh = refreshReview;`, context);
+  await context.refresh();
+  await context.refresh();
+  assert.equal(renders.length, 0, 'a typed range note survives cached polls');
+  context.live = true;
+  await context.refresh();
+  assert.equal(renders.length, 1, 'reconnecting renders the live review once');
+});
+
+test('a full cache still returns the live answer, without the saved mark', async () => {
+  const source = readFileSync(new URL('../../src/yap_studio/review/static/sw.js', import.meta.url), 'utf8');
+  for (const full of [true, false]) {
+    const context = vm.createContext({
+      self: {addEventListener() {}, location: {origin: 'https://review.test'}},
+      caches: {open: async () => ({keys: async () => [], match: async () => undefined,
+        put: async () => { if (full) throw new DOMException('full', 'QuotaExceededError'); }})},
+      fetch: async () => new Response('<html>', {status: 200, headers: {'Content-Type': 'text/html'}}),
+      Response, Headers, Blob, URL, setTimeout, clearTimeout, Promise, Date, DOMException,
+    });
+    vm.runInContext(`${source}\nglobalThis.networkFirst = networkFirst;`, context);
+    const response = await context.networkFirst({request: {}, waitUntil() {}}, 'yap-data', 'k');
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), '<html>');
+    assert.equal(response.headers.get('X-Yap-Saved'), full ? null : '1');
+  }
 });

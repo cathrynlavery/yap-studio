@@ -6,6 +6,8 @@ const DATA_CACHE = 'yap-data';
 const OUTBOX_DB = 'yap-review-outbox';
 const SYNC_INTERVAL_MS = 20000;
 const CLAIM_WAIT_MS = 5000;
+// A stalled send must not hold a note or the notes behind it; the retry keeps its client id.
+export const SEND_WAIT_MS = 15000;
 
 /** A random id the server uses to save a retried note only once. */
 export function newClientId(source = globalThis.crypto) {
@@ -31,10 +33,14 @@ export function storageText(estimate, persisted) {
   return `Using ${bytesText(estimate.usage)}${room} on this device. ${kept}`;
 }
 
-/** The data requests a video page makes on load, and its video address. */
-export function offlineUrls(prefix, token, review, pageVersion = null) {
+/**
+ * The data requests a video page makes on load, and its video address. The page asks for
+ * the plain review first and the selected version after it rewrites its address, so both.
+ */
+export function offlineUrls(prefix, token, review) {
   const current = review.series?.current ?? null;
-  const data = [versionUrl(`${prefix}api/review`, pageVersion)];
+  const data = [`${prefix}api/review`];
+  if (current !== null) data.push(versionUrl(`${prefix}api/review`, current));
   if (review.series?.project) {
     for (const name of ['removed', 'words', 'video-map', 'captions']) {
       data.push(versionUrl(`${prefix}api/${name}`, current));
@@ -78,6 +84,7 @@ export async function postNote(item, fetcher = globalThis.fetch) {
     method: 'POST',
     headers: {'X-Yap-Token': item.token, 'Content-Type': 'application/json'},
     body: JSON.stringify({...item.body, client_id: item.id}),
+    signal: AbortSignal.timeout?.(SEND_WAIT_MS),
   });
   let message = '';
   if (!response.ok) {
@@ -177,6 +184,9 @@ async function saveData(url, token) {
     throw new Error(response.ok ? 'Connect to the review server, then press Download again.'
       : `Could not save this review (${response.status}).`);
   }
+  if (!response.headers.get('X-Yap-Saved')) {
+    throw new Error('This device has no room left for offline reviews. Remove downloads, then try again.');
+  }
   await response.arrayBuffer();
 }
 
@@ -218,21 +228,29 @@ async function mediaSize(url) {
   }
 }
 
-/** The folder and token a page or its video belongs to: '/v/2/|token'. */
+/** The folder and token a page or its video belongs to, '/v/2/|token', and its version. */
 function owner(address) {
   const url = new URL(address, location.href);
-  return `${url.pathname.replace(/media$/, '')}|${url.searchParams.get('t')}`;
+  return {key: `${url.pathname.replace(/media$/, '')}|${url.searchParams.get('t')}`,
+    version: url.searchParams.get('version')};
 }
 
-/** Sizes of the videos saved on this device, by owner; reads only the local cache. */
+/**
+ * The size of the saved video for a page, or undefined; reads only the local cache. A page
+ * address with a version needs that version; a list link without one takes any version.
+ */
 async function savedSizes() {
   const cache = await caches.open(MEDIA_CACHE);
-  const sizes = new Map();
+  const saved = [];
   for (const request of await cache.keys()) {
-    const saved = await cache.match(request);
-    sizes.set(owner(request.url), Number(saved?.headers.get('Content-Length')) || 0);
+    const response = await cache.match(request);
+    saved.push({...owner(request.url), size: Number(response?.headers.get('Content-Length')) || 0});
   }
-  return sizes;
+  return (address) => {
+    const page = owner(address);
+    return saved.find((item) => item.key === page.key
+      && (page.version === null || item.version === page.version))?.size;
+  };
 }
 
 function button(text, className = '') {
@@ -267,12 +285,12 @@ export function mountOfflineTools(container, {pages, entries}, {all = false, she
 
   const refresh = async () => {
     const shown = pages();
-    let sizes = new Map();
-    try { sizes = await savedSizes(); } catch { /* No cache: nothing is saved. */ }
+    let sizeOf = () => undefined;
+    try { sizeOf = await savedSizes(); } catch { /* No cache: nothing is saved. */ }
     let total = 0;
     let ready = 0;
     for (const item of shown) {
-      const size = sizes.get(owner(item.page));
+      const size = sizeOf(item.page);
       if (size !== undefined) {
         ready += 1;
         total += size;
@@ -304,14 +322,14 @@ export function mountOfflineTools(container, {pages, entries}, {all = false, she
       status.textContent = 'Getting the review ready…';
       for (const [url, token] of shell) await saveData(url, token);
       const list = await entries();
-      const shows = new Map(pages().map((item) => [owner(item.page), item.show]));
-      const sizes = await savedSizes();
-      for (const entry of list) entry.size = sizes.get(owner(entry.media)) ?? await mediaSize(entry.media);
+      const shows = new Map(pages().map((item) => [owner(item.page).key, item.show]));
+      const sizeOf = await savedSizes();
+      for (const entry of list) entry.size = sizeOf(entry.media) ?? await mediaSize(entry.media);
       const total = list.reduce((sum, entry) => sum + entry.size, 0);
       let done = 0;
       for (const [index, entry] of list.entries()) {
         const name = list.length > 1 ? `Video ${index + 1} of ${list.length}: ` : '';
-        const show = shows.get(owner(entry.page)) ?? (() => {});
+        const show = shows.get(owner(entry.page).key) ?? (() => {});
         for (const url of [entry.page, ...entry.data, ...(entry.extra ?? [])]) await saveData(url, entry.token);
         if (await savedMedia(entry.media) === null) {
           await saveMedia(entry.media, (loaded, size) => {

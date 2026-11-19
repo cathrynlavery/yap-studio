@@ -2657,7 +2657,9 @@ async function refreshReview() {
       || tasteWordingFocused() || document.activeElement?.closest('.text-hook-panel')
       || (!offline && document.activeElement?.closest('.question-card'))) return;
     if (refreshStatusError) showStatus('');
-    if (!reconnecting && review && fresh.text === review.text
+    // A saved copy from the offline worker leaves the page offline; only a live answer reconnects.
+    const reconnected = reconnecting && !offline;
+    if (!reconnected && review && fresh.text === review.text
       && fresh.media_changed === review.media_changed
       && JSON.stringify(fresh.comments) === JSON.stringify(review.comments)
       && JSON.stringify(fresh.previous) === JSON.stringify(review.previous)
@@ -2666,8 +2668,8 @@ async function refreshReview() {
       && JSON.stringify(fresh.home) === JSON.stringify(review.home)
       && JSON.stringify(fresh.text_hook) === JSON.stringify(review.text_hook)
       && JSON.stringify(fresh.decision) === JSON.stringify(review.decision)) return;
-    renderReview(fresh, !reconnecting);
-    if (reconnecting && fresh.series?.project) await loadReview(selectedVersion);
+    renderReview(fresh, !reconnected);
+    if (reconnected && fresh.series?.project) await loadReview(selectedVersion);
   } catch (error) {
     if (version === loadVersion && document.visibilityState === 'visible'
       && !composeBusy && !editState?.busy) {
@@ -2755,16 +2757,23 @@ function notesUrl() {
 async function postNote(fields) {
   if (!outbox) return api(versionUrl('api/comments', selectedVersion), {method: 'POST', body: fields});
   const id = offlineKit.newClientId();
+  // Keep the note on this device first, so a connection lost mid-send cannot lose it.
+  await outbox.put({id, url: notesUrl(), token, body: fields, created: Date.now(), error: null});
   if (!offline) {
     try {
-      return await api(versionUrl('api/comments', selectedVersion),
-        {method: 'POST', body: {...fields, client_id: id}});
+      const created = await api(versionUrl('api/comments', selectedVersion),
+        {method: 'POST', body: {...fields, client_id: id},
+          signal: AbortSignal.timeout?.(offlineKit.SEND_WAIT_MS)});
+      await outbox.remove(id);
+      return created;
     } catch (error) {
-      // A refusal is the server's answer; only a lost connection goes to the outbox.
-      if (error?.status !== undefined || error?.name === 'AbortError') throw error;
+      // A refusal is the server's answer; only a lost or stalled connection leaves it waiting.
+      if (error?.status !== undefined) {
+        await outbox.remove(id);
+        throw error;
+      }
     }
   }
-  await outbox.put({id, url: notesUrl(), token, body: fields, created: Date.now(), error: null});
   await loadPendingNotes();
   showToast('Saved on this device. It syncs when the review server is back.');
   return null;
@@ -2774,7 +2783,7 @@ async function loadPendingNotes() {
   if (!outbox) return;
   const url = review ? notesUrl() : null;
   try {
-    pendingNotes = (await outbox.all()).filter((item) => item.url === url)
+    pendingNotes = (await outbox.all()).filter((item) => item.url === url && item.token === token)
       .sort((a, b) => a.created - b.created);
   } catch {
     pendingNotes = [];
@@ -2841,11 +2850,11 @@ async function setupOffline() {
     if (result.sent > 0) await loadReview().catch(() => {});
   });
   await offlineKit.refreshWorker().catch(() => false);
-  const page = `${location.pathname}${location.search}`;
-  offlineKit.mountOfflineTools(el.offlineTools, {pages: () => [{page, show() {}}], entries: async () => {
+  // The address changes when a version is chosen, so read it when it is needed.
+  const page = () => `${location.pathname}${location.search}`;
+  offlineKit.mountOfflineTools(el.offlineTools, {pages: () => [{page: page(), show() {}}], entries: async () => {
     if (!review) throw new Error('Wait for the review to load, then press Download again.');
-    const pageVersion = new URLSearchParams(location.search).get('version');
-    return [{page, token, ...offlineKit.offlineUrls('', token, review, pageVersion)}];
+    return [{page: page(), token, ...offlineKit.offlineUrls('', token, review)}];
   }});
 }
 

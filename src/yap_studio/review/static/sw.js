@@ -64,11 +64,15 @@ async function rangedResponse(saved, rangeHeader) {
   });
 }
 
-/** Key saved data by its address and token, so another review on this port never sees it. */
+/**
+ * Key saved data by its address and token, so another review on this port never sees it.
+ * A page is the same file for every version, so its key keeps only the token.
+ */
 function dataKey(request) {
   const url = new URL(request.url);
   url.hash = '';
-  const token = request.headers.get('X-Yap-Token');
+  const token = request.headers.get('X-Yap-Token') || url.searchParams.get('t');
+  if (PAGE_PATH.test(url.pathname)) url.search = '';
   if (token && !url.searchParams.has('t')) url.searchParams.set('t', token);
   url.searchParams.sort();
   return url.href;
@@ -83,11 +87,13 @@ function fromCache(response) {
 function networkFirst(event, cacheName, key) {
   const network = fetch(event.request).then(async (response) => {
     offlineUntil = 0;
-    if (response.ok) {
-      const cache = await caches.open(cacheName);
-      await cache.put(key, response.clone());
-    }
-    return response;
+    if (!response.ok) return response;
+    // A full cache must not cost the page a good answer; Download reads X-Yap-Saved instead.
+    const saved = await caches.open(cacheName).then((cache) => cache.put(key, response.clone()))
+      .then(() => true, () => false);
+    const headers = new Headers(response.headers);
+    if (saved) headers.set('X-Yap-Saved', '1');
+    return new Response(response.body, {status: response.status, statusText: response.statusText, headers});
   });
   event.waitUntil(network.then(() => {}, () => {}));
   return (async () => {
