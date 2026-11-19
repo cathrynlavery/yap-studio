@@ -132,11 +132,16 @@ class Element:
     start_frame: int
     end_frame: int
     face_windows: tuple[tuple[int, int], ...] | None = None
+    # "face" clears the detected face box itself, with no hair allowance or margin, for a
+    # card placed above the head on purpose; "head" is the default head box with hair.
+    clearance: Literal["head", "face"] = "head"
 
     def __post_init__(self) -> None:
         _id(self.id, "element")
         if self.kind not in ("card", "title", "overlay", "background"):
             raise ValidationError("element.kind", "must be card, title, overlay, or background")
+        if self.clearance not in ("head", "face"):
+            raise ValidationError("element.clearance", "must be head or face")
         if not isinstance(self.box, Box):
             raise ValidationError("element.box", "must be a Box")
         _window(self.start_frame, self.end_frame, "element")
@@ -278,9 +283,12 @@ class Layout:
                         raise ValidationError(
                             f"{parameter}.kind", "must be card, title, overlay, or background"
                         )
+                    clearance = record.get("clearance", "head")
+                    if clearance not in ("head", "face"):
+                        raise ValidationError(f"{parameter}.clearance", "must be head or face")
                     elements.append(
                         Element(target_id, kind, _layout_box(record, parameter), start, end,
-                                _face_windows(record, parameter))
+                                _face_windows(record, parameter), clearance)
                     )
                 else:
                     text = _field(record, "text", str, parameter)
@@ -336,6 +344,7 @@ class Layout:
                     "end_frame": element.end_frame,
                     **({"face_windows": [list(window) for window in element.face_windows]}
                        if element.face_windows is not None else {}),
+                    **({"clearance": element.clearance} if element.clearance != "head" else {}),
                 }
                 for element in self.elements
             ],
@@ -486,6 +495,8 @@ def check_clearance(
     for target in targets:
         is_caption = isinstance(target, CaptionPhrase)
         boxes = target.boxes if is_caption else (target.box,)
+        face_only = not is_caption and target.clearance == "face"
+        required = 0.0 if face_only else margin
         active: Violation | None = None
         for frame in range(target.start_frame, target.end_frame):
             if (target.face_windows is not None
@@ -496,7 +507,7 @@ def check_clearance(
                 continue
             closest = min(
                 (
-                    (gap_px(box, head), box, face, head)
+                    (gap_px(box, face if face_only else head), box, face, head)
                     for box in boxes
                     if box.overlaps_frames(frame, frame + 1)
                     for face, head in heads[frame]
@@ -504,7 +515,8 @@ def check_clearance(
                 key=lambda pair: pair[0],
                 default=None,
             )
-            if closest is None or closest[0] >= margin:
+            # A face-clearance element fails once it touches the face.
+            if closest is None or (closest[0] > 0 if face_only else closest[0] >= margin):
                 if active is not None:
                     violations.append(replace(active, end_frame=frame))
                     active = None
@@ -521,7 +533,7 @@ def check_clearance(
                     frame + 1,
                     frame,
                     gap,
-                    margin,
+                    required,
                     box,
                     face,
                     head,

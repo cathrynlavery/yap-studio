@@ -756,3 +756,38 @@ def test_check_layout_hair_precedence(
     layout = Layout(1080, 1920, (), (), hair=layout_hair)
     report = check_layout(faces_data(), layout, hair=option_hair)
     assert report.hair == expected and report.to_dict()["hair"] == expected.to_dict()
+
+
+# The NTTD opener title as drawn in 04-the-terminal v6, and the face detected under it.
+NTTD_TITLE = Box(110, 262, 860, 343)
+NTTD_FACE = Box(315.48, 815.58, 577.07, 577.1)
+
+
+@pytest.mark.parametrize("clearance,fails", [("head", True), ("face", False)])
+def test_face_clearance_element_clears_the_face_not_the_hair(clearance, fails):
+    # Card bottom 605 is 210 px above the face (top 816) but inside the head box with hair.
+    title = Element("nttd-title", "title", NTTD_TITLE, 0, 120, clearance=clearance)
+    violations = check_clearance([(NTTD_FACE,)] * 120, (title,), (),
+                                 margin_px=DEFAULT_FACE_CLEARANCE_PX)
+    assert bool(violations) is fails
+
+
+def test_face_clearance_element_fails_once_it_touches_the_face():
+    touching = Box(110, 262, 860, NTTD_FACE.y - 262)
+    title = Element("nttd-title", "title", touching, 0, 30, clearance="face")
+    [violation] = check_clearance([(NTTD_FACE,)] * 30, (title,), (), margin_px=24)
+    assert violation.gap_px == 0 and violation.required_px == 0
+
+
+def test_layout_round_trips_element_clearance():
+    data = {"schema": LAYOUT_SCHEMA, "width": 1080, "height": 1920, "captions": [],
+            "elements": [{"id": "nttd-title", "kind": "title", "x": 110, "y": 262, "w": 860,
+                          "h": 343, "start_frame": 0, "end_frame": 120, "clearance": "face"},
+                         {"id": "card", "kind": "card", "x": 0, "y": 0, "w": 10, "h": 10,
+                          "start_frame": 0, "end_frame": 1}]}
+    layout = Layout.from_dict(data)
+    assert [element.clearance for element in layout.elements] == ["face", "head"]
+    assert Layout.from_dict(layout.to_dict()) == layout
+    data["elements"][0]["clearance"] = "hair"
+    with pytest.raises(ValidationError, match="head or face"):
+        Layout.from_dict(data)
