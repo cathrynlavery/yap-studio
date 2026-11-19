@@ -90,11 +90,13 @@ _CHECK_LABELS = {
     "captions.contrast": "Captions readable on the picture",
     "captions.words": "Caption words against the speech",
     "faces.clearance": "Captions and cards clear of the face",
+    "layers.hyperframes": "HyperFrames face, safe-area and audio checks on each layer",
     "detect.cuts": "Picture cut detection",
     "platform.shape": "Platform shape",
     "platform.duration": "Platform duration",
     "platform.resolution": "Platform resolution",
     "platform.fps": "Platform frame rate",
+    "platform.safe_area": "Cards, captions and pictures inside the 9:16 safe areas",
     "platform.chapters": "YouTube chapters",
     "taste.rules": "Approved taste rules",
 }

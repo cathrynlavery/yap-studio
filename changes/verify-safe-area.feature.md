@@ -1,0 +1,2 @@
+- Verify checks that cards, titles, captions and pictures on a 9:16 render sit inside the TikTok and Instagram Reels safe areas, the same areas `hyperframes check` uses. A card or title deep past a top or bottom edge fails; side edges, captions and pictures are warnings, and a warning names text under TikTok's buttons. YouTube Shorts is checked with `--platform shorts`.
+- Verify fails when `hyperframes check` found text over a face, text outside the safe areas or audio a render would lose in a caption or graphics layer.
