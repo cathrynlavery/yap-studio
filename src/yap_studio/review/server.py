@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import errno
+import hashlib
 import hmac
 import json
 import math
@@ -99,6 +100,8 @@ _CSP = (
     "script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; "
     "frame-ancestors 'none'"
 )
+# Served at the root so the worker's scope covers the list and every video page.
+_APP_FILES = {"/sw.js", "/manifest.webmanifest"}
 _STATIC_TYPES = {
     ".css": "text/css; charset=utf-8",
     ".mjs": "text/javascript; charset=utf-8",
@@ -129,6 +132,20 @@ def decision_status(decision: dict | None) -> dict | None:
         fixes = sent["fixes"]
         return {"state": "sent", "label": f"Notes sent ({fixes} fix{'es' if fixes != 1 else ''})"}
     return {"state": "open", "label": "Not reviewed"}
+
+
+def _service_worker() -> bytes:
+    """The offline worker, versioned by the static files so a new build replaces it."""
+    names = sorted(path.name for path in _STATIC.iterdir()
+                   if _STATIC_NAME.fullmatch(path.name) and path.is_file())
+    digest = hashlib.sha256()
+    for name in names:
+        digest.update(name.encode("utf-8") + b"\0" + (_STATIC / name).read_bytes())
+    worker = (_STATIC / "sw.js").read_text(encoding="utf-8")
+    digest.update(worker.encode("utf-8"))
+    return (worker.replace('"__VERSION__"', json.dumps(digest.hexdigest()[:16]))
+            .replace('["__STATIC__"]', json.dumps([f"/static/{name}" for name in names]))
+            .encode("utf-8"))
 
 
 def accepts_query_token(method: str) -> bool:
@@ -1371,9 +1388,30 @@ class ReviewServer:
                 else:
                     action = ""
                 page = (_STATIC / "list.html").read_text(encoding="utf-8")
-                payload = page.replace("<!-- videos -->", "\n".join(items)).replace(
-                    "<!-- start -->", action).encode("utf-8")
+                payload = self._with_manifest(page.replace("<!-- videos -->", "\n".join(items))
+                                              .replace("<!-- start -->", action))
                 self._bytes(200, payload, "text/html; charset=utf-8")
+
+            def _with_manifest(self, page: str) -> bytes:
+                # A home-screen app opens its manifest's start URL, so it keeps this page's token.
+                parsed = urlsplit(self.path)
+                start = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+                link = ('<link rel="manifest" href="/manifest.webmanifest?start='
+                        f'{escape(quote(start, safe=""), quote=True)}">')
+                return page.replace("<!-- manifest -->", link).encode("utf-8")
+
+            def _manifest(self, query: dict[str, list[str]]) -> None:
+                start = query.get("start", ["/"])[0]
+                if (not start.startswith("/") or start.startswith("//") or "\\" in start
+                        or len(start) > 2048):
+                    start = "/"
+                manifest = {
+                    "name": "Yap Studio review", "short_name": "Yap review",
+                    "start_url": start, "scope": "/", "display": "standalone",
+                    "background_color": "#ffffff", "theme_color": "#ffffff",
+                }
+                self._bytes(200, json.dumps(manifest).encode("utf-8"),
+                            "application/manifest+json")
 
             def _route(self) -> None:
                 self._video = review
@@ -1406,7 +1444,7 @@ class ReviewServer:
                         else:
                             self._json(200, self._list_json())
                         return
-                    if not path.startswith("/static/"):
+                    if not path.startswith("/static/") and path not in _APP_FILES:
                         selected = _VIDEO_PATH.fullmatch(path)
                         if selected is None or int(selected.group(1)) > len(review.videos):
                             self._error(404, "not_found", "route not found")
@@ -1442,7 +1480,7 @@ class ReviewServer:
                     "/api/words",
                     "/api/captions",
                     "/api/video-map",
-                } or path.startswith("/static/"):
+                } or path.startswith("/static/") or path in _APP_FILES:
                     allowed = {"GET"}
                 else:
                     self._error(404, "not_found", "route not found")
@@ -1475,7 +1513,11 @@ class ReviewServer:
                 if guarded and self._selected._media_changed():
                     self._error(409, "media_changed", _MEDIA_CHANGED_MESSAGE)
                     return
-                if path == "/api/thumbnail":
+                if path == "/sw.js":
+                    self._bytes(200, _service_worker(), "text/javascript; charset=utf-8")
+                elif path == "/manifest.webmanifest":
+                    self._manifest(query)
+                elif path == "/api/thumbnail":
                     self._thumbnail()
                 elif path == "/media":
                     self._media()
@@ -1525,14 +1567,17 @@ class ReviewServer:
                         body["request"].get("type") == "caption_fix"
                     ):
                         raise ValidationError("request", "use the caption panel to save fixes")
+                    created = True
                     if "text_hook" in body:
                         comment = self._choose_text_hook(body)
                     else:
-                        comment = review.store.add_comment(
+                        client_id = body.pop("client_id", None)
+                        comment, created = review.store.add_client_comment(
                             self._selected.sha256,
                             self._selected.media.facts(self._selected.sha256), body,
+                            client_id,
                         )
-                    self._json(201, comment_to_dict(comment))
+                    self._json(201 if created else 200, comment_to_dict(comment))
                 elif match:
                     comment_id = match.group(1)
                     note = next((note for note in review.store.comments(self._selected.sha256)
@@ -1564,10 +1609,11 @@ class ReviewServer:
                     if not target.is_file() or target.resolve().parent != _STATIC.resolve():
                         self._error(404, "not_found", "file not found")
                         return
-                    content_type = (
-                        "text/html; charset=utf-8" if path == "/" else _STATIC_TYPES[target.suffix]
-                    )
-                    self._bytes(200, target.read_bytes(), content_type)
+                    if path == "/":
+                        payload = self._with_manifest(target.read_text(encoding="utf-8"))
+                        self._bytes(200, payload, "text/html; charset=utf-8")
+                    else:
+                        self._bytes(200, target.read_bytes(), _STATIC_TYPES[target.suffix])
 
             def _dispatch(self) -> None:
                 try:

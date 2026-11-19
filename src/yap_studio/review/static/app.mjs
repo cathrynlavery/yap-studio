@@ -70,6 +70,7 @@ const el = {
   youtubeChapters: $('youtube-chapters'), youtubeChapterText: $('youtube-chapter-text'),
   youtubeChapterCopy: $('youtube-chapter-copy'),
   downloadVideo: $('download-video'), downloadReport: $('download-report'), offline: $('offline-banner'),
+  offlineQueue: $('offline-queue'), offlineTools: $('offline-tools'),
   approval: $('approval-confirmation'), approvalTitle: $('approval-title'),
   approvalText: $('approval-text'), approvalHome: $('approval-home'),
   compareToggle: $('compare-toggle'), players: $('players'), comparePanel: $('compare-panel'),
@@ -133,6 +134,11 @@ let decisionBusy = false;
 let nextVideoTimer = null;
 let nextVideoRequest = 0;
 let reviewListToken = null;
+// Offline kit, outbox and the notes waiting in it for this page; null where the browser lacks them.
+let offlineKit = null;
+let outbox = null;
+let pendingNotes = [];
+let flushOutbox = null;
 const NEXT_VIDEO_DELAY_MS = 1500;
 const MEDIA_METADATA_DEADLINE_MS = 10000;
 const MEDIA_FIRST_FRAME_DEADLINE_MS = 15000;
@@ -215,7 +221,9 @@ async function request(path, options) {
     throw error;
   }
   const reconnecting = offline;
-  setOffline(offlineState(offline, 'response'));
+  // The offline worker answers from its saved copy when the server cannot be reached.
+  const saved = response.headers?.get?.('X-Yap-Offline') === '1';
+  setOffline(offlineState(offline, saved ? 'network_error' : 'response'));
   if (reconnecting && !path.startsWith('api/review')) void refreshReview();
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
@@ -250,7 +258,8 @@ function setOffline(value) {
   el.offline.hidden = !offline;
   renderPlayerRecovery();
   if (!offline) showStatus('');
-  el.newComment.disabled = offline || !review || Boolean(review.media_changed);
+  if (!offline) flushOutbox?.();
+  el.newComment.disabled = notesLocked() || !review || Boolean(review.media_changed);
   updateComposeSubmit();
   if (review) {
     renderVersions();
@@ -260,6 +269,10 @@ function setOffline(value) {
     updateVoiceFixControls();
   }
   schedulePoll();
+}
+
+function notesLocked() {
+  return offline && outbox === null;
 }
 
 function renderPlayerRecovery() {
@@ -457,7 +470,7 @@ function selectedRange() {
 }
 
 function renderRangePanel() {
-  const blocked = !review || offline || Boolean(review.media_changed);
+  const blocked = !review || notesLocked() || Boolean(review.media_changed);
   el.markStart.disabled = blocked || cutBusy;
   el.markEnd.disabled = blocked || cutBusy;
   const marked = selectedRange();
@@ -472,7 +485,7 @@ function renderRangePanel() {
   el.rangeWords.hidden = !state.show;
   el.rangePlay.disabled = blocked;
   el.rangeCut.hidden = !state.show;
-  el.rangeCut.disabled = blocked || !state.enabled || composeBusy || Boolean(editState)
+  el.rangeCut.disabled = blocked || offline || !state.enabled || composeBusy || Boolean(editState)
     || switchingVersion || roundBusy || releaseBusy || answerBusy || cutBusy;
   for (const button of [el.rangeChange, el.rangeKeep]) {
     if (button) button.disabled = blocked || composeBusy || cutBusy || Boolean(editState) || switchingVersion;
@@ -524,7 +537,7 @@ async function cutSelection() {
 async function commentOnRange(kind) {
   // Change this and Keep this save a note on the marked part, right under the video.
   const marked = selectedRange();
-  if (!marked || !review || offline || review.media_changed || composeBusy || cutBusy || editState) return;
+  if (!marked || !review || notesLocked() || review.media_changed || composeBusy || cutBusy || editState) return;
   let text = String(el.rangeNote?.value ?? '').trim();
   if (!text && kind === 'fix') {
     cutError = 'Say what should change, then press Change this.';
@@ -537,11 +550,11 @@ async function commentOnRange(kind) {
   cutError = '';
   renderRangePanel();
   try {
-    const created = await api(versionUrl('api/comments', selectedVersion),
-      {method: 'POST', body: {kind, target: null, text, ...marked}});
-    selectedId = created.id;
+    const created = await postNote({kind, target: null, text, ...marked});
     if (el.rangeNote) el.rangeNote.value = '';
     clearSelection();
+    if (created === null) return;
+    selectedId = created.id;
     await loadReview();
     showToast(kind === 'keep' ? 'Keep saved' : 'Note saved');
   } catch (error) {
@@ -606,7 +619,7 @@ function seekComment(comment) {
 }
 
 function pinMode() {
-  return Boolean(review && !replyNavigationBlocked() && !activeWrites && !cutBusy
+  return Boolean(review && !replyNavigationBlocked(true) && !activeWrites && !cutBusy
     && (editState || !el.compose.hidden));
 }
 
@@ -626,7 +639,7 @@ function renderPin() {
   const comment = editState?.comment ?? review?.comments.find((item) => item.id === selectedId);
   const isDraft = pinMode() && (editState ? editState.pinTouched : !el.compose.hidden);
   const pin = isDraft ? draft : (editState ? editState.pin : comment?.pin);
-  const visible = pin && !offline && !switchingVersion && !review?.media_changed && el.video.paused
+  const visible = pin && !notesLocked() && !switchingVersion && !review?.media_changed && el.video.paused
     && (isDraft || pinShown({...comment, pin}, fps, fps ? currentFrame() : null, displayedTime));
   if (el.pinLayer.hidden !== !visible) el.pinLayer.hidden = !visible;
   if (!visible) return;
@@ -1239,8 +1252,8 @@ async function openThread(thread) {
   } catch (error) { el.mapStatus.textContent = errorMessage(error); }
 }
 
-function replyNavigationBlocked() {
-  return offline || switchingVersion || openingReplyEvidence || composeBusy || roundBusy
+function replyNavigationBlocked(queueable = false) {
+  return (queueable ? notesLocked() : offline) || switchingVersion || openingReplyEvidence || composeBusy || roundBusy
     || releaseBusy || answerBusy || tasteSaving.size > 0 || voiceFixSaving.size > 0
     || Boolean(editState?.busy) || Boolean(review?.media_changed);
 }
@@ -2496,6 +2509,7 @@ function renderComments() {
     el.list.append(row);
     if (editState?.id === comment.id) mountEdit(row, editState);
   }
+  renderPendingNotes();
   if (editFocus && editState) editFocus.focus();
   renderPin();
   renderDecision();
@@ -2572,7 +2586,8 @@ function renderReview(fresh, preserveStatus = false) {
       || fresh.series?.current !== fresh.series?.newest);
     else el.textHook.hidden = true;
   }
-  el.newComment.disabled = offline || Boolean(review.media_changed);
+  el.newComment.disabled = notesLocked() || Boolean(review.media_changed);
+  void loadPendingNotes();
   schedulePoll();
   updateTimeline();
 }
@@ -2690,12 +2705,12 @@ function updateComposeSpelling() {
 }
 
 function updateComposeSubmit() {
-  el.composeSubmit.disabled = offline || composeBusy || !el.composeText.value.trim();
+  el.composeSubmit.disabled = notesLocked() || composeBusy || !el.composeText.value.trim();
   renderRangePanel();
 }
 
 function openCompose({pin = null, focus = true} = {}) {
-  if (!review || replyNavigationBlocked() || activeWrites || cutBusy) return;
+  if (!review || replyNavigationBlocked(true) || activeWrites || cutBusy) return;
   cancelNextVideo();
   closeCaptionFix(false);
   if (!el.compose.hidden) {
@@ -2729,8 +2744,113 @@ function closeCompose() {
   renderPin();
 }
 
+function notesUrl() {
+  return new URL(versionUrl('api/comments', selectedVersion), location.href).href;
+}
+
+/**
+ * Save a new note, or keep it in this device's outbox when the server is unreachable.
+ * Returns the saved comment, or null when the note waits in the outbox.
+ */
+async function postNote(fields) {
+  if (!outbox) return api(versionUrl('api/comments', selectedVersion), {method: 'POST', body: fields});
+  const id = offlineKit.newClientId();
+  if (!offline) {
+    try {
+      return await api(versionUrl('api/comments', selectedVersion),
+        {method: 'POST', body: {...fields, client_id: id}});
+    } catch (error) {
+      // A refusal is the server's answer; only a lost connection goes to the outbox.
+      if (error?.status !== undefined || error?.name === 'AbortError') throw error;
+    }
+  }
+  await outbox.put({id, url: notesUrl(), token, body: fields, created: Date.now(), error: null});
+  await loadPendingNotes();
+  showToast('Saved on this device. It syncs when the review server is back.');
+  return null;
+}
+
+async function loadPendingNotes() {
+  if (!outbox) return;
+  const url = review ? notesUrl() : null;
+  try {
+    pendingNotes = (await outbox.all()).filter((item) => item.url === url)
+      .sort((a, b) => a.created - b.created);
+  } catch {
+    pendingNotes = [];
+  }
+  renderPendingNotes();
+}
+
+function renderPendingNotes() {
+  if (!outbox) return;
+  for (const row of el.list.querySelectorAll('.comment.pending')) row.remove();
+  if (!review) return;
+  const count = review.comments.length + pendingNotes.length;
+  el.count.textContent = String(count);
+  el.empty.hidden = count !== 0;
+  for (const item of pendingNotes) {
+    const comment = offlineKit.pendingComment(item);
+    const row = document.createElement('li');
+    row.className = 'comment pending';
+    row.dataset.commentId = item.id;
+    const top = document.createElement('div');
+    top.className = 'comment-top';
+    const kind = document.createElement('span');
+    kind.className = `kind-button ${comment.kind === 'keep' ? 'keep' : 'fix'}`;
+    kind.textContent = comment.kind === 'keep' ? 'Keep' : 'Fix';
+    top.append(makeButton(spanText(comment, fps), 'timestamp', () => seekComment(comment)), kind);
+    const state = document.createElement('p');
+    state.className = `send-state ${item.error ? 'failed' : 'pending'}`;
+    state.textContent = item.error ? `Not saved: ${item.error}`
+      : 'Waiting on this device; saves when the review server is back';
+    const content = document.createElement('p');
+    content.className = 'comment-text';
+    content.textContent = comment.text;
+    const actions = document.createElement('div');
+    actions.className = 'comment-actions';
+    if (item.error) {
+      actions.append(makeButton('Retry', '', async () => {
+        await outbox.put({...item, error: null});
+        await flushOutbox?.();
+      }));
+    }
+    actions.append(makeButton('Discard', '', async () => {
+      if (!confirm('Discard this note? It has not reached the review server.')) return;
+      await outbox.remove(item.id);
+      await loadPendingNotes();
+    }));
+    row.append(top, state, content, actions);
+    el.list.append(row);
+  }
+}
+
+async function setupOffline() {
+  try {
+    offlineKit = await import('./offline.mjs');
+    outbox = await offlineKit.openOutbox();
+  } catch {
+    outbox = null;
+  }
+  if (!outbox) return;
+  el.offlineQueue.hidden = false;
+  el.newComment.disabled = notesLocked() || !review || Boolean(review?.media_changed);
+  updateComposeSubmit();
+  flushOutbox = offlineKit.keepSyncing(outbox, async (result) => {
+    await loadPendingNotes();
+    if (result.sent > 0) await loadReview().catch(() => {});
+  });
+  await offlineKit.refreshWorker().catch(() => false);
+  const page = `${location.pathname}${location.search}`;
+  offlineKit.mountOfflineTools(el.offlineTools, {pages: () => [{page, show() {}}], entries: async () => {
+    if (!review) throw new Error('Wait for the review to load, then press Download again.');
+    const pageVersion = new URLSearchParams(location.search).get('version');
+    return [{page, token, ...offlineKit.offlineUrls('', token, review, pageVersion)}];
+  }});
+}
+
 async function submitCompose() {
-  if (offline || composeBusy || !el.composeText.value.trim() || !review) return;
+  if (notesLocked() || composeBusy || !el.composeText.value.trim() || !review) return;
   const fields = {kind: composeKind, target: composeTarget, text: el.composeText.value};
   try {
     const request = spellingRequest(composeKind, composeTarget,
@@ -2754,11 +2874,11 @@ async function submitCompose() {
   updateComposeSubmit();
   renderSendBar();
   try {
-    const created = await api(versionUrl('api/comments', selectedVersion),
-      {method: 'POST', body: fields});
-    selectedId = created.id;
+    const created = await postNote(fields);
     closeCompose();
     clearSelection();
+    if (created === null) return;
+    selectedId = created.id;
     await loadReview();
   } catch (error) {
     el.composeError.textContent = errorMessage(error);
@@ -3064,7 +3184,7 @@ function wireEvents() {
   el.markEnd.addEventListener('click', () => markSelection('out'));
   el.rangePlay.addEventListener('click', () => {
     const marked = selectedRange();
-    if (marked && !offline && !review.media_changed) playRange(marked);
+    if (marked && !notesLocked() && !review.media_changed) playRange(marked);
   });
   el.rangeCut.addEventListener('click', cutSelection);
   el.rangeChange?.addEventListener('click', () => commentOnRange('fix'));
@@ -3168,6 +3288,7 @@ async function start() {
   try {
     await loadReview();
   } catch { /* loadReview already displayed the API error. */ }
+  await setupOffline();
 }
 
 start();
