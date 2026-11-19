@@ -1,1 +1,1 @@
-- Pin the renderer to HyperFrames 0.9.23.
+- Pin the renderer to HyperFrames 0.9.68. Cards, titles and captions render the same as on 0.9.23.
