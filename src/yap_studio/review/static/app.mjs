@@ -2758,22 +2758,26 @@ async function postNote(fields) {
   if (!outbox) return api(versionUrl('api/comments', selectedVersion), {method: 'POST', body: fields});
   const id = offlineKit.newClientId();
   // Keep the note on this device first, so a connection lost mid-send cannot lose it.
-  await outbox.put({id, url: notesUrl(), token, body: fields, created: Date.now(), error: null});
+  // A full device still lets an online note through; it just cannot wait offline.
+  const kept = await outbox.put({id, url: notesUrl(), token, body: fields, created: Date.now(),
+    error: null}).then(() => true, () => false);
+  const forget = () => (kept ? outbox.remove(id).catch(() => {}) : null);
   if (!offline) {
     try {
       const created = await api(versionUrl('api/comments', selectedVersion),
         {method: 'POST', body: {...fields, client_id: id},
           signal: AbortSignal.timeout?.(offlineKit.SEND_WAIT_MS)});
-      await outbox.remove(id);
+      await forget();
       return created;
     } catch (error) {
       // A refusal is the server's answer; only a lost or stalled connection leaves it waiting.
-      if (error?.status !== undefined) {
-        await outbox.remove(id);
+      if (error?.status !== undefined || !kept) {
+        await forget();
         throw error;
       }
     }
   }
+  if (!kept) throw new Error('This device has no room to keep the note offline. Copy it, then try again when connected.');
   await loadPendingNotes();
   showToast('Saved on this device. It syncs when the review server is back.');
   return null;
