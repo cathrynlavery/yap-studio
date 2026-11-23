@@ -1,11 +1,11 @@
 {
   "schema": "yap-studio/hf-registry-catalog@1",
-  "hyperframes_version": "0.9.68",
+  "hyperframes_version": "0.9.84",
   "registry": {
     "repository": "github.com/heygen-com/hyperframes",
-    "tag": "v0.9.68",
-    "commit": "3ae9e7302d2e77051911a938a5d2e76689f12de3",
-    "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/3ae9e7302d2e77051911a938a5d2e76689f12de3/registry",
+    "tag": "v0.9.84",
+    "commit": "9ec93615ef13680289916a8a4217eb3dcd8a4639",
+    "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/9ec93615ef13680289916a8a4217eb3dcd8a4639/registry",
     "license": "Apache-2.0",
     "license_file": "LICENSES/Apache-2.0.txt",
     "copyright": "Copyright 2026 HeyGen, Inc."
