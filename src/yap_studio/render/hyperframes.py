@@ -1027,7 +1027,8 @@ def render_layer(
                 allowed_existing_suffixes=frozenset(),
             )
             created_variables = True
-            deadline = 120 + frames * composition.width * composition.height / 2e6
+            # Browser startup under parallel CI load can exceed two minutes even for tiny layers.
+            deadline = 300 + frames * composition.width * composition.height / 2e6
 
             def attempt() -> None:
                 with paths.atomic_output(raw) as temporary:

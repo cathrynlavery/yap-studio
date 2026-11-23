@@ -1,0 +1,2 @@
+- Allow more renderer startup time under parallel load while keeping frame and pixel based deadlines.
+- Check the full fake API key in the SFX redaction test so runner hostnames cannot cause false failures.

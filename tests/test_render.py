@@ -468,6 +468,27 @@ def test_failed_render_discards_history(
     assert not Path(observed["root"]).exists()
 
 
+def test_render_deadline_allows_loaded_startup(
+    tmp_path: Path, fake_renderer: Callable[[str], RendererInstall],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    comp = _composition(tmp_path / "deadline", frames=3)
+    run = subprocess.run
+
+    def loaded_run(command: list[str], **kwargs) -> subprocess.CompletedProcess:
+        if Path(command[0]).name == "hyperframes" and command[1] == "render":
+            # Simulate a three-minute cold start without waiting for it.
+            if kwargs["timeout"] < 180:
+                raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+            assert math.isfinite(kwargs["timeout"])
+        return run(command, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", loaded_run)
+    result = render_layer(comp, tmp_path / "out.mov", frames=3, variables={},
+                          install=fake_renderer(), checks=False)
+    assert ffmpeg.probe(result.path).video_frames == 3
+
+
 @pytest.mark.parametrize("workers", [None, "auto"])
 def test_render_uses_requested_workers_and_screenshot_capture(
     tmp_path: Path, fake_renderer: Callable[[str], RendererInstall], workers: str | None,
