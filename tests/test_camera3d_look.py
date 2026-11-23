@@ -1534,5 +1534,9 @@ def test_project_camera_render_is_repeatable_and_verifies(tmp_path: Path, monkey
     result = assemble.assemble(root)
     final = read_receipt(root / "final")
     assert result["status"] == "verified"
-    assert final["verify"]["status"] == "pass", final["verify"]["findings"]
+    # The house caption band sits below the 9:16 safe areas, which verify reports as a warning.
+    others = [item for item in final["verify"]["findings"] if item["severity"] != "info"
+              and not (item["check"] == "platform.safe_area"
+                       and item["evidence"]["target_type"] == "caption")]
+    assert final["verify"]["status"] in {"pass", "warn"} and not others, others
     assert final["verify"]["checks"]["picture.grade"]["ran"]

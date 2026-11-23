@@ -175,6 +175,187 @@ def test_music_dry_open_windows_ducking_and_hold(tmp_path: Path) -> None:
     assert rms(4.1, 4.9) == pytest.approx(rms(3, 3.5) * 0.25, rel=0.01)
 
 
+@pytest.mark.parametrize("duck_mode", ["words", "level"])
+@pytest.mark.parametrize("level", [0.06, 0.04])
+def test_music_level_follows_measured_speech(
+    tmp_path: Path, duck_mode: str, level: float,
+) -> None:
+    source, _ = synth.speech_source(tmp_path / "speech.mov", [
+        "Bright garden flowers open beside the sunny door.",
+        "Quiet evening rain settles softly over every leaf.",
+        "Morning voices carry through the open kitchen window.",
+    ])
+    speech = stage.decode(source, [], channels=1)[:, 0]
+    frames = (len(speech) + 1599) // 1600
+    count, hold = frames * 1600, stage.RATE
+    speech = np.pad(speech, (0, count - len(speech)))
+    raw_voice = synth.float_audio(tmp_path / "speech.wav", speech)
+    source_lufs = stage.measure(raw_voice, []).integrated_lufs
+    assert source_lufs is not None
+    time = np.arange(count) / stage.RATE
+    chord = sum(0.05 * np.sin(2 * np.pi * hz * time) for hz in (220, 277, 330, 880))
+    chord += np.random.default_rng(119).normal(0, 0.005, count)
+    bed = np.vstack([np.column_stack([chord, chord]), np.zeros((hold, 2))])
+    raw_bed = synth.float_audio(tmp_path / "unscaled-bed.wav", bed)
+    bed_lufs = stage.measure(raw_bed, []).integrated_lufs
+    assert bed_lufs is not None
+    bed_path = synth.float_audio(tmp_path / "bed.wav", bed * 10 ** ((-16 - bed_lufs) / 20))
+    music = {**resolve("preset:clean_minimal").data["music"], "duck_mode": duck_mode,
+             "level": level, "dry_open_s": 0}
+    gaps, results = [], []
+    for target in (-36, -14):
+        root = tmp_path / str(target)
+        voice = speech * 10 ** ((target - source_lufs) / 20)
+        synth.float_audio(root / "cut/voice.wav", voice)
+        stereo_voice = np.repeat(voice[:, None], 2, axis=1)
+        stereo_root = root / "stereo"
+        stereo_path = synth.float_audio(stereo_root / "cut/voice.wav", stereo_voice)
+        mixed_voice_lufs = stage.measure(stereo_path, []).integrated_lufs
+        assert mixed_voice_lufs is not None
+        result = stage.render_audio(
+            root, root / "audio.m4a", work_dir=root / "work",
+            timeline=ResolvedTimeline((), (), (), frames, 30), policy={"mode": "preserve"},
+            music=music, bed=bed_path, cut_words={"time_base": "output", "words": []},
+        )
+        mix = stage.decode(root / "work/mix.wav", [], channels=2)
+        music_only = mix - np.pad(voice, (0, hold))[:, None]
+        assert not mix[count:].any()
+        # Lift the isolated ducked bed above ebur128's absolute gate before comparing gains.
+        lift_db = 20 if duck_mode == "level" else 0
+        isolated = synth.float_audio(root / "music.wav", music_only * 10 ** (lift_db / 20))
+        music_lufs = stage.measure(isolated, []).integrated_lufs
+        assert result.input_voice.integrated_lufs is not None and music_lufs is not None
+        assert result.input_voice.integrated_lufs == stage.measure(
+            root / "cut/voice.wav", []).integrated_lufs
+        gaps.append(mixed_voice_lufs - (music_lufs - lift_db))
+        results.append(result)
+        if duck_mode == "words":
+            stereo_result = stage.render_audio(
+                stereo_root, stereo_root / "audio.m4a", work_dir=stereo_root / "work",
+                timeline=ResolvedTimeline((), (), (), frames, 30), policy={"mode": "preserve"},
+                music=music, bed=bed_path, cut_words={"time_base": "output", "words": []},
+            )
+            assert stereo_result.input_voice.integrated_lufs == mixed_voice_lufs
+            stereo_mix = stage.decode(stereo_root / "work/mix.wav", [], channels=2)
+            stereo_music = stereo_mix - np.pad(stereo_voice, ((0, hold), (0, 0)))
+            stereo_isolated = synth.float_audio(stereo_root / "music.wav", stereo_music)
+            stereo_music_lufs = stage.measure(stereo_isolated, []).integrated_lufs
+            assert stereo_music_lufs is not None
+            assert mixed_voice_lufs - stereo_music_lufs == pytest.approx(gaps[-1], abs=0.1)
+    if duck_mode == "words":
+        assert gaps == pytest.approx([-20 * np.log10(level)] * 2, abs=0.5)
+    else:
+        assert abs(gaps[0] - gaps[1]) < 1, gaps
+        assert results[0].music["duck_threshold"] < 0.03
+    for result in results:
+        assert result.music["bed_lufs"] == stage.measure(bed_path, []).integrated_lufs
+        assert result.music["level_shift_db"] == pytest.approx(
+            result.input_voice.integrated_lufs + 10 * np.log10(2) - result.music["bed_lufs"])
+        if duck_mode == "words":
+            assert result.music["ducked_spans"] == 0
+            assert "duck_threshold" not in result.music
+
+
+def test_music_follows_treated_voice_not_raw_input(tmp_path: Path) -> None:
+    count = 4 * stage.RATE
+    time = np.arange(count) / stage.RATE
+    voice = (0.65 * np.sin(2 * np.pi * 220 * time)).astype(np.float32)
+    voice[stage.RATE:2 * stage.RATE] *= 0.08
+    voice[3 * stage.RATE:] *= 0.2
+    voice_path = synth.float_audio(tmp_path / "cut/voice.wav", voice)
+    bed_samples = np.column_stack([0.05 * np.sin(2 * np.pi * 880 * time)] * 2)
+    bed_path = synth.float_audio(tmp_path / "bed.wav", bed_samples)
+    chain = voice_filters("broadcast")
+    treated_path = tmp_path / "expected-treated.wav"
+    ffmpeg.run([
+        "ffmpeg", "-nostdin", "-v", "error", "-i", str(voice_path), "-map", "0:a:0",
+        "-af", f"{chain},atrim=end_sample={count}", "-c:a", "pcm_f32le", "-ar",
+        str(stage.RATE), str(treated_path),
+    ], timeout_s=60)
+    raw_lufs = stage.measure(voice_path, []).integrated_lufs
+    treated_lufs = stage.measure(treated_path, []).integrated_lufs
+    bed_lufs = stage.measure(bed_path, []).integrated_lufs
+    assert raw_lufs is not None and treated_lufs is not None and bed_lufs is not None
+    assert abs(raw_lufs - treated_lufs) > 0.5
+    music = {**resolve("preset:clean_minimal").data["music"], "dry_open_s": 0}
+    result = stage.render_audio(
+        tmp_path, tmp_path / "audio.m4a", work_dir=tmp_path / "work",
+        timeline=ResolvedTimeline((), (), (), 120, 0), policy=AUDIO_DEFAULTS,
+        music=music, voice={"preset": "broadcast"}, bed=bed_path,
+    )
+    mixed_treated_lufs = treated_lufs + 10 * np.log10(2)
+    assert result.input_voice.integrated_lufs == raw_lufs
+    assert result.music["level_shift_db"] == pytest.approx(mixed_treated_lufs - bed_lufs)
+    assert result.music["duck_threshold"] == pytest.approx(
+        music["duck_threshold"] * 10 ** ((mixed_treated_lufs - stage.VOICE_REFERENCE_LUFS) / 20)
+    )
+
+
+def test_silent_voice_keeps_authored_music_level_with_real_audio(tmp_path: Path) -> None:
+    count = 2 * stage.RATE
+    voice_path = synth.float_audio(tmp_path / "cut/voice.wav",
+                                   np.zeros(count, dtype=np.float32))
+    time = np.arange(count) / stage.RATE
+    bed_samples = np.column_stack([0.05 * np.sin(2 * np.pi * 440 * time)] * 2)
+    bed_path = synth.float_audio(tmp_path / "bed.wav", bed_samples)
+    measured_silence = stage.measure(voice_path, []).integrated_lufs
+    assert measured_silence == pytest.approx(-70)
+    music = {**resolve("preset:clean_minimal").data["music"], "level": 0.25,
+             "dry_open_s": 0, "duck_ratio": 1}
+    result = stage.render_audio(
+        tmp_path, tmp_path / "audio.m4a", work_dir=tmp_path / "work",
+        timeline=ResolvedTimeline((), (), (), 60, 0), policy={"mode": "preserve"},
+        music=music, bed=bed_path,
+    )
+    assert result.input_voice.integrated_lufs == measured_silence
+    assert result.music["level_shift_db"] == 0
+    assert result.music["duck_threshold"] == music["duck_threshold"]
+    mix = stage.decode(tmp_path / "work/mix.wav", [], channels=2)
+    np.testing.assert_allclose(mix, bed_samples * music["level"], atol=1e-7)
+
+
+@pytest.mark.parametrize(("voice_lufs", "bed_lufs", "level", "threshold", "shift", "effective"), [
+    (-60, -16, 0.06, 0.03, -44 + 10 * np.log10(2), 0.000976563),
+    (4, -16, 0.06, 0.3, 20 + 10 * np.log10(2), 1),
+    (-16, -16, 0, 0.03, 10 * np.log10(2), 0.03 * 2 ** 0.5),
+    (-16 - 10 * np.log10(2), -16, 0.06, 0.03, 0, 0.03),
+    (None, -16, 0.06, 0.04, 0, 0.04),
+    (-36, None, 0.06, 0.03, 0, 0.003 * 2 ** 0.5),
+])
+def test_music_relative_level_threshold_limits_and_missing_loudness(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, voice_lufs: float | None,
+    bed_lufs: float | None, level: float, threshold: float, shift: float, effective: float,
+) -> None:
+    voice = synth.loudness_master(tmp_path / "cut/voice.wav", frames=30)
+    bed = synth.loudness_master(tmp_path / "bed.wav", frames=30)
+    measure = stage.measure
+
+    def measured(source, commands):
+        if source in (voice, bed):
+            return replace(measure(source, commands),
+                           integrated_lufs=voice_lufs if source == voice else bed_lufs)
+        return measure(source, commands)
+
+    monkeypatch.setattr(stage, "measure", measured)
+    result = stage.render_audio(
+        tmp_path, tmp_path / "audio.m4a", work_dir=tmp_path / "work",
+        timeline=ResolvedTimeline((), (), (), 30, 0), policy={"mode": "preserve"}, bed=bed,
+        music={**resolve("preset:clean_minimal").data["music"], "level": level,
+               "dry_open_s": 0, "duck_threshold": threshold},
+    )
+    assert result.input_voice.integrated_lufs == voice_lufs
+    assert result.music == {"duck_mode": "level", "bed_lufs": bed_lufs,
+                            "level_shift_db": pytest.approx(shift),
+                            "duck_threshold": pytest.approx(effective)}
+    json.dumps(result.to_dict(), allow_nan=False)
+    graph = next(command[command.index("-filter_complex") + 1]
+                 for command in result.commands if "-filter_complex" in command)
+    assert f"threshold={effective:.9g}:" in graph
+    if level == 0:
+        np.testing.assert_array_equal(stage.decode(tmp_path / "work/mix.wav", [], channels=2),
+                                      stage.decode(voice, [], channels=1).repeat(2, axis=1))
+
+
 @pytest.mark.parametrize("bleep_on", [False, True])
 @pytest.mark.parametrize("hold", [0, 15])
 def test_level_ducking_keeps_bed_tail_when_key_ends_early(
@@ -199,14 +380,15 @@ def test_level_ducking_keeps_bed_tail_when_key_ends_early(
         return run(command, commands, **kwargs)
 
     monkeypatch.setattr(stage, "_run", short_key)
-    music = {**resolve("preset:clean_minimal").data["music"], "level": 1, "dry_open_s": 0}
+    music = {**resolve("preset:clean_minimal").data["music"], "level": 1, "dry_open_s": 0,
+             "duck_ratio": 1}
     result = stage.render_audio(
         tmp_path, tmp_path / "audio.m4a", work_dir=tmp_path / "work",
         timeline=ResolvedTimeline((), (), (), 30, hold), policy={"mode": "preserve"},
         music=music, bed=source, bleeps=bleep.find(
             [CaptionWord("0", "shit", 0.2, 0.3)], bleep.listed({})) if bleep_on else None,
     )
-    expected = bed.copy()
+    expected = bed * np.float32(10 ** (result.music["level_shift_db"] / 20))
     expected[:count] += voice[:, None]
     mix = stage.decode(tmp_path / "work/mix.wav", [], channels=2)
     np.testing.assert_array_equal(mix[count // 2:], expected[count // 2:])
@@ -308,7 +490,8 @@ def test_default_style_is_byte_identical_to_original_level_mix(tmp_path: Path) -
     result = stage.render_audio(tmp_path, out, work_dir=tmp_path / "work", timeline=timeline,
                                 policy={"mode": "preserve"}, music=style["music"],
                                 voice=style["voice"], bed=bed_path)
-    legacy_bed = bed * np.float32(0.06)
+    gain = style["music"]["level"] * 10 ** (result.music["level_shift_db"] / 20)
+    legacy_bed = bed * np.float32(gain)
     legacy_bed[:33600] = 0
     legacy_bed[96000:144000] *= 0.25
     raw = tmp_path / "legacy-bed.f32le"
@@ -318,7 +501,8 @@ def test_default_style_is_byte_identical_to_original_level_mix(tmp_path: Path) -
         f"[0:a:0]pan=stereo|c0=c0|c1=c0,asetpts=N/SR/TB,apad=whole_len={samples},"
         f"atrim=end_sample={samples}[voice];[voice]asplit=2[voice_mix][key];"
         "[1:a:0]asetpts=N/SR/TB[bed];"
-        "[bed][key]sidechaincompress=threshold=0.03:ratio=6:attack=10:"
+        f"[bed][key]sidechaincompress=threshold={result.music['duck_threshold']:.9g}:"
+        "ratio=6:attack=10:"
         "release=320:makeup=1[ducked];"
         f"[ducked]atrim=end_sample={count},apad=whole_len={samples},"
         f"atrim=end_sample={samples}[music];"
@@ -338,7 +522,14 @@ def test_default_style_is_byte_identical_to_original_level_mix(tmp_path: Path) -
                 "-movie_timescale", str(stage.RATE), str(legacy_out)], timeout_s=60)
     assert out.read_bytes() == legacy_out.read_bytes()
     assert result.to_dict()["voice"] == {"preset": "none", "repairs": [], "filters": ""}
-    assert result.to_dict()["music"] == {"duck_mode": "level"}
+    bed_lufs = stage.measure(bed_path, []).integrated_lufs
+    voice_lufs = result.input_voice.integrated_lufs
+    assert bed_lufs is not None and voice_lufs is not None
+    voice_lufs += 10 * np.log10(2)
+    assert result.to_dict()["music"] == {
+        "duck_mode": "level", "bed_lufs": bed_lufs, "level_shift_db": voice_lufs - bed_lufs,
+        "duck_threshold": 0.03 * 10 ** ((voice_lufs + 16) / 20),
+    }
 
 
 @pytest.mark.parametrize("voice", [{"preset": "clean"}, {"preset": "broadcast"},
@@ -417,20 +608,25 @@ def test_word_ducking_depth_pause_ramps_and_existing_envelope(tmp_path: Path, de
                                     {"start": 1.0, "end": 2.0}]})
     mix = stage.decode(tmp_path / "work/mix.wav", [], channels=2)
     actual = mix[:count] - voice[:, None]
+    base = 0.05 * 10 ** (result.music["level_shift_db"] / 20)
     np.testing.assert_allclose(actual[:24000], 0, atol=2e-8)
-    np.testing.assert_allclose(actual[48000:96000], 0.05 * 10 ** (depth / 20), atol=2e-8)
+    np.testing.assert_allclose(actual[48000:96000], base * 10 ** (depth / 20), atol=2e-8)
     # Even continuous voice in the pause must not trigger level-driven ducking.
-    np.testing.assert_allclose(actual[120000:168000], 0.05, atol=2e-8)
-    np.testing.assert_allclose(actual[192000:240000], 0.0125, atol=2e-8)
+    np.testing.assert_allclose(actual[120000:168000], base, atol=2e-8)
+    np.testing.assert_allclose(actual[192000:240000], base * 0.25, atol=2e-8)
     attack_samples, release_samples = 4800, 9600
     attack_db = depth * np.arange(attack_samples) / attack_samples
     release_db = depth * (1 - np.arange(release_samples) / release_samples)
-    np.testing.assert_allclose(actual[43200:48000, 0], 0.05 * 10 ** (attack_db / 20), atol=2e-8)
-    np.testing.assert_allclose(actual[96000:105600, 0], 0.05 * 10 ** (release_db / 20), atol=2e-8)
-    assert actual[43200, 0] == pytest.approx(0.05)
-    assert actual[105600, 0] == pytest.approx(0.05)
+    np.testing.assert_allclose(actual[43200:48000, 0], base * 10 ** (attack_db / 20), atol=4e-8)
+    np.testing.assert_allclose(actual[96000:105600, 0], base * 10 ** (release_db / 20), atol=4e-8)
+    assert actual[43200, 0] == pytest.approx(base)
+    assert actual[105600, 0] == pytest.approx(base)
     assert not mix[count:].any() and len(mix) == count + hold
-    assert result.to_dict()["music"] == {"duck_mode": "words", "ducked_spans": 1}
+    bed_lufs = stage.measure(bed_path, []).integrated_lufs
+    assert result.to_dict()["music"] == {
+        "duck_mode": "words", "ducked_spans": 1, "bed_lufs": bed_lufs,
+        "level_shift_db": result.input_voice.integrated_lufs + 10 * np.log10(2) - bed_lufs,
+    }
     assert not any("sidechaincompress=" in arg for command in result.commands for arg in command)
 
 
@@ -448,6 +644,7 @@ def test_word_ducking_merges_only_gaps_below_limit(tmp_path: Path, gap_ms: int, 
                                     {"start": 1.2, "end": 2}, {"start": 0.5, "end": 1}]})
     pcm = stage.decode(tmp_path / "work/mix.wav", [], channels=2)
     expected = 0.1 * (10 ** (-12 / 20) if spans == 1 else 1)
+    expected *= 10 ** (result.music["level_shift_db"] / 20)
     np.testing.assert_allclose(pcm[52800:53280], expected, atol=1e-8)
     assert result.to_dict()["music"]["ducked_spans"] == spans
 

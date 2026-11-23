@@ -2427,7 +2427,8 @@ def test_offline_install_wraps_only_the_executable(tmp_path: Path) -> None:
     assert wrapper[0] == "#!/bin/sh"
     profile = directory / "offline.sb"
     assert shlex.split(wrapper[1]) == [
-        "exec", "/usr/bin/sandbox-exec", "-f", str(profile), str(install.executable), "$@"
+        "exec", "env", "HYPERFRAMES_CHROME_SANDBOX=0", "/usr/bin/sandbox-exec", "-f", str(profile),
+        str(install.executable), "$@",
     ]
     assert profile.read_text().splitlines() == [
         "(version 1)",
