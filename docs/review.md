@@ -135,6 +135,26 @@ Phone links are labeled "Encrypted (Tailscale)" for HTTPS or "Not encrypted (sam
 `--phone` cannot be combined with `--public-base`. With `--json`, a `phone` key holds `via`
 (`tailscale` or `wifi`) and `url`.
 
+### Review with no connection
+
+A Tailscale link can be saved on the phone, so you can watch and leave notes with no
+signal. Do this while the phone still reaches the computer:
+
+1. Open the link in Safari and choose Share, then Add to Home Screen.
+2. Open the review from the new Home Screen icon. On iPhone, the icon keeps its own
+   storage, separate from Safari, so download from the icon and not from a Safari tab.
+3. Press Download all for offline on the list, or Download for offline on a video. The
+   page shows progress, the size of each video and Ready offline when it is done.
+
+With no connection, the saved pages and videos still open and play. A note you add then
+is kept on the phone and marked as waiting. It saves to the review when the phone
+reaches the computer again and the page is open; a retried note is never saved twice.
+Keep the review running until then, because a restarted review gets a new link and the
+phone cannot send to it. Remove downloads frees the space.
+
+Downloading needs a secure page, so it is offered on Tailscale (HTTPS) links only, and
+on phones and tablets. Download light review copies; each video is stored whole.
+
 ## Behind your own proxy
 
 For another setup, run a trusted reverse proxy on the same machine and forward it to

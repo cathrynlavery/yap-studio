@@ -82,7 +82,7 @@ function pageFixture() {
     series: {project: true, current: 2, voice_fixes: [structuredClone(fix)]}};
   const state = {failure: null, gate: null, requests: [], detailGate: null};
   const context = vm.createContext({...helpers, ...timeline, selectedVersion: 2,
-    el, review, token: 'token', offline: false,
+    el, review, token: 'token', offline: false, notesLocked: () => false,
     wordsState: {available: false, version: null, words: []}, removed: {ranges: []},
     fps: {num: 30, den: 1}, rangeWordsCache: null, cutBusy: false, composeBusy: false,
     editState: null, answerBusy: false, cutError: '', marked: {start_frame: 33, end_frame: 35},

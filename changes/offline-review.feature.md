@@ -1,0 +1,2 @@
+- Phone reviews work with no connection: Download for offline saves the list, each video page and its video on the phone, and notes added offline wait on the phone and save once when the review is reachable again.
+- Review pages can be added to the Home Screen and keep their review link.

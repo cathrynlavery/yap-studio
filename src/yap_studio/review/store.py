@@ -66,6 +66,8 @@ _INDEX_SCHEMA = "yap-studio/media-index@1"
 _SETTINGS_SCHEMA = "yap-studio/review-settings@1"
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _COMMENT_ID = re.compile(r"c([1-9][0-9]*)\Z")
+_CLIENT_ID = re.compile(r"[A-Za-z0-9_-]{8,64}\Z")
+_CLIENT_IDS_SCHEMA = "yap-studio/review-client-ids@1"
 _MISSING = object()
 _TRUST_FILE_METADATA = os.name == "posix"
 _HASH_READ_ERROR = (
@@ -532,8 +534,46 @@ class ReviewStore:
 
     def add_comment(self, sha256: str, facts: MediaFacts, data: dict) -> Comment:
         """Validate and save a new comment with a never-reused id."""
+        return self.add_client_comment(sha256, facts, data)[0]
+
+    def _client_ids_path(self, sha256: str) -> Path:
+        self._review_path(sha256)
+        return self.root / "client-ids" / f"{sha256}.json"
+
+    def _client_ids(self, sha256: str) -> dict[str, str]:
+        path = self._client_ids_path(sha256)
+        data = self._read(path)
+        if data is _MISSING:
+            return {}
+        if (not isinstance(data, dict) or data.get("schema") != _CLIENT_IDS_SCHEMA
+                or not isinstance(data.get("ids"), dict)
+                or not all(isinstance(key, str) and isinstance(value, str)
+                           for key, value in data["ids"].items())):
+            raise InputError(str(path), _INVALID_REASON)
+        return dict(data["ids"])
+
+    def add_client_comment(
+        self, sha256: str, facts: MediaFacts, data: dict, client_id: str | None = None
+    ) -> tuple[Comment, bool]:
+        """Save a new comment once per client id; return it and whether it is new.
+
+        A page that saved a note offline retries with the same client id, so a retry
+        after a lost response returns the first comment instead of adding a second.
+        """
+        if client_id is not None and (
+            not isinstance(client_id, str) or _CLIENT_ID.fullmatch(client_id) is None
+        ):
+            raise ValidationError("client_id", "must be 8 to 64 letters, digits, - or _")
         with self._write_lock():
             review = self._review(sha256)
+            # The ids live beside the review, so older versions still read the review file.
+            ids = self._client_ids(sha256) if client_id is not None else {}
+            if client_id in ids:
+                existing = next((item for item in review["comments"]
+                                 if item["id"] == ids[client_id]), None)
+                if existing is None:
+                    raise UnknownCommentError(ids[client_id])
+                return conform_comment(comment_from_dict(existing), facts), False
             fields = normalize_input(data, facts)
             timestamp = self._timestamp(
                 precise=(fields["request"] or {}).get("type") == "caption_fix")
@@ -544,7 +584,12 @@ class ReviewStore:
             review["media"] = self._media(facts)
             review["comments"].append(comment_to_dict(comment))
             self._write(self._review_path(sha256), review)
-            return comment
+            if client_id is not None:
+                # Written after the review: a crash between the two can repeat a note, not lose one.
+                ids[client_id] = comment.id
+                self._write(self._client_ids_path(sha256),
+                            {"schema": _CLIENT_IDS_SCHEMA, "ids": ids})
+            return comment, True
 
     def update_comment(
         self, sha256: str, facts: MediaFacts, comment_id: str, data: dict
