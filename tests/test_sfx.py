@@ -132,12 +132,14 @@ def test_failure_blocks_retry_and_403_clears_pending(
 def test_failed_generation_redacts_pending_error(
     fake: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(socket, "gethostname", lambda: "runner-abcd.local")
     monkeypatch.setenv("FAKE_ELEVENLABS_GENERATE_EXIT", "5")
     with pytest.raises(sfx.SfxError, match="may have been billed"):
         sfx.generate(yes=True, only="whoosh")
     pending = (sfx.sfx_cache_root() / "pending.json").read_text()
     assert "api-key" not in pending.lower()
-    assert "abcd" not in pending
+    assert "****abcd" not in pending
+    assert json.loads(pending)["host"] == "runner-abcd.local"
     assert "synthetic failure" in pending
 
 
