@@ -238,7 +238,10 @@ def build_threads(
     for version in range(1, as_of):
         for comment in sorted_comments(comments_by_version.get(version, [])):
             reply = latest.get((version, comment.id))
-            threads.append(Thread(version, comment, reply, reply.status if reply else "open"))
+            state = reply.status if reply else "open"
+            if comment.done is not None and not is_resolved(state):
+                continue
+            threads.append(Thread(version, comment, reply, state))
     return threads
 
 

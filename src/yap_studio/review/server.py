@@ -1324,7 +1324,8 @@ class ReviewServer:
                     rounds = [item for item in review.store.rounds(series.id)
                               if item.version == self._version_number]
                     states = comment_states(comments, rounds)
-                    drafts = [item for item in comments if states[item.id]["state"] == "draft"]
+                    drafts = [item for item in comments
+                              if states[item.id]["state"] == "draft" and item.done is None]
                     answers = [{"batch": item["batch"], "comment": {
                         "version": item["comment_version"], "id": item["comment"]["id"],
                     }} for item in self._questions() if item["state"] == "answered"]
@@ -1580,12 +1581,18 @@ class ReviewServer:
                     self._json(201 if created else 200, comment_to_dict(comment))
                 elif match:
                     comment_id = match.group(1)
+                    body = self._body() if self.command == "PATCH" else None
+                    if body is not None and "done" in body:
+                        if set(body) != {"done"}:
+                            raise ValidationError("done", "must be the only field in its request")
+                        self._json(200, comment_to_dict(review.store.set_comment_done(
+                            self._selected.sha256, comment_id, body["done"])))
+                        return
                     note = next((note for note in review.store.comments(self._selected.sha256)
                                  if note.id == comment_id), None)
                     if note is not None and (note.request or {}).get("type") == "caption_fix":
                         raise ValidationError("request", "use Undo caption fix to remove this fix")
                     if self.command == "PATCH":
-                        body = self._body()
                         if isinstance(body.get("request"), dict) and (
                             body["request"].get("type") == "caption_fix"
                         ):

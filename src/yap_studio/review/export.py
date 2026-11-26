@@ -18,6 +18,7 @@ from yap_studio.review.model import (
     legacy_kind,
     normalize_request,
     sorted_comments,
+    validate_stored_done,
     validate_stored_pin,
 )
 
@@ -68,11 +69,13 @@ def _target_text(comment: Comment, facts: MediaFacts,
 
 
 def comment_to_dict(comment: Comment) -> dict:
-    """Keep field order and append a pin only when it is present."""
+    """Keep field order and append a pin or done mark only when it is present."""
     record = {key: getattr(comment, key) for key in _COMMENT_KEYS}
     record["request"] = dict(comment.request) if comment.request is not None else None
     if comment.pin is not None:
         record["pin"] = dict(comment.pin)
+    if comment.done is not None:
+        record["done"] = dict(comment.done)
     return record
 
 
@@ -80,7 +83,7 @@ def comment_from_dict(data: dict, *, legacy: bool | None = None) -> Comment:
     """Rebuild an exact current or legacy record, optionally requiring one shape."""
     if isinstance(data, dict):
         if legacy is not True and set(_COMMENT_KEYS) - {"request"} <= data.keys() <= (
-            set(_COMMENT_KEYS) | {"pin"}
+            set(_COMMENT_KEYS) | {"pin", "done"}
         ):
             if data["kind"] not in ("keep", "fix"):
                 raise ValueError("kind must be 'keep' or 'fix'")
@@ -91,7 +94,8 @@ def comment_from_dict(data: dict, *, legacy: bool | None = None) -> Comment:
             pin = validate_stored_pin(data["pin"], **{
                 key: data[key] for key in ("start_frame", "end_frame", "start_s", "end_s")
             }) if "pin" in data else None
-            return Comment(**{**data, "request": request, "pin": pin})
+            done = validate_stored_done(data["done"]) if "done" in data else None
+            return Comment(**{**data, "request": request, "pin": pin, "done": done})
         if legacy is not False and set(data) == set(_LEGACY_COMMENT_KEYS):
             fields = {key: value for key, value in data.items() if key != "label"}
             return Comment(**fields, kind=legacy_kind(data["label"]), target=None)
@@ -176,7 +180,8 @@ def format_text(
         if facts.cfr and facts.fps is not None
         else "variable frame rate"
     )
-    ordered = sorted_comments(comments)
+    # Handled notes are not to-dos, so the text lists only open ones.
+    ordered = sorted_comments([comment for comment in comments if comment.done is None])
     version_text = f", version {version[0]} of {version[1]}" if version is not None else ""
     lines = [f"Feedback on {facts.name}{version_text} ({duration}, {rate})"]
     if reviewer:
@@ -191,6 +196,8 @@ def format_text(
         if keeps:
             parts.append(_plural(keeps, "keep"))
         counts += ": " + ", ".join(parts)
+    if len(ordered) < len(comments):
+        counts += f" ({len(comments) - len(ordered)} done, not listed)"
     lines.append(counts)
     if ordered:
         lines.append("")

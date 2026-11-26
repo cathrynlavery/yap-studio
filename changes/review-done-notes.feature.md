@@ -1,0 +1,3 @@
+- Review notes can be marked done with who handled them and an optional note. The Comments list and timeline show only open notes; Show N done reveals the rest, each with a Reopen button, and the list says "All notes handled." when nothing is open.
+- Agents mark notes with `yap-studio review done MEDIA --comment ID --by NAME [--note TEXT]`, or `--reopen`, or by sending `{"done": {"by": ..., "note": ...}}` (or `{"done": null}`) to the comment's PATCH route.
+- Done notes are not sent as drafts, do not count as unsent fixes, and are left out of the copied feedback text; the JSON export keeps their `done` record.

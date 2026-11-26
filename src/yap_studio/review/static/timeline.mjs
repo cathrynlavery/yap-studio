@@ -340,9 +340,15 @@ export function sendStateLabel(send) {
   return 'Draft';
 }
 
-/** Describe the number of saved drafts ready for a new round. */
+/** Say who handled a done note and how. */
+export function doneText(done) {
+  return `Done by ${done.by}${done.note ? `: ${done.note}` : ''}`;
+}
+
+/** Describe the number of saved drafts ready for a new round; a done note is not a draft. */
 export function draftNotesText(comments, questions = []) {
-  const count = comments.filter((item) => (item.send?.state ?? 'draft') === 'draft').length;
+  const count = comments.filter((item) => !item.done
+    && (item.send?.state ?? 'draft') === 'draft').length;
   const answers = questions.filter((item) => item.state === 'answered').length;
   return `${count} draft ${count === 1 ? 'note' : 'notes'}${answers ? `, ${answers} ${answers === 1 ? 'answer' : 'answers'}` : ''}`;
 }

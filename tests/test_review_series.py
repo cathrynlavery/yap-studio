@@ -204,6 +204,22 @@ def test_threads_open_carry_forward_latest_reply_and_timeline_order(tmp_path: Pa
     assert len(store.series(series.id).replies) == 3
 
 
+def test_threads_done_notes_keep_only_resolved_history(tmp_path: Path) -> None:
+    store = ReviewStore(tmp_path, now=lambda: NOW)
+    series = store.open_series(ENTRIES)
+    changed = _comment(store, 1)
+    unanswered = _comment(store, 1, frame=2)
+    clarification = _comment(store, 1, frame=8)
+    _reply(store, comment_id=changed.id)
+    _reply(store, comment_id=clarification.id, status="needs_clarification", text="Which card?")
+    for comment in (changed, unanswered, clarification):
+        store.set_comment_done(ENTRIES[0].sha256, comment.id, {"by": "editor"})
+
+    assert [(item.comment.id, item.state) for item in store.threads(series.id, 3)] == [
+        (changed.id, "changed"),
+    ]
+
+
 @pytest.mark.parametrize("state", ["open", *REPLY_STATUSES])
 def test_resolution_states(state: str) -> None:
     assert is_resolved(state) == (state in ("changed", "kept", "declined"))
