@@ -298,6 +298,10 @@ button.timestamp:hover { color: var(--ink); }
 .target-select { min-height: 44px; max-width: 100%; margin-top: 8px; padding: 0.4rem 0.65rem; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); color: var(--ink); font-size: 0.86rem; }
 .comment-text { margin: 11px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
 .comment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.comment.done .comment-text { color: var(--muted); }
+.send-state.done { color: var(--done-ink); }
+.done-toggle { margin-top: 8px; }
+.marker.done, .range-bar.done { opacity: 0.35; }
 .comment-actions button { padding: 0.36rem 0.7rem; font-size: 0.82rem; min-height: 36px; }
 .compose { margin: 16px 0; padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface-2); }
 .compose-head { align-items: baseline; }

@@ -11,7 +11,7 @@ import {
   TARGET_NAMES, targetName,
   defaultCompareVersion, mapStatusMessage, threadStateLabel, versionUrl,
   replyEvidence, replyHeading, replyMomentText, keepCheckText, changeText,
-  draftNotesText, roundStatusText, sendStateLabel, reviewPollInterval,
+  doneText, draftNotesText, roundStatusText, sendStateLabel, reviewPollInterval,
   questionsForComment, questionAnswerBody,
   spellingAvailable, spellingRequest, spellingText,
   requestText, editedRequest, removedKindName, visibleRemovedRanges, rangeRequested,
@@ -1531,7 +1531,8 @@ test('page attaches spelling, edits and clears drafts, and renders sent notes re
   assert.equal(row.querySelector('.spelling-text').textContent, 'Spelling: tail net -> tailnet');
   assert.equal(row.children[0].children[1].disabled, true);
   assert.equal(row.children[1].disabled, true);
-  assert.equal(row.querySelector('.comment-actions').children.length, 0);
+  assert.deepEqual(row.querySelector('.comment-actions').children.map((button) => button.textContent),
+    ['Done']);
   assert.equal(row.querySelector('.spelling-fields'), null);
   context.page.openCompose();
   context.page.setComposeTarget('caption');
@@ -1812,7 +1813,8 @@ test('page sends and retries the round version, polls progress, and locks rows',
   assert.equal(failedRow.children[0].children[1].disabled, false);
   assert.equal(failedRow.children[1].disabled, false);
   assert.equal(failedRow.children[2].textContent, 'Failed: Temporary cause.');
-  assert.deepEqual(failedRow.children[4].children.map((button) => button.textContent), ['Edit', 'Delete']);
+  assert.deepEqual(failedRow.children[4].children.map((button) => button.textContent),
+    ['Edit', 'Delete', 'Done']);
   assert.equal(element('round-list').children[0].children[1].textContent, 'Try again');
   await page.submitRound({...round(), version: 1});
   assert.equal(requests.filter((item) => item.options.method === 'POST').at(-1).path,
@@ -2059,4 +2061,96 @@ test('a story cut offers the final instead of approval when Yap Studio home is r
   assert.equal(timelineHelpers.storyCutStep(series, 2, null).hideApprove, false, 'without home, approval works as before');
   assert.equal(timelineHelpers.storyCutStep({...series, versions: [{number: 2}]}, 2, home).hideApprove, false,
     'an older server without the final flag keeps approval');
+});
+
+test('done notes say who handled them and are not drafts to send', () => {
+  assert.equal(doneText({by: 'editor', note: 'fixed in v12'}), 'Done by editor: fixed in v12');
+  assert.equal(doneText({by: 'Cat', note: null}), 'Done by Cat');
+  const done = {at: '2026-11-25T10:00:00Z', by: 'editor', note: null};
+  assert.equal(draftNotesText([{send: {state: 'draft'}, done}, {send: {state: 'draft'}}, {done}]),
+    '1 draft note');
+});
+
+test('page lists open notes, hides done ones behind a toggle, and keeps them off the timeline', async () => {
+  class Node {
+    constructor() {
+      this.children = []; this.attributes = {}; this.listeners = {}; this.dataset = {};
+      this.value = ''; this.textContent = ''; this.style = {setProperty() {}};
+      this.classList = {toggle() {}, add() {}, remove() {}};
+    }
+    addEventListener(name, handler) { this.listeners[name] = handler; }
+    setAttribute(key, value) { this.attributes[key] = value; }
+    getAttribute(key) { return this.attributes[key] ?? null; }
+    removeAttribute(key) { delete this.attributes[key]; }
+    replaceChildren(...children) { this.children = children; }
+    append(...children) { this.children.push(...children); }
+    insertBefore(child, before) { this.children.splice(this.children.indexOf(before), 0, child); }
+    querySelector() { return null; }
+    querySelectorAll() { return []; }
+    pause() {}
+  }
+  const elements = new Map();
+  const element = (id) => {
+    if (!elements.has(id)) elements.set(id, new Node());
+    return elements.get(id);
+  };
+  const note = (id, start_s, done = undefined) => ({id, kind: 'fix', target: null, text: `Note ${id}`,
+    start_frame: null, end_frame: null, start_s, end_s: null, request: null, ...(done ? {done} : {})});
+  const comments = [note('c1', 0.2), note('c2', 0.5, {at: '2026-11-25T10:00:00Z', by: 'editor',
+    note: 'fixed in v12'})];
+  const patches = [];
+  const context = vm.createContext({
+    ...timelineHelpers, URLSearchParams, Element: Node,
+    document: {getElementById: element, createElement: () => new Node(), addEventListener() {},
+      visibilityState: 'visible', activeElement: null},
+    location: new URL('http://review.example.net/?t=token'),
+    history: {replaceState() {}}, window: {addEventListener() {}},
+    setInterval() {}, clearInterval() {}, setTimeout() {}, clearTimeout() {},
+    fetch: async (path, options) => {
+      if (options.method === 'PATCH') {
+        patches.push({path, body: JSON.parse(options.body)});
+        return {ok: true, status: 200, json: async () => ({})};
+      }
+      return {ok: true, status: 200, json: async () => ({
+        media: {name: 'render.mp4', sha256: 'hash', duration_s: 1, cfr: false},
+        comments: structuredClone(comments), previous: null, text: '', media_changed: false,
+        reviewer: 'Cat', series: null, decision: null,
+      })};
+    },
+  });
+  const source = readFileSync(new URL('../../src/yap_studio/review/static/app.mjs', import.meta.url), 'utf8');
+  vm.runInContext(source.replace(/^import \{[\s\S]*?\} from '.\/timeline.mjs';/, '')
+    .replace(/start\(\);\s*$/, 'globalThis.page = {start, loadReview};'), context);
+  await context.page.start();
+  const buttons = (row) => row.children.find((child) => child.className === 'comment-actions')
+    .children.map((button) => button.textContent);
+  assert.equal(element('comment-count').textContent, '1');
+  assert.deepEqual(element('comment-list').children.map((row) => row.dataset.commentId), ['c1']);
+  assert.deepEqual(buttons(element('comment-list').children[0]), ['Edit', 'Delete', 'Done']);
+  assert.equal(element('done-toggle').hidden, false);
+  assert.equal(element('done-toggle').textContent, 'Show 1 done');
+  assert.equal(element('done-list').hidden, true);
+  assert.equal(element('markers').children.length, 1);
+
+  element('comment-list').children[0].children.find((child) => child.className === 'comment-actions')
+    .children.at(-1).listeners.click({stopPropagation() {}});
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(patches[0], {path: 'api/comments/c1', body: {done: {by: 'Cat'}}});
+  comments[0].done = {at: '2026-11-25T10:01:00Z', by: 'Cat', note: null};
+  await context.page.loadReview();
+  assert.equal(element('comment-list').children.length, 0);
+  assert.equal(element('comment-count').textContent, '0');
+  assert.equal(element('empty-state').hidden, false);
+  assert.equal(element('empty-state').textContent, 'All notes handled.');
+  assert.equal(element('markers').children.length, 0);
+
+  element('done-toggle').listeners.click();
+  assert.equal(element('done-toggle').textContent, 'Hide 2 done');
+  assert.equal(element('done-list').hidden, false);
+  const done = element('done-list').children;
+  assert.deepEqual(done.map((row) => row.dataset.commentId), ['c1', 'c2']);
+  assert.equal(done[1].children.find((child) => child.className === 'send-state done').textContent,
+    'Done by editor: fixed in v12');
+  assert.deepEqual(buttons(done[1]), ['Reopen']);
+  assert.equal(element('markers').children.length, 2);
 });

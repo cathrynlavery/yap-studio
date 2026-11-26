@@ -824,3 +824,51 @@ for number in range(10):
         f"c{number}" for number in range(1, 41)
     }
     assert document["next_id"] == 41
+
+
+def test_done_mark_hides_note_from_to_dos_and_keeps_its_revision(tmp_path: Path) -> None:
+    store = ReviewStore(tmp_path / "data", now=lambda: NOW)
+    fix = store.add_comment(SHA, _facts(), _payload(3))
+    keep = store.add_comment(SHA, _facts(), {**_payload(6), "kind": "keep"})
+    file = store.root / "reviews" / f"{SHA}.json"
+    assert b'"done"' not in file.read_bytes()
+    sent = store.send_media_notes(SHA)
+    assert sent["unsent_fixes"] == 0
+
+    done = store.set_comment_done(SHA, fix.id, {"by": " editor ", "note": "fixed in v12"})
+    assert done.done == {"at": "2026-09-29T12:34:56Z", "by": "editor", "note": "fixed in v12"}
+    assert done.updated_at == fix.updated_at
+    assert ReviewStore(store.root).comments(SHA)[0] == done
+    assert store.decision(SHA)["notes_sent"]["fixes"] == 1
+    # Editing a done note keeps it done; it still does not count as a fix to send.
+    edited = store.update_comment(SHA, _facts(), fix.id, {"text": "Changed"})
+    assert edited.done == done.done and store.decision(SHA)["unsent_fixes"] == 0
+    text = format_text(_facts(), store.comments(SHA), None, NOW.date())
+    assert "1 comment: 1 keep (1 done, not listed)" in text and "Changed" not in text
+    assert to_export_json(_facts(), store.comments(SHA), None, NOW)["comments"][0]["done"]
+
+    assert store.set_comment_done(SHA, fix.id, None).done is None
+    assert "done" not in json.loads(file.read_text())["comments"][0]
+    assert store.decision(SHA)["unsent_fixes"] == 1
+    for bad in ({}, {"by": ""}, {"by": "x" * 41}, {"by": "a\nb"}, {"by": "a", "at": "now"},
+                {"by": "a", "note": "x" * 281}, "yes"):
+        with pytest.raises(ValidationError, match="done"):
+            store.set_comment_done(SHA, keep.id, bad)
+    with pytest.raises(UnknownCommentError):
+        store.set_comment_done(SHA, "c9", {"by": "a"})
+
+
+@pytest.mark.parametrize("done", [{"at": "now", "by": "a", "note": None},
+                                  {"at": "2026-09-29T12:34:56Z", "by": "a"},
+                                  {"at": "2026-09-29T12:34:56Z", "by": "", "note": None}])
+def test_invalid_stored_done_is_refused_and_file_untouched(tmp_path: Path, done) -> None:
+    store = ReviewStore(tmp_path / "data", now=lambda: NOW)
+    store.add_comment(SHA, _facts(), _payload())
+    file = store.root / "reviews" / f"{SHA}.json"
+    data = json.loads(file.read_text())
+    data["comments"][0]["done"] = done
+    file.write_text(json.dumps(data))
+    before = file.read_bytes()
+    with pytest.raises(InputError, match="not a valid review file"):
+        ReviewStore(store.root).comments(SHA)
+    assert file.read_bytes() == before

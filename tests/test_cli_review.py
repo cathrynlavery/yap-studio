@@ -717,3 +717,30 @@ def test_review_subprocess(tmp_path: Path) -> None:
             process.wait(timeout=5)
         stdout_thread.join(timeout=1)
         stderr_thread.join(timeout=1)
+
+
+def test_review_done_marks_and_reopens_a_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    from fractions import Fraction
+
+    from yap_studio.review.model import MediaFacts
+
+    monkeypatch.setenv("YAP_STUDIO_DATA_DIR", str(tmp_path / "data"))
+    clip = tmp_path / "clip.mp4"
+    clip.write_bytes(b"not really a video")
+    store = ReviewStore(tmp_path / "data")
+    sha = store.hash_media(clip).sha256
+    store.add_comment(sha, MediaFacts("clip.mp4", sha, 2.0, Fraction(30), True),
+                      {"text": "Trim", "start_frame": 3})
+    assert main(["review", "done", str(clip), "--comment", "c1", "--by", "editor",
+                 "--note", "fixed in v12", "--json"]) == 0
+    done = json.loads(capsys.readouterr().out)["done"]
+    assert (done["by"], done["note"]) == ("editor", "fixed in v12")
+    assert main(["review", "done", str(clip), "--comment", "c1", "--reopen"]) == 0
+    assert capsys.readouterr().out == "Reopened c1.\n"
+    assert store.comments(sha)[0].done is None
+    assert main(["review", "done", str(clip), "--comment", "c1"]) == 2
+    assert "--reopen" in capsys.readouterr().err
+    assert main(["review", "done", str(clip), "--comment", "c7", "--by", "editor"]) == 2
+    assert "unknown comment: c7" in capsys.readouterr().err

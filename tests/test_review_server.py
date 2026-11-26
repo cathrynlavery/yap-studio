@@ -843,6 +843,38 @@ def test_spelling_http_retry_serializes_and_reuses_written_batch(
     assert not (round_project / "feedback" / "b2.json").exists()
 
 
+def test_done_note_is_hidden_from_send_and_can_be_marked_after_sending(
+    round_project: Path, tmp_path: Path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(server_module, "_QuietThreadingHTTPServer",
+                        lambda *_args: SimpleNamespace(server_port=0, server_close=lambda: None))
+    store = ReviewStore(tmp_path / "data")
+    video = version_video([str(round_project)], store, lambda _: [])
+    server = ReviewServer(video.media, video.sha256, None, store, token="test-token",
+                          series=video.series, send_runner=lambda work: None)
+    for frame in (18, 21):
+        assert _in_process_request(server, "POST", "/api/comments", {
+            "text": f"Fix at {frame}", "target": "caption", "start_frame": frame,
+        })[0] == 201
+    route = "/api/comments/c1"
+    assert _in_process_request(server, "PATCH", route, {"done": {"by": "editor"},
+                                                        "text": "x"})[0] == 400
+    status, _, payload = _in_process_request(server, "PATCH", route, {
+        "done": {"by": "editor", "note": "fixed in v2"}})
+    assert status == 200 and json.loads(payload)["done"]["note"] == "fixed in v2"
+    review = json.loads(_in_process_request(server, "GET", "/api/review")[2])
+    assert review["comments"][0]["done"]["by"] == "editor"
+    assert "(1 done, not listed)" in review["text"] and "Fix at 18" not in review["text"]
+    status, _, payload = _in_process_request(server, "POST", "/api/rounds", {})
+    assert status == 202 and [ref["id"] for ref in json.loads(payload)["comments"]] == ["c2"]
+    # The sent note is locked against edits, yet it can still be marked handled.
+    assert _in_process_request(server, "PATCH", "/api/comments/c2", {"text": "y"})[0] == 409
+    assert _in_process_request(server, "PATCH", "/api/comments/c2",
+                               {"done": {"by": "editor"}})[0] == 200
+    assert _in_process_request(server, "PATCH", route, {"done": None})[0] == 200
+    assert store.comments(video.sha256)[0].done is None
+
+
 def _in_process_request(
     server: ReviewServer, method: str, route: str, body: object = None, *,
     token: str | None = "test-token", host: str | None = None,

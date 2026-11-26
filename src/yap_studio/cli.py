@@ -522,6 +522,30 @@ def _review_approval(store, video) -> dict | None:
     return {"approved_at": record["approved_at"], "reviewer": None}
 
 
+def _review_done(args: argparse.Namespace) -> int:
+    """Mark one saved review note handled, or reopen it."""
+    from yap_studio.review.export import comment_to_dict
+    from yap_studio.review.store import ReviewStore, data_dir
+
+    try:
+        if args.reopen == (args.by is not None) or (args.reopen and args.note is not None):
+            raise ValidationError("review done", "give --by NAME (and --note TEXT), or --reopen")
+        store = ReviewStore(data_dir())
+        sha256 = store.hash_media(args.media).sha256
+        comment = store.set_comment_done(
+            sha256, args.comment, None if args.reopen else {"by": args.by, "note": args.note})
+    except YapError as exc:
+        _review_error(exc, json_output=args.json)
+        return 2
+    if args.json:
+        print(json.dumps(comment_to_dict(comment)))
+    elif comment.done is None:
+        print(f"Reopened {comment.id}.")
+    else:
+        print(f"Marked {comment.id} done by {comment.done['by']}.")
+    return 0
+
+
 def _review(args: argparse.Namespace) -> int:
     """Start local review sessions for videos on one server."""
     from yap_studio.review import detach
@@ -1803,7 +1827,10 @@ def _parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--artifacts", metavar="DIR")
     verify_parser.add_argument("--detail", choices=("summary", "full"), default="summary")
     verify_parser.set_defaults(func=_verify)
-    review_parser = subparsers.add_parser("review", help="review a render and leave timed comments")
+    review_parser = subparsers.add_parser(
+        "review", help="review a render and leave timed comments",
+        epilog="To mark a note handled: yap-studio review done MEDIA --comment ID --by NAME "
+        "[--note TEXT], or --reopen.")
     review_parser.add_argument("media", nargs="*", metavar="MEDIA")
     review_parser.add_argument(
         "--versions", action="store_true",
@@ -1965,6 +1992,18 @@ def _argument_parser(arguments: list[str]) -> tuple[argparse.ArgumentParser, lis
 
         parser = record_parser()
         arguments = arguments[1:]
+    elif arguments[:2] == ["review", "done"]:
+        parser = argparse.ArgumentParser(
+            prog="yap-studio review done",
+            description="mark a review note handled so the review page hides it, or reopen it")
+        parser.add_argument("media", metavar="MEDIA")
+        parser.add_argument("--comment", required=True, metavar="ID")
+        parser.add_argument("--by", metavar="NAME", help="who handled it")
+        parser.add_argument("--note", metavar="TEXT", help="what was done, e.g. 'fixed in v12'")
+        parser.add_argument("--reopen", action="store_true", help="make the note open again")
+        parser.add_argument("--json", action="store_true")
+        parser.set_defaults(func=_review_done)
+        arguments = arguments[2:]
     elif arguments[:2] == ["words", "fix"]:
         parser = argparse.ArgumentParser(prog="yap-studio words fix")
         parser.add_argument("directory", metavar="DIR")

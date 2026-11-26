@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from dataclasses import dataclass, replace
+from datetime import datetime
 from fractions import Fraction
 from typing import Literal
 
@@ -44,6 +46,7 @@ class Comment:
     covers delivery and pauses. Caption covers caption text or appearance.
     Element covers an on-screen title, card, insert, or zoom. Video covers the
     whole video. A keep protects only its target. A keep with no target is read as story.
+    A comment with ``done`` has been handled; one without is still open.
     """
 
     id: str
@@ -58,6 +61,37 @@ class Comment:
     updated_at: str
     request: dict | None = None
     pin: dict | None = None
+    done: dict | None = None
+
+
+def _done_text(value: object, limit: int, parameter: str) -> str:
+    if not isinstance(value, str):
+        raise ValidationError(parameter, "must be a string")
+    text = value.strip()
+    if not 1 <= len(text) <= limit or any(unicodedata.category(char) == "Cc" for char in text):
+        raise ValidationError(parameter, f"must be 1 to {limit} characters on one line")
+    return text
+
+
+def normalize_done(value: object, *, at: str) -> dict | None:
+    """Validate a done mark of who handled a note and how; None reopens it."""
+    if value is None:
+        return None
+    if not isinstance(value, dict) or "by" not in value or not set(value) <= {"by", "note"}:
+        raise ValidationError("done", "must contain by and an optional note")
+    note = value.get("note")
+    return {"at": at, "by": _done_text(value["by"], 40, "done.by"),
+            "note": None if note is None or note == "" else _done_text(note, 280, "done.note")}
+
+
+def validate_stored_done(value: object) -> dict:
+    """Validate the complete stored done mark."""
+    if not isinstance(value, dict) or set(value) != {"at", "by", "note"} or not isinstance(
+        value["at"], str
+    ):
+        raise ValidationError("done", "must contain exactly at, by and note")
+    datetime.fromisoformat(value["at"])
+    return normalize_done({"by": value["by"], "note": value["note"]}, at=value["at"])
 
 
 _PIN_SPAN_ERROR = "must be on a frame inside the note; move or remove the pin"

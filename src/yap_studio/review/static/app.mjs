@@ -12,7 +12,7 @@ import {
   TARGET_NAMES, targetName, mapBlockPosition,
   defaultCompareVersion, mapStatusMessage, threadStateLabel, versionUrl,
   replyEvidence, replyHeading, replyMomentText, keepCheckText, changeText,
-  draftNotesText, roundStatusText, sendStateLabel, reviewPollInterval, projectTitle, homeUrl, phoneLinkLabel, sendNextText, storyCutStep,
+  doneText, draftNotesText, roundStatusText, sendStateLabel, reviewPollInterval, projectTitle, homeUrl, phoneLinkLabel, sendNextText, storyCutStep,
   questionsForComment, questionAnswerBody,
   spellingAvailable, spellingRequest, requestText, editedRequest,
   wordsInRange, cutWordsText, cutState, cutBody, rangeLengthText,
@@ -56,6 +56,7 @@ const el = {
   previousMessage: $('previous-message'), previousView: $('previous-view'),
   previousCopy: $('previous-copy'), previousText: $('previous-text'),
   count: $('comment-count'), empty: $('empty-state'), list: $('comment-list'),
+  doneToggle: $('done-toggle'), doneList: $('done-list'),
   compose: $('compose'), composeTime: $('compose-time'), composeText: $('compose-text'),
   composeError: $('compose-error'), composeSubmit: $('compose-submit'),
   composeCancel: $('compose-cancel'), composeFix: $('compose-fix'),
@@ -179,6 +180,10 @@ let mapGeneration = 0;
 let suppressMatchUntil = 0;
 let openingReplyEvidence = false;
 let replyEvidenceTime = null;
+const showDoneKey = `yap-review-show-done:${location.pathname}`;
+let showDone = false;
+const emptyText = el.empty.textContent;
+const openComments = () => (review?.comments ?? []).filter((item) => !item.done);
 const mediaChangedMessage = () => `This video changed after the page opened. Ask ${agentName()} to open the review again to see the new one.`;
 
 function showStatus(message) {
@@ -947,7 +952,7 @@ function renderHeader() {
     const label = home && home === review.home?.phone_url ? phoneLinkLabel(review.home.phone_via) : '';
     el.homeLink.textContent = 'Back to Yap Studio' + (label ? ` · ${label}` : '');
   }
-  el.copy.disabled = review.comments.length === 0;
+  el.copy.disabled = openComments().length === 0;
   const phoneLink = $('phone-link');
   if (phoneLink) {
     phoneLink.hidden = !review.phone;
@@ -1967,7 +1972,7 @@ async function saveAnswer(question, answer, option, card, errorNode, key) {
 function unsentFixCount() {
   const sent = new Set((review?.decision?.notes_sent?.comments ?? [])
     .map((item) => `${item.id} ${item.revision}`));
-  return (review?.comments ?? []).filter((item) => item.kind === 'fix'
+  return openComments().filter((item) => item.kind === 'fix'
     && !sent.has(`${item.id} ${item.updated_at}`)).length;
 }
 
@@ -2077,7 +2082,7 @@ function renderSendBar() {
   el.draftCount.textContent = draftNotesText(review.comments, series.questions);
   el.sendNotes.disabled = offline || releaseBusy || roundBusy || answerBusy || composeBusy
     || Boolean(editState) || switchingVersion || tasteSaving.size > 0 || voiceFixSaving.size > 0
-    || review.media_changed || (!review.comments.some((item) => item.send?.state === 'draft')
+    || review.media_changed || (!openComments().some((item) => item.send?.state === 'draft')
       && !series.questions?.some((item) => item.state === 'answered'))
     || series.rounds.some((item) => item.version === selectedVersion && item.status === 'sending');
   el.roundList.replaceChildren();
@@ -2200,18 +2205,20 @@ function renderMarkers() {
     el.scrubber.style.setProperty('--lane-height', '0px');
     return;
   }
-  for (const comment of sortComments(review.comments)) {
+  const shown = sortComments(showDone ? review.comments : openComments());
+  for (const comment of shown) {
     if (comment.end_frame !== null || comment.end_s !== null) continue;
     const time = fps && comment.start_frame !== null
       ? frameMid(comment.start_frame, fps) : comment.start_s;
-    const marker = makeButton('', `marker ${comment.kind}`, () => seekComment(comment));
+    const marker = makeButton('', `marker ${comment.kind}${comment.done ? ' done' : ''}`,
+      () => seekComment(comment));
     marker.setAttribute('aria-label', `${spanText(comment, fps)} ${comment.kind}: ${comment.text}`);
     marker.title = `${spanText(comment, fps)} · ${comment.kind}`;
     marker.style.setProperty('--position', `${Math.max(0, Math.min(100, time / length * 100))}%`);
     marker.addEventListener('pointerdown', (event) => event.stopPropagation());
     el.markers.append(marker);
   }
-  const ranges = sortComments(review.comments).filter((comment) =>
+  const ranges = shown.filter((comment) =>
     comment.end_frame !== null || comment.end_s !== null).map((comment) => ({
     comment,
     start: fps && comment.start_frame !== null
@@ -2224,7 +2231,8 @@ function renderMarkers() {
   el.scrubber.style.setProperty('--lane-height', `${count * 15}px`);
   for (const range of placed) {
     const {comment} = range;
-    const bar = makeButton('', `range-bar ${comment.kind}`, () => seekComment(comment));
+    const bar = makeButton('', `range-bar ${comment.kind}${comment.done ? ' done' : ''}`,
+      () => seekComment(comment));
     bar.setAttribute('aria-label', `${spanText(comment, fps)} ${comment.kind}: ${comment.text}`);
     bar.title = `${spanText(comment, fps)} · ${comment.kind}`;
     bar.style.setProperty('--start', `${timelinePercent(range.start)}%`);
@@ -2432,18 +2440,23 @@ function renderComments() {
   const comments = sortComments(review.comments);
   const editFocus = editState && [editState.textarea, editState.spelling.wrong,
     editState.spelling.right].includes(document.activeElement) ? document.activeElement : null;
-  if (editState && !comments.some((comment) => comment.id === editState.id
+  if (editState && !comments.some((comment) => comment.id === editState.id && !comment.done
     && !['sending', 'sent'].includes(comment.send?.state))) {
     editState = null;
     clearSelection();
   }
-  el.count.textContent = String(review.comments.length);
-  el.empty.hidden = review.comments.length !== 0;
+  const doneCount = comments.filter((comment) => comment.done).length;
+  el.doneToggle.hidden = doneCount === 0;
+  el.doneToggle.textContent = showDone ? `Hide ${doneCount} done` : `Show ${doneCount} done`;
+  el.doneToggle.setAttribute('aria-expanded', String(showDone));
+  el.doneList.hidden = !showDone || doneCount === 0;
   el.list.replaceChildren();
+  el.doneList.replaceChildren();
   for (const comment of comments) {
-    const locked = ['sending', 'sent'].includes(comment.send?.state);
+    const {done} = comment;
+    const locked = ['sending', 'sent'].includes(comment.send?.state) || Boolean(done);
     const row = document.createElement('li');
-    row.className = `comment${selectedId === comment.id ? ' selected' : ''}`;
+    row.className = `comment${done ? ' done' : ''}${selectedId === comment.id ? ' selected' : ''}`;
     row.dataset.commentId = comment.id;
     const top = document.createElement('div');
     top.className = 'comment-top';
@@ -2486,9 +2499,13 @@ function renderComments() {
         actions.append(makeButton('Clear request', '', () => changeComment(comment.id, {request: null})));
       }
     }
+    // A sent note is often the one that gets handled, so Done ignores the send lock.
+    actions.append(done ? makeButton('Reopen', '', () => changeComment(comment.id, {done: null}))
+      : makeButton('Done', '', () => changeComment(comment.id,
+        {done: {by: review.reviewer || 'Reviewer'}})));
     const sendState = document.createElement('p');
-    sendState.className = `send-state ${comment.send?.state ?? 'draft'}`;
-    sendState.textContent = sendStateLabel(comment.send);
+    sendState.className = `send-state ${done ? 'done' : comment.send?.state ?? 'draft'}`;
+    sendState.textContent = done ? doneText(done) : sendStateLabel(comment.send);
     row.append(top, target, sendState, content, actions);
     if (comment.pin) {
       const spot = document.createElement('p');
@@ -2506,7 +2523,7 @@ function renderComments() {
     row.addEventListener('click', (event) => {
       if (!event.target.closest('button, textarea, input, select, label')) seekComment(comment);
     });
-    el.list.append(row);
+    (done ? el.doneList : el.list).append(row);
     if (editState?.id === comment.id) mountEdit(row, editState);
   }
   renderPendingNotes();
@@ -2795,13 +2812,21 @@ async function loadPendingNotes() {
   renderPendingNotes();
 }
 
-function renderPendingNotes() {
-  if (!outbox) return;
-  for (const row of el.list.querySelectorAll('.comment.pending')) row.remove();
-  if (!review) return;
-  const count = review.comments.length + pendingNotes.length;
+function renderOpenCount() {
+  const count = openComments().length + pendingNotes.length;
   el.count.textContent = String(count);
   el.empty.hidden = count !== 0;
+  el.empty.textContent = count === 0 && review.comments.length ? 'All notes handled.' : emptyText;
+}
+
+function renderPendingNotes() {
+  if (!outbox) {
+    if (review) renderOpenCount();
+    return;
+  }
+  for (const row of el.list.querySelectorAll('.comment.pending')) row.remove();
+  if (!review) return;
+  renderOpenCount();
   for (const item of pendingNotes) {
     const comment = offlineKit.pendingComment(item);
     const row = document.createElement('li');
@@ -3066,6 +3091,13 @@ function wireEvents() {
     applyPlaybackSpeed();
     try { sessionStorage.setItem('yap-review-speed', el.playbackSpeed.value); } catch { /* Kept for this video. */ }
   });
+  try { showDone = sessionStorage.getItem(showDoneKey) === '1'; } catch { /* Starts hidden. */ }
+  el.doneToggle.addEventListener('click', () => {
+    showDone = !showDone;
+    try { sessionStorage.setItem(showDoneKey, showDone ? '1' : '0'); } catch { /* Kept for this view. */ }
+    renderComments();
+    renderMarkers();
+  });
   el.videoMap.setAttribute('data-expanded', 'false');
   el.videoMapToggle.setAttribute('aria-expanded', 'false');
   el.videoMapToggle.addEventListener('click', () => {
@@ -3217,7 +3249,7 @@ function wireEvents() {
   el.composeClearRange.addEventListener('click', clearSelection);
   el.selectionClear.addEventListener('click', clearSelection);
   el.copy.addEventListener('click', () => {
-    if (review?.comments.length) copyText(review.text, review.comments.length);
+    if (openComments().length) copyText(review.text, openComments().length);
   });
   el.previousCopy.addEventListener('click', () => {
     if (review?.previous) copyText(review.previous.text, review.previous.count);

@@ -27,6 +27,7 @@ from yap_studio.review.model import (
     Comment,
     MediaFacts,
     conform_comment,
+    normalize_done,
     normalize_input,
     sorted_comments,
 )
@@ -400,8 +401,8 @@ class ReviewStore:
     def _decision_view(decision: dict, comments: Sequence[Comment]) -> dict:
         sent = decision["notes_sent"]
         refs = {(ref["id"], ref["revision"]) for ref in (sent or {}).get("comments", ())}
-        unsent = [item for item in comments
-                  if item.kind == "fix" and (item.id, item.updated_at) not in refs]
+        unsent = [item for item in comments if item.kind == "fix" and item.done is None
+                  and (item.id, item.updated_at) not in refs]
         return {
             "approved": dict(decision["approved"]) if decision["approved"] else None,
             "notes_sent": {
@@ -612,9 +613,27 @@ class ReviewStore:
                         **fields,
                         created_at=current.created_at,
                         updated_at=timestamp,
+                        done=current.done,
                     )
                     review["comments"][position] = comment_to_dict(updated)
                     review["media"] = self._media(facts)
+                    self._write(self._review_path(sha256), review)
+                    return updated
+            raise UnknownCommentError(comment_id)
+
+    def set_comment_done(self, sha256: str, comment_id: str, done: dict | None) -> Comment:
+        """Mark a comment handled, or reopen it with None, keeping its revision.
+
+        A sent note is often the one that gets handled, so the send lock does not apply,
+        and the unchanged revision keeps it matched to the round or send that carried it.
+        """
+        clean = normalize_done(done, at=self._timestamp())
+        with self._write_lock():
+            review = self._review(sha256)
+            for position, item in enumerate(review["comments"]):
+                if item["id"] == comment_id:
+                    updated = replace(comment_from_dict(item), done=clean)
+                    review["comments"][position] = comment_to_dict(updated)
                     self._write(self._review_path(sha256), review)
                     return updated
             raise UnknownCommentError(comment_id)
