@@ -441,7 +441,7 @@ class ReviewStore:
             return self._decision_view(decision, comments)
 
     def send_media_notes(self, sha256: str) -> dict:
-        """Mark every current note on this file as sent; a new Fix is required."""
+        """Mark every open note on this file as sent; a new Fix is required."""
         with self._write_lock():
             decision = self._decision(sha256)
             comments = [comment_from_dict(item) for item in self._review(sha256)["comments"]]
@@ -451,7 +451,7 @@ class ReviewStore:
             decision["notes_sent"] = {
                 "sent_at": self._timestamp(),
                 "comments": [{"id": item.id, "revision": item.updated_at, "kind": item.kind}
-                             for item in sorted_comments(comments)],
+                             for item in sorted_comments(comments) if item.done is None],
             }
             self._write(self._decision_path(sha256), decision)
             return self._decision_view(decision, comments)

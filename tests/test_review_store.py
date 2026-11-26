@@ -850,12 +850,28 @@ def test_done_mark_hides_note_from_to_dos_and_keeps_its_revision(tmp_path: Path)
     assert store.set_comment_done(SHA, fix.id, None).done is None
     assert "done" not in json.loads(file.read_text())["comments"][0]
     assert store.decision(SHA)["unsent_fixes"] == 1
-    for bad in ({}, {"by": ""}, {"by": "x" * 41}, {"by": "a\nb"}, {"by": "a", "at": "now"},
+    for bad in ({}, {"by": ""}, {"by": "x" * 101}, {"by": "a\nb"}, {"by": "a", "at": "now"},
                 {"by": "a", "note": "x" * 281}, "yes"):
         with pytest.raises(ValidationError, match="done"):
             store.set_comment_done(SHA, keep.id, bad)
+    assert store.set_comment_done(SHA, keep.id, {"by": "x" * 100}).done["by"] == "x" * 100
     with pytest.raises(UnknownCommentError):
         store.set_comment_done(SHA, "c9", {"by": "a"})
+
+
+def test_send_media_notes_excludes_done_notes_and_reopening_leaves_unsent(tmp_path: Path) -> None:
+    store = ReviewStore(tmp_path / "data", now=lambda: NOW)
+    done = store.add_comment(SHA, _facts(), _payload(3))
+    open_note = store.add_comment(SHA, _facts(), _payload(6))
+    store.set_comment_done(SHA, done.id, {"by": "editor"})
+
+    sent = store.send_media_notes(SHA)
+    assert sent["notes_sent"]["comments"] == [
+        {"id": open_note.id, "revision": open_note.updated_at, "kind": "fix"},
+    ]
+    assert sent["unsent_fixes"] == 0
+    store.set_comment_done(SHA, done.id, None)
+    assert store.decision(SHA)["unsent_fixes"] == 1
 
 
 @pytest.mark.parametrize("done", [{"at": "now", "by": "a", "note": None},

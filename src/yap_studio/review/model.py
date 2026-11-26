@@ -80,7 +80,7 @@ def normalize_done(value: object, *, at: str) -> dict | None:
     if not isinstance(value, dict) or "by" not in value or not set(value) <= {"by", "note"}:
         raise ValidationError("done", "must contain by and an optional note")
     note = value.get("note")
-    return {"at": at, "by": _done_text(value["by"], 40, "done.by"),
+    return {"at": at, "by": _done_text(value["by"], 100, "done.by"),
             "note": None if note is None or note == "" else _done_text(note, 280, "done.note")}
 
 
